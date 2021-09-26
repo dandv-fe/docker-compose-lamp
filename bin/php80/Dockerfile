@@ -34,11 +34,11 @@ openssl && \
     curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 # Install xdebug
-RUN pecl install xdebug-3.0.0 && \
+RUN pecl install xdebug-3.0.4 && \
     docker-php-ext-enable xdebug
 
 # Install redis
-RUN pecl install redis-5.3.3 && \
+RUN pecl install redis-5.3.4 && \
     docker-php-ext-enable redis
 
 # Install imagick
@@ -98,6 +98,9 @@ RUN mkdir -p /var/run/apache2/
 RUN a2enmod ssl \
     && a2ensite default-ssl \
     && c_rehash /etc/apache2/ssl/
+
+# Fix Permissions
+RUN usermod -u 1000 www-data
 
 # Cleanup
 RUN rm -rf /usr/src/*
