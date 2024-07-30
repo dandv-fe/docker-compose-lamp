@@ -3,90 +3,137 @@ jQuery(document).ready(init);
 
 
 function init() {
-    $("form#formSearchCobrosDetallado").submit(function (e) {
-        e.preventDefault();
-        Search(false)
+  $("form#formSearchCobrosDetallado").submit(function (e) {
+    e.preventDefault();
+    Search(false)
+  });
+
+  $("#dateDeste").on("hide.datetimepicker", function (e) {
+    $("form#formSearchCobrosDetallado").trigger('submit');
+  });
+  $("#dateHasta").on("hide.datetimepicker", function (e) {
+    $("form#formSearchCobrosDetallado").trigger('submit');
+  });
+
+  Search(true)
+
+
+
+  function Search(ultimo) {
+
+    $.post("./ajax/UsuarioAjax.php", function (r) {
+      if (r === '0') {
+        location.reload(true);
+      }
     });
+    $("#txtUltimo").val(ultimo)
 
-    $("#dateDeste").on("hide.datetimepicker", function (e) {
-        $("form#formSearchCobrosDetallado").trigger('submit');
+
+    var formData = new FormData($("#formSearchCobrosDetallado")[0]);
+    var Tabla = $("#tblCobroDetallado").DataTable()
+    var Tabla1 = $("#tbl1").DataTable()
+    $.ajax({
+      url: "./ajax/CobroDetalladoAjax.php?op=Search",
+      type: "POST",
+      data: formData,
+      contentType: false,
+      processData: false,
+      dataType: "json",
+      success: function (datos) {
+        let recaudo = 0, abonos = 0, prestamos = 0, venta = 0, seguro = 0, diferencia = 0,
+          base = 0, efectivo = 0, monedas = 0, descuentos = 0, Utilidal = 0,
+          UtiNeta = 0,
+          Gastos = 0,
+          OtGastos = 0,
+          Salida = 0,
+          Entrada = 0;
+        Tabla.clear().draw();
+        Tabla1.clear().draw();
+        for (let i = 0; i < datos.length; i++) {
+          const val = datos[i];
+          Tabla.row
+            .add([
+              val[0],
+              val[1],
+              val[2],
+              val[3],//recaudo
+              val[4],
+              val[5],
+              val[6],
+              val[7],
+              val[8],
+              val[9],
+              val[10],
+              val[11],
+              val[12],
+              val[13],
+              val[14],
+              val[15],
+              val[16],
+              val[17],
+              val[18],
+              val[19],
+              val[20],
+              val[21],
+              val[22],
+              val[23],
+              val[24],
+
+            ]).draw(false);
+          recaudo += parseFloat(val[3]);
+          abonos += parseInt(val[4]);
+          prestamos += parseFloat(val[5]);
+          venta += parseFloat(val[6]);
+          seguro += parseFloat(val[7]);
+          diferencia += parseFloat(val[8]);
+          base += parseFloat(val[9]);
+          efectivo += parseFloat(val[10]);
+          monedas += parseFloat(val[11]);
+          descuentos += parseFloat(val[12]);
+          Utilidal += parseFloat(val[13]);
+          UtiNeta += parseFloat(val[14]);
+          Gastos += parseFloat(val[16]);
+          OtGastos += parseFloat(val[18]);
+          Salida += parseFloat(val[20]);
+          Entrada += parseFloat(val[22])
+        }
+
+        Tabla1.row
+            .add([
+              recaudo,
+              abonos,
+              prestamos,
+              venta,
+              seguro,
+              diferencia,
+              base,
+              efectivo,
+              monedas,
+              descuentos,
+              Utilidal,
+              UtiNeta,
+              Gastos,
+              OtGastos,
+              Salida,
+              Entrada
+
+            ]).draw(false);
+
+
+
+
+      }
+
     });
-    $("#dateHasta").on("hide.datetimepicker", function (e) {
-        $("form#formSearchCobrosDetallado").trigger('submit');
-    });
-
-    Search(true)
-
-
-
-    function Search(ultimo) {
-
-        $.post("./ajax/UsuarioAjax.php", function (r) {
-            if (r === '0') {
-                location.reload(true);
-            }
-        });
-        $("#txtUltimo").val(ultimo)
-
-
-        var formData = new FormData($("#formSearchCobrosDetallado")[0]);
-        var Tabla = $("#tblCobroDetallado").DataTable()
-        $.ajax({
-            url: "./ajax/CobroDetalladoAjax.php?op=Search",
-            type: "POST",
-            data: formData,
-            contentType: false,
-            processData: false,
-            dataType: "json",
-            success: function (datos) {
-                Tabla.clear().draw();
-                for (let i = 0; i < datos.length; i++) {
-                    const val = datos[i];
-                    Tabla.row
-                        .add([
-                            val[0],
-                            val[1],
-                            val[2],
-                            val[3],
-                            val[4],
-                            val[5],
-                            val[6],
-                            val[7],
-                            val[8],
-                            val[9],
-                            val[10],
-                            val[11],
-                            val[12],
-                            val[13],
-                            val[14],
-                            val[15],
-                            val[16],
-                            val[17],
-                            val[18],
-                            val[19],
-                            val[20],
-                            val[21],
-                            val[22],
-                            val[23],
-                            val[24],
-
-                        ]).draw(false);
-
-                }
-
-
-            }
-
-        });
-    };
+  };
 
 }
 
 function verFormContabilibad(params, codigo, tipo, caja) {
-   $("#txtcodigoSucursal").text(' '+tipo+': '+codigo);
-    $("#VerListado").hide()
-    $("#VerformContabilidad").show()
-    $("#txtTituloRecibir").text(tipo + ': ' + codigo);
+  $("#txtcodigoSucursal").text(' ' + tipo + ': ' + codigo);
+  $("#VerListado").hide()
+  $("#VerformContabilidad").show()
+  $("#txtTituloRecibir").text(tipo + ': ' + codigo);
 
 
   $.post("./ajax/UsuarioAjax.php", function (r) {
@@ -99,9 +146,9 @@ function verFormContabilibad(params, codigo, tipo, caja) {
 
 
 
-   
+
     if (!r[0]?.reg && r[0] != null) {
-      if ( r[3].length === 0 && r[6].length === 0 && r[7].length === 0 && r[8].length === 0) {
+      if (r[3].length === 0 && r[6].length === 0 && r[7].length === 0 && r[8].length === 0) {
         $("#alertNotGuardarEnContabilidad a").attr("href", r[0]?.refDetalle_ruta);
         $("#alertNotGuardarEnContabilidad").removeClass('hide')
       }
@@ -129,7 +176,7 @@ function verFormContabilibad(params, codigo, tipo, caja) {
     tblRecaudos.clear().draw();
 
 
-   
+
     $.each(r[1].filter((a) =>
       a.descripcion.indexOf("Intereces") === -1 &&
       a.descripcion.indexOf("Descuento") === -1
@@ -364,13 +411,13 @@ function verFormContabilibad(params, codigo, tipo, caja) {
       let trGastos = [];
       let gastosSuma = 0;
       trGastos.push(
-        r[3].filter(a => a.nombre != 'base' && 
-                        a.nombre != 'efectivo' && 
-                        a.nombre != "efectivoMonedas" && 
-                        a.nombre != "diferencia" &&
-                        a.nombre != "efectivo-otra-utilidad"
-                      
-                      ).map((v, i) => {
+        r[3].filter(a => a.nombre != 'base' &&
+          a.nombre != 'efectivo' &&
+          a.nombre != "efectivoMonedas" &&
+          a.nombre != "diferencia" &&
+          a.nombre != "efectivo-otra-utilidad"
+
+        ).map((v, i) => {
           gastosSuma += parseFloat(v.valor);
 
           const desc = v.refCategoria_contabilidad === '2' ? v.nombreEmpleado : v.descripcion;
@@ -412,18 +459,18 @@ function verFormContabilibad(params, codigo, tipo, caja) {
       var $bDiferencia = $("#txtDiferenciaCuentas");
       let classDiferencia = "";
       let textDiferencia;
-     
-        textDiferencia = '';
-        $("#btnTotalizarDataCobro").removeClass("hide");
-        $("#inputBaseInformacion").val(r[3].find(a => a.nombre === 'base')?.valor);
-        $("#inputEfectivoInformacion").val(r[3].find(a => a.nombre === 'efectivo')?.valor);
-        $("#inputMonedaInformacion").val(r[3].find(a => a.nombre === 'efectivoMonedas')?.valor);
-        textDiferencia = r[3].find(a => a.nombre === 'diferencia')?.valor;
-        $("#infoModificarDetalleRuta a").attr("href", r[0]?.refDetalle_ruta);
-        if (r[0].estado === 'entregando') $("#infoModificarDetalleRuta").removeClass("hide");
-        classDiferencia = "text-muted";
-        $("#btnDataCobro").addClass("hide");
-      
+
+      textDiferencia = '';
+      $("#btnTotalizarDataCobro").removeClass("hide");
+      $("#inputBaseInformacion").val(r[3].find(a => a.nombre === 'base')?.valor);
+      $("#inputEfectivoInformacion").val(r[3].find(a => a.nombre === 'efectivo')?.valor);
+      $("#inputMonedaInformacion").val(r[3].find(a => a.nombre === 'efectivoMonedas')?.valor);
+      textDiferencia = r[3].find(a => a.nombre === 'diferencia')?.valor;
+      $("#infoModificarDetalleRuta a").attr("href", r[0]?.refDetalle_ruta);
+      if (r[0].estado === 'entregando') $("#infoModificarDetalleRuta").removeClass("hide");
+      classDiferencia = "text-muted";
+      $("#btnDataCobro").addClass("hide");
+
 
       $bDiferencia.parent().attr("class", "");
       $bDiferencia.parent().attr("class", classDiferencia);
@@ -573,4 +620,4 @@ function verFormContabilibad(params, codigo, tipo, caja) {
 
 
   });
-  }
+}

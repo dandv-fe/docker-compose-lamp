@@ -704,7 +704,7 @@ function cargarDataEmpleado(tipo_documento, num_documento, accion) {// funcion q
         $("#pTextDireccionEmpleado").text(data.departamento+', '+data.ciudad+', '+data.barrio+', '+data.calle);
         // para editar
         $("#txt_t_documento_em").val(data.t_documento);
-        $("#txt_cargo_en").val(data.refUsuario);
+        $("#txt_cargo_en").val(data.refPersona);
         $("#txt_n_documento_em").val(data.n_documento);
     }
     function nuevo() {

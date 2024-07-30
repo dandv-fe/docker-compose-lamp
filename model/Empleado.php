@@ -307,6 +307,7 @@ class Empleado
         $sql = "SELECT 
         e.idempleado AS refEmpleado,
             e.str_cargo AS cargo,
+            p.idpersona AS refPersona,
             CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado,
             p.str_foto AS foto,
             p.str_tipo_documento AS tDocumento,
