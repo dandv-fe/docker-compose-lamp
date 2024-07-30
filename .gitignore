@@ -14,8 +14,8 @@
 error_log
 /ajax/error_log
 /Files
-#/model/Conexion.php
-#/model/Conexion_up.php
+/model/Conexion.php
+/model/Conexion_up.php
 
 # testing
 /coverage
