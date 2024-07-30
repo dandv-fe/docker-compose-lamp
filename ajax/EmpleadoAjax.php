@@ -237,9 +237,11 @@ switch ($_GET["op"]) {
             echo json_encode($req);
             return;
         }
-        $query = $objEmpleado->buscarEmpleado($req->refPersona);
+        $refPersona=$req->refPersona;
+        $query = $objEmpleado->buscarEmpleado( $refPersona);
         $request = $query->fetch_object();
         if (isset($request->refEmpleado)) {
+            $req->refPersona=$refPersona;
             $req->refEmpleado = $request->refEmpleado;
             $req->apodo = $request->apodo;
             $req->cargo = $request->cargo;
@@ -264,7 +266,7 @@ switch ($_GET["op"]) {
         while ($reg = $query_Tipo->fetch_object()) {
             $btneditar = $reg->cargo != 'Super Administrador' ?
                 '<button class="btn btn-warning" title="Editar" onclick="cargarDataEmpleado(\'' . $reg->tDocumento . '\',\'' . $reg->nDocumento . '\',\'editar\')"><i class="fa-solid fa-user-pen fa-xl" style="color: #000000;"></i> </button>&nbsp;' :
-                '<button class="btn btn-info" title="Editar" onclick="cargarDataEmpleado(' . $reg->refEmpleado . ',\'' . $reg->nDocumento . '\',\'editarUser\')"><i class="fa-solid fa-user-pen fa-xl" style="color: #000000;"></i> </button>&nbsp;';
+                '<button class="btn btn-info" title="Editar" onclick="cargarDataEmpleado(' . $reg->refPersona . ',\'' . $reg->nDocumento . '\',\'editarUser\')"><i class="fa-solid fa-user-pen fa-xl" style="color: #000000;"></i> </button>&nbsp;';
 
                 $estado= $reg->estado=='activo'? '<span class="badge badge-success">Activo</span>': '<span class="badge badge-danger">Inactivo</span>';
             $data[] = array(

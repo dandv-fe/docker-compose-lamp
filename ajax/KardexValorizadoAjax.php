@@ -14,7 +14,6 @@ switch ($_GET["op"]) {
     $query= $objKardex->listKardex($idglobal,$superadmin,$createdEmpleadoId);
     $data = array();
         while ($reg = $query->fetch_object()) {
-
             $data[] = array(
                 $reg->codigo,
                 $reg->caja,
@@ -24,10 +23,8 @@ switch ($_GET["op"]) {
                 $reg->suma_mo,
                 $reg->n_re,
                 $reg->suma_re,
-                $reg->n_cli,
-               
-            );
-            $i++;
+                $reg->n_cli, 
+            );            
         }
         echo json_encode($data);
     break;

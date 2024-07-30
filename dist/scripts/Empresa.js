@@ -207,7 +207,7 @@ function cargarEmpresaCliente(tipo_documento, num_documento, accion) {
         $("#txt_Maxsucursal").val(data.mex_sucursal)
         $("#txt_estado").val(data.estadoEmpresa)
     }
-    function perfil(data) {
+    /*function perfil(data) {
         $("#img_empleado").text(data.foto)
         $("#txt_name_empleado").text(data.nombres + ' ' + data.apellidos)
         $("#txt_apodo_empleado").text(data.apodo)
@@ -219,7 +219,7 @@ function cargarEmpresaCliente(tipo_documento, num_documento, accion) {
         $("#txt_t_documento_em").val(data.t_documento);
         $("#txt_cargo_en").val(data.refUsuario);
         $("#txt_n_documento_em").val(data.n_documento);
-    }
+    }*/
     function nuevo() {
         $("#txt_tipo_documento").val(tipo_documento)
         $("#txt_tipo_documentoHidden").val(tipo_documento)
