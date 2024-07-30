@@ -1,0 +1,170 @@
+<!-- DataTables -->
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
+
+
+<!-- Tempusdominus Bootstrap 4 -->
+<link rel="stylesheet" href="plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css">
+
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.colVis.min.js"></script>
+
+
+<script src="plugins/moment/moment.min.js"></script>
+<script src="plugins/moment/locales.js"></script>
+
+<!-- Tempusdominus Bootstrap 4 -->
+<script src="plugins/tempusdominus-bootstrap-4/js/tempusdominus-bootstrap-4.min.js"></script>
+
+
+
+<script type="text/javascript" src="dist/scripts/TarjetasCanceladas.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0">Targetas Canceladas
+                    </h1>
+                </div><!-- /.col -->
+            </div><!-- /.row -->
+        </div><!-- /.container-fluid -->
+    </div>
+    <!-- /.content-header -->
+    <!-- Main content -->
+    <section class="content">
+        <div class="container-fluid">
+
+
+            <div class="row">
+                <div class="col-12">
+
+
+                    <div class="card">
+                        <div class="card-header">
+                            <form id="formSearchTarjetasCanceladas">
+                                <input type="hidden" name="txtUltimo" id="txtUltimo">
+                                <div class="card-header row m-0 p-0">
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label>Desde:</label>
+                                            <div class="input-group date " id="dateDeste" data-target-input="nearest">
+                                                <input required type="text" class="form-control datetimepicker-input"
+                                                    data-target="#dateDeste" id="txtFechaDesde" name="txtFechaDesde" />
+                                                <div class="input-group-append" data-target="#dateDeste"
+                                                    data-toggle="datetimepicker">
+                                                    <div class="input-group-text"><i class="fa fa-calendar"></i></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-group">
+                                            <label>Hasta:</label>
+                                            <div class="input-group date" id="dateHasta" data-target-input="nearest">
+                                                <input required type="text" class="form-control datetimepicker-input"
+                                                    data-target="#dateHasta" id="txtFechaHasta" name="txtFechaHasta" />
+                                                <div class="input-group-append" data-target="#dateHasta"
+                                                    data-toggle="datetimepicker">
+                                                    <div class="input-group-text"><i class="fa fa-calendar"></i></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <input type="submit" style="display: none;">
+                            </form>
+                        </div>
+                        <!-- /.card-header -->
+                        <div class="card-body table-responsive p-0">
+
+                            <table id="tblTarjetasCanceladas" class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Cancelo</th>
+                                        
+                                        <th>Costo</th>
+                                        <th>Credito</th>
+                                        <th>Cobro Adicional</th>
+                                        <th>Fecha-Cancelo</th>
+                                        <th>Fecha-Inicio</th>
+                                        <th>Cliente</th>
+                                        <th>Documento</th>
+                                        <th>Telefono</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+
+                                </tbody>
+                                <tfoot>
+                                    <tr>
+                                        <th>Cancelo</th>
+                                        
+                                        <th>Costo</th>
+                                        <th>Credito</th>
+                                        <th>Cobro Adicional</th>
+                                        <th>Fecha-Cancelo</th>
+                                        <th>Fecha-Inicio</th>
+                                        <th>Cliente</th>
+                                        <th>Documento</th>
+                                        <th>Telefono</th>
+                                    </tr>
+                                </tfoot>
+                            </table>
+                        </div>
+                        <!-- /.card-body -->
+                    </div>
+                    <!-- /.card -->
+                </div>
+                <!-- /.col -->
+            </div>
+        </div>
+    </section>
+</div>
+
+<script type="text/javascript">
+    $("#li-creditos").addClass('menu-open')
+    $("#lia-creditos").addClass('active')
+    $("#lia-tarjetasCanceladas").addClass('active')
+
+
+    var Tabla = $("#tblTarjetasCanceladas").DataTable({
+        "sort": false,
+        "responsive": true, "lengthChange": false, "autoWidth": false,
+        "buttons": ["csv", "excel", "pdf", "colvis"]
+    }).buttons().container().appendTo('#tblTarjetasCanceladas_wrapper .col-md-6:eq(0)');
+
+
+    //Date picker
+    const dateDesde = $('#dateDeste').datetimepicker({
+        format: 'YYYY-MM-DD',
+        date: moment(),
+        locale: 'es'
+    });
+
+
+
+    // dateDesde.locale(tempusDominus.locales['es'].es);
+    //Date picker
+    $('#dateHasta').datetimepicker({
+        format: 'YYYY-MM-DD',
+        date: moment(),
+        locale: 'es'
+    });
+
+</script>

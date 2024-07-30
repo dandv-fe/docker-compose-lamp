@@ -1,0 +1,82 @@
+<?php
+header('Content-Type: text/html; charset=UTF-8');
+?>
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sistema</title>
+
+    <!-- Google Font: Source Sans Pro -->
+    <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
+    <!-- Font Awesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- overlayScrollbars -->
+    <link rel="stylesheet" href="plugins/overlayScrollbars/css/OverlayScrollbars.min.css">
+    <!-- Theme style -->
+    <link rel="stylesheet" href="dist/css/adminlte.min.css">
+
+    <!-- Tempusdominus Bootstrap 4 -->
+    <link rel="stylesheet" href="plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css">
+    <!-- iCheck -->
+    <link rel="stylesheet" href="plugins/icheck-bootstrap/icheck-bootstrap.min.css">
+
+    <style>
+        .hide {
+            display: none;
+        }
+    </style>
+    <script type="text/javascript">
+        const versionDelsistema='<?php echo $infoSistemaCuentas["version"]; ?>';
+
+        </script>
+
+
+
+    <!-- jQuery -->
+    <script src="plugins/jquery/jquery.min.js"></script>
+    <!-- Bootstrap -->
+    <script src="plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <!-- AdminLTE -->
+    <script src="dist/js/adminlte.js"></script>
+
+
+    <script type="text/javascript" src="plugins/bootbox/bootbox.js"></script>
+
+    <script>
+        function capitalizarPalabras(val) {
+  //console.log(val)
+  return val.toLowerCase()
+    .trim()
+    .split(' ')
+    .map(v => (typeof (v[0]) == 'undefined') ? '' : v[0].toUpperCase() + v.substr(1))
+    .join(' ');
+}
+        /*// Definimos la URL que vamos a solicitar via Ajax
+        var ajax_url = "ajax/UsuarioAjax.php?op=seccionValidarHoja"
+        // Definimos los parámetros que vamos a enviar
+        var params = "parametro=" + window.name + "&otro_parametro=" + sessionStorage.getItem('userNameEmpleado');
+        // Creamos un nuevo objeto encargado de la comunicación
+        var ajax_request = new XMLHttpRequest();
+        // Definimos como queremos realizar la comunicación
+        ajax_request.open("POST", ajax_url, false);
+        // Ponemos las cabeceras de la solicitud como si fuera un formulario, necesario si se utiliza POST
+        ajax_request.setRequestHeader("Content-type", "application/x-www-form-urlencoded");
+        //Enviamos la solicitud junto con los parámetros
+        ajax_request.send(params);*/
+       /* if (window.name != '<?php echo $_SESSION["MYSESSION_idsucursal"]; ?>') {
+            window.location.href = window.location.href
+        }*/
+        
+    </script>
+
+</head>
+
+<body class="hold-transition sidebar-mini layout-fixed layout-navbar-fixed layout-footer-fixed">
+    <div class="wrapper">
+
+       

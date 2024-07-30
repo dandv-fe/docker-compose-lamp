@@ -1,0 +1,533 @@
+<!-- DataTables -->
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.colVis.min.js"></script>
+
+<script src="plugins/moment/moment.min.js"></script>
+<script src="plugins/moment/locales.js"></script>
+
+<!-- Tempusdominus Bootstrap 4 -->
+<script src="plugins/tempusdominus-bootstrap-4/js/tempusdominus-bootstrap-4.min.js"></script>
+
+
+<!-- SweetAlert2 -->
+<link rel="stylesheet" href="plugins/sweetalert2-theme-bootstrap-4/bootstrap-4.min.css">
+
+<!--<script type="text/javascript" src="dist/scripts/Perfil.js"></script>-->
+
+
+
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+  <!-- Content Header (Page header) -->
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1>Acceder </h1>
+        </div>
+        <div class="col-sm-6">
+
+        </div>
+      </div>
+    </div><!-- /.container-fluid -->
+  </section>
+
+  <!-- Main content -->
+  <section class="content">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-md-4">
+
+          <!-- Profile Image -->
+          <div class="card card-primary card-outline">
+            <div class="card-body box-profile p-0">
+              <div class="text-center">
+                <img class="profile-user-img img-fluid img-circle" src="<?PHP echo $_SESSION['logoEmpresa'];?>"
+                  alt="Logotipo">
+              </div>
+
+              <h3 class="profile-username text-center">
+                <?PHP echo $_SESSION['nameEmpresa'];?>
+              </h3>
+
+
+              <ul class="list-group list-group-unbordered mb-3">
+                <?php     
+                        foreach ($fetch as $clave => $valor) { ?>
+                <li class="list-group-item">
+                  <b>
+                    <?PHP echo $clave;?>
+                  </b> <a class="float-right">
+                    <?PHP echo $valor;?>
+                  </a>
+                </li>
+                <?php }
+                ?>
+
+              </ul>
+             
+            </div>
+            <!-- /.card-body -->
+          </div>
+          <!-- /.card -->
+        </div>
+        <!-- /.col -->
+
+
+        <div class="col-12 col-md-8">
+          <div class="card card-primary card-outline card-tabs">
+            <div class="card-header p-0 pt-1 border-bottom-0">
+              <ul class="nav nav-tabs" id="custom-tabs-three-tab" role="tablist">
+                <li class="nav-item">
+                  <a class="nav-link active" id="custom-tabs-three-home-tab" data-toggle="pill"
+                    href="#custom-tabs-three-home" role="tab" aria-controls="custom-tabs-three-home"
+                    aria-selected="true">Actividades</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" id="custom-tabs-liquidar-tab" data-toggle="pill" href="#custom-tabs-liquidar"
+                    role="tab" aria-controls="custom-tabs-liquidar" aria-selected="false">Ver Consumo</a>
+                </li>
+
+              </ul>
+            </div>
+            <div class="card-body p-0">
+              <div class="tab-content" id="custom-tabs-three-tabContent">
+                <div class="tab-pane fade show active" id="custom-tabs-three-home" role="tabpanel"
+                  aria-labelledby="custom-tabs-three-home-tab">
+                  <?php if($_SESSION['typeEmpresa'] === 'servicio'){ ?>
+                  <div class="card-header">
+                    <h3 class="card-title"> Lista de Empresas</h3>
+                  </div>
+
+                  <div class="card-body p-0">
+                    <table id="example2" class="table table-bordered table-hover">
+                      <thead>
+                        <tr>
+
+                          <th>Razón Social</th>
+                          <th>Super Administrador</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <?php 
+                          
+                          
+                        
+                          foreach ($allSucursal as $valor) {?>
+                        <tr>
+
+                          <td>
+                            <div class="user-block ">
+                              <img class="img-circle img-bordered-sm" src="<?PHP echo $valor[2];?>" alt="empleado">
+                              <span class="username">
+                                <a class="" href="#<?PHP echo $valor[0];?>">
+                                  <?PHP echo $valor[1];?>
+                                </a>
+
+                              </span>
+                            </div>
+                          </td>
+                          <td>
+                            <div class="user-block">
+                              <img class="img-circle img-bordered-sm" src="<?PHP echo $valor[6];?>" alt="empleado">
+                              <span class="username">
+                                <a href="#">
+                                  <?PHP echo $valor[4];?>
+                                </a>
+                              </span>
+                              <span class="description"> <b>Tel.: </b> <a class="lead text-lg" href="#">
+                                  <?PHP echo $valor[5];?>
+                                </a></span>
+                            </div>
+                          </td>
+                        </tr>
+                        <?php }
+                    ?>
+                      </tbody>
+                    </table>
+                  </div>
+                  <?php }else{ ?>
+                  <div class="card-header">
+                    <h3 class="card-title"> Lista de Actividades</h3>
+                  </div>
+
+                  <div class="card-body p-0">
+                    <table id="example2" class="table table-bordered table-hover">
+                      <thead>
+                        <tr>
+
+                          <th>Código</th>
+                          <th>Representante</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <?php 
+                        
+                      
+                        foreach ($allSucursal as $valor) {
+                          $seleted= $_SESSION['MYSESSION_idsucursal']==$valor[0]? 'checked':'';
+                          
+                          ?>
+                        <tr>
+
+                          <td>
+                            <div class="user-block ">
+                              <img class="img-circle img-bordered-sm" src="<?PHP echo $valor[9];?>" alt="empleado">
+                              <span class="username mt-0">
+
+
+                                <div class="icheck-success d-inline">
+                                  <input 
+                                    id="checkboxMontarSeccion_<?PHP echo $valor[0];?>" 
+                                    class="aMontarSeccionActividad" 
+                                    type="checkbox" 
+                                    data-rseccion="<?PHP echo $_SESSION['MYSESSION_idsucursal']==$valor[0]? '':$valor[0];?>"
+                                    <?PHP echo $seleted;?> 
+                                  >
+                                  <label for="checkboxMontarSeccion_<?PHP echo $valor[0];?>">
+                                    <?PHP echo $valor[1];?>:
+                                    <?PHP echo $valor[2];?>
+                                  </label>
+                                </div>
+
+                              </span>
+                            </div>
+                          </td>
+                          <td>
+                            <div class="user-block">
+                              <img class="img-circle img-bordered-sm" src="<?PHP echo '';?>" alt="empleado">
+                              <span class="username">
+                                <label class="m-0" for="checkboxMontarSeccion_<?PHP echo $valor[0];?>">
+                                  <?PHP echo $valor[5];?>
+                                </label>
+                               
+                              </span>
+                              <span class="description"> <b>Tel.: </b>  <label class="lead text-lg m-0" for="checkboxMontarSeccion_<?PHP echo $valor[0];?>">
+                                <?PHP echo $valor[8];?>
+                              </label></span>
+                            </div>
+                          </td>
+                        </tr>
+                        <?php }
+                  ?>
+                      </tbody>
+                    </table>
+                  </div>
+                  <?php }?>
+                </div>
+
+                <div class="tab-pane fade" id="custom-tabs-liquidar" role="tabpanel"
+                  aria-labelledby="custom-tabs-liquidar-tab">
+                  <div id="verLoadingNominaDetalle" class="overlay-wrapper">
+                    <div class="overlay dark">
+                      <i class="fas fa-3x fa-sync-alt fa-spin"></i>
+                      <div class="text-bold pt-2">Loading...</div>
+                    </div>
+                    Espere
+                  </div>
+                  <div id="verListadoNominaDetlles" class="card hide">
+                    <form id="formSearchNominaDetallado">
+                      <input value="<?PHP echo $_SESSION['userEmpleado']; ?>" type="hidden" name="txtUltimo"
+                        id="txtUltimo">
+                      <div class="card-header row m-0 p-0">
+
+                        <div class="col-md-6">
+                          <div class="form-group">
+                            <label>Desde:</label>
+                            <div class="input-group date " id="dateDeste" data-target-input="nearest">
+                              <input required type="text" class="form-control datetimepicker-input"
+                                data-target="#dateDeste" id="txtFechaDesde" name="txtFechaDesde" />
+                              <div class="input-group-append" data-target="#dateDeste" data-toggle="datetimepicker">
+                                <div class="input-group-text"><i class="fa fa-calendar"></i></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <div class="form-group">
+                            <label>Hasta:</label>
+                            <div class="input-group date" id="dateHasta" data-target-input="nearest">
+                              <input required type="text" class="form-control datetimepicker-input"
+                                data-target="#dateHasta" id="txtFechaHasta" name="txtFechaHasta" />
+                              <div class="input-group-append" data-target="#dateHasta" data-toggle="datetimepicker">
+                                <div class="input-group-text"><i class="fa fa-calendar"></i></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <input type="submit" style="display: none;">
+                    </form>
+
+                    <div class="card table-responsive p-0">
+
+                      <table class="table table-striped table-valign-middle">
+                        <thead>
+                          <tr>
+                            <th>Consepto</th>
+                            <th>Valor</th>
+                          </tr>
+                        </thead>
+                        <tbody id="trTableconsepto">
+
+
+                        </tbody>
+                      </table>
+
+                    </div>
+
+                    <!-- /.card-header -->
+                    <div class="card-body p-0">
+                      <table id="tblDetalleNomina" class="table table-bordered table-striped">
+                        <thead>
+                          <tr>
+                            <th>Fecha</th>
+                            <th>Valor</th>
+                            <th>Consepto</th>
+                            <th>detalle</th>
+
+                          </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                          <tr>
+                            <th>Fecha</th>
+                            <th>Valor</th>
+                            <th>Consepto</th>
+                            <th>detalle</th>
+
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /.container-fluid -->
+  </section>
+  <!-- /.content -->
+</div>
+<!-- /.content-wrapper -->
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+<!-- SweetAlert2 -->
+<script src="plugins/sweetalert2/sweetalert2.min.js"></script>
+
+
+<script type="text/javascript">
+  $(".lia-perfil").addClass('active')
+  $("#spanAcceder").removeClass('hide');
+
+
+  //Date picker
+  const dateDesde = $('#dateDeste').datetimepicker({
+    format: 'YYYY-MM-DD',
+    date: moment().startOf('month'),
+    locale: 'es'
+  });
+
+
+
+  // dateDesde.locale(tempusDominus.locales['es'].es);
+  //Date picker
+  $('#dateHasta').datetimepicker({
+    format: 'YYYY-MM-DD',
+    date: moment().endOf('month'),
+    locale: 'es'
+  });
+
+
+  $("#example1")
+    .DataTable({
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#example1_wrapper .col-md-6:eq(0)");
+
+  $("#tblNomina")
+    .DataTable({
+      sort: false,
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#tblNomina_wrapper .col-md-6:eq(0)");
+
+  $("#tblDetalleNomina")
+    .DataTable({
+      sort: false,
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#tblDetalleNomina_wrapper .col-md-6:eq(0)");
+
+
+
+
+
+
+
+
+  $('#example2').DataTable({
+    "sort": false,
+    "paging": true,
+    "lengthChange": false,
+    "searching": true,
+    "ordering": true,
+    "info": true,
+    "autoWidth": false,
+    "responsive": true,
+    displayLength: 100
+  });
+
+
+  jQuery(document).ready(function () {
+    $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
+      if ($(e.target).attr('id') === 'custom-tabs-nomina-tab') {
+        listarNomina();
+      } else if ($(e.target).attr('id') === 'custom-tabs-liquidar-tab') {
+        $("form#formSearchNominaDetallado").submit()
+      } else if ($(e.target).attr('id') === 'custom-tabs-authorizations-tab') {
+        AuthorizacionEmpleado();
+      }
+    })
+
+
+    $("form#formSearchNominaDetallado").submit(function (e) {
+      e.preventDefault();
+      // $("#txtUltimo").val($("#txtRefEmpleadoConfig").val());
+
+      listarNominaDetalle();
+    });
+
+
+    $("#dateDeste").on("hide.datetimepicker", function (e) {
+      $("form#formSearchNominaDetallado").trigger('submit');
+    });
+    $("#dateHasta").on("hide.datetimepicker", function (e) {
+      $("form#formSearchNominaDetallado").trigger('submit');
+    });
+
+
+    $("#example2").on('change', '.aMontarSeccionActividad', function (e) {
+      e.preventDefault()
+      $(".aMontarSeccionActividad").attr('checked', false);
+      $.post("./ajax/UsuarioAjax.php", function (r) {
+        if (r === '0') {
+          location.reload(true);
+        }
+      });
+      $.getJSON("ajax/UsuarioAjax.php?op=IngresarSistemaActividad", { empresa: $(e.target).data('rseccion'), refSession: window.name }, function (r) {
+
+        if (r === 0) {
+          Toast.fire({
+            icon: 'error',
+            title: "ERROR INESPERADO"
+          })
+        } else {
+
+          window.name = r.session;
+          location.reload(true);
+        }
+      })
+    });
+
+   
+  })
+
+
+  function listarNominaDetalle() {
+
+    $("#verLoadingNominaDetalle").removeClass('hide')
+    $("#verListadoNominaDetlles").addClass('hide')
+    $.post("./ajax/UsuarioAjax.php", function (r) {
+      if (r === '0') {
+        location.reload(true);
+      }
+    });
+    var formData = new FormData($("form#formSearchNominaDetallado")[0]);
+
+    var tabla = $('#tblDetalleNomina').DataTable();
+    //console.log('bbb');
+    $.ajax({
+      url: './ajax/EmpleadoAjax.php?op=listNominaDetalle',
+      type: "POST",
+      data: formData,
+      contentType: false,
+      processData: false,
+      dataType: "json",
+      success: function (datos) {
+        const conseptos = Array.from(new Set(datos.map(x => capitalizarPalabras(x[2]))));
+        const trTableconsepto = conseptos.map(n => {
+          return `<tr>
+                    <td>
+                        ${n}
+                    </td>
+                    <td>
+                        $${datos.filter(x => capitalizarPalabras(x[2]) === n).map(m => m[1]).reduce((a, b) => parseFloat(a) + parseFloat(b), 0)}
+                    </td>
+                </tr>`
+        })
+        $("#trTableconsepto").html(trTableconsepto.join(''));
+
+        tabla.clear().draw();
+        for (let i = 0; i < datos.length; i++) {
+          const val = datos[i];
+          tabla.row
+            .add([
+              val[0],
+              val[1],
+              capitalizarPalabras(val[2]),
+              val[3]
+            ]).draw(false);
+        }
+        $("#verLoadingNominaDetalle").addClass('hide')
+        $("#verListadoNominaDetlles").removeClass('hide')
+      },
+      error: function (e) {
+        console.log(e.responseText);
+      }
+    });
+  }
+</script>

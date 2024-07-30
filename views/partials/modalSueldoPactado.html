@@ -1,0 +1,70 @@
+<div class="modal fade" id="modal-pactar-sueldo">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">crear sueldo</h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="formPactarSueldo">
+                <input type="hidden" name="txtRefEmpleado_formPactarSueldo" id="txtRefEmpleado_formPactarSueldo">
+                <input type="hidden" name="txtRefNomina" id="txtRefNomina">
+                
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group has-success">
+                                <label for="cboModoSueldo">Modo Sueldo:</label>
+                                <select required id="cboModoSueldo" name="cboModoSueldo" class="form-control">
+                                    <option value="Diario">Diario</option>
+                                    <option value="Semanal">Semanal</option>
+                                    <option value="Quincenal">Quincenal</option>
+                                    <option value="Mensual">Mensual</option>
+                                  </select>
+                            </div>
+
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group has-success">
+                                <label for="txtValorSueldo">Sueldo:</label>
+                                <input required id="txtValorSueldo" type="number" maxlength="45"
+                                    name="txtValorSueldo" placeholder="0.00" class="form-control" />
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer justify-content-between">
+                    <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+
+
+            </form>
+
+
+        </div>
+        <!-- /.modal-content -->
+    </div>
+    <!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<script type="text/javascript">
+    $(function () {
+        $('#modal-pactar-sueldo').on('show.bs.modal', function (e) {
+            setTimeout(numdocumentoFocus, 300)
+        })
+        $('#modal-pactar-sueldo').on('hide.bs.modal', function (e) {
+            $('form#formPactarSueldo').trigger("reset");
+        })
+        function numdocumentoFocus() {
+            $("#txtbusNum_Documento").focus();
+        }
+
+
+    });
+</script>

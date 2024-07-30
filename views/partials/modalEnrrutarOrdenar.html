@@ -1,0 +1,211 @@
+<div class="modal fade" id="modal-enrrutar">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header p-0">
+
+                <div class="user-block" style="width: 100%;">
+                    <span class="float-left pr-1" style="height: 100%; position: absolute;"># <b id="txtMoverNum"></b></span>
+                    <img id="txtMoverFoto" class="img-circle img-bordered-sm ml-4" src="" alt="user image">
+                    <span class="username" style="width: 100%;">
+                        <a id="txtMoverCliente" href="#"></a>
+                    </span>
+                    <span class="description"><b id="txtMoverT_documento"></b> <b id="txtMoverN_documento"></b></span>
+                </div>
+                <button type="button" class="close m-0" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">×</span>
+                </button>
+            </div>
+            <style>
+                #tblMoverEnrutar_filter {
+                    float: right;
+                }
+
+                .spanbtnMover {
+                    cursor: pointer;
+                    font-size: 18px;
+                    bottom: 0;
+                    float: left;
+                }
+
+                .tableMover td:first-child {
+                    padding-left: 2px !important;
+                    padding-right: 2px !important;
+
+                }
+
+                .tableMover td:nth-child(2) {
+                    width: 10px;
+                    padding: 0 !important;
+                   
+
+                }
+
+                .tableMover th:first-child {
+                    padding: 2px !important;
+
+
+                }
+            </style>
+            <div class="modal-body p-0">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="card">
+                            <!-- /.card-header -->
+                            <div class="card-body table-responsive p-0">
+                                <table id="tblMoverEnrutar" class="table table-hover text-nowrap tableMover">
+                                    <thead>
+                                        <tr>
+                                            <th>#</th>
+                                            <th>Opcion</th>
+                                            <th>Cliente</th>
+                                            <th>Resta</th>
+                                            <th>Seguros</th>
+                                            <th>Costo</th>
+                                            <th>Valor</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!--<tr>
+                                            <td>1</td>
+                                            <td></td>
+                                            <td>
+                                                <div class="user-block">
+                                                    <img class="img-circle img-bordered-sm" src="dist/img/photo3.jpg"
+                                                        alt="user image">
+                                                    <span class="username">
+                                                        <a href="#">Jonathan Burke Jr.</a>
+                                                    </span>
+                                                    <span class="description">Shared publicly - 7:45 PM today</span>
+                                                </div>
+                                            </td>
+                                            <td>120</td>
+                                            <td><span class="tag tag-success">4</span></td>
+                                            <td>100</td>
+                                            <td>120</td>
+                                        </tr>-->
+
+                                    </tbody>
+                                </table>
+                            </div>
+                            <!-- /.card-body -->
+                        </div>
+                        <!-- /.card -->
+                    </div>
+                </div>
+                <!-- /.row -->
+            </div>
+        </div>
+        <!-- /.modal-content -->
+    </div>
+    <!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<script type="text/javascript">
+    $(function () {
+        
+        $('#modal-enrrutar').on('show.bs.modal', function (e) {
+            cargarDatorParaOrdenar()
+        })
+    });
+    /**;*/
+    function cargarDatorParaOrdenar() {
+        var tabla = $("#tblMoverEnrutar").DataTable({
+            "responsive": true,
+            "lengthChange": false,
+            "autoWidth": false,
+            dom: 'Bfrtip',
+            "buttons": ["csv", "excel", "pdf"],
+            "sort": false,
+            "columns": [
+                { "mDataProp": "0" },
+                { "mDataProp": "1" },
+                { "mDataProp": "2" },
+                { "mDataProp": "3" },
+                { "mDataProp": "4" },
+                { "mDataProp": "5" },
+                { "mDataProp": "6" }
+            ],
+            "bDestroy": true
+        });
+
+
+
+        var moverIndex = parseInt(sessionStorage.getItem("index"));
+        $("#txtMoverNum").text((moverIndex+1))
+        $("#txtMoverFoto").attr('src', ArrayTarjetas[moverIndex].foto)
+        $("#txtMoverCliente").text(ArrayTarjetas[moverIndex].cliente)
+        $("#txtMoverT_documento").text(ArrayTarjetas[moverIndex].t_documento)
+        $("#txtMoverN_documento").text(ArrayTarjetas[moverIndex].n_documento)
+        tabla.clear().draw();
+        $.each(ArrayTarjetas, function (id, val) {
+            if (id == moverIndex) {
+            } else {
+
+                const eventoAntes = (ArrayTarjetas[id - 1]?.refTarjeta === ArrayTarjetas[moverIndex].refTarjeta) ? '' : 'onclick="onclickMoverTarjetaOrdenar(\'' + ArrayTarjetas[moverIndex].refTarjeta + '\',' + CrearIten(ArrayTarjetas[(id - 1)]?.item ? parseFloat(ArrayTarjetas[id - 1].item) : parseFloat(ArrayTarjetas[id].item) - 1.5, parseFloat(ArrayTarjetas[id].item)) + ')"'
+                const eventoDespues = (ArrayTarjetas[id + 1]?.refTarjeta === ArrayTarjetas[moverIndex].refTarjeta) ? '' : 'onclick="onclickMoverTarjetaOrdenar(\'' + ArrayTarjetas[moverIndex].refTarjeta + '\',' + CrearIten(parseFloat(ArrayTarjetas[id].item), ArrayTarjetas[(id + 1)]?.item ? parseFloat(ArrayTarjetas[id + 1].item) : parseFloat(ArrayTarjetas[id].item) + 1.5) + ')"'
+                tabla.row
+                    .add([
+                        (id + 1),
+                        '<span ' + eventoAntes + ' class="badge badge-success spanbtnMover " style="margin-bottom: 5px;">&nbsp;&nbsp;&nbsp;Antes&nbsp;&nbsp;&nbsp;</span>&nbsp;' +
+                        '<span ' + eventoDespues + ' class="badge badge-success spanbtnMover">Despues</span>',
+                        ` <div class="user-block">
+                        <img class="img-circle img-bordered-sm" src="${ArrayTarjetas[id].foto}"
+                            alt="cliente">
+                        <span class="username">
+                            <a href="#">${ArrayTarjetas[id].cliente}</a>
+                        </span>
+                        <span class="description">${ArrayTarjetas[id].t_documento}&nbsp; ${ArrayTarjetas[id].n_documento}</span>
+                    </div>`,
+                        ArrayTarjetas[id].resta,
+                        parseFloat(ArrayTarjetas[id].ut_adi_valor),
+                        ArrayTarjetas[id].costo,
+                        ArrayTarjetas[id].valor
+                    ])
+                    .draw(false);
+            }
+        })
+    }
+
+
+    function onclickMoverTarjetaOrdenar(id, item) {
+        
+        $.post("./ajax/UsuarioAjax.php", function (r) {
+            if (r === '0') {
+                location.reload(true);
+            }
+        });
+        Swal.fire({
+            title: 'Mover Tarjeta?',
+            text: "Estas a un cli de mover de lugar!",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Si, Mover ahora!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                Swal.close()
+                $.post("./ajax/CarteraAjax.php?op=ordenarMover", { id, item }, function (e) {// llamamos la url de eliminar por post. y mandamos por parametro el id
+                  
+                    if (e.indexOf("ERROR:") !== -1) {
+                        Toast.fire({
+                            icon: 'error',
+                            title: e
+                        })
+                    } else {
+                       
+                        Toast.fire({
+                            icon: 'success',
+                            title: e
+                        })
+                        $('#modal-enrrutar').modal('hide')
+                        listarRuta();
+                    }
+
+
+                });
+            }
+        })
+    }
+</script>

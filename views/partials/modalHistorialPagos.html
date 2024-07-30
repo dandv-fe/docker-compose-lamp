@@ -1,0 +1,61 @@
+<div class="modal fade" id="modal-historial-pagos">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Historial de pagos</h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>         
+            <div class="modal-body p-0">
+                <table id="tblDescripcionHistorialPagos" class="table table-hover text-nowrap">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Abono</th>
+                            <th>resta</th>
+                            <th>Fecha</th>
+                            <th>Descripcion</th>
+                            
+
+                        </tr>
+                    </thead>
+                    <tbody>
+
+
+                    </tbody>
+                    <tfoot>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Abono</th>
+                                <th>resta</th>
+                                <th>Fecha</th>
+                                <th>Descripcion</th>
+                                
+    
+                            </tr>
+                        </thead>
+                    </tfoot>
+                </table>
+            </div>
+                <div class="modal-footer justify-content-between">
+                    <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
+                </div>
+        </div>
+        <!-- /.modal-content -->
+    </div>
+    <!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<script type="text/javascript">
+    
+
+    $(function () {
+        $("#tblDescripcionHistorialPagos").DataTable({
+    "responsive": true, "lengthChange": false, "autoWidth": false,
+    "buttons": ["copy", "csv", "excel", "pdf", "print"]
+  }).buttons().container().appendTo('#tblDescripcionHistorialPagos_wrapper .col-md-6:eq(0)');
+    });
+</script>

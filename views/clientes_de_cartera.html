@@ -1,0 +1,204 @@
+<!-- DataTables -->
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
+
+<!-- SweetAlert2 -->
+<link rel="stylesheet" href="plugins/sweetalert2-theme-bootstrap-4/bootstrap-4.min.css" />
+<!-- SwalAlert2 -->
+<script src="plugins/sweetalert2/sweetalert2.min.js"></script>
+<script>
+  var Toast = Swal.mixin({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+     timer: 2000,
+  });
+  function CrearIten(min, max) {
+    var num = Math.random() * (max - min) + min;
+    return num;
+  }
+</script>
+
+<script type="text/javascript"
+  src="dist/scripts/Clientes_de_cartera.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+
+
+
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+
+  <!-- Main content -->
+  <section class="content">
+    <div class="container-fluid">
+
+      <div class="row">
+        <div class="col-12">
+
+
+          <div id="VerForm" class="card">
+            <div class="row">
+              <div class="col-md-12">
+                <form role="form" name="frmClienteFromExcel" id="frmClienteFromExcel" enctype="multipart/form-data">
+                  <div class="card-header">
+                    <h3 class="card-title">Datos de personas</h3>
+                  </div>
+                  <!-- /.card-header -->
+                  <div class="card-body">
+                    <a class="btn btn-warning" href="Files/plantillas/Plantilla Subir Clientes.xlsx"
+                      download="Plantilla Subir Clientes1">
+                      <i class="fa fa-floppy-o"></i> Descargar Plantilla
+                    </a>
+
+                    <div class="row">
+                      <div class="col-md">
+                        <div class="form-group has-success">
+                        
+                          <label for="txt_RutaImgCli">Buscar la plantilla para subir:</label>
+                          <input id="pantillaClientesExcel" type="file" class="form-control" name="pantillaClientesExcel" />
+                        </div>
+
+                      </div>
+                    </div>
+
+
+                  </div>
+                  <!-- /.card-header -->
+                  <div class="card-footer">
+                    <div class="row">
+                      <div class="col-xs-8">
+                        <p>Opciones</p>
+                        <button class="btn btn-success" type="submit">
+                          <i class="fa fa-floppy-o"></i> Registrar
+                        </button>
+                        <a id="btnCancelarForm" href="#" class="btn btn-primary"><i class="fa fa-remove"></i>
+                          Cancelar</a>
+                        <hr />
+                        <span class="lead text-primary"></span>
+                      </div>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+          <!-- /.card -->
+
+
+
+          <div class="col-md-6 text-center">
+            <button id="btnSubirMultiplesClientes" class="btn btn-info my-2"><i class="fa fa-file"></i>&nbsp; Subir
+              Multiples Clientes</button>
+          </div>
+
+
+
+          <div id="VerListado" class="card">
+
+            <div class="card-header">
+              <h3 class="card-title">Listado de Clientes</h3>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body p-0">
+              <table id="clientesDeCartera" class="table table-bordered table-striped">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Nombres</th>
+                    <th>Apellidos</th>
+                    <th>TipoDocumento</th>
+                    <th>NumDocumento</th>
+                    <th>sexo</th>
+                    <th>fecha nacimiento</th>
+                    <th>ocupacion</th>
+                    <th>Telefono</th>
+                    <th>email</th>
+                    <th>Departamento</th>
+                    <th>Ciudad</th>
+                    <th>Barrio</th>
+                    <th>Dir-Calle</th>
+                    <th>estado</th>
+                    <th>Max-credito</th>
+                    <th>Apodo</th>
+                    <th>Opciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th>#</th>
+                    <th>Nombres</th>
+                    <th>Apellidos</th>
+                    <th>TipoDocumento</th>
+                    <th>NumDocumento</th>
+                    <th>sexo</th>
+                    <th>fecha nacimiento</th>
+                    <th>ocupacion</th>
+                    <th>Telefono</th>
+                    <th>email</th>
+                    <th>Departamento</th>
+                    <th>Ciudad</th>
+                    <th>Barrio</th>
+                    <th>Dir-Calle</th>
+                    <th>estado</th>
+                    <th>Max-credito</th>
+                    <th>Apodo</th>
+                    <th>Opciones</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <!-- /.card-body -->
+          </div>
+          <!-- /.card -->
+
+        </div>
+        <!-- /.col -->
+      </div>
+      <!-- /.row -->
+    </div>
+    <!-- /.container-fluid -->
+  </section>
+  <!-- /.content -->
+
+  <?php  include "views/partials/modalSearchPersona.html"; ?>
+
+</div>
+<!-- /.content-wrapper -->
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+
+<!-- SweetAlert2 -->
+<script src="plugins/sweetalert2/sweetalert2.min.js"></script>
+
+<script type="text/javascript">
+
+  $("#li-creditos").addClass('menu-open')
+  $("#lia-creditos").addClass('active')
+  $("#lia-clientesDeCartera").addClass('active')
+
+
+  $("#clientesDeCartera").DataTable({
+    "responsive": true, "lengthChange": false, "autoWidth": false,
+    "buttons": ["copy", "csv", "excel", "pdf", "print", "colvis"]
+  }).buttons().container().appendTo('#clientesDeCartera_wrapper .col-md-6:eq(0)');
+
+
+  $(function () {
+
+
+  });
+</script>

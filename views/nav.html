@@ -1,0 +1,373 @@
+<!-- Preloader -->
+<div class="preloader flex-column justify-content-center align-items-center">
+    <img class="animation__wobble" src="dist/img/AdminLTELogo.png" alt="AdminLTELogo" height="60" width="60">
+</div>
+
+<!-- Navbar -->
+<nav class="main-header navbar navbar-expand <?PHP echo $_SESSION['MYSESSION_idsucursal']? 'navbar-light bg-success': 'navbar-dark';?>">
+    <!-- Left navbar links    -->
+    <ul class="navbar-nav">
+        <li class="nav-item">
+            <a class="nav-link" data-widget="pushmenu" href="#" role="button"><i class="fas fa-bars"></i></a>
+        </li>
+
+    </ul>
+
+
+    <!-- Right navbar links -->
+    <ul class="navbar-nav ml-auto">
+        <?PHP if(intval($_SESSION['MYSESSION_idsucursal'])>0){
+            $indexAllSucursal= array_search($_SESSION['MYSESSION_idsucursal'], array_column($allSucursal, 0)); 
+            
+            
+            ?>
+        <li class="nav-item d-sm-inline-block">
+            <a href="#" class="nav-link">
+                <?php echo $allSucursal[$indexAllSucursal][2]; ?>
+                
+            </a>
+        </li>
+
+
+        <?php } ?>
+        <!-- Navbar Search -->
+        <li class="nav-item">
+            <a class="nav-link" data-widget="fullscreen" href="#" role="button">
+                <i class="fas fa-expand-arrows-alt"></i>
+            </a>
+        </li>
+        <!--controla los estilos ¡PENDIENTE!!
+            <li class="nav-item">
+            <a class="nav-link" data-widget="control-sidebar" data-slide="true" href="#" role="button">
+                <i class="fas fa-th-large"></i>
+            </a>
+        </li>-->
+    </ul>
+</nav>
+<!-- /.navbar -->
+
+<!-- Main Sidebar Container -->
+<aside class="main-sidebar sidebar-dark-primary elevation-4">
+    <!-- Brand Logo -->
+    <a href="#" class="brand-link">
+        <img src="<?php echo $_SESSION['logoEmpresa']? $_SESSION['logoEmpresa']:'dist/img/AdminLTELogo.png';?>"
+            alt="AdminLTE Logo" class="brand-image img-circle elevation-3" style="opacity: .8">
+        <span class="brand-text font-weight-light">
+            <?php echo $_SESSION['nameEmpresa'];?>
+        </span>
+    </a>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <!-- Sidebar user panel (optional) -->
+        <div class="user-panel mt-3 pb-3 mb-3 d-flex">
+            <div class="image">
+                <img src="<?PHP echo $_SESSION['personPhoto'];?>" class="img-circle elevation-2" alt="User Image">
+            </div>
+            <div class="info">
+                <a id="txtNombreusuarioEnSeccionPagina" href="#" class="d-block">
+                    <?PHP echo $_SESSION['personName'];?>
+                </a>
+            </div>
+        </div>
+        <script>
+            $("#txtNombreusuarioEnSeccionPagina").text(capitalizarPalabras($("#txtNombreusuarioEnSeccionPagina").text()));
+        </script>
+        <!-- SidebarSearch Form -->
+        <!--<div class="form-inline">
+        <div class="input-group" data-widget="sidebar-search">
+            <input class="form-control form-control-sidebar" type="search" placeholder="Search" aria-label="Search">
+            <div class="input-group-append">
+                <button class="btn btn-sidebar">
+                    <i class="fas fa-search fa-fw"></i>
+                </button>
+            </div>
+        </div>
+    </div>-->
+
+        <!-- Sidebar Menu -->
+        <nav class="mt-2">
+            <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
+                <li class="nav-item">
+                    <a href="acceder.php" class="nav-link lia-perfil">
+                        <i class="nav-icon fa-solid fa-p"></i>
+                        <p>
+                            Acceder
+                            <span id="spanAcceder" class="right badge badge-success hide">></span>
+
+                        </p>
+                    </a>
+                </li>
+
+                <?php  
+              
+                /*Add navegacion para global distinta Servicio*/
+                if(isset($_SESSION['userEmpresa']) && $_SESSION['typeEmpresa']==='servicio'){ ?>
+
+
+                <!--<li class="nav-item">
+                    <a href="perfil.php" class="nav-link lia-perfil">
+                        <i class="nav-icon fa-solid fa-p"></i>
+                        <p>
+                            Estadisticas
+                            <span class="right badge badge-danger"></span>
+                        </p>
+                    </a>
+                </li>-->
+
+                <li class="nav-item">
+                    <a href="empresa.php" class="nav-link lia-clientes-o">
+                        <i class="nav-icon fa-solid fa-p "></i>
+                        <p>
+                            Empresas
+                            <span id="spanEmpresas" class="right badge badge-success hide">></span>
+                        </p>
+                    </a>
+                </li>
+
+
+
+                <?php    }else{ ?>
+
+                <script>
+                    //   console.log("<?php echo in_array('despachar', array_column($allSucursal, 'nombre'));?>");
+                </script>
+                <?PHP
+
+                if(isset($_SESSION['userEmpresa']) || in_array('despachar', $auths)){ ?>
+
+
+                <li class="nav-item">
+                    <a href="despachar.php" class="nav-link lia-despachar">
+                        <i class="nav-icon fa-solid fa-d"></i>
+                        <p>
+                            Despachar
+                            <span id="spanDespachar" class="right badge badge-success hide">></span>
+                        </p>
+                    </a>
+                </li>
+                <?php    } ?>
+
+                <?PHP
+                if(isset($_SESSION['userEmpresa']) || in_array('ver recibir', $auths)){ ?>
+                <li class="nav-item">
+                    <a href="recibir.php" class="nav-link lia-recibir">
+                        <i class="nav-icon fa-solid fa-r"></i>
+                        <p>
+                            Recibir
+                            <span id="spanRecibir" class="right badge badge-success hide">></span>
+                        </p>
+                    </a>
+                </li>
+                <?php    } ?>
+
+
+                <!--<li id="li-estadisticas" class="nav-item">
+                    <a href="#" class="nav-link lia-estadisticas">
+                        <i class="nav-icon fas fa-tachometer-alt"></i>
+                        <p>
+                            Estadisticas
+                            <i class="right fas fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="./Escritorio.php" class="nav-link lia-estadisticas">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Escritorio</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>-->
+
+                <?PHP
+                if(isset($_SESSION['userEmpresa'])){ ?>
+                <li id="li-manteniniento" class="nav-item">
+                    <a href="#" class="nav-link lia-mantenimiento">
+                        <i class="nav-icon fa-solid fa-computer"></i>
+                        <p>
+                            Mantenimiento
+                            <i class="right fas fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="global.php" class="nav-link lia-global">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Cofiguracion</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="sucursal.php" class="nav-link lia-sucursal">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Actividades</p>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="empleado.php" class="nav-link lia-empleados">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Empleados</p>
+                            </a>
+                        </li>
+
+                        <!--<li class="nav-item">
+                            <a href="TipoDocumento.php" class="nav-link lia-tipoDocumento">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Tipo Documento</p>
+                            </a>
+                        </li>-->
+                    </ul>
+                </li>
+
+                <?php    } ?>
+
+
+
+                <?PHP if(intval($_SESSION['MYSESSION_idsucursal'])>0){?>
+                <li id="li-creditos" class="nav-item">
+                    <a id="lia-creditos" href="#" class="nav-link">
+                        <i class="nav-icon fa-solid fa-book"></i>
+                        <p>
+                            Créditos
+                            <i class="right fas fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a id="lia-cartera" href="cartera.php" class="nav-link">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Cartera</p>
+                            </a>
+                        </li>
+
+
+                        <?php
+                        if(isset($_SESSION['userEmpresa']) || in_array('ver morosos', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+
+                        <li class="nav-item">
+                            <a id="lia-morosos" href="morosos.php" class="nav-link">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Morosos</p>
+                            </a>
+                        </li>
+
+                        <?php    } ?>
+                        <?php
+                        if(isset($_SESSION['userEmpresa']) || in_array('ver retirados', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+                        <li class="nav-item">
+                            <a id="lia-retirados" href="retirados.php" class="nav-link">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Retirados</p>
+                            </a>
+                        </li>
+
+
+                        <?php    } ?>
+                        <?php
+                        if(isset($_SESSION['userEmpresa']) || in_array('ver canceladas', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+                        <li class="nav-item">
+                            <a id="lia-tarjetasCanceladas" href="tarjetas_canceladas.php" class="nav-link">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Canceladas</p>
+                            </a>
+                        </li>
+
+
+                        <?php    } ?>
+                        <?php
+                        if(isset($_SESSION['userEmpresa']) || in_array('ver clientes', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+
+                        <li class="nav-item">
+                            <a id="lia-clientesDeCartera" href="clientes_de_cartera.php" class="nav-link">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Clientes De Carera</p>
+                            </a>
+                        </li>
+
+                        <?php    } ?>
+                        <?php
+                        if(isset($_SESSION['userEmpresa']) || in_array('ver comprobantes', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+
+                        <li class="nav-item">
+                            <a id="lia-confComprobantes" href="confComprobante.php" class="nav-link">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Confi Comprobantes</p>
+                            </a>
+                        </li>
+
+                        <?php    } ?>
+
+                    </ul>
+                </li>
+                <?php }?>
+
+
+                <?PHP
+                if(  isset($_SESSION['userEmpresa']) || 
+                     in_array('cobro detallado', $auths) ||
+                     in_array('kardex valorizado', $auths)
+                ){ ?>
+                <li id="li-consultaCobros" class="nav-item">
+                    <a id="lia-consultaCobros" href="#" class="nav-link">
+                        <i class="nav-icon fa-solid fa-chart-line"></i>
+                        <p>
+                            Consultas
+                            <i class="right fas fa-angle-left"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <?PHP
+                                    if(  isset($_SESSION['userEmpresa']) || 
+                                    in_array('cobro detallado', $auths) 
+                            ){ ?>
+                        <li class="nav-item">
+                            <a id="lia-cobroDetallado" href="cobroDetallado.php" class="nav-link">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Cobro Detallado</p>
+                            </a>
+                        </li>
+                        <?php    } ?>
+
+                        <!--<li class="nav-item">
+                            <a id="lia-consultaCobro" href="cobroEmpleado.php" class="nav-link">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Por Empleado</p>
+                            </a>
+                        </li>-->
+                        <?PHP
+                        if(  isset($_SESSION['userEmpresa']) || 
+                             in_array('kardex valorizado', $auths)
+                        ){ ?>
+                        <li class="nav-item">
+                            <a id="lia-consultaKardexValorizado" href="kardexValorizado.php" class="nav-link">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>kardex Valorizado</p>
+                            </a>
+                        </li>
+                        <?php    } ?>
+
+                    </ul>
+                </li>
+
+                <?php    } ?>
+
+
+
+                <?php } ?>
+
+
+
+
+
+                <li class="nav-item">
+                    <a href="ajax/UsuarioAjax.php?op=Salir" class="nav-link">
+                        <i class="nav-icon fa fa-ban text-danger"></i>
+                        <p class="text">Cerrar Sesión</p>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+        <!-- /.sidebar-menu -->
+    </div>
+    <!-- /.sidebar -->
+</aside>

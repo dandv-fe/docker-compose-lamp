@@ -1,0 +1,72 @@
+<div class="modal fade" id="modal-xl">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Buscar usuario</h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="formBuscarPersona">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group has-success">
+                                <label for="cboBusTipo_Documento">Tipo Documento:</label>
+                                <select required id="cboBusTipo_Documento" name="cboBusTipo_Documento" class="form-control">
+                                    
+                                  </select>
+                            </div>
+
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group has-success">
+                                <label for="txtbusNum_Documento">Documento:</label>
+                                <input required id="txtbusNum_Documento" type="text" maxlength="45"
+                                    name="txtbusNum_Documento" placeholder="" class="form-control" />
+                            </div>
+
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer justify-content-between">
+                    <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
+                    <button type="submit" class="btn btn-primary">Buscar</button>
+                </div>
+
+
+            </form>
+
+
+        </div>
+        <!-- /.modal-content -->
+    </div>
+    <!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<script type="text/javascript">
+    $(function () {
+        $('#modal-xl').on('show.bs.modal', function (e) {
+            setTimeout(numdocumentoFocus, 300)
+        })
+        $('#modal-xl').on('hide.bs.modal', function (e) {
+            $('form#formBuscarPersona').trigger("reset");
+        })
+        function numdocumentoFocus() {
+            $("#txtbusNum_Documento").focus();
+        }
+
+        ComboTipo_Documento();
+        function ComboTipo_Documento() {
+
+            $.get("./ajax/SucursalAjax.php?op=listTipoDoc", function (r) {
+                $("#cboBusTipo_Documento").html(r);
+
+            })
+        }
+
+    });
+</script>

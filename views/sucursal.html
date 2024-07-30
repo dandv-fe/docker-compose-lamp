@@ -1,0 +1,306 @@
+<!-- SweetAlert2 -->
+<link rel="stylesheet" href="plugins/sweetalert2-theme-bootstrap-4/bootstrap-4.min.css">
+<!-- DataTables -->
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
+
+<script type="text/javascript" src="dist/scripts/Sucursal.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0">carteras</h1>
+                </div><!-- /.col -->
+            </div><!-- /.row -->
+        </div><!-- /.container-fluid -->
+    </div>
+    <!-- /.content-header -->
+    <!-- Main content -->
+    <section class="content">
+        <div class="container-fluid">
+            <div class="card card-default">
+
+
+                <div id="VerForm">
+                    <form role="form" name="frmSucursal" id="frmSucursal" enctype="multipart/form-data">
+                        <div class="card-header">
+                            <h3 class="card-title">Estos datos serán utilizados para el reporte de los comprobantes.
+                            </h3>
+                        </div>
+                        <!-- /.card-header -->
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <input id="txtIdSucursal" type="hidden" maxlength="50" name="txtIdSucursal" />
+                                        <label for="txtRazon_Social">Razón Social (CODIGO):</label>
+                                        <input id="txtRazon_Social" type="text" maxlength="7" class="form-control"
+                                            name="txtRazon_Social" required=""
+                                            placeholder="(CODIGO) Ingrese la razón Social de la Sucursal"
+                                            autofocus="" />
+
+                                    </div>
+                                    <!-- /.form-group -->
+                                    <div class="form-group">
+                                        <label for="comboTipo_Documento">Tipo Documento:</label>
+                                        <select id="comboTipo_Documento" name="comboTipo_Documento"
+                                            class="form-control">
+
+                                        </select>
+                                    </div>
+                                    <!-- /.form-group -->
+                                </div>
+                                <!-- /.col -->
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="txtNum_Documento">Documento:</label>
+                                        <input id="txtNum_Documento" type="text" maxlength="15" name="txtNum_Documento"
+                                            class="form-control" placeholder="Número de documento" autofocus="" />
+
+                                    </div>
+                                    <!-- /.form-group -->
+                                    <div class="form-group">
+                                        <label for="txtDireccion">Dirección:</label>
+                                        <input id="txtDireccion" type="text" maxlength="100" name="txtDireccion"
+                                            placeholder="Ingrese la dirección" class="form-control" autofocus="" />
+                                    </div>
+                                    <!-- /.form-group -->
+                                </div>
+                                <!-- /.col -->
+                            </div>
+                            <!-- /.row -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="txtTelefono">Teléfono:</label>
+                                        <input id="txtTelefono" type="text" maxlength="10" name="txtTelefono"
+                                            required="" class="form-control" placeholder="Ingrese el teléfono"
+                                            autofocus="" />
+
+                                    </div>
+                                    <!-- /.form-group -->
+                                    <div class="form-group">
+                                        <label for="txtEmail">Email:</label>
+                                        <input id="txtEmail" type="email" maxlength="70" name="txtEmail"
+                                            class="form-control" placeholder="Ingrese el email" autofocus="" />
+
+                                    </div>
+                                    <!-- /.form-group -->
+                                </div>
+                                <!-- /.col -->
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="cboRepresentante">Representante:</label>
+                                        <select required class="form-control" id="cboRepresentante"
+                                            name="cboRepresentante">
+
+                                        </select>
+
+                                    </div>
+                                    <!-- /.form-group -->
+                                    <div class="form-group">
+                                        <label for="imagenSuc">Logo:</label>
+                                        <input id="imagenSuc" type="file" class="form-control" name="imagenSuc"
+                                            autofocus="" />
+                                        <input id="txtRutaImgSuc" type="text" class="form-control" name="txtRutaImgSuc"
+                                            autofocus="" />
+
+                                    </div>
+                                    <!-- /.form-group -->
+                                </div>
+                                <!-- /.col -->
+                            </div>
+                            <!-- /.row -->
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="txtEstado">Estado:</label>
+                                        <select required class="form-control" id="txtEstado" name="txtEstado">
+                                            <option value="Disponible">Disponible</option>
+                                            <option value="inactiva">inactiva</option>
+                                        </select>
+
+                                    </div>
+                                    <!-- /.form-group -->
+                                </div>
+                                <!-- /.col -->
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="txtTipo">Tipo:</label>
+                                        <select required class="form-control" id="txtTipo" name="txtTipo">
+                                            <option>Ruta</option>
+                                            <option>PuntoVenta</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                            </div>
+                            <!-- /.row -->
+                            <div class="row">
+                                
+                                <!-- /.col -->
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="cboAdicional">Descuento adicional a prestamos:</label>
+                                        <select required class="form-control" id="cboAdicional"
+                                            name="cboAdicional">
+                                            <option value="">--selecione--</option>
+                                            <option value="seguro">seguro</option>
+                                            <option value="boleta">boleta</option>
+                                            <option value="ninguno">ninguno</option>
+                                        </select>
+
+                                    </div>
+                                    
+                                </div>
+                                <!-- /.col -->
+                            </div>
+                            <!-- /.row -->
+
+
+                        </div>
+                        <!-- /.card-body -->
+                        <div class="card-footer">
+                            <button class="btn btn-success" type="submit"><i class="fa fa-floppy-o"></i> Registrar
+                            </button>
+                            <a href="sucursal.php" class="btn btn-primary"><i class="fa fa-remove"></i> Cancelar</a>
+                            <hr>
+                            <span class="lead text-primary"></span>
+                        </div>
+
+                    </form>
+                </div>
+
+
+                <button id="btnNuevoSucursal" type="button" class="btn btn-primary float-left"
+                    style="width: 200px;margin: 5px;">
+                    <i class="fas fa-download"></i> Crear Cartera
+                </button>
+
+                <div id="VerListado">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">Listado</h3>
+                                </div>
+                                <!-- /.card-header -->
+                                <div class="card-body">
+                                    <table id="tblSucursal" class="table table-bordered table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Razón Social</th>
+                                                <th>Tipo</th>
+                                                <th>Estado</th>
+                                                <th>Logo</th>
+                                                <th>Representante</th>
+                                                <th>Opciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                        </tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Razón Social</th>
+                                                <th>Tipo</th>
+                                                <th>Estado</th>
+                                                <th>Logo</th>
+                                                <th>Representante</th>
+                                                <th>Opciones</th>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="VerConfiguracion">
+                    <div class="card card-success">
+                        <div class="card-header">
+                            <h3 class="card-title">Configurar formularios &amp; Sucursal</h3>
+                        </div>
+                        <style>
+                            .iCheckContenedor {
+                                border: 1px solid #000;
+                            }
+                            .iCheckContenedor>legend {
+                                width: auto;
+                            }
+                        </style>
+                        <div class="card-body">
+                           
+                            <fieldset class="iCheckContenedor">
+                                <legend>Tarjetas</legend>
+                                <!-- Minimal style -->
+                                <div class="row">
+                                    <div class="col-sm-6">
+                                        <!-- checkbox -->
+                                        <div class="form-group clearfix">
+                                            <div class="icheck-primary d-inline">
+                                                <input type="checkbox" id="checkboxPrimary3" >
+                                                <label for="checkboxPrimary3">
+                                                    Primary checkbox
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="col-sm-6">
+                                         <!-- checkbox -->
+                                         <div class="form-group clearfix">
+                                            <div class="icheck-primary d-inline">
+                                                <input type="checkbox" id="checkboxPrimary1" >
+                                                <label for="checkboxPrimary1">
+                                                    Primary checkbox
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+                            </fieldset>
+                            
+                        </div>
+                        <!-- /.card-body -->
+                        <div class="card-footer">
+                            Many more skins available. <a
+                                href="https://bantikyan.github.io/icheck-bootstrap/">Documentation</a>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+            <!-- /.card -->
+        </div>
+    </section>
+</div>
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+
+<!-- SweetAlert2 -->
+<script src="plugins/sweetalert2/sweetalert2.min.js"></script>
+
+<script type="text/javascript">
+    $("#li-manteniniento").addClass('menu-open')
+    $(".lia-mantenimiento").addClass('active')
+    $(".lia-sucursal").addClass('active')
+</script>

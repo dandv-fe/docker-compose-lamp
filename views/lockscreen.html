@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AdminLTE 3 | Lockscreen</title>
+
+  <!-- Google Font: Source Sans Pro -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,400i,700&display=fallback">
+  <!-- Font Awesome -->
+  <link rel="stylesheet" href="plugins/fontawesome-free/css/all.min.css">
+  <!-- Theme style -->
+  <link rel="stylesheet" href="dist/css/adminlte.min.css">
+<!-- SweetAlert2 -->
+<link rel="stylesheet" href="plugins/sweetalert2-theme-bootstrap-4/bootstrap-4.min.css">
+
+<!-- SweetAlert2 -->
+<script src="plugins/sweetalert2/sweetalert2.min.js"></script>
+</head>
+<body class="hold-transition lockscreen">
+<!-- Automatic element centering -->
+<div id="lockscreen-usuario-empleado" class="lockscreen-wrapper">
+  <div class="lockscreen-logo">
+    <a href="#"><b>Sociedad</b>Credihogar</a>
+  </div>
+  <!-- User name -->
+  <div id="userNameEmpleado" class="lockscreen-name"></div>
+
+  <!-- START LOCK SCREEN ITEM -->
+  <div class="lockscreen-item">
+    <!-- lockscreen image -->
+    <div class="lockscreen-image">
+      <img id="fotoEmpleado" src="dist/img/user1-128x128.jpg" alt="User Image">
+    </div>
+    <!-- /.lockscreen-image -->
+
+    <!-- lockscreen credentials (contains the form) -->
+    <form id="form-lockscreen-credentials" class="lockscreen-credentials">
+      <div class="input-group">
+        <input id="passwordEmpleado" type="password" class="form-control" placeholder="password">
+
+        <div class="input-group-append">
+          <button type="submit" class="btn">
+            <i class="fas fa-arrow-right text-muted"></i>
+          </button>
+        </div>
+      </div>
+    </form>
+    <!-- /.lockscreen credentials -->
+
+  </div>
+  <!-- /.lockscreen-item -->
+  <div class="help-block text-center">
+    Ingrese su contraseña para recuperar su sesión
+  </div>
+  <div class="text-center">
+    <a href="login.php">O iniciar sesión como un usuario diferente</a>
+  </div>
+  <div class="lockscreen-footer text-center">
+    Copyright &copy; 2014-2021 <b><a href="https://websdn.co" class="text-black">SDN Credihogar</a></b><br>
+    Todos los derechos reservados
+  </div>
+</div>
+<!-- /.center -->
+
+<!-- jQuery -->
+<script src="plugins/jquery/jquery.min.js"></script>
+<!-- Bootstrap 4 -->
+<script src="plugins/bootstrap/js/bootstrap.bundle.min.js"></script>
+
+<script type="text/javascript">
+  const userName= sessionStorage.getItem('userNameEmpleado')
+  const empleadoName= sessionStorage.getItem('empleado')
+  const empleadoFoto= sessionStorage.getItem('fotoEmpleado')
+  const empresa= sessionStorage.getItem('empresa')
+  var Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000
+    });
+  jQuery(document).ready(function() {
+    if (!userName && !empleadoName && !empleadoFoto){
+      $(location).attr("href", "login.php");
+    }
+    $("#userNameEmpleado").text(empleadoName)
+    $("#fotoEmpleado").attr('src',empleadoFoto)
+    $("#lockscreen-usuario-empleado").css('display','block')
+
+    $("#form-lockscreen-credentials").submit((e)=>{
+      e.preventDefault();
+      const pass=$("#passwordEmpleado").val();
+      $.getJSON("ajax/UsuarioAjax.php?op=IngresarSistema",{empresa,user: userName, pass: pass,w1:window.name},function (r) {
+        if (r?.nombre) {
+              sessionStorage.setItem('empresa', r.empresa)
+              sessionStorage.setItem('userNameEmpleado', r.usuario)
+              sessionStorage.setItem('empleado', r.nombre)
+              sessionStorage.setItem('fotoEmpleado', r.foto)
+              sessionStorage.setItem('session', r.session)
+              window.name=r.session;
+              location.reload();
+          }else if(r===0){
+            Toast.fire({
+                        icon: 'error',
+                        title: "Todos los campos son requeridos"
+                    })
+          } else {
+            Toast.fire({
+                        icon: 'error',
+                        title: "Error en los datos "
+                    })
+                    $("#passwordEmpleado").val("");
+          $("#passwordEmpleado").focus();
+          }
+       
+       
+       
+       
+      });
+    })
+
+
+
+
+  });
+
+
+  function acceder() {
+    $.getJSON("ajax/UsuarioAjax.php?op=IngresarPanel", {}, function(r){
+      console.log(r)
+      // $(location).attr("href", "Escritorio.php");
+      // $(location).attr("href", "Escritorio.php");
+      /*if (tipo=="Ruta") {
+
+      LoadRuta(idsucursal)
+      } else {
+
+      }*/
+
+    });
+  }
+
+
+</script>
+</body>
+</html>
+<script>
+  $(document).ready(function () {
+      function getRandomInt(max) {
+          return Math.floor(Math.random() * max);
+      }
+      var w;
+
+      function startWorker() {
+          if (typeof (Worker) !== "undefined") {
+              if (typeof (w) == "undefined") {
+                  w = new Worker("dist/scripts/workers/isSession.js?v=<?php echo $infoSistemaCuentas['version']; ?>");
+              }
+              w.onmessage = function (event) {
+                  console.log(event.data);
+                  location.reload(true);
+              };
+          } else {
+              alert('ERROR EN EL NAVEGADOR NO SOPORTADO')
+          }
+      }
+
+      function stopWorker() {
+          w.terminate();
+          w = undefined;
+      }
+      startWorker()
+  });
+</script>
