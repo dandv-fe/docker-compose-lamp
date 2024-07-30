@@ -16,7 +16,7 @@
                 <input type="hidden" id="txt_ultimo_numeroHidden" name="txt_ultimo_numeroHidden">
                 <input type="hidden" id="txtrefTarjetaHidden" name="txtrefTarjetaHidden">
                 <input type="hidden" id="txtitemHidden" name="txtitemHidden">
-                <input type="hidden" name="txtHiddenAdicional" id="txtHiddenAdicional" value="<?php echo $allSucursal[$indexAllSucursal][10]; ?>">
+                <input type="hidden" name="txtHiddenAdicional" id="txtHiddenAdicional" value="<?php echo $allSucursal[$indexAllSucursal][11]; ?>">
 
                 <div class="modal-body p-0 text-center">
                     <div class="form-group clearfix mb-0 mt-1">
@@ -155,12 +155,12 @@
                         </div>
                     </div>
 
-                        <div class="row <?PHP echo $allSucursal[$indexAllSucursal][10]=='ninguno'? 'hide': ''; ?>">
+                        <div class="row <?PHP echo $allSucursal[$indexAllSucursal][11]=='ninguno'? 'hide': ''; ?>">
                             <div class="divSeguroFormNuevoCredito col pr-0">
                                 <div class="divForNuevoCredito">
                                     <label class="labelForNuevoCredito" for="txtRecaudo">
                                         <span class="spanForNuevoCredito"> 
-                                            <?PHP echo $allSucursal[$indexAllSucursal][10]=='seguro'? "Seguro": "Valor boleta"; ?>
+                                            <?PHP echo $allSucursal[$indexAllSucursal][11]=='seguro'? "Seguro": "Valor boleta"; ?>
                                         
                                         </span>
                                         <input onkeyup="return onKeyupFormNuevoCredit(this,event);" type="number"
@@ -171,7 +171,7 @@
     
                             </div>
                             <div class="col pl-1">
-                                <div class="<?PHP echo $allSucursal[$indexAllSucursal][10]=='seguro'? 'hide': ''; ?>"> 
+                                <div class="<?PHP echo $allSucursal[$indexAllSucursal][11]=='seguro'? 'hide': ''; ?>"> 
                                     <div class="divSeguroFormNuevoCredito col pr-0">
                                         <div class="divForNuevoCredito">
                                             <label class="labelForNuevoCredito" for="txtNumBoleta">

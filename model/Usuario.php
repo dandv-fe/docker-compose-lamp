@@ -89,7 +89,7 @@ class usuario
                     p.str_num_documento AS n_documento,
                     p.str_telefono AS tel,
                     p.str_foto AS foto,
-                    null AS nameAuth
+                    '' AS nameAuth
                 FROM tbl_sucursal s INNER JOIN 
                     tbl_empleado e ON e.idempleado=s.idempleado INNER JOIN
                     tbl_persona p ON p.idpersona=e.idpersona
@@ -107,7 +107,7 @@ class usuario
                         $reg->n_documento,
                         $reg->tel,
                         $reg->foto,
-                        'namesAuth' => null,
+                        explode(",", $reg->nameAuth),
                         $reg->adicional
                     );
                 }
@@ -130,6 +130,7 @@ class usuario
                 s.str_tipo AS tipo,
                 s.str_codigo AS codigo,
                 s.str_logo AS logo,
+                 s.str_cobro_adicional as adicional,
                 s.str_estado AS estado,
                 CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado,
                 p.str_tipo_documento AS t_documento,
@@ -160,7 +161,8 @@ class usuario
                     $reg->n_documento,
                     $reg->tel,
                     $reg->foto,
-                    explode(",", $reg->nameAuth)
+                    explode(",", $reg->nameAuth),
+                    $reg->adicional
                 );
                 array_push($au, ...explode(",", $reg->nameAuth));
             }
