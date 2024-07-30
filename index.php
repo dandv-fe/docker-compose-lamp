@@ -249,7 +249,7 @@ $infoSistemaCuentas=infoSistemaCuentas();
 
                                     <h6> “Crear una mejor vida cotidiana para las personas.”</h6>
 
-                                    La empresa que revolucionó la Contabilida busca que el día a día de cada uno sea más sencillo, mejor y fácil.
+                                    La empresa que revolucionó la Contabilidad busca que el día a día de cada uno sea más sencillo, mejor y fácil.
 
                                     </p>
 
