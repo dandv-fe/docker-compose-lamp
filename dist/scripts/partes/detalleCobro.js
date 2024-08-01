@@ -352,7 +352,7 @@ function DatosCobro(istotalizar) {
         creditoSumaPrestamo +=
           v.consepto === "Prestamo" ? parseFloat(v.costo) : 0;
         creditoSumaProducto +=
-          v.consepto === "Articuli" ? parseFloat(v.costo) : 0;
+          v.consepto === "Articulo" ? parseFloat(v.costo) : 0;
         creditoSumaTotal += parseFloat(v.valor);
         return `
             <tr>
