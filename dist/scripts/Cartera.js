@@ -456,7 +456,20 @@ function cargarDatosEnPanel() {
 
     id = parseInt(id)
     changeEstadoRestaStylo('normal')
-    if (parseFloat(ArrayTarjetas[id].recaudo) < 0) $("#styloResta").attr('class', 'card bg-gradient-warning  m-0')
+    if (parseFloat(ArrayTarjetas[id].recaudo) < 0){
+        $("#styloResta").attr('class', 'card bg-gradient-warning  m-0')
+        $("#resta-cliente-panel").css({
+            width: '50%'
+        });
+        $("#recaudo-cliente-panel").text(ArrayTarjetas[id].recaudo*-1)
+        $("#recaudo-cliente-panel").removeClass('hide')
+
+    }else{
+        $("#recaudo-cliente-panel").addClass('hide')
+        $("#resta-cliente-panel").css({
+            width: '100%'
+        });
+    }
     const fechaEstado = cunatoTiempotranscurrido(ArrayTarjetas[id])
     //.name ? 'hace ' + cunatoTiempotranscurrido(ArrayTarjetas[id].modo, ArrayTarjetas[id].fecha_at).name : 
     // moment(element[4]).locale("es").fromNow(true)
