@@ -1,13 +1,10 @@
 
 <?php
 date_default_timezone_set("America/Bogota");
-$HOST = 'localhost';
+$HOST = 'database';
 $USER = 'root';
-$PASS = '';
+$PASS = $_ENV['MYSQL_ROOT_PASSWORD'];
 $DB = 'websdnco_db_webgoez_dev';
-
-
-
 
 $conexion = new mysqli($HOST, $USER, $PASS, $DB);
 if (mysqli_connect_errno()) {
