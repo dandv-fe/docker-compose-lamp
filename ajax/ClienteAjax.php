@@ -21,7 +21,7 @@ switch ($_GET["op"]) {
         $tipo_documento = limpiar_cadena($_POST["txt_tipo_documentoHidden"]);
         $num_documento = limpiar_cadena($_POST["txt_num_DocumentoHidden"]);
         $telefono = limpiar_cadena($_POST["txt_Telefono"]);
-        $email = limpiar_cadena($_POST["txt_Email"]);
+        $email = limpiar_cadena2($_POST["txt_Email"]);
         $direccion_departamento = limpiar_cadena($_POST["txt_Direccion_Departamento"]);
         $direccion_siudad = limpiar_cadena($_POST["txt_Direccion_Provincia"]);
         $direccion_barrio = limpiar_cadena($_POST["txt_Direccion_Distrito"]);

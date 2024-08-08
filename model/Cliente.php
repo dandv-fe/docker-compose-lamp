@@ -53,7 +53,19 @@
 				$sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$idglobal AND str_tipo_documento='$tipo_documento' AND str_num_documento='$num_documento'";
 				 $query = $conexion->query($sql);
 				 $request= $query->fetch_object();
-				 empty($request->idpersona) or throw new Exception('error!');
+				 if (isset($request->idpersona)) {
+					echo "ERROR: Este Documento ya existe";
+					return;
+				 }
+
+				 $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$idglobal AND str_email='$email'";
+				 $query = $conexion->query($sql);
+				 $request= $query->fetch_object();
+				 if (isset($request->idpersona) && $email!='') {
+					echo "ERROR: Este Email ya existe";
+					return;
+				 }
+
 	
 	
 				$sql = "INSERT INTO `tbl_persona`(	
@@ -166,6 +178,17 @@
 				}else {
 					echo "ERROR: No estas authorizado para esta accion";
 					return;
+				}
+
+				$sql = "SELECT idpersona FROM tbl_persona
+				 WHERE idglobal=$idglobal 
+				 AND str_email='$email' 
+				 AND  idpersona<>$idpersona";
+				$query = $conexion->query($sql);
+				$request= $query->fetch_object();
+				if (isset($request->idpersona) && $email!='') {
+				   echo "ERROR: Este Email ya existe";
+				   return;
 				}
 	
 			 

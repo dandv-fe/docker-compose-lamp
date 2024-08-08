@@ -52,13 +52,21 @@ class Empleado
                 return;
             }
 
+            $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$idglobal AND str_email='$email'";
+            $query = $conexion->query($sql);
+            $request= $query->fetch_object();
+            if (isset($request->idpersona) && $email!='') {
+               echo "ERROR: Este Email ya existe";
+               return;
+            }
+
             $sql="SELECT idusuario 
             FROM tbl_usuario 
             WHERE idglobal=$idglobal AND 
             str_user_name='$login' ";
             $query = $conexion->query($sql);
             $res = $query->fetch_object();
-            if (isset($res->idusuario)) {
+            if (isset($res->idusuario) && $email!='') {
                 echo "ERROR: Este Nombre usuario esta en uso busque otro";
                 return;
             }
@@ -160,10 +168,19 @@ class Empleado
                 return;
             }
 
+            $sql = "SELECT idpersona FROM tbl_persona
+				 WHERE idglobal=$idglobal 
+				 AND str_email='$email' 
+				 AND  idpersona<>$idpersona";
+				$query = $conexion->query($sql);
+				$request= $query->fetch_object();
+				if (isset($request->idpersona) && $email!='') {
+				   echo "ERROR: Este Email ya existe";
+				   return;
+				}
 
-            
 
-
+    
             $sql = "UPDATE `tbl_persona` SET	
                 str_nombres='$nombres',
                 str_apellidos='$apellidos',

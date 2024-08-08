@@ -154,6 +154,18 @@ class ClassEmpresas
       }
 
 
+      $sql = "SELECT idpersona FROM tbl_persona
+				 WHERE idglobal=$idempresa 
+				 AND str_email='$email' 
+				 AND  idpersona<>$idpersona";
+				$query = $conexion->query($sql);
+				$request= $query->fetch_object();
+				if (isset($request->idpersona) && $email!='') {
+				   echo "ERROR: Este Email ya existe";
+				   return;
+				}
+
+
       $sql = "UPDATE `tbl_persona` SET	
           str_nombres='$nombres',
           str_apellidos='$apellidos',
