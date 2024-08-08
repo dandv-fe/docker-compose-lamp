@@ -30,6 +30,8 @@ jQuery(document).ready(function () {
 
     $("#btnCancelarForm").click(function (e) {
         e.preventDefault();
+        $("#frmCliente").trigger('reset')
+        $("#frmCliente input:hidden").val('')
         verInformacionCliente()
 
     });
