@@ -1,4 +1,4 @@
-# docker-compose-lamp - lamp stack environment for developer
+# docker-compose-lamp - entorno de pila para desarrolladores
 
 ![screenshot](https://raw.githubusercontent.com/robertsaupe/docker-compose-lamp/master/.github/screenshot.png)
 
@@ -9,14 +9,14 @@
 [Getting started](https://github.com/robertsaupe/docker-compose-lamp#getting-started) |
 [Credits](https://github.com/robertsaupe/docker-compose-lamp#credits)
 
-## Supporting
+## Segundario
 
 [GitHub](https://github.com/sponsors/robertsaupe) |
 [Patreon](https://www.patreon.com/robertsaupe) |
 [PayPal](https://www.paypal.com/donate?hosted_button_id=SQMRNY8YVPCZQ) |
 [Amazon](https://www.amazon.de/ref=as_li_ss_tl?ie=UTF8&linkCode=ll2&tag=robertsaupe-21&linkId=b79bc86cee906816af515980cb1db95e&language=de_DE)
 
-## Features
+## Carecterísticas
 
 - Apache with vhosts and SSL (<http://localhost> & <https://localhost>)
 - PHP [Currently Supported Versions] (8.1.x, 8.2.x, 8.3.x)
@@ -28,11 +28,12 @@
 - Imagick
 - Redis
 
-## License
+## Licencia
 
-This software is distributed under the MIT license. Please read [LICENSE](LICENSE) for information.
+Este software se distribuye bajo la licencia MIT. Lea la [LICENSE](LICENCIA) para obtener información.
 
-## Installing
+
+## Instalación
 
 ### German introduction / deutsche Einleitung
 
@@ -84,8 +85,8 @@ sudo reboot
 ### Environment
 
 ```bash
-git clone https://github.com/robertsaupe/docker-compose-lamp.git
-cd docker-compose-lamp/
+git clone https://github.com/robertsaupe/docker-compose-lamp.git lamp
+cd lamp/
 cp sample.env .env
 
 ### modify .env as needed
