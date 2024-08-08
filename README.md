@@ -104,13 +104,16 @@ cp sample.env .env
 
 ```cmd
 ### builds and starts the environment:
+docker-compose up -d --build
 build.cmd
 
 ### starts the environment:
 start.cmd
+docker-compose up -d
 
 ### stops the environment:
 stop.cmd
+docker-compose up down
 ```
 
 ## Getting started
