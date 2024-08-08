@@ -30,7 +30,7 @@
 
 ## Licencia
 
-Este software se distribuye bajo la licencia MIT. Lea la [LICENSE](LICENCIA) para obtener información.
+Este software se distribuye bajo la licencia MIT. Lea la [LICENCIA](LICENSE) para obtener información.
 
 
 ## Instalación
