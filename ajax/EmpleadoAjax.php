@@ -195,7 +195,6 @@ switch ($_GET["op"]) {
                 );
             }
         }
-
         break;
 
     case 'SaveOrUpdateSueldoPactado':
@@ -213,15 +212,11 @@ switch ($_GET["op"]) {
         } else {
             $objEmpleado->ModificarSueldo($idnomina, $idempleado, $idglobal, $modoSueldo, $valorSueldo);
         }
-
-
         break;
 
     case 'buscarPersona':
-
         $tipo_documento = limpiar_cadena($_REQUEST['tipo_documento']);
         $num_documento = limpiar_cadena($_REQUEST['num_documento']);
-
         if (
             empty($idglobal) ||
             !$tipo_documento ||
@@ -230,7 +225,6 @@ switch ($_GET["op"]) {
             echo json_encode(0);
             return;
         }
-
         $query = $objEmpleado->buscarPersona($idglobal, $tipo_documento, $num_documento);
         $req = $query->fetch_object();
         if (empty($req->refPersona)) {
@@ -238,10 +232,21 @@ switch ($_GET["op"]) {
             return;
         }
         $refPersona=$req->refPersona;
+        $req->isEmpleado=false;
+        $req->refEmpleado = '';
+        $req->apodo = '';
+        $req->cargo = '';
+        $req->estadoEmpleado = '';
+        $req->comentarios = '';
+        $req->fecha_at = '';
+        $req->refUsuario = '';
+        $req->username = '';
+        $req->id = '';
+        $req->t_condiciones = '';
         $query = $objEmpleado->buscarEmpleado( $refPersona);
         $request = $query->fetch_object();
         if (isset($request->refEmpleado)) {
-            $req->refPersona=$refPersona;
+            $req->isEmpleado=true;
             $req->refEmpleado = $request->refEmpleado;
             $req->apodo = $request->apodo;
             $req->cargo = $request->cargo;

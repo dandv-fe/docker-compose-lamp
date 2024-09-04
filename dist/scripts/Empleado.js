@@ -646,9 +646,15 @@ function cargarDataEmpleado(tipo_documento, num_documento, accion) {// funcion q
                             nuevo()
                             VerForm()
                         } else {
-                            perfil(data)
-                            VerConfiguracion(data.refEmpleado)
-                            $("#custom-tabs-liquidar-tab").tab('show')
+                            if (data.isEmpleado) {
+                                perfil(data)
+                                VerConfiguracion(data.refEmpleado)
+                                $("#custom-tabs-liquidar-tab").tab('show')
+                            } else {
+                                editar(data)
+                                VerForm()
+                            }
+                           
                         }
                     }
                 }
