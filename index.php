@@ -169,7 +169,7 @@ $infoSistemaCuentas=infoSistemaCuentas();
 
                                             <div class="carousel-item active">
 
-                                                <img height="280" class="d-block w-100" src="dist/img/webcontable1.jpg" alt="First slide">
+                                                <img height="280" class="d-block w-100" src="dist/img/webcontable2v2.jpg" alt="First slide">
 
 
 
@@ -177,7 +177,7 @@ $infoSistemaCuentas=infoSistemaCuentas();
 
                                             <div class="carousel-item">
 
-                                                <img height="280" class="d-block w-100" src="dist/img/webcontable2.jpg" alt="Second slide">
+                                                <img height="280" class="d-block w-100" src="dist/img/webcontable1.jpg" alt="Second slide">
 
                                             </div>
 

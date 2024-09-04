@@ -235,8 +235,6 @@ class Empleado
             $query = $conexion->query($sql);
             $request = $query->fetch_object();
 
-
-
             if (empty($request->idusuario)) {
                 $sql = "INSERT INTO `tbl_usuario`(
                         idglobal,
@@ -247,7 +245,7 @@ class Empleado
                         str_estado
                   
                   )
-                  VALUES ($idglobal, $idpersona, '$login', '$password', '', 'activo')";
+                  VALUES ($idglobal, $idpersona, '$login', '$password', 'pendiente', 'activo')";
                 $conexion->query($sql) or throw new Exception('error!');
             } else {
                 $sql = "UPDATE `tbl_usuario` SET
@@ -255,8 +253,6 @@ class Empleado
                         str_password='$password'
                         WHERE idusuario=$idusuario
                   ";
-
-                // VALUES ($idglobal, $idpersona, '$login', '$password', '', 'activo')";
                 $conexion->query($sql) or throw new Exception('error!');
             }
         } catch (Exception $e) {
