@@ -11,6 +11,7 @@ $DB = 'websdnco_db_webgoez';
 
 
 $conexion = new mysqli($HOST, $USER, $PASS, $DB);
+mysqli_set_charset($conexion,"utf8");
 if (mysqli_connect_errno()) {
       printf("Connect failed: %s\n", mysqli_connect_error());
       exit();
