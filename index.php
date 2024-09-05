@@ -65,7 +65,7 @@ $infoSistemaCuentas=infoSistemaCuentas();
 
 
 
-                <div class="collapse navbar-collapse order-3" id="navbarCollapse">
+                <div class="collapse navbar-collapse order-3 show" id="navbarCollapse">
 
                     <!-- Left navbar links -->
 
@@ -79,7 +79,7 @@ $infoSistemaCuentas=infoSistemaCuentas();
 
                         <li class="nav-item">
 
-                            <a href="login.php" class="nav-link">Iniciar Seccion</a>
+                            <a href="login.php" class="nav-link font-weight-bold">Iniciar Seccion</a>
 
                         </li>
 
