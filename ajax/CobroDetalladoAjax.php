@@ -78,7 +78,7 @@ switch ($_GET["op"]) {
                 $reg->entrada,
                 $reg->descripcion_entrada,
 
-                '<button onclick="verFormContabilibad(' . $reg->refDetalle_ruta . ', \'' . $reg->codigo . '\', \'' . $reg->tipo . '\', '. $caja.')" class="btn btn-default m-0">
+                '<button onclick="verFormContabilibad(' . $reg->refDetalle_ruta . ', \'' . $reg->codigo . '\', \'' . $reg->tipo . '\', ' . $caja . ')" class="btn btn-default m-0">
                 
                 <i class="fa-regular fa-eye fa-lg" style="color: #000000;"></i>
               </button>'
@@ -105,7 +105,7 @@ switch ($_GET["op"]) {
         $query_tbl_detalle_ruta_despachada = $objCobroDetallado->listTblDetalleRuta($iddetalleruta, $createdEmpleadoId);
         $fetch = $query_tbl_detalle_ruta_despachada[0]->fetch_object();
 
-       
+
         array_push($arrayCuentas, $fetch);
         $query_descripcion_recaudo = $objCobroDetallado->listDetalleCobrado($iddetalleruta);
         while ($reg = $query_descripcion_recaudo->fetch_object()) {
@@ -120,14 +120,14 @@ switch ($_GET["op"]) {
         }
 
         $query_contabilidad = $objCobroDetallado->listDetalleTblContabilidad($iddetalleruta);
-        
+
         while ($a = $query_contabilidad[0]->fetch_object()) {
 
-        
-            if (in_array($a->nombre,$query_contabilidad[1])) {
+
+            if (in_array($a->nombre, $query_contabilidad[1])) {
                 array_push($newsContabilidad, $a);
             }
-           
+
         }
 
         array_push($arrayCuentas, $recaudos);
@@ -140,7 +140,7 @@ switch ($_GET["op"]) {
 
         require_once "../model/Cartera.php";
 
-$classCartera = new ClassCartera();
+        $classCartera = new ClassCartera();
         // otros Gastos
 
         if (isset($fetch->refDetalle_ruta)) {

@@ -483,7 +483,8 @@ class Empleado
         $res = $query->fetch_object();
         if (isset($res->idauth_sucursal)) {
             $estado = $ope == 'true' ? 'activo' : 'inactivo';
-            $sql = "UPDATE tbl_auth_sucursal SET str_estado='$estado' WHERE idauth_sucursal= $res->idauth_sucursal ";
+            $sql = "UPDATE tbl_auth_sucursal SET str_estado='$estado', tipo_usuario='$tipoUser'
+             WHERE idauth_sucursal= $res->idauth_sucursal ";
             $conexion->query($sql) or throw new Exception('error!');
         } else {
             try {
@@ -510,6 +511,32 @@ class Empleado
         echo $message;
         return true;
     }
+
+    public function quitarPermisos($idglobal, $idempleado, $idsucursal)
+    {
+        global $conexion;
+        $conexion->autocommit(false);
+        $sw = true;
+        $dt = date('Y-m-d H:i:s');
+        try {
+            $sql = "UPDATE tbl_auth_sucursal SET str_estado='inactivo' WHERE idsucursal= $idsucursal AND idempleado=$idempleado AND idglobal=$idglobal";
+            $conexion->query($sql) or throw new Exception('error!');
+        } catch (Exception $e) {
+            print_r($e);
+            $sw = false;
+            $conexion->rollback();
+        }
+        
+        $conexion->commit();
+        if ($conexion != null) {
+            $conexion->close();
+        }
+
+        $message = $sw ? "Permisos Qutados Correctamente" : "ERROR: intente mas tarde";
+        echo $message;
+        return true;
+    }
+
 
     public function manejarAuths($idauth, $idauthsucursal)
     {

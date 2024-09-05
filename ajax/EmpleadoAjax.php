@@ -347,6 +347,11 @@ switch ($_GET["op"]) {
         $ope = limpiar_cadena($_POST['ope']);
         $objEmpleado->inicializarPermisos($idglobal, $idempleado, $idsucursal, $tipoUser, $ope);
         break;
+        case 'quitarAuth':
+            $idempleado = intval($_POST['refEmpleado']);
+            $idsucursal = intval($_POST['refSucursal']);
+            $objEmpleado->quitarPermisos($idglobal, $idempleado, $idsucursal);
+            break;
 
     case 'otorgarPermiso':
         $iduath = limpiar_cadena($_POST['refAuth']);

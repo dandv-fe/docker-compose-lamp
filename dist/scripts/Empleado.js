@@ -418,6 +418,19 @@ function AuthorizacionEmpleado() {
                                             ${authCategoriasHtml.join('')}
                                         </div>
                                     </div>
+                                    <div class="card-footer">
+                                        <form action="#" method="post">
+                                            <div class="icheck-success d-inline">
+                                                <button onclick="quitarPermisosSucursal('checkbox_${suc[2]}' ,${suc[0]})" type="button" class="btn btn-outline-danger btn-block btn-sm"><i class="fa fa-book"></i> 
+                                                Quitar Permisos
+                                                </button>
+                                                <p class="m-0">
+                                                    Esta opcion desativa automaticamente
+                                                    <b>${suc[1]}: ${suc[2]}</b> para es usuario
+                                                </p>
+                                            </div>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -488,6 +501,51 @@ function inicializarPermisosSucursal(ele, refSucursal) {
         }
     });
 }
+
+function quitarPermisosSucursal(ele, refSucursal) {
+    Swal.fire({
+        title: "Qutar Permisos?",
+        text: "Decea quitar estos permisos de uso",
+        icon: "warning",
+        showCancelButton: true,
+        confirmButtonColor: "#3085d6",
+        cancelButtonColor: "#d33",
+        confirmButtonText: "Si, Quitar ahora!",
+    
+    }).then((result) => {
+        if (result.isConfirmed) {
+            $("#verLoadingPermisos").removeClass('hide')
+            $("#verListadoPermisos").addClass('hide')
+            $.post("./ajax/UsuarioAjax.php", function (r) {
+                if (r === '0') {
+                    location.reload(true);
+                }
+            });
+            const refEmpleado = $("#txtRefEmpleadoConfig").val();
+            const tipoUser = result.value
+            const ope = $("#" + ele).prop('checked');
+            $.post("./ajax/EmpleadoAjax.php?op=quitarAuth", { refSucursal, refEmpleado}, function (r) {
+                if (r.indexOf("ERROR:") !== -1) {
+                    Toast.fire({
+                        icon: 'error',
+                        title: r
+                    })
+
+                } else {
+
+                    Toast.fire({
+                        icon: 'success',
+                        title: r
+                    })
+                    AuthorizacionEmpleado()
+                }
+                $("#verLoadingPermisos").addClass('hide')
+                $("#verListadoPermisos").removeClass('hide')
+            });
+        }
+    });
+}
+
 
 
 function otorgarPermisoSucursal(ele, refAuth, refAuthSucursal) {

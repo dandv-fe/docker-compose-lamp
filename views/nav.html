@@ -305,7 +305,8 @@
                 <?PHP
                 if(  isset($_SESSION['userEmpresa']) || 
                      in_array('cobro detallado', $auths) ||
-                     in_array('kardex valorizado', $auths)
+                     in_array('kardex valorizado', $auths) || 
+                     in_array('egresos', $auths)
                 ){ ?>
                 <li id="li-consultaCobros" class="nav-item">
                     <a id="lia-consultaCobros" href="#" class="nav-link">
@@ -336,6 +337,18 @@
                         </li>-->
                         <?PHP
                         if(  isset($_SESSION['userEmpresa']) || 
+                             in_array('egresos', $auths)
+                        ){ ?>
+                        <li class="nav-item">
+                            <a id="lia-consultaEgresos" href="egresos.php" class="nav-link">
+                                <i class="far fa-circle nav-icon"></i>
+                                <p>Egresos</p>
+                            </a>
+                        </li>
+                        <?php    } ?>
+
+                        <?PHP
+                        if(  isset($_SESSION['userEmpresa']) || 
                              in_array('kardex valorizado', $auths)
                         ){ ?>
                         <li class="nav-item">
@@ -345,6 +358,7 @@
                             </a>
                         </li>
                         <?php    } ?>
+
 
                     </ul>
                 </li>
