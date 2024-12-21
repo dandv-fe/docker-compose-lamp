@@ -129,7 +129,16 @@
                 <div class="row">
                   <div class="col-12">
                     <div class="row">
-                      <div class="col-md-4">
+                      <div class="col-md-3">
+                        <div class="form-group has-success">
+                            <label for="txt_fechaIngreso">Fecha Ingreso:</label>
+                            <input required id="txt_fechaIngreso" type="date" maxlength="2" name="txt_fechaIngreso"
+                                class="form-control" placeholder="Fecha De Ingreso" />
+                        </div>
+        
+                    </div>
+
+                      <div class="col-md-3">
                         <div class="form-group has-success">
                           <input id="txtRefEmpleado" type="hidden" class="form-control" name="txtRefEmpleado" />
 
@@ -139,7 +148,7 @@
                         </div>
                       </div>
 
-                      <div class="col-md-4">
+                      <div class="col-md-3">
                         <div class="form-group has-success">
                           <label for="txtCargo">Cargo:</label>
                           <input value="" id="txtCargo" type="text" maxlength="50" name="txtCargo" required=""
@@ -147,7 +156,7 @@
                         </div>
                       </div>
 
-                      <div class="col-md-4">
+                      <div class="col-md-3">
                         <div class="form-group has-success">
                           <label for="txtEstadoEmpleado">Estado:</label>
                           <select name="txtEstadoEmpleado" id="txtEstadoEmpleado" class="form-control" required>
@@ -179,6 +188,7 @@
             </form>
           </div>
           <!-- /.card -->
+       
 
           <button id="btnNuevoEmpleado" class="btn btn-primary mb-2" data-toggle="modal" data-target="#modal-xl">
             <i class="fa fa-user-plus"></i> Nuevo Empleado
@@ -194,10 +204,11 @@
                 <thead>
                   <tr>
                     <th>#</th>
-                    <th>Nombre</th>
+                    <th style="min-width: 150px;">Nombre</th>
+                    <th>Documento</th>
+                    <th style="min-width: 60px;">Inicio</th>
                     <th>Estado</th>
                     <th>Cargo</th>
-                    <th>Documento</th>
                     <th>Teléfono</th>
                     <th>Foto</th>
                     <th>Opciones</th>
@@ -208,9 +219,10 @@
                   <tr>
                     <th>#</th>
                     <th>Nombre</th>
+                    <th>Documento</th>
+                    <th>Inicio</th>
                     <th>Estado</th>
                     <th>Cargo</th>
-                    <th>Documento</th>
                     <th>Teléfono</th>
                     <th>Foto</th>
                     <th>Opciones</th>
@@ -572,7 +584,6 @@
   });
 
 
-
   // dateDesde.locale(tempusDominus.locales['es'].es);
   //Date picker
   $('#dateHasta').datetimepicker({
@@ -580,6 +591,14 @@
     date: moment().endOf('month'),
     locale: 'es'
   });
+
+   //Date picker
+   $('#txt_fechaIngreso').datetimepicker({
+    format: 'YYYY-MM-DD',
+    date: moment().endOf('month'),
+    locale: 'es'
+  });
+
 
 
   $("#example1")

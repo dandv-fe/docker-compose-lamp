@@ -13,7 +13,6 @@ switch ($_GET["op"]) {
 
     case 'SaveOrUpdate':
         $password = '';
-
         //datos persona txtRefPersona
         $idpersona = limpiar_cadena($_POST["txtRefPersona"]); // hidden
         $nombres = limpiar_cadena($_POST["txt_Nombre"]);
@@ -32,7 +31,7 @@ switch ($_GET["op"]) {
         $direccion_barrio = limpiar_cadena($_POST["txt_Direccion_Distrito"]);
         $direccion_calle = limpiar_cadena2($_POST["txt_Direccion_Calle"]);
         $nota = '';
-        // datos usuario
+        // datos usuario txt_fechaIngreso
         $idusuario = limpiar_cadena($_POST["txtRefUsuario"]);
         $login = limpiar_cadena($_POST["txt_Login"]);
         if (empty($_POST["txt_Password"])) {
@@ -44,6 +43,7 @@ switch ($_GET["op"]) {
 
         // datos empleado
         $idempleado = limpiar_cadena($_POST["txtRefEmpleado"]);
+        $fechaIngreso= limpiar_cadena2($_POST["txt_fechaIngreso"]);
         $apodo = limpiar_cadena($_POST["txtApodo"]);
         $cargo = limpiar_cadena($_POST["txtCargo"]);
         $estadoEmpleado = limpiar_cadena($_POST["txtEstadoEmpleado"]);
@@ -97,6 +97,7 @@ switch ($_GET["op"]) {
                             $nota,
                             $login,
                             $password,
+                            $fechaIngreso,
                             $apodo,
                             $cargo,
                             $estadoEmpleado,
@@ -126,6 +127,7 @@ switch ($_GET["op"]) {
                             $login,
                             $password,
                             $idempleado,
+                            $fechaIngreso,
                             $apodo,
                             $cargo,
                             $estadoEmpleado,
@@ -161,6 +163,7 @@ switch ($_GET["op"]) {
                     $nota,
                     $login,
                     $password,
+                    $fechaIngreso,
                     $apodo,
                     $cargo,
                     $estadoEmpleado,
@@ -188,6 +191,7 @@ switch ($_GET["op"]) {
                     $login,
                     $password,
                     $idempleado,
+                    $fechaIngreso,
                     $apodo,
                     $cargo,
                     $estadoEmpleado,
@@ -239,6 +243,7 @@ switch ($_GET["op"]) {
         $req->estadoEmpleado = '';
         $req->comentarios = '';
         $req->fecha_at = '';
+        $req->fecha_inicio='';
         $req->refUsuario = '';
         $req->username = '';
         $req->id = '';
@@ -252,6 +257,7 @@ switch ($_GET["op"]) {
             $req->cargo = $request->cargo;
             $req->estadoEmpleado = $request->estadoEmpleado;
             $req->comentarios = $request->comentarios;
+            $req->fecha_inicio = $request->fecha_inicio;
             $req->fecha_at = $request->fecha_at;
             $req->refUsuario = $request->refUsuario;
             $req->username = $request->username;
@@ -277,12 +283,13 @@ switch ($_GET["op"]) {
             $data[] = array(
                 "0" => $i,
                 "1" => $reg->empleado,
-                "7" => $estado,
-                "2" => $reg->cargo,
-                "3" => '<p>' . $reg->tDocumento . '</p>' . '<p>' . $reg->nDocumento . '</p>',
-                "4" => $reg->tel,
-                "5" => '<img width=100px height=100px src="./' . $reg->foto . '" />',
-                "6" => $btneditar .
+                "2" => '<p>' . $reg->tDocumento . '</p>' . '<p>' . $reg->nDocumento . '</p>',
+                "3" => $reg->fecha_init,
+                "4" => $estado,
+                "5" => $reg->cargo,
+                "6" => $reg->tel,
+                "7" => '<img width=100px height=100px src="./' . $reg->foto . '" />',
+                "8" => $btneditar .
                     '<button class="btn btn-default" title="Configuracion" onclick="cargarDataEmpleado(\'' . $reg->tDocumento . '\',\'' . $reg->nDocumento . '\',\'perfil\')"><i class="fa-solid fa-user-gear fa-xl" style="color: #000000;"></i> </button>'
 
             );

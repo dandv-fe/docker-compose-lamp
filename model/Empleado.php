@@ -28,7 +28,7 @@ class Empleado
         //$estado,
         $login,
         $password,
-
+        $fechaIngreso,
         $apodo,
         $cargo,
         $estadoEmpleado,
@@ -96,10 +96,11 @@ class Empleado
                      str_cargo,
                      str_estado,
                      str_comentarios,
+                     date_fecha_inicio,
                      created_at,
                      update_at
              )
-              VALUES ($idglobal, $idpersona, '$apodo', '$cargo', '$estadoEmpleado', '', '$dt', '$dt')";
+              VALUES ($idglobal, $idpersona, '$apodo', '$cargo', '$estadoEmpleado', '', '$fechaIngreso', '$dt', '$dt')";
             $conexion->query($sql) or throw new Exception('error!');
 
             $sql = "INSERT INTO `tbl_usuario`(
@@ -143,8 +144,8 @@ class Empleado
         $idusuario,
         $login,
         $password,
-
         $idempleado,
+        $fechaIngreso,
         $apodo,
         $cargo,
         $estadoEmpleado,
@@ -214,10 +215,11 @@ class Empleado
                     str_cargo,
                     str_estado,
                     str_comentarios,
+                    date_fecha_inicio,
                     created_at,
                     update_at
             )
-             VALUES ($idglobal, $idpersona, '$apodo', '$cargo', '$estadoEmpleado', '', '$dt', '$dt')";
+             VALUES ($idglobal, $idpersona, '$apodo', '$cargo', '$estadoEmpleado', '', '$fechaIngreso', '$dt', '$dt')";
                 $conexion->query($sql) or throw new Exception('error!');
             } else {
                 $sql = "UPDATE `tbl_empleado` SET
@@ -225,6 +227,7 @@ class Empleado
                     str_cargo='$cargo',
                     str_estado='$estadoEmpleado',
                     str_comentarios='',
+                    date_fecha_inicio='$fechaIngreso',
                     update_at='$dt'
                     WHERE idempleado=$idempleado
             ";
@@ -320,6 +323,7 @@ class Empleado
         $sql = "SELECT 
         e.idempleado AS refEmpleado,
             e.str_cargo AS cargo,
+            e.date_fecha_inicio AS fecha_init,
             p.idpersona AS refPersona,
             CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado,
             p.str_foto AS foto,
@@ -385,6 +389,7 @@ class Empleado
             e.str_cargo AS cargo,
             e.str_estado AS estadoEmpleado,
             e.str_comentarios AS comentarios,
+            e.date_fecha_inicio AS fecha_inicio,
             e.created_at AS fecha_at,
             u.idusuario AS refUsuario,
             u.str_user_name AS username,

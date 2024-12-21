@@ -148,14 +148,13 @@ jQuery(document).ready(function () {
                         .add([
                             val[0],
                             capitalizarPalabras(val[1]),
-                            
-                            val[7],
-                            
                             val[2],
                             val[3],
                             val[4],
                             val[5],
-                            val[6]
+                            val[6],
+                            val[7],
+                            val[8],
                         ]).draw(false);
                 }
             },
@@ -746,7 +745,8 @@ function cargarDataEmpleado(tipo_documento, num_documento, accion) {// funcion q
         $("#txt_Direccion_Provincia").val(data.ciudad)
         $("#txt_Direccion_Distrito").val(data.barrio)
         $("#txt_Direccion_Calle").val(data.calle)
-        // $("#").val(data.fecha_at)
+        console.log(data.fecha_inicio);
+        $("#txt_fechaIngreso").val(data.fecha_inicio)
         $("#txtRefEmpleado").val(data.refEmpleado)
         $("#txtApodo").val(data.apodo)
         $("#txtCargo").val(data.cargo)
