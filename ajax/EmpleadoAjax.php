@@ -305,11 +305,9 @@ switch ($_GET["op"]) {
         while ($reg = $query->fetch_object()) {
             $data[] = array(
                 $reg->fecha_at,
-
                 $reg->m_sueldo,
                 $reg->sueldo,
                 $estado[$reg->estado]
-
             );
         }
         echo json_encode($data);
