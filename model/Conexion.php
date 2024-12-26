@@ -1,9 +1,12 @@
 <?php
 date_default_timezone_set("America/Bogota");
+/*$HOST = 'database';
+$USER = 'root';
+$PASS = $_ENV['MYSQL_ROOT_PASSWORD'];
+$DB = 'websdnco_db_webgoez_dev';*/
+
+
 $HOST = 'localhost';
-//$USER = 'root';
-//$PASS = '';
-//$DB = 'websdnco_db_webgoez_dev';
 $USER = 'websdnco_user_webgoez';
 $PASS = 'CHANGE_ME_EXAMPLE';
 $DB = 'websdnco_db_webgoez';
