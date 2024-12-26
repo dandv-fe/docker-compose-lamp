@@ -44,7 +44,7 @@
 
       <form role="form" id="frmIngresar" name="frmIngresar" method="post">
       <div class="input-group mb-3">
-          <input id="form-empresa" name="form-empresa" value="" type="text" class="form-control" placeholder="ID ">
+          <input id="form-empresa" name="form-empresa" value="" type="text" class="form-control" placeholder="Id Empresa ">
           <div class="input-group-append">
             <div class="input-group-text">
               <span class="fas fa-user"></span>
@@ -60,7 +60,7 @@
           </div>
         </div>
         <div class="input-group mb-3">
-          <input type="password" value="" id="form-password" name="form-password" class="form-control" placeholder="Password">
+          <input type="password" value="" id="form-password" name="form-password" class="form-control" placeholder="Conraseña">
           <div class="input-group-append">
             <div class="input-group-text">
               <span class="fas fa-lock"></span>
