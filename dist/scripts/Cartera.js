@@ -233,7 +233,20 @@ jQuery(document).ready(function () {
 
     function recibidoSumaRecaudoCreditos(e) {
 
+
+        if (e.data.cantidadAbonos>=10 && e.data.cantidadAbonos<100) {
+            $("#canpanaAbonos").css({'margin-right': '0.5rem'})
+        }
+        if (e.data.cantidadAbonos>=100 && e.data.cantidadAbonos<1000) {
+            $("#canpanaAbonos").css({'margin-right': ': 0.9rem'})
+        }
+
+        if (e.data.cantidadAbonos<10) {
+            $("#canpanaAbonos").css({'margin-right': '0'})
+        }
+
         $("#txtCantidadAbonos").text(e.data.cantidadAbonos);
+
         $(".txtRecaudoSuma").text(e.data.recaudo);
         $(".txtCreditosSuma").text(e.data.creditos);
         $(".txtSegurosSuma").text(e.data.seguros);
