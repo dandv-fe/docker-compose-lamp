@@ -238,7 +238,7 @@ jQuery(document).ready(function () {
             $("#canpanaAbonos").css({'margin-right': '0.5rem'})
         }
         if (e.data.cantidadAbonos>=100 && e.data.cantidadAbonos<1000) {
-            $("#canpanaAbonos").css({'margin-right': ': 0.9rem'})
+            $("#canpanaAbonos").css({'margin-right': '0.9rem'})
         }
 
         if (e.data.cantidadAbonos<10) {
