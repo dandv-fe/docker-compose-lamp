@@ -787,7 +787,7 @@ WHERE
 	tbl_empleados_cobrando ec ON ec.id_detalle_ruta=dr.iddetalleruta INNER JOIN
 	tbl_empleado e ON e.idempleado=ec.idempleado INNER JOIN
 	tbl_persona p ON p.idpersona=e.idpersona
-	WHERE dr.idsucursal=$refSucursal AND dr.str_estado='created' LIMIT 1";
+	WHERE dr.idsucursal=$refSucursal AND dr.str_estado='created'";
 		}
 
 		$query = $conexion->query($sql);
