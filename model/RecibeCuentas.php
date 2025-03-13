@@ -781,13 +781,14 @@ WHERE
 	AND n.str_estado = 'activo' ORDER BY p.str_nombres";
 		} else {
 			$sql = "SELECT 
-	(SELECT idnomina FROM tbl_nomina WHERE idempleado=e.idempleado) AS refNomina,
+	n.idnomina AS refNomina,
 	CONCAT( p.str_nombres, ' ', p.str_apellidos ) AS nombre 
 	FROM tbl_detalle_ruta dr INNER JOIN
 	tbl_empleados_cobrando ec ON ec.id_detalle_ruta=dr.iddetalleruta INNER JOIN
 	tbl_empleado e ON e.idempleado=ec.idempleado INNER JOIN
-	tbl_persona p ON p.idpersona=e.idpersona
-	WHERE dr.idsucursal=$refSucursal AND dr.str_estado='created'";
+	tbl_persona p ON p.idpersona=e.idpersona INNER JOIN
+  	tbl_nomina n ON n.idempleado=e.idempleado
+	WHERE dr.idsucursal=$refSucursal AND dr.str_estado='created' AND n.str_estado='activo' ";
 		}
 
 		$query = $conexion->query($sql);
