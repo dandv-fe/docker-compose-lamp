@@ -601,7 +601,7 @@ class RecibeCuentas
 		$idsucursals = array();
 		$query = null;
 		if (empty($superadmin)) {
-			$sql = "SELECT refSucursal FROM view_auth_sucursal WHERE refEmpleado=$userEmpleadoId  AND nameAccion='ver recibir'";
+			$sql = "SELECT refSucursal FROM view_auth_sucursal WHERE refEmpleado=$userEmpleadoId  AND nameAccion='ver recibir' AND estadoAuthSucursal='activo'";
 			$query = $conexion->query($sql);
 		} else {
 			$sql = "SELECT idsucursal AS refSucursal FROM tbl_sucursal WHERE idglobal=$idglobal";
