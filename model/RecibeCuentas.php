@@ -647,7 +647,7 @@ class RecibeCuentas
 					 au.idsucursal=refSucursal AND 
 					 a.str_nombre='ver cuentas detalladas') AS verCuentasDetalladas
 		 FROM view_contabilidad_detalle_ruta 
-		 WHERE refSucursal IN (" . implode(",", $idsucursals) . ") AND  estado<>'saved' AND refGlobal=$idglobal";
+		 WHERE refSucursal IN (" . implode(",", $idsucursals) . ") AND  estado<>'saved' AND refGlobal=$idglobal AND estadoAuthSucursal='activo' ";
 		$query = $conexion->query($sql);
 		return $query;
 	}
