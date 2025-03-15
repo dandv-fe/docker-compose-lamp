@@ -10,6 +10,21 @@ var sleepES5 = function (ms) {
     while (new Date().getTime() < esperarHasta) continue;
 };
 jQuery(document).ready(function () {
+    $("#editarDocumentoCliente").click(function (e) { 
+        $("#titleModalBuscarPersona").text("Editar Documento");
+        
+        var dd=$("#txt-tipo-documento-cliente").text();
+        
+        
+        $("#refBuscarPersona").val($(this).data('editDocument'));
+       
+        $("#cboBusTipo_Documento").val(dd)
+    
+        $("#txtbusNum_Documento").val($("#txt-num-documento-cliente").text());
+        $("#btnSubmitFormBuscarPersona").text("Editar");
+        
+        $("#modal-xl").modal('show');
+    });
     $("#loadinSavedAdd").hide()
     verLoadin('Buscando Tarjetas', 'Espere...')
     if (typeof (Worker) !== "undefined") {
@@ -158,11 +173,43 @@ jQuery(document).ready(function () {
 
     function buscarPersona(e) {
         e.preventDefault()
+        let refPersona=$("#refBuscarPersona").val();
         let tipo_documento = $("#cboBusTipo_Documento").val()
         let num_documento = $("#txtbusNum_Documento").val()
 
-        cargarDataCliente(tipo_documento, num_documento);
+        if (refPersona) {
+            var formData = new FormData($("form#formBuscarPersona")[0]);
 
+        $.ajax({
+
+            url: "./ajax/ClienteAjax.php?op=updateDocumentoPersona",
+            type: "POST",
+            data: formData,
+            contentType: false,
+            processData: false,
+            success: function (datos) {
+
+                if (datos.indexOf("ERROR:") !== -1) {
+                    Toast.fire({
+                        icon: 'error',
+                        title: datos
+                    })
+                } else {
+                  
+                    Toast.fire({
+                        icon: 'success',
+                        title: datos
+                    })
+                    $("#frmCliente").trigger('reset')
+                    $("#frmCliente input:hidden").val('')
+                    cargarDataCliente(tipo_documento, num_documento);
+                }
+            }
+        });
+            
+        } else {
+        cargarDataCliente(tipo_documento, num_documento);
+        }
     }
     // crea tarjeta 
 
@@ -234,15 +281,15 @@ jQuery(document).ready(function () {
     function recibidoSumaRecaudoCreditos(e) {
 
 
-        if (e.data.cantidadAbonos>=10 && e.data.cantidadAbonos<100) {
-            $("#canpanaAbonos").css({'margin-right': '0.5rem'})
+        if (e.data.cantidadAbonos >= 10 && e.data.cantidadAbonos < 100) {
+            $("#canpanaAbonos").css({ 'margin-right': '0.5rem' })
         }
-        if (e.data.cantidadAbonos>=100 && e.data.cantidadAbonos<1000) {
-            $("#canpanaAbonos").css({'margin-right': '0.9rem'})
+        if (e.data.cantidadAbonos >= 100 && e.data.cantidadAbonos < 1000) {
+            $("#canpanaAbonos").css({ 'margin-right': '0.9rem' })
         }
 
-        if (e.data.cantidadAbonos<10) {
-            $("#canpanaAbonos").css({'margin-right': '0'})
+        if (e.data.cantidadAbonos < 10) {
+            $("#canpanaAbonos").css({ 'margin-right': '0' })
         }
 
         $("#txtCantidadAbonos").text(e.data.cantidadAbonos);
@@ -471,15 +518,15 @@ function cargarDatosEnPanel() {
 
     id = parseInt(id)
     changeEstadoRestaStylo('normal')
-    if (parseFloat(ArrayTarjetas[id].recaudo) < 0){
+    if (parseFloat(ArrayTarjetas[id].recaudo) < 0) {
         $("#styloResta").attr('class', 'card bg-gradient-warning  m-0')
         $("#resta-cliente-panel").css({
             width: '50%'
         });
-        $("#recaudo-cliente-panel").text(ArrayTarjetas[id].recaudo*-1)
+        $("#recaudo-cliente-panel").text(ArrayTarjetas[id].recaudo * -1)
         $("#recaudo-cliente-panel").removeClass('hide')
 
-    }else{
+    } else {
         $("#recaudo-cliente-panel").addClass('hide')
         $("#resta-cliente-panel").css({
             width: '100%'
@@ -520,7 +567,7 @@ function cargarDatosEnPanel() {
 
     $("#bResultadoValoresValor").text(ArrayTarjetas[id].valor)
     $("#bResultadoValoresCosto").text(ArrayTarjetas[id].costo)
-    ArrayTarjetas[id].ut_adi_valor=="0.00"? $("#divPanelAdicional").hide(): $("#divPanelAdicional").show()
+    ArrayTarjetas[id].ut_adi_valor == "0.00" ? $("#divPanelAdicional").hide() : $("#divPanelAdicional").show()
     $("#bResultadoValoresSeguro").text(ArrayTarjetas[id].ut_adi_valor)
     $("#resta-cliente-panel").text(parseFloat(ArrayTarjetas[id].resta).toFixed(2))
     $("#txtClienteCalificacion").text(ArrayTarjetas[id].calificacion);
@@ -933,6 +980,7 @@ function cargarDataCliente(tipo_documento, num_documento, editar) {// funcion qu
             location.reload(true);
         }
     });
+    
 
 
     $.getJSON("./ajax/CarteraAjax.php?op=buscarCliente", { tipo_documento, num_documento },
@@ -1019,6 +1067,8 @@ function cargarDataCliente(tipo_documento, num_documento, editar) {// funcion qu
                         $("#txt-sexo-cliente").text(data.sexo);
                         $("#txt-tipo-documento-cliente").text(data.t_documento);
                         $("#txt-num-documento-cliente").text(data.n_documento);
+                        $("#editarDocumentoCliente").data("editDocument", data.refPersona);
+
                         $("#txt-tel-cliente").text(data.telefono);
                         $("#txt-maxcredi-cliente").text(data.max_credito);
                         $("#txt-cupo-cliente").text(parseFloat(data.max_credito - data.total_deuda_actual).toFixed(2));
@@ -1040,20 +1090,20 @@ function cargarDataCliente(tipo_documento, num_documento, editar) {// funcion qu
                                 const tar = value.targeta.split(';')
                                 let abonos = ''
                                 if (value.datos) {
-                                   // console.log(value.datos);
+                                    // console.log(value.datos);
                                     const allAbns = value.datos//.substring(1, value.datos.length - 1)
-                                 
-                                      const abns = allAbns.split(';')
-                                     
+
+                                    const abns = allAbns.split(';')
+
                                     for (const [key, cuota] of Object.entries(abns.filter(Boolean))) {
                                         const a = cuota.split(',')
-const xx=parseFloat(a[1])*-1
-                                       abonos += `${xx},,,${a[3]},,,${a[0]}<=>`;
+                                        const xx = parseFloat(a[1]) * -1
+                                        abonos += `${xx},,,${a[3]},,,${a[0]}<=>`;
 
 
                                     }
 
-                                   
+
 
 
                                 }
@@ -1185,20 +1235,20 @@ function verDescripcionAbonos(allAbonos, valo) {
     var tabla = $("#tblDescripcionHistorialPagos").DataTable();
     tabla.clear().draw();
     if (allAbonos) {
-        let pagado=0
+        let pagado = 0
         var abs = allAbonos.split('<=>')
-        abs=abs.filter(Boolean);
+        abs = abs.filter(Boolean);
 
         for (let i = 0; i < abs.length; i++) {
             const strAbono = abs[i];
             const abono = strAbono.split(',,,');
-            const dec_cuota= parseFloat(abono[0])
-pagado+=dec_cuota
+            const dec_cuota = parseFloat(abono[0])
+            pagado += dec_cuota
             tabla.row
                 .add([
                     (i + 1),
                     abono[0],
-                    valo +pagado,
+                    valo + pagado,
                     moment(abono[2]).format('ll'),
                     abono[1],
 

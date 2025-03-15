@@ -259,6 +259,37 @@
 			}
 			return $sw;
 		}
+
+		public function editarDocumentoPersona($idglobal,$idpersona,$tipo_documento,$num_documento)  {
+			global $conexion;
+			$conexion->autocommit(false);
+			$sw = true;
+			$sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$idglobal AND str_tipo_documento='$tipo_documento' AND str_num_documento='$num_documento'";
+				 $query = $conexion->query($sql);
+				 $request= $query->fetch_object();
+				 if (isset($request->idpersona)) {
+					echo "!ERROR:! Este Documento ya existe";
+					return;
+				 }
+
+			try {
+
+				$sql="UPDATE tbl_persona SET str_tipo_documento='$tipo_documento', str_num_documento='$num_documento'
+						WHERE idpersona=$idpersona";
+				$conexion->query($sql) or throw new Exception('error!');
+
+			} catch (Exception $e) {
+				$sw = false;
+				$conexion->rollback();
+			}
+			$conexion->commit();
+			if ($conexion != null) {
+				$conexion->close();
+			}
+			$mensaje = $sw ? "Documento de Persona editado ¡Correctamente!" : "¡ERROR: Inesperado!";
+			echo $mensaje;
+			return $sw;
+		}
 	
 	 
 

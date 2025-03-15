@@ -2,20 +2,22 @@
     <div class="modal-dialog modal-xl">
         <div class="modal-content">
             <div class="modal-header">
-                <h4 class="modal-title">Buscar usuario</h4>
+                <h4 id="titleModalBuscarPersona" class="modal-title">Buscar usuario</h4>
                 <button type="button" class="close" data-dismiss="modal" aria-label="Close">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             <form id="formBuscarPersona">
+                <input id="refBuscarPersona" type="hidden" name="refPersona">
                 <div class="modal-body">
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group has-success">
                                 <label for="cboBusTipo_Documento">Tipo Documento:</label>
-                                <select required id="cboBusTipo_Documento" name="cboBusTipo_Documento" class="form-control">
-                                    
-                                  </select>
+                                <select required id="cboBusTipo_Documento" name="cboBusTipo_Documento"
+                                    class="form-control">
+
+                                </select>
                             </div>
 
                         </div>
@@ -33,7 +35,7 @@
 
                 <div class="modal-footer justify-content-between">
                     <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
-                    <button type="submit" class="btn btn-primary">Buscar</button>
+                    <button id="btnSubmitFormBuscarPersona" type="submit" class="btn btn-primary">Buscar</button>
                 </div>
 
 
@@ -53,7 +55,11 @@
             setTimeout(numdocumentoFocus, 300)
         })
         $('#modal-xl').on('hide.bs.modal', function (e) {
+            $("#titleModalBuscarPersona").text("Buscar usuario");
+            $("#btnSubmitFormBuscarPersona").text("Buscar");
+            $("form#formBuscarPersona :hidden").val("")
             $('form#formBuscarPersona').trigger("reset");
+            ComboTipo_Documento();
         })
         function numdocumentoFocus() {
             $("#txtbusNum_Documento").focus();
@@ -69,4 +75,5 @@
         }
 
     });
+
 </script>

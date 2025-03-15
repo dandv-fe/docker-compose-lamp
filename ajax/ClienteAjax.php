@@ -324,7 +324,17 @@ switch ($_GET["op"]) {
         break;
 
 
+        case 'updateDocumentoPersona':
+            $idglobal = $_SESSION['idglobal'];
+            $idpersona= limpiar_cadena($_POST['refPersona']);
+            $tipo_documento= limpiar_cadena($_POST['cboBusTipo_Documento']);
+            $num_documento= limpiar_cadena($_POST['txtbusNum_Documento']);
 
+            $objCliente->editarDocumentoPersona($idglobal, $idpersona,$tipo_documento, $num_documento);
+           
+            
+
+        break;
     case "listClientesDeCartera":
         $idsucursal = $_SESSION['MYSESSION_idsucursal'];
         $query = $objCliente->ListarClientesDeCartera($idsucursal);
