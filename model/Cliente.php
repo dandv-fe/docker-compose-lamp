@@ -260,7 +260,7 @@
 			return $sw;
 		}
 
-		public function editarDocumentoPersona($idglobal,$idpersona,$tipo_documento,$num_documento)  {
+		public function editarDocumentoPersona($idglobal,$idpersona,$tipo_documento,$num_documento,$created_empleado_id)  {
 			global $conexion;
 			$conexion->autocommit(false);
 			$sw = true;
@@ -271,6 +271,29 @@
 					echo "!ERROR:! Este Documento ya existe";
 					return;
 				 }
+
+				 $idsucursal = $_SESSION['MYSESSION_idsucursal'];
+				$sql = "SELECT
+				a.str_nombre
+				 FROM  `tbl_auth_sucursal` au INNER JOIN 
+						tbl_auths b ON b.idauth_sucursal=au.idauth_sucursal INNER JOIN 
+						tbl_auth a ON a.idauth=b.idauth 
+				 where au.str_estado<>'inactivo' AND 
+						 au.idempleado=$created_empleado_id AND 
+						 au.idsucursal=$idsucursal AND 
+						 a.str_nombre='editar documento'";
+				$qry = $conexion->query($sql);
+				$bloq = $qry->fetch_object();
+
+				
+				if (isset($_SESSION['userEmpresa']) ||isset($bloq->str_nombre)){
+	
+				}else {
+					echo "ERROR: No estas authorizado para esta accion";
+					return;
+				}
+
+
 
 			try {
 

@@ -325,12 +325,13 @@ switch ($_GET["op"]) {
 
 
         case 'updateDocumentoPersona':
+            $created_empleado_id = $_SESSION['userEmpleado'];
             $idglobal = $_SESSION['idglobal'];
             $idpersona= limpiar_cadena($_POST['refPersona']);
             $tipo_documento= limpiar_cadena($_POST['cboBusTipo_Documento']);
             $num_documento= limpiar_cadena($_POST['txtbusNum_Documento']);
 
-            $objCliente->editarDocumentoPersona($idglobal, $idpersona,$tipo_documento, $num_documento);
+            $objCliente->editarDocumentoPersona($idglobal, $idpersona,$tipo_documento, $num_documento,$created_empleado_id);
            
             
 
