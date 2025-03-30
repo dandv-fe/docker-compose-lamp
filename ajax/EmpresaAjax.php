@@ -232,7 +232,7 @@ switch ($_GET["op"]) {
                 </span>
                 <span class="description"></span>
             </div>',
-                $reg->actividades . ' de ' . $reg->mex_sucursal,
+                $reg->actividades . ' de ' . $reg->max_sucursal,
                 $reg->empleados,// $reg->str_simbolo_moneda,
                 $reg->clientes,
                 '<button class="btn btn-warning" title="Editar" onclick="cargarEmpresaCliente(\'' . $reg->t_documento . '\',\'' . $reg->n_documento . '\',\'editar\')"><i class="fa-solid fa-user-pen fa-xl" style="color: #000000;"></i> </button>&nbsp;'
@@ -267,4 +267,53 @@ switch ($_GET["op"]) {
         echo $parte_izquierda . "" . $suma;
 
         break;
+    /*------------------------------------------------------*/
+    // Gestion
+    case 'SaveOrUpdateGestion': 
+        $iddescripcion_global=limpiar_cadena($_POST['hrefDg']);
+        $idglobal_accion=limpiar_cadena($_POST['hrefGlobal']);
+        $date_corte=limpiar_cadena2($_POST['txtFechaDesde']);
+        $dec_valor=floatval($_POST['txtValor']);
+        $int_dias_extras=intval($_POST['txtDiasExtras']);
+        
+        $classEmpresas->RegistrarGestion(
+            $iddescripcion_global, 
+            $idglobal, 
+            $idglobal_accion, 
+            $date_corte, 
+            $dec_valor, 
+            int_dias_extras: $int_dias_extras );
+        
+    break;
+
+    case "listGestion": 
+        $query = $classEmpresas->Gestion($idglobal);
+
+        $i = 1;
+        while ($reg = $query->fetch_object()) {
+
+            $data[] = array(
+
+                '<div class="user-block">
+                <img class="img-circle img-bordered-sm" src="' . $reg->foto . '"
+                    alt="cliente">
+                <span class="username">
+                    <a href="#">' . $reg->superadmin . '</a>
+                </span>
+                <span class="description"></span>
+            </div>',
+                $reg->razonSocial,
+                $reg->date_corte,
+                $reg->int_dias_extras,
+                 //'<button class="btn btn-info" title="Gestionar" onclick="gestionarEmpresa( )"><i class="fa-solid fa-eye fa-xl" style="color: #000000;"></i> </button>&nbsp;'.
+                '<button onclick="formGestionPago(' . $reg->refGlobal . ')" class="btn btn-info" title="Formulario de Pago" ><i class="fa-solid fa-dollar-sign fa-xl" style="color: #000000;"></i> </button>&nbsp;'
+
+            );
+            $i++;
+        }
+        echo json_encode($data);
+    break;
+
 }
+
+//onclick="gestionarEmpresa(\'' . $reg->t_documento . '\',\'' . $reg->n_documento . '\',\'editar\')"

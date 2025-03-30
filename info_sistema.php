@@ -5,6 +5,6 @@ function infoSistemaCuentas()
 
   return array(
     "name" => 'Sistema',
-    "version" => 5.3
+    "version" => 5.4
   );
 }

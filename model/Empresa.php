@@ -96,7 +96,7 @@ class ClassEmpresas
       $conexion->query($sql) or throw new Exception('error!');
 
     } catch (Exception $e) {
-      print_r($e);
+    
       $sw = false;
       $conexion->rollback();
     }
@@ -198,7 +198,7 @@ class ClassEmpresas
       $conexion->query($sql) or throw new Exception('error!');
 
     } catch (Exception $e) {
-      print_r($e);
+     
       $sw = false;
       $conexion->rollback();
     }
@@ -228,11 +228,84 @@ class ClassEmpresas
   public function Listar($idglobal)
   {
     global $conexion;
-    $sql = "SELECT e.*,
+    $sql = "SELECT e.refGlobal, razonSocial, e.superadmin, e.foto, e.max_sucursal, e.t_documento, e.n_documento,
       (SELECT IFNULL(COUNT(idsucursal),0) FROM tbl_sucursal WHERE idglobal=e.refGlobal ) AS actividades,
       (SELECT IFNULL(COUNT(idempleado),0) FROM tbl_empleado WHERE idglobal=e.refGlobal AND str_cargo<>'Super Administrador') AS empleados,
       (SELECT IFNULL(COUNT(idcliente),0) FROM tbl_clientes WHERE idglobal=e.refGlobal ) AS clientes
     FROM `view_empresas_publica` e WHERE refEmpresa=$idglobal";
+    $query = $conexion->query($sql);
+    return $query;
+  }
+  /*-----------------------------------------------------------------------*/
+  //Gestion
+  public function RegistrarGestion(
+    $iddescripcion_global,
+    $idglobal,
+    $idglobal_accion,
+    $date_corte,
+    $dec_valor,
+    $int_dias_extras
+  ) {
+    $str_estado='';
+    $created_at = date('Y-m-d H:i:s');
+    global $conexion;
+    $sw = true;
+    $conexion->autocommit(false);
+    try {
+      if (empty($iddescripcion_global)) {
+        $str_estado='actual';
+        $sql="UPDATE tbl_descripcion_global SET str_estado='saved' WHERE idglobal_accion=$idglobal_accion AND str_estado='$str_estado' ";
+        $conexion->query($sql) or throw new Exception('error!');
+        $sql="INSERT INTO tbl_descripcion_global(
+          idglobal,
+          idglobal_accion,
+          date_corte,
+          dec_valor,
+          int_dias_extras,
+          str_estado,
+          created_at
+          )
+            VALUES(
+              $idglobal,
+              $idglobal_accion,
+              '$date_corte',
+              $dec_valor,
+              $int_dias_extras,
+              '$str_estado',
+              '$created_at' )";
+        $conexion->query($sql) or throw new Exception('error!');
+      } else {
+       $sql="UPDATE tbl_descripcion_global SET 
+              date_corte=$date_corte,
+              dec_valor=$dec_valor,
+              int_dias_extras=$int_dias_extras
+              WHERE iddescripcion_global=$iddescripcion_global";
+        $conexion->query($sql) or throw new Exception('error!');
+
+      }
+    } catch (Exception $e) {
+      $sw = false;
+      $conexion->rollback();
+    }
+    $conexion->commit();
+    if ($conexion != null) {
+      $conexion->close();
+    }
+    if (empty($iddescripcion_global)) {
+    $msg = $sw ? "Pago de Empresa registrado, !Exitosamente!" : "ERROR: Empresa no ha podido ser registado. ";
+    }else {
+    $msg = $sw ? "Pago de Empresa editado, !Exitosamente!" : "ERROR: Pago de Empresa no ha podido ser editado. ";
+    }
+    echo $msg;
+    return;
+  }
+  public function Gestion($idglobal){
+    global $conexion;
+    $sql = "SELECT e.refGlobal,  e.razonSocial, e.superadmin, e.foto, 
+      dg.date_corte, dg.int_dias_extras
+    FROM `view_empresas_publica` e LEFT JOIN
+    tbl_descripcion_global dg ON dg.idglobal_accion = e.refGlobal AND dg.str_estado = 'actual'
+     WHERE e.refEmpresa=$idglobal";
     $query = $conexion->query($sql);
     return $query;
   }

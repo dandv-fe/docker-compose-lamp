@@ -510,6 +510,7 @@ class ClassCartera
             $resDR = $queryDR->fetch_object();
             $iddetalleruta = $resDR->iddetalleruta;
             if ($operacion === 'Intereses') {
+                
                 $sqlSelectAbono = "SELECT iddescripcion FROM tbl_descripcion 
                 WHERE 
                 idtarjeta='$idtarjeta' AND str_estado<>'saved' AND str_descripcion LIKE '$operacion%' ";

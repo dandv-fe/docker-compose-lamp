@@ -6,7 +6,7 @@ class usuario
     public function __construct()
     {
     }
-    public function getAccederInformacion($userIdEmpresa, $idempleado)
+    public function getAccederInformacion($userIdEmpresa, $idempleado, $idglobal)
     {
         global $conexion;
         $au = array();
@@ -187,7 +187,11 @@ class usuario
 
         }
 
-        return array($infoAcceso, $listSucursalesPermitidas, array_unique($au));
+        $sql="SELECT date_corte, int_dias_extras FROM `tbl_descripcion_global` WHERE idglobal_accion=$idglobal AND str_estado='actual'";
+        $query_ep = $conexion->query($sql);
+        $estadoPago = $query_ep->fetch_object();
+
+        return array($infoAcceso, $listSucursalesPermitidas, array_unique($au), $estadoPago);
     }
 
     // inicio de seccion con password

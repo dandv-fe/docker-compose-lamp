@@ -1,3 +1,56 @@
+
+<script>
+    var Toast = Swal.mixin({
+      toast: true,
+      position: 'top-right',
+      showConfirmButton: false,
+      timer: 4000
+    
+    });
+</script>
+
+
+<?php 
+$str_cero = str_split($dias_restantes);
+
+    if($dias_restantes+$dias_extras < $dias_extras && $decicion!=-1){?>
+    <script>
+        $(document).Toasts('create', {
+          class: '<?PHP echo $dias_restantes==-5? "bg-danger": "bg-warning";?>', 
+          title: 'Administración Informa',
+          subtitle: '<?PHP echo $dias_restantes+$dias_extras . " Dais Restantes";?>',
+          body: `<h6>Pago oportuno: <?php echo $estado_pago->date_corte; ?> </h6>
+          <p style=" font-weight: bold;font-size: 1rem;">
+              Le estamos recordando el pago de su servicio, por favor consignar y enviar el comprobante 
+              evite suspensión </p> 
+              <h4>En <?PHP echo $dias_restantes==-5? "Suspensión Inmediata":$dias_restantes+$dias_extras . " dias se suspende el servicio ";?></h4>
+          <p>Si es un error pongase en contacto con el administrador</p>`
+        })
+  </script>
+    
+   
+<?php }elseif(($str_cero[0]=='+' || $str_cero[0]=='-') && $str_cero[1]=='0'){?>
+    <script>
+        Toast.fire({
+       icon: `<?php echo $str_cero[0]=="-"? "error": "warning"; ?>` ,
+       title:
+        `
+         <h3>Administración </h3>
+        <h6>Cordial Saludo </h6>
+       <p style=" font-weight: bold;font-size: 1rem;">Pago oportuno:  
+        <h2><?php echo $estado_pago->date_corte; if($str_cero[0]=="-"){ echo "</br>"."ES HOY";} ?></h2>
+        
+        </p>
+       
+       `
+     })
+   </script>
+<?php }?>
+
+
+
+
+
 <!-- Preloader -->
 <div class="preloader flex-column justify-content-center align-items-center">
     <img class="animation__wobble" src="dist/img/AdminLTELogo.png" alt="AdminLTELogo" height="60" width="60">
@@ -90,9 +143,9 @@
             <ul class="nav nav-pills nav-sidebar flex-column" data-widget="treeview" role="menu" data-accordion="false">
                 <li class="nav-item">
                     <a href="acceder.php" class="nav-link lia-perfil">
-                        <i class="nav-icon fa-solid fa-p"></i>
+                        <i class="nav-icon fa-solid fa-a mr-0"></i>
                         <p>
-                            Acceder
+                            cceder
                             <span id="spanAcceder" class="right badge badge-success hide">></span>
 
                         </p>
@@ -105,37 +158,30 @@
                 if(isset($_SESSION['userEmpresa']) && $_SESSION['typeEmpresa']==='servicio'){ ?>
 
 
-                <!--<li class="nav-item">
-                    <a href="perfil.php" class="nav-link lia-perfil">
-                        <i class="nav-icon fa-solid fa-p"></i>
-                        <p>
-                            Estadisticas
-                            <span class="right badge badge-danger"></span>
-                        </p>
-                    </a>
-                </li>-->
+              
 
                 <li class="nav-item">
                     <a href="empresa.php" class="nav-link lia-clientes-o">
-                        <i class="nav-icon fa-solid fa-p "></i>
+                        <i class="nav-icon fa-solid fa-e mr-0"></i>
                         <p>
-                            Empresas
+                            mpresas
                             <span id="spanEmpresas" class="right badge badge-success hide">></span>
                         </p>
                     </a>
                 </li>
 
+                <li class="nav-item">
+                    <a href="gestion.php" class="nav-link lia-gestion">
+                        <i class="nav-icon fa-solid fa-money-check-dollar"></i>
+                        <p>
+                            Gestion  
+                            <span id="spanGestion" class="right badge badge-danger"></span>
+                        </p>
+                    </a>
+                </li>
 
-
-                <?php    }else{ ?>
-
-                <script>
-                    //   console.log("<?php echo in_array('despachar', array_column($allSucursal, 'nombre'));?>");
-                </script>
-                <?PHP
-
+                <?php    }else{ 
                 if(isset($_SESSION['userEmpresa']) || in_array('despachar', $auths)){ ?>
-
 
                 <li class="nav-item">
                     <a href="despachar.php" class="nav-link lia-despachar">
