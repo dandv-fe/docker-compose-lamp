@@ -77,10 +77,10 @@ class ClassEmpresas
 
       $sql = "INSERT INTO `tbl_empleado`(
               idglobal,idpersona,str_apodo,str_cargo,
-              str_estado,str_comentarios,created_at,update_at
+              str_estado,str_comentarios,date_fecha_inicio,created_at,update_at
       )
        VALUES ($idglobal, $idpersona, '', 'Super Administrador',
-        'activo', '', '$dt', '$dt')";
+        'activo', '', '$dt', '$dt', '$dt')";
       $conexion->query($sql) or throw new Exception('error!');
 
       $sql = "INSERT INTO `tbl_usuario`(
@@ -96,7 +96,7 @@ class ClassEmpresas
       $conexion->query($sql) or throw new Exception('error!');
 
     } catch (Exception $e) {
-    
+    //print_r($e);
       $sw = false;
       $conexion->rollback();
     }

@@ -1,5 +1,5 @@
 <?php
-require "Conexion_up.php";
+require "Conexion_up2.php";
 require "Conexion.php";
 
 class ClassUp

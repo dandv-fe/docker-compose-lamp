@@ -1,5 +1,11 @@
 <?php
 date_default_timezone_set("America/Bogota");
+/*$HOST = 'database';
+$USER = 'root';
+$PASS = $_ENV['MYSQL_ROOT_PASSWORD'];
+$DB = 'yilber';*/
+
+
 $HOST = 'localhost';
 $USER = 'websdnco_base';
 $PASS = 'CHANGE_ME_EXAMPLE';

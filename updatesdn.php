@@ -8,13 +8,30 @@ $objusuario = new usuario();
 $_SESSION['authSucursal']=null;
 if (isset($_SESSION["idusuario"])) {
     if (isset($_SESSION['userEmpleado'])) {
-        $query = $objusuario->getAccederInformacion($_SESSION['userEmpresa'], $_SESSION['userEmpleado']);
+        $userIdEmpresa = $_SESSION['userEmpresa'];
+        $idglobal=$_SESSION['idglobal'];
+
+        $query = $objusuario->getAccederInformacion($userIdEmpresa, $_SESSION['userEmpleado'], $idglobal);
         $fetch = $query[0];
         $allSucursal = $query[1];
         $auths = $query[2];
+        $estado_pago =  $query[3];
+        $dias_extras=10;
+        $dias_restantes=10;
+        $decicion=1;
+        
+        if(isset($estado_pago->date_corte)){
+            $origin = new DateTimeImmutable();
+            $target = new DateTimeImmutable($estado_pago->date_corte);
+            $interval = $origin->diff($target);
+            $dias_extras= $estado_pago->int_dias_extras;
+            $dias_restantes = $interval->format("%R%a");
+    
+            $decicion = $dias_restantes+ $dias_extras <=> 0;
+        }
         include "views/header.html";
         include "views/nav.html";
-
+        
         require_once "model/Up.php";
         $classUp= new ClassUp();
 
@@ -23,9 +40,10 @@ if (isset($_SESSION["idusuario"])) {
 
     
 
-        if($_SESSION['userEmpresa']==1002 || $_SESSION['userEmpresa']==1004 ){
-            include "views/upsadteSdn.html";
-        }
+       // if($_SESSION['userEmpresa']==1039 || $_SESSION['userEmpresa']==1039 ){
+    
+            $decicion!=-1?include "views/upsadteSdn.html": include "views/pago_vencido.html";
+       // }
         include "views/footer.html";
     }
 } else {
