@@ -59,7 +59,7 @@ switch ($_GET["op"]) {
                 $reg->recaudo,
                 intval($reg->cantidadRecaudos),
                 $reg->prestamo * -1,
-                $reg->ventaArticulo,
+                $reg->ventaArticulo * -1,
                 $reg->efectivoOtraUtilidad,
                 $reg->diferencia,
                 $reg->base,
