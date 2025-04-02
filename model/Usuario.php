@@ -207,7 +207,7 @@ class usuario
         }
         $idglobal = $res->idglobal;
         $sql = "SELECT 
-                    (select idempleado from tbl_empleado where idpersona=p.idpersona) As userEmpleado,
+                    (select idempleado from tbl_empleado where idpersona=p.idpersona AND str_estado <> 'inactivo' ) As userEmpleado,
                     (select idcliente from tbl_clientes where idpersona=p.idpersona) AS userCliente,
                     (select idnatillera from tbl_natillera where idpersona=p.idpersona) AS userNatillera,
                    
@@ -232,7 +232,7 @@ class usuario
                     FROM tbl_usuario u INNER JOIN
                         tbl_persona p ON u.idpersona=p.idpersona INNER JOIN
                         tbl_global g ON g.idglobal=u.idglobal
-                    WHERE u.str_user_name = '$user' AND u.str_password = '$pass' AND u.str_estado <> 'inactivo' AND u.idglobal=$idglobal ";
+                    WHERE u.str_user_name = '$user' AND u.str_password = '$pass' AND u.idglobal=$idglobal ";
         $query = $conexion->query($sql);
         return $query;
     }
