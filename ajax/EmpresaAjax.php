@@ -300,7 +300,7 @@ switch ($_GET["op"]) {
                 <span class="username">
                     <a href="#">' . $reg->superadmin . '</a>
                 </span>
-                <span class="description"></span>
+                <span class="description">ID: <b>'.$reg->refGlobal.'</b></span>
             </div>',
                 $reg->razonSocial,
                 $reg->date_corte,
