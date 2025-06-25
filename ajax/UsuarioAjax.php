@@ -69,15 +69,14 @@ switch ($_GET["op"]) {
 			$_SESSION['userNatillera'] = $fetch->userNatillera;
 
 
-			// is propierario
-			$_SESSION['userEmpresa'] = $fetch->userEmpresa === $fetch->numeroPersona ? $fetch->numeroGlobal : null;
+			// is empresa Superadmin
+			$_SESSION['userEmpresa'] = $fetch->cargo === 'Super Administrador' ? $fetch->numeroGlobal : null;
 
 			//datos de la empresa
 			$_SESSION['typeEmpresa'] = $fetch->typeEmpresa;
 			$_SESSION['nameEmpresa'] = $fetch->empresa;
 			$_SESSION['logoEmpresa'] = $fetch->logo;
 			
-
 			$fetch->session = 0;
 		}
 

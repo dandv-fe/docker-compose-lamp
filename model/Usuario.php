@@ -228,10 +228,12 @@ class usuario
                     g.str_razon_social as empresa,
                     g.str_tipo as typeEmpresa,
                     g.superadmin_personaid as userEmpresa,
-                    g.str_logo AS logo
+                    g.str_logo AS logo,
+                    e.str_cargo As cargo
                     FROM tbl_usuario u INNER JOIN
                         tbl_persona p ON u.idpersona=p.idpersona INNER JOIN
-                        tbl_global g ON g.idglobal=u.idglobal
+                        tbl_global g ON g.idglobal=u.idglobal  INNER JOIN
+                        tbl_empleado e ON e.idpersona=p.idpersona
                     WHERE u.str_user_name = '$user' AND u.str_password = '$pass' AND u.idglobal=$idglobal ";
         $query = $conexion->query($sql);
         return $query;
