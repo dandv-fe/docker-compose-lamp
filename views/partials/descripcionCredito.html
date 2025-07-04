@@ -93,13 +93,10 @@
                 <div class="row invoice-info">
                     <div class=" col-md-6  invoice-col">
                         <div class="table-responsive">
-                            <table
-                            ondblclick="<?PHP
+                            <table ondblclick="<?PHP
                             if(isset($_SESSION['userEmpresa']) || in_array('editar credito', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
                                 editCredito()
-                             <?php    } ?>"
-                        
-                            class="table m-0" style="cursor: pointer;">
+                             <?php    } ?>" class="table m-0" style="cursor: pointer;">
                                 <tr>
                                     <th style="width:50%" class="py-0">Serie:</th>
                                     <td class="py-0"># <b id="txtSerieCredito-info"></b></td>
@@ -144,12 +141,12 @@
                                 </tr>
 
                                 <?php if($allSucursal[$indexAllSucursal][11]=='boleta') { ?>
-                                    <tr>
-                                        <th class="py-0" style="width:50%">Número boleta:</th>
-                                        <td class="py-0"><b id="txtNumBoleta-info"></b> </td>
-                                    </tr>
+                                <tr>
+                                    <th class="py-0" style="width:50%">Número boleta:</th>
+                                    <td class="py-0"><b id="txtNumBoleta-info"></b> </td>
+                                </tr>
                                 <?php } ?>
-                                
+
 
                             </table>
                         </div>
@@ -162,6 +159,8 @@
             <!-- /.invoice -->
         </div><!-- /.col -->
     </div><!-- /.row -->
+
+ 
 
 </div>
 <!-- /.card-footer -->
@@ -248,7 +247,7 @@
                 const fecha_ = document.getElementById("txtFechaCredito_e").value
                 const num_obligacion_ = document.getElementById("txtNumeroCredito_e").value
                 const modo_ = document.getElementById("txtModoCredito_e").value
-                const plazo_ = document.getElementById("txtPlazoCredito_e").value
+                const plazoObligación_ = document.getElementById("txtPlazoCredito_e").value
 
                 const err = []
                 if (fecha_ === '' || num_obligacion_ === '' || modo_ === '' || plazo_ === '') err.push('Todos los campos son requeridos!')
@@ -274,28 +273,28 @@
                     }
                 });
 
-                 $.post("./ajax/CarteraAjax.php?op=SaveOrUpdateCredito", { 
-                   textRefTarjeta: ArrayTarjetas[id].refTarjeta, 
-                   fecha_at: result.value[0],
-                   num_obligacion: result.value[1],
-                   modo: result.value[2],
-                   plazo: result.value[3]
-               }, function (r) {
-                     if (r.indexOf("ERROR:") !== -1) {
-                         Toast.fire({
-                             icon: 'error',
-                             title: r
-                         })
-                     } else {
-                         Toast.fire({
-                             icon: 'success',
-                             title: r
-                         })
-                        
-                         listarRuta();
-                     }
-         
-                 });
+                $.post("./ajax/CarteraAjax.php?op=SaveOrUpdateCredito", {
+                    textRefTarjeta: ArrayTarjetas[id].refTarjeta,
+                    fecha_at: result.value[0],
+                    num_obligacion: result.value[1],
+                    modo: result.value[2],
+                    plazo: result.value[3]
+                }, function (r) {
+                    if (r.indexOf("ERROR:") !== -1) {
+                        Toast.fire({
+                            icon: 'error',
+                            title: r
+                        })
+                    } else {
+                        Toast.fire({
+                            icon: 'success',
+                            title: r
+                        })
+
+                        listarRuta();
+                    }
+
+                });
 
             }
         });
@@ -334,7 +333,7 @@
                 });
                 tabla.clear().draw();
                 $.each(descriptions, function (key, value) {
-                   // console.log(value);
+                    // console.log(value);
                     let evebitarabono = ''
                     if (value.descripcion === 'Abono' || value.descripcio === 'Cancelado') {
                         evebitarabono = 'onclick="eliminarAbono(\'' + value.refDescripcion + '\')"'
@@ -450,7 +449,7 @@
             },
         }).then((result) => {
             if (result.isConfirmed) {
-               
+
                 $.post("./ajax/UsuarioAjax.php", function (r) {
                     if (r === '0') {
                         location.reload(true);

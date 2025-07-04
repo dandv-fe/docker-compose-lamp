@@ -420,4 +420,10 @@ switch ($_GET["op"]) {
         // echo 'ERROR: sssss';
         $classCartera->actualizarEstado($idtarjeta, $estado);
         break;
+    case "usercreated":
+        $idtargeta=limpiar_cadena2($_GET['ref']);
+        $query=$classCartera->getUserCreated($idtargeta);
+        $result= $query->fetch_object();
+        echo json_encode($result);
+        break;
 }

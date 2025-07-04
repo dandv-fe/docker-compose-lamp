@@ -9,13 +9,14 @@
 <!-- DataTables -->
 
 
+
 <link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css" />
 <script src="plugins/datatables/jquery.dataTables.min.js"></script>
 <script src="plugins/jquery-ui/jquery-ui.min.js"></script>
-<script type="text/javascript" src="dist/scripts/Cartera.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
-
 <script src="plugins/moment/moment.min.js"></script>
 <script src="plugins/moment/locale/es.js"></script>
+<script type="text/javascript" src="dist/scripts/Cartera.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+
 
 <style>
   .Table {
@@ -400,8 +401,9 @@ include "views/partials/modalNuevaContabilidad.html";
                     </div>
                     <div id="divPanelAdicional" class="smalPanelValores">
                       <h4>
-                        <small id="txtSeguroViewPanel"> <?php echo $allSucursal[$indexAllSucursal][11]=='boleta'? 'Boleta': 'Seguro' ?>:&nbsp;$ </small><b id="bResultadoValoresSeguro"
-                          class="bResultadoValores"></b>
+                        <small id="txtSeguroViewPanel">
+                          <?php echo $allSucursal[$indexAllSucursal][11]=='boleta'? 'Boleta': 'Seguro' ?>:&nbsp;$
+                        </small><b id="bResultadoValoresSeguro" class="bResultadoValores"></b>
                       </h4>
                     </div>
                   </div>
@@ -421,8 +423,8 @@ include "views/partials/modalNuevaContabilidad.html";
                         font-size: 2rem;
                         font-weight: bold;
                       " class="card-title hide">
-                      Danger
-                    </h1>
+                          Danger
+                        </h1>
                         <h1 id="resta-cliente-panel" style="
                             width: 100%;
                             font-size: 2rem;
@@ -430,7 +432,7 @@ include "views/partials/modalNuevaContabilidad.html";
                           " class="card-title">
                           Danger
                         </h1>
-                        
+
                       </div>
 
                       <div class="overlay" style="background-color: rgba(0, 0, 0, 0)">
@@ -487,11 +489,11 @@ include "views/partials/modalNuevaContabilidad.html";
 
                 </div>
               </div>
+
               <!-- /.card-footer -->
-              <?php 
-              include "views/partials/descripcionCredito.html";
-              include "views/partials/comentarios-cliente.html";
-              ?>
+              <?php include "views/partials/descripcionCredito.html"; ?>
+              <div id="usuario_quien_creo"> </div>
+              <?php include "views/partials/comentarios-cliente.html";?>
             </div>
             <!-- /.card -->
           </div>
@@ -586,13 +588,14 @@ include "views/partials/modalNuevaContabilidad.html";
                     <b>Sexo</b>
                     <a id="txt-sexo-cliente" class="float-right"></a>
                   </li>
-                 
+
                   <li class="list-group-item pb-1">
-                    
+
                     <b id="txt-tipo-documento-cliente"></b>
                     <a id="txt-num-documento-cliente" class="float-right"></a>
                     <div class="clearfix"></div>
-                    <i id="editarDocumentoCliente" class="fa-solid fa-pen-to-square pr-1 float-right" data-editDocument=""></i>
+                    <i id="editarDocumentoCliente" class="fa-solid fa-pen-to-square pr-1 float-right"
+                      data-editDocument=""></i>
                   </li>
                   <li class="list-group-item">
                     <b>Tel</b> <a id="txt-tel-cliente" class="float-right"></a>

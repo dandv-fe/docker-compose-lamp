@@ -1150,4 +1150,22 @@ class ClassCartera
         echo $mensaje;
         return $sw;
     }
+
+
+    public function getUserCreated($idtarjeta){
+        global $conexion;
+        $sql = "SELECT
+pp.str_nombres, pp.str_apellidos,  t.created_at AS fecha
+
+
+
+ FROM `tbl_persona`  p INNER JOIN
+tbl_clientes c ON c.idpersona=p.idpersona INNER JOIN
+tbl_tarjetas t ON t.idcliente=c.idcliente INNER JOIN
+tbl_empleado e ON e.idempleado=t.created_empleado_id INNER JOIN
+tbl_persona pp ON pp.idpersona=e.idpersona
+WHERE t.idtarjeta='$idtarjeta'";
+        $query = $conexion->query($sql);
+        return $query;
+    }
 }

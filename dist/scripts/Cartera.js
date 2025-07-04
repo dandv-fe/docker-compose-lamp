@@ -10,19 +10,19 @@ var sleepES5 = function (ms) {
     while (new Date().getTime() < esperarHasta) continue;
 };
 jQuery(document).ready(function () {
-    $("#editarDocumentoCliente").click(function (e) { 
+    $("#editarDocumentoCliente").click(function (e) {
         $("#titleModalBuscarPersona").text("Editar Documento");
-        
-        var dd=$("#txt-tipo-documento-cliente").text();
-        
-        
+
+        var dd = $("#txt-tipo-documento-cliente").text();
+
+
         $("#refBuscarPersona").val($(this).data('editDocument'));
-       
+
         $("#cboBusTipo_Documento").val(dd)
-    
+
         $("#txtbusNum_Documento").val($("#txt-num-documento-cliente").text());
         $("#btnSubmitFormBuscarPersona").text("Editar");
-        
+
         $("#modal-xl").modal('show');
     });
     $("#loadinSavedAdd").hide()
@@ -173,42 +173,42 @@ jQuery(document).ready(function () {
 
     function buscarPersona(e) {
         e.preventDefault()
-        let refPersona=$("#refBuscarPersona").val();
+        let refPersona = $("#refBuscarPersona").val();
         let tipo_documento = $("#cboBusTipo_Documento").val()
         let num_documento = $("#txtbusNum_Documento").val()
 
         if (refPersona) {
             var formData = new FormData($("form#formBuscarPersona")[0]);
 
-        $.ajax({
+            $.ajax({
 
-            url: "./ajax/ClienteAjax.php?op=updateDocumentoPersona",
-            type: "POST",
-            data: formData,
-            contentType: false,
-            processData: false,
-            success: function (datos) {
+                url: "./ajax/ClienteAjax.php?op=updateDocumentoPersona",
+                type: "POST",
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function (datos) {
 
-                if (datos.indexOf("ERROR:") !== -1) {
-                    Toast.fire({
-                        icon: 'error',
-                        title: datos
-                    })
-                } else {
-                  
-                    Toast.fire({
-                        icon: 'success',
-                        title: datos
-                    })
-                    $("#frmCliente").trigger('reset')
-                    $("#frmCliente input:hidden").val('')
-                    cargarDataCliente(tipo_documento, num_documento);
+                    if (datos.indexOf("ERROR:") !== -1) {
+                        Toast.fire({
+                            icon: 'error',
+                            title: datos
+                        })
+                    } else {
+
+                        Toast.fire({
+                            icon: 'success',
+                            title: datos
+                        })
+                        $("#frmCliente").trigger('reset')
+                        $("#frmCliente input:hidden").val('')
+                        cargarDataCliente(tipo_documento, num_documento);
+                    }
                 }
-            }
-        });
-            
+            });
+
         } else {
-        cargarDataCliente(tipo_documento, num_documento);
+            cargarDataCliente(tipo_documento, num_documento);
         }
     }
     // crea tarjeta 
@@ -497,6 +497,7 @@ function ditetion(op) {
 }
 
 function cargarDatosEnPanel() {
+    $("#usuario_quien_creo").html('');
     if (ArrayTarjetas.length === 0) return
 
     $("#collapseNine").collapse('hide')
@@ -598,6 +599,28 @@ function cargarDatosEnPanel() {
     $("#divcomentariosloading").show();
     banderaListComentarios = ArrayTarjetas[id].refCliente
     setTimeout(listComentarios, 2000, ArrayTarjetas[id].refCliente)
+    setTimeout(listCreated, 4000, ArrayTarjetas[id])
+
+
+}
+function listCreated(tar) {
+    if (banderaListComentarios === tar.refCliente) {
+        $.getJSON("./ajax/CarteraAjax.php?op=usercreated", {ref:tar.refTarjeta},
+            function (data, textStatus, jqXHR) {
+                if (textStatus==='success') {
+                   // console.log(moment(data.fecha).format('hh:mm A'));
+                    
+                   $("#usuario_quien_creo").html(`
+        <b class="ml-2">Lo registro: <mark>${data.str_nombres} ${data.str_apellidos}</mark></b>
+    <b class="ml-2"> <mark>${moment(data.fecha).format('hh:mm A')}</mark></b>`);
+
+                }
+
+                
+            }
+        );
+        
+    }
 
 }
 // dias semanas quincenas meses
@@ -777,6 +800,7 @@ function listComentarios(refCliente) {
                     const alertaData = data.find(c => c[5] === 'alerta')
                     if (alertaData) {
 
+
                         const alerta = alertaData[1].split('/,')
 
                         $("#smallBottonEliminarAlert").html(
@@ -820,10 +844,17 @@ function listComentarios(refCliente) {
                     $("#divcomentariosloading").hide();
                     $("#divcomentarios").html(eles.join(''));
                 }
+
+
+
             }
         );
     }
 }
+
+
+
+
 function pasarfocoAbono() {
 
     $("#txtAbono-credito").focus()
@@ -980,7 +1011,7 @@ function cargarDataCliente(tipo_documento, num_documento, editar) {// funcion qu
             location.reload(true);
         }
     });
-    
+
 
 
     $.getJSON("./ajax/CarteraAjax.php?op=buscarCliente", { tipo_documento, num_documento },
