@@ -611,7 +611,7 @@ function listCreated(tar) {
                    // console.log(moment(data.fecha).format('hh:mm A'));
                     
                    $("#usuario_quien_creo").html(`
-        <b class="ml-2">Lo registro: <mark>${data.str_nombres} ${data.str_apellidos}</mark></b>
+        <b class="ml-2">Lo registro: <mark>${capitalizarPalabras(data.str_nombres)} ${capitalizarPalabras(data.str_apellidos)  }</mark></b>
     <b class="ml-2"> <mark>${moment(data.fecha).format('hh:mm A')}</mark></b>`);
 
                 }

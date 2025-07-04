@@ -167,8 +167,11 @@ class Despachar
             INNER JOIN `tbl_empleado` e ON e.idempleado = n.idempleado
             INNER JOIN `tbl_persona` p ON p.idpersona = e.idpersona 
             WHERE e.idempleado=$refEmpleado 
-            AND n.str_estado = 'activo' or 
+            AND e.str_estado = 'activo'
+            AND n.str_estado = 'activo'
+            OR 
             e.idempleado=$userEmpleadoId 
+            AND e.str_estado = 'activo'
             AND n.str_estado = 'activo'";
 
 
@@ -190,7 +193,7 @@ class Despachar
             INNER JOIN `tbl_persona` p ON p.idpersona = e.idpersona 
             WHERE
             n.idglobal = $idglobal
-            AND n.str_estado = 'activo' ORDER BY p.str_nombres";
+            AND n.str_estado = 'activo' AND e.str_estado = 'activo' ORDER BY p.str_nombres";
         } else {
             $sql = "SELECT
             e.idempleado AS refEmpleado,
@@ -203,6 +206,7 @@ class Despachar
             INNER JOIN tbl_empleados_asignado ea ON ea.idempleado_asignado = e.idempleado 
         WHERE
             n.idglobal = $idglobal 
+            AND e.str_estado = 'activo'
             AND n.str_estado = 'activo' 
             AND ea.idempleado = $userEmpleadoId
         ORDER BY
