@@ -96,11 +96,11 @@
                 <li class="nav-item">
                   <a class="nav-link active" id="custom-tabs-three-home-tab" data-toggle="pill"
                     href="#custom-tabs-three-home" role="tab" aria-controls="custom-tabs-three-home"
-                    aria-selected="true">Actividades</a>
+                    aria-selected="true">ACTIVIDADES</a>
                 </li>
                 <li class="nav-item">
                   <a class="nav-link" id="custom-tabs-liquidar-tab" data-toggle="pill" href="#custom-tabs-liquidar"
-                    role="tab" aria-controls="custom-tabs-liquidar" aria-selected="false">Ver Consumo</a>
+                    role="tab" aria-controls="custom-tabs-liquidar" aria-selected="false">SUELDO</a>
                 </li>
 
               </ul>
@@ -514,12 +514,14 @@
         tabla.clear().draw();
         for (let i = 0; i < datos.length; i++) {
           const val = datos[i];
+        
+          
           tabla.row
             .add([
               val[0],
               val[1],
               capitalizarPalabras(val[2]),
-              val[3]
+              `<b>${val[5]} ${val[4]}:</b> ${val[3]}`,
             ]).draw(false);
         }
         $("#verLoadingNominaDetalle").addClass('hide')

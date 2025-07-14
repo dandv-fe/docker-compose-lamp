@@ -324,7 +324,9 @@ switch ($_GET["op"]) {
                 $reg->fecha_at,
                 $reg->valor,
                 $reg->consepto,
-                $reg->detalle
+                $reg->detalle,
+                $reg->codigo,
+                $reg->tipo
 
             );
         }

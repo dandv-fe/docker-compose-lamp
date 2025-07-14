@@ -307,7 +307,7 @@ function listarNominaDetalle() {
               val[0],
               val[1],
               capitalizarPalabras(val[2]),
-              val[3]
+              `<b>${val[5]} ${val[4]}:</b> ${val[3]}`,
             ]).draw(false);
         }
         $("#verLoadingNominaDetalle").addClass('hide')

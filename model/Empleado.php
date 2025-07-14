@@ -450,8 +450,8 @@ class Empleado
     {
         global $conexion;
         $fechaHasta=date('Y-m-d', strtotime($hasta . ' +1 day'));
-        $sql = "SELECT *
-        FROM view_detalle_nomina WHERE refEmpleado=$idempleado AND fecha_at>='$desde' AND fecha_at<='$fechaHasta'";
+        $sql = "SELECT * FROM view_detalle_nomina 
+                    WHERE refEmpleado=$idempleado AND fecha_at>='$desde' AND fecha_at<='$fechaHasta'";
         $query = $conexion->query($sql);
         return $query;
     }
