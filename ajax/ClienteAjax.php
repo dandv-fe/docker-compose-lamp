@@ -510,8 +510,50 @@ switch ($_GET["op"]) {
         }
 
         break;
-}
+    case "search":
+         $data = array();
+         $data_tarjetas = array();
+            $data_descuentos = array();
+        $search= limpiar_cadena($_POST["ref"]);
+        // Busco en personas 
+        $query = $objCliente->searchClientes($search);
 
-/*
-        fe-plus/,
- */
+        while ($reg = $query->fetch_object()) {
+            //Busco si es empleado
+            $query_is_empleado = $objCliente->isEmpleado($reg->idpersona);
+            $reg_empleado = $query_is_empleado->fetch_object();
+            // busco obligaciones
+            $query_obligaciones = $objCliente->obligaciones($reg->idpersona);
+            while ($reg_obligacion = $query_obligaciones->fetch_object()) {
+                $data_tarjetas[] = $reg_obligacion;
+            }
+            // busco descuentos
+            $query_descuentos = $objCliente->descuentos($reg->idpersona);
+            while ($reg_descuento = $query_descuentos->fetch_object()) {
+                $data_descuentos[] = $reg_descuento;
+            }
+
+            $data[] = array(
+                $reg->idglobal,
+                $reg->str_razon_social,
+                $reg->nombre,
+                $reg->str_tipo_documento,
+                $reg->str_num_documento,
+                $reg->str_telefono,
+                $reg->str_email,
+                $reg->str_direccion_departamento,
+                $reg->str_direccion_ciudad,
+                $reg->str_direccion_barrio,
+                $reg->str_direccion_calle,
+                $reg->str_nota,
+                $reg->created_at,
+                empty($reg_empleado->idempleado)?  null : $reg_empleado,
+                $data_tarjetas,
+                $data_descuentos,
+                $reg->idpersona,
+                "isBoton"=>$_SESSION['idglobal']==$reg->idglobal? 0 : 1
+            );
+        }
+        echo json_encode($data);
+        break;
+}

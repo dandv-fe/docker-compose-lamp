@@ -517,5 +517,55 @@
 		echo $mensaje;
 		return;
 		}
+		
+		public function searchClientes($search) {
+			global $conexion;
+			$sql = "SELECT p.idpersona,
+				g.idglobal,
+				g.str_razon_social,
+				CONCAT(p.str_nombres,' ',p.str_apellidos) AS nombre,
+				p.str_tipo_documento,
+				p.str_num_documento,
+				p.str_telefono,
+				p.str_email,
+				p.str_foto,
+				p.str_ocupacion,
+				p.str_direccion_departamento,
+				p.str_direccion_ciudad,
+				p.str_direccion_barrio,
+				p.str_direccion_calle,
+				p.str_nota,
+				p.created_at
 
+			FROM tbl_persona p INNER JOIN tbl_global g ON g.idglobal=p.idglobal
+			
+			WHERE str_num_documento = '$search'";
+			$query = $conexion->query($sql);
+			return $query;
+		}
+
+		public function isEmpleado($idpersona) {
+			global $conexion;
+			$sql = "SELECT * FROM tbl_empleado WHERE idpersona = $idpersona";
+			$query = $conexion->query($sql);
+			return $query;
+		}
+		public function obligaciones($idpersona) {
+			global $conexion;
+			$sql = "SELECT * FROM view_ruta WHERE refPersona=$idpersona
+				AND estado<>'cancelado'
+				";
+			$query = $conexion->query($sql);
+			return $query;
+
+		}
+		public function descuentos($idpersona) {
+			global $conexion;
+			$sql = "SELECT d.* FROM tbl_descripcion d INNER JOIN 
+			tbl_tarjetas t ON t.idtarjeta=d.idtarjeta INNER JOIN 
+			tbl_clientes c ON c.idcliente=t.idcliente
+			WHERE c.idpersona = $idpersona AND d.str_descripcion like 'Descuento%'";
+			$query = $conexion->query($sql);
+			return $query;
+		}
 	}
