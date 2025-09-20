@@ -576,12 +576,40 @@
 			$query = $conexion->query($sql);
 			return $query;
 		}
-		public function createPersona($res) {
+		public function createPersona($reg) {
 			global $conexion;
 			$sw = true;
 			$conexion->autocommit(false);
 			$dt = date('Y-m-d H:i:s');
 			try {
+
+					$sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$reg->idglobal AND 
+					str_tipo_documento='$reg->str_tipo_documento' AND str_num_documento='$reg->str_num_documento'";
+				 $query = $conexion->query($sql);
+				 $request= $query->fetch_object();
+				 if (isset($request->idpersona)) {
+					echo "ERROR: Este Documento ya existe";
+					return;
+				 }
+
+				 $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$reg->idglobal AND str_email='$reg->str_email'";
+				 $query = $conexion->query($sql);
+				 $request= $query->fetch_object();
+				 if (isset($request->idpersona) && $reg->str_email!='') {
+					echo "ERROR: Este Email ya existe";
+					return;
+				 }
+
+				 $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$reg->idglobal AND str_telefono='$reg->str_telefono'";
+				 $query = $conexion->query($sql);
+				 $request= $query->fetch_object();
+				 if (isset($request->idpersona) && $reg->str_telefono!='') {
+					echo "ERROR: Este telefono ya existe";
+					return;
+				 }
+
+
+				
 				$sql = "INSERT INTO `tbl_persona`(	
 					idglobal,
 					str_nombres,
@@ -605,11 +633,11 @@
 					update_at
 	
 					)
-					 VALUES ($res->idglobal,'$res->str_nombres', '$res->str_apellidos', '$res->str_sexo', '$res->str_fecha_nacimiento', '$res->str_tipo_documento', '$res->str_num_documento', '$res->str_telefono', '$res->str_email', '$res->str_foto', '$res->str_ocupacion', 'activo', '$res->str_nota',
-						'$res->str_direccion_departamento',
-						'$res->str_direccion_ciudad',
-						'$res->str_direccion_barrio',
-						'$res->str_direccion_calle',
+					 VALUES ($reg->idglobal,'$reg->str_nombres', '$reg->str_apellidos', '$reg->str_sexo', '$reg->str_fecha_nacimiento', '$reg->str_tipo_documento', '$reg->str_num_documento', '$reg->str_telefono', '$reg->str_email', '$reg->str_foto', '$reg->str_ocupacion', 'activo', '$reg->str_nota',
+						'$reg->str_direccion_departamento',
+						'$reg->str_direccion_ciudad',
+						'$reg->str_direccion_barrio',
+						'$reg->str_direccion_calle',
 							'',
 							'$dt',
 							'$dt'
@@ -630,20 +658,3 @@
 			return;
 		}
 	}
-/*$conexion->autocommit(false);
-		$sw = true;
-		try {
-				$sql = "UPDATE tbl_comentarios SET	str_comentario='$comentario' 
-				WHERE idcomentario='$idcomentario' AND idusuario=$idusuario";  
-				 $conexion->query($sql) or throw new Exception("error!");
-		} catch (Exception $e) {
-				$sw = false;
-				$conexion->rollback();
-		}
-		$conexion->commit();
-		if ($conexion != null) {
-				$conexion->close();
-		}
-		$mensaje = $sw ? "¡Editado Correctamente!" : "¡ERROR: Inesperado!";
-		echo $mensaje;
-		return;*/
