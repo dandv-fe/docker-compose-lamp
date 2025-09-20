@@ -75,7 +75,9 @@
                                 const obli = val['tarjetas'][j];
                                 let classEstado = '';
                                 let estado = '';
-                                switch (obli.str_estado) {
+                                //console.log(obli);
+                                
+                                switch (obli.estado) {
                                     case 'moroso':
                                         classEstado = 'badge-danger';
                                         estado = 'Moroso';
