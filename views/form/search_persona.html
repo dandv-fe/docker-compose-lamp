@@ -46,35 +46,35 @@
                     const htmlModal = []
                     if (datos.length > 0) {
                         const isBoton = datos.find(d => d.isBoton === 0);
-                        console.log(isBoton);
-                        
+                        //console.log(isBoton);
+
                         htmlModal.push(`<div class="timeline">`)
                         for (let i = 0; i < datos.length; i++) {
                             const val = datos[i];
                             //console.log(val);
 
-                            let empleado = val[13] ? `<div class="card card-primary card-outline">
-                                                                <a class="d-block w-100" data-toggle="collapse" href="#collapseOne${val[13].idempleado}">
+                            let empleado = val['empleado'] ? `<div class="card card-primary card-outline">
+                                                                <a class="d-block w-100" data-toggle="collapse" href="#collapseOne${val['empleado'].idempleado}">
                                                                     <div class="card-header">
                                                                         <h4 class="card-title w-100">
                                                                             Reportede Empleado
                                                                         </h4>
                                                                     </div>
                                                                 </a>
-                                                                <div id="collapseOne${val[13].idempleado}" class="collapse" data-parent="#accordion">
+                                                                <div id="collapseOne${val['empleado'].idempleado}" class="collapse" data-parent="#accordion">
                                                                     <div class="card-body">
-                                                                        Fecha inicio: <b>${val[13].date_fecha_inicio}</b> <br>
-                                                                        Cargo: <b>${val[13].str_cargo}</b> <br>
-                                                                        Estado: <b>${val[13].str_estado}</b> <br>
+                                                                        Fecha inicio: <b>${val['empleado'].date_fecha_inicio}</b> <br>
+                                                                        Cargo: <b>${val['empleado'].str_cargo}</b> <br>
+                                                                        Estado: <b>${val['empleado'].str_estado}</b> <br>
                                                                     </div>
                                                                 </div>
                                                             </div>` : '';
 
                             const listaObligaciones = [];
-                            for (let j = 0; j < val[14].length; j++) {
-                                const obli = val[14][j];
+                            for (let j = 0; j < val['tarjetas'].length; j++) {
+                                const obli = val['tarjetas'][j];
                                 let classEstado = '';
-                                let estado = '';    
+                                let estado = '';
                                 switch (obli.str_estado) {
                                     case 'moroso':
                                         classEstado = 'badge-danger';
@@ -109,15 +109,15 @@
                                                         </tr>`)
                             }
 
-                            let tarjetas = val[14].length > 0 ? `<div class="card card-warning card-outline">
-                                                                <a class="d-block w-100" data-toggle="collapse" href="#collapseFour${val[16]}">
+                            let tarjetas = val['tarjetas'].length > 0 ? `<div class="card card-warning card-outline">
+                                                                <a class="d-block w-100" data-toggle="collapse" href="#collapseFour${val['persona'].idpersona}">
                                                                     <div class="card-header">
                                                                         <h4 class="card-title w-100">
                                                                         Reporte de Obligaciones abiertas
                                                                         </h4>
                                                                     </div>
                                                                 </a>
-                                                                <div id="collapseFour${val[16]}" class="collapse" data-parent="#accordion">
+                                                                <div id="collapseFour${val['persona'].idpersona}" class="collapse" data-parent="#accordion">
                                                                     <div class="card-body">
                                                                        <div class="table-responsive">
                                                                             <table class="table m-0">
@@ -139,8 +139,8 @@
                                                             </div>` : '';
                             const listaDescuentos = [];
 
-                            for (let x = 0; x < val[15].length; x++) {
-                                const desc = val[15][x];
+                            for (let x = 0; x < val['descuentos'].length; x++) {
+                                const desc = val['descuentos'][x];
 
                                 listaDescuentos.push(` <tr>
                                                             <td>${desc.created_at}</td>
@@ -149,15 +149,15 @@
 
                                                         </tr>`)
                             }
-                            let descuentos = val[15].length > 0 ? `<div class="card card-danger card-outline">
-                                                                <a class="d-block w-100" data-toggle="collapse" href="#collapseSeven${val[16]}">
+                            let descuentos = val['descuentos'].length > 0 ? `<div class="card card-danger card-outline">
+                                                                <a class="d-block w-100" data-toggle="collapse" href="#collapseSeven${val['persona'].idpersona}">
                                                                     <div class="card-header">
                                                                         <h4 class="card-title w-100">
                                                                             Reporte de Descuentos
                                                                         </h4>
                                                                     </div>
                                                                 </a>
-                                                                <div id="collapseSeven${val[16]}" class="collapse" data-parent="#accordion">
+                                                                <div id="collapseSeven${val['persona'].idpersona}" class="collapse" data-parent="#accordion">
                                                                     <div class="card-body">
                                                                          <div class="table-responsive">
                                                                             <table class="table m-0">
@@ -179,22 +179,22 @@
                                                             </div>` : '';
 
                             htmlModal.push(`<div class="time-label">
-                                              <span class="bg-red">${moment(val[12]).format('DD MMM. YYYY')}</span>
+                                              <span class="bg-red">${moment(val['persona'].created_at).format('DD MMM. YYYY')}</span>
                                             </div>
                                             <div>
                                                 <i class="fas fa-house bg-blue"></i>
                                                 <div class="timeline-item">
-                                                    <span class="time"><i class="fas fa-clock"></i> ${moment(val[12]).format('h:mm:ss a')}</span>
-                                                    <h3 class="timeline-header"><a href="#">${val[0]}</a> ${val[1]}
+                                                    <span class="time"><i class="fas fa-clock"></i> ${moment(val['persona'].created_at).format('h:mm:ss a')}</span>
+                                                    <h3 class="timeline-header"><a href="#">${val['persona'].idglobal}</a> ${val['persona'].str_razon_social}
                                                     </h3>
 
                                                     <div class="timeline-body">
-                                                        ${val[2]} <br>
-                                                        ${val[3]} ${val[4]} <br>
-                                                        ${val[5]} <br>
-                                                        ${val[6]} <br>
-                                                        ${val[7]} ${val[8]} ${val[9]} ${val[10]} <br>
-                                                        ${val[11]}
+                                                        ${val['persona'].nombre} <br>
+                                                        ${val['persona'].str_tipo_documento} ${val['persona'].str_num_documento} <br>
+                                                        ${val['persona'].str_telefono} <br>
+                                                        ${val['persona'].str_email} <br>
+                                                        ${val['persona'].str_direccion_departamento} ${val['persona'].str_direccion_ciudad} ${val['persona'].str_direccion_barrio} ${val['persona'].str_direccion_calle} <br>
+                                                        ${val['persona'].str_nota}
                                                     </div>
 
                                                     <div class="row">
@@ -205,9 +205,9 @@
                                                         </div>  
                                                     </div>
                                                     
-                                                   ${isBoton? `` : `<div class="timeline-footer">
-                                                        <a class="btn btn-primary btn-sm">Crear esta Persona</a>
-                                                    </div>`}
+                                                   ${isBoton ? `` : '<div class="timeline-footer">' +
+                                                        '<button onclick="crearPersona(\''+val['persona'].idpersona+'\',\''+val['persona'].nombre+'\',\''+val['persona'].str_sexo+'\',\''+val['persona'].str_tipo_documento+'\',\''+val['persona'].str_num_documento+'\',\''+val['persona'].str_telefono+'\',\''+val['persona'].str_email+'\',\''+val['persona'].str_direccion_departamento+'\',\''+val['persona'].str_direccion_ciudad+'\',\''+val['persona'].str_direccion_barrio+'\',\''+val['persona'].str_direccion_calle+'\',\''+val['persona'].str_ocupacion+'\',\''+val['persona'].str_nota+'\',\''+val['persona'].created_at+'\')" class="btn btn-primary btn-sm">Crear esta Persona</button>' +
+                                                    '</div>'}
                                                 </div>
                                             </div>
                                             
@@ -232,7 +232,56 @@
         });
     });
 
+    function crearPersona(ref, nombre, sexo, tipo_documento, num_documento, telefono, email, departamento, ciudad, barrio, calle, ocupacion, nota, created_at) {
+        
+    
+        $.post("./ajax/UsuarioAjax.php", function (r) {
+            if (r === '0') {
+                location.reload(true);
+            }
+        });
+        Swal.fire({
+            title: '¡Está Seguro de Guardar!',
+            text: `Se creará la persona:`,
+            html: `<b>Nombre:</b> ${nombre} <br>
+                   <b>Sexo:</b> ${sexo} <br>
+                   <b>Tipo documento:</b> ${tipo_documento} <br>
+                   <b>Número documento:</b> ${num_documento} <br>
+                   <b>Teléfono:</b> ${telefono} <br>
+                   <b>Email:</b> ${email} <br>
+                   <b>Dirección:</b> ${departamento} ${ciudad} ${barrio} ${calle} <br>
+                   <b>Ocupación:</b> ${ocupacion} <br>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#3085d6',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Si, Guardar ahora!'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.post("./ajax/ClienteAjax.php?op=savePersona", { ref}, function (datos) {
+                    //console.log(datos);
+                    
+                    if (datos.indexOf("ERROR:") !== -1) {
+                        Toast.fire({
+                            icon: 'error',
+                            title: datos,
+                            position: 'top',
+                        })
 
+                    } else {
+                        Toast.fire({
+                            icon: 'success',
+                            title: datos,
+                            position: 'top',
+                        })
+
+                        $('#modal-search-persona').modal('hide');
+                        //location.reload(true)
+                    }
+                });
+            }
+        })
+    }
 
 
     // dias semanas quincenas meses

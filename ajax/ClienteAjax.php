@@ -512,13 +512,13 @@ switch ($_GET["op"]) {
         break;
     case "search":
          $data = array();
-         $data_tarjetas = array();
-            $data_descuentos = array();
         $search= limpiar_cadena($_POST["ref"]);
         // Busco en personas 
         $query = $objCliente->searchClientes($search);
 
         while ($reg = $query->fetch_object()) {
+            $data_tarjetas = array();
+            $data_descuentos = array();
             //Busco si es empleado
             $query_is_empleado = $objCliente->isEmpleado($reg->idpersona);
             $reg_empleado = $query_is_empleado->fetch_object();
@@ -534,7 +534,26 @@ switch ($_GET["op"]) {
             }
 
             $data[] = array(
-                $reg->idglobal,
+
+                "persona"=>$reg,
+                "empleado"=>empty($reg_empleado->idempleado)?  null : $reg_empleado,
+                "tarjetas"=>$data_tarjetas,
+                "descuentos"=>$data_descuentos,
+                "isBoton"=>$_SESSION['idglobal']==$reg->idglobal? 0 : 1
+            );
+        }
+        echo json_encode($data);
+        break;
+        case "savePersona":
+            $idpersona = limpiar_cadena($_POST['ref']);
+            $irpersona = $objCliente->getPersona($idpersona);
+            $res = $irpersona->fetch_object();
+            $res->idglobal = $_SESSION['idglobal'];
+            $query= $objCliente->createPersona($res);
+           // echo json_encode($res);
+        break;
+}
+/*                $reg->idglobal,
                 $reg->str_razon_social,
                 $reg->nombre,
                 $reg->str_tipo_documento,
@@ -546,14 +565,4 @@ switch ($_GET["op"]) {
                 $reg->str_direccion_barrio,
                 $reg->str_direccion_calle,
                 $reg->str_nota,
-                $reg->created_at,
-                empty($reg_empleado->idempleado)?  null : $reg_empleado,
-                $data_tarjetas,
-                $data_descuentos,
-                $reg->idpersona,
-                "isBoton"=>$_SESSION['idglobal']==$reg->idglobal? 0 : 1
-            );
-        }
-        echo json_encode($data);
-        break;
-}
+                $reg->created_at,*/

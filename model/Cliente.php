@@ -223,13 +223,14 @@
 						str_apodo,
 						str_nota,
 						str_estado,
+						str_calificacion,
 						fiador_persona_id,
 						created_empleado_id,
 						create_at,
 						update_at
 
 				 )
-				  VALUES ($idglobal, $idpersona, $max_credito, '$apodo', '$notaCliente', '$estadoCliente', $fiador, $created_empleado_id, '$dt', '$dt')";
+				  VALUES ($idglobal, $idpersona, $max_credito, '$apodo', '$notaCliente', '$estadoCliente','nuevo', $fiador, $created_empleado_id, '$dt', '$dt')";
 				$conexion->query($sql) or throw new Exception('error!');
 				 } else {
 					$sql = "UPDATE `tbl_clientes` SET
@@ -248,7 +249,7 @@
 				
 			   
 			} catch (Exception $e) {
-				
+				print_r($e);
 				$sw = false;
 				$conexion->rollback();
 			}
@@ -524,6 +525,7 @@
 				g.idglobal,
 				g.str_razon_social,
 				CONCAT(p.str_nombres,' ',p.str_apellidos) AS nombre,
+				p.str_sexo,
 				p.str_tipo_documento,
 				p.str_num_documento,
 				p.str_telefono,
@@ -568,4 +570,80 @@
 			$query = $conexion->query($sql);
 			return $query;
 		}
+		public function getPersona($idpersona) {
+			global $conexion;
+			$sql = "SELECT * FROM tbl_persona WHERE idpersona = $idpersona";
+			$query = $conexion->query($sql);
+			return $query;
+		}
+		public function createPersona($res) {
+			global $conexion;
+			$sw = true;
+			$conexion->autocommit(false);
+			$dt = date('Y-m-d H:i:s');
+			try {
+				$sql = "INSERT INTO `tbl_persona`(	
+					idglobal,
+					str_nombres,
+					str_apellidos,
+					str_sexo,
+					str_fecha_nacimiento,
+					str_tipo_documento,
+					str_num_documento,
+					str_telefono,
+					str_email,
+					str_foto,
+					str_ocupacion,
+					str_estado,
+					str_nota,
+					str_direccion_departamento,
+					str_direccion_ciudad,
+					str_direccion_barrio,
+					str_direccion_calle,
+					str_email_verificado,
+					created_at,
+					update_at
+	
+					)
+					 VALUES ($res->idglobal,'$res->str_nombres', '$res->str_apellidos', '$res->str_sexo', '$res->str_fecha_nacimiento', '$res->str_tipo_documento', '$res->str_num_documento', '$res->str_telefono', '$res->str_email', '$res->str_foto', '$res->str_ocupacion', 'activo', '$res->str_nota',
+						'$res->str_direccion_departamento',
+						'$res->str_direccion_ciudad',
+						'$res->str_direccion_barrio',
+						'$res->str_direccion_calle',
+							'',
+							'$dt',
+							'$dt'
+							)";
+	
+				$conexion->query($sql) or throw new Exception('error!');
+			   
+			} catch (Exception $e) {
+				$sw = false;
+				$conexion->rollback();
+			}
+			$conexion->commit();
+			if ($conexion != null) {
+				$conexion->close();
+			}
+			$mensaje = $sw ? "¡Registrado Correctamente!" : "¡ERROR: Inesperado!";
+			echo $mensaje;
+			return;
+		}
 	}
+/*$conexion->autocommit(false);
+		$sw = true;
+		try {
+				$sql = "UPDATE tbl_comentarios SET	str_comentario='$comentario' 
+				WHERE idcomentario='$idcomentario' AND idusuario=$idusuario";  
+				 $conexion->query($sql) or throw new Exception("error!");
+		} catch (Exception $e) {
+				$sw = false;
+				$conexion->rollback();
+		}
+		$conexion->commit();
+		if ($conexion != null) {
+				$conexion->close();
+		}
+		$mensaje = $sw ? "¡Editado Correctamente!" : "¡ERROR: Inesperado!";
+		echo $mensaje;
+		return;*/
