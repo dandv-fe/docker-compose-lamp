@@ -1,15 +1,16 @@
 <?php
 date_default_timezone_set("America/Bogota");
-/*$HOST = 'database';
+/*
+$HOST = 'database';
 $USER = 'root';
 $PASS = $_ENV['MYSQL_ROOT_PASSWORD'];
-$DB = 'websdnco_db_webgoez_dev';*/
+$DB = 'websdnco_db_webgoez';*/
 
 
 $HOST = 'localhost';
 $USER = 'websdnco_user_webgoez';
 $PASS = 'CHANGE_ME_EXAMPLE';
-$DB = 'websdnco_db_webgoez';
+$DB = 'websdnco_cop';
 
 
 
@@ -19,3 +20,4 @@ if (mysqli_connect_errno()) {
       printf("Connect failed: %s\n", mysqli_connect_error());
       exit();
   }
+//4377382
