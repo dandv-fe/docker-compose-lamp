@@ -1,0 +1,291 @@
+/* ============================================
+   Estilos Personalizados para Gestión de Despedidos
+   ============================================ */
+
+/* Modal de actualización ampliado */
+.swal-wide-update {
+    max-width: 850px !important;
+}
+
+/* Estilos para el formulario de actualización */
+#formActualizarDespido .card {
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    transition: all 0.3s ease;
+}
+
+#formActualizarDespido .card:hover {
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateY(-2px);
+}
+
+#formActualizarDespido .card-header {
+    font-weight: 600;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px 8px 0 0 !important;
+}
+
+#formActualizarDespido .card-body {
+    padding: 20px;
+}
+
+/* Input groups mejorados */
+#formActualizarDespido .input-group-text {
+    min-width: 45px;
+    justify-content: center;
+}
+
+/* Selects personalizados */
+#formActualizarDespido select.form-control {
+    cursor: pointer;
+    font-size: 15px;
+    padding: 10px 15px;
+    border: 2px solid #e0e0e0;
+    transition: all 0.3s ease;
+}
+
+#formActualizarDespido select.form-control:hover {
+    border-color: #b0b0b0;
+}
+
+#formActualizarDespido select.form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+#formActualizarDespido select.form-control-lg {
+    font-size: 1.1rem;
+    padding: 12px 18px;
+    font-weight: 500;
+}
+
+/* Textarea personalizado */
+#formActualizarDespido textarea.form-control {
+    border: 2px solid #e0e0e0;
+    transition: all 0.3s ease;
+    resize: vertical;
+}
+
+#formActualizarDespido textarea.form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+/* Input number mejorado */
+#formActualizarDespido input[type="number"].form-control {
+    font-size: 1.1rem;
+    padding: 10px 15px;
+    border: 2px solid #e0e0e0;
+}
+
+#formActualizarDespido input[type="number"].form-control:focus {
+    border-color: #28a745;
+    box-shadow: 0 0 0 0.2rem rgba(40,167,69,.25);
+}
+
+/* Input date mejorado */
+#formActualizarDespido input[type="date"].form-control {
+    font-size: 1rem;
+    padding: 8px 12px;
+    border: 2px solid #e0e0e0;
+}
+
+#formActualizarDespido input[type="date"].form-control:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+/* Labels mejorados */
+#formActualizarDespido label {
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 8px;
+    font-size: 0.95rem;
+}
+
+#formActualizarDespido label i {
+    color: #6c757d;
+}
+
+#formActualizarDespido label .text-danger {
+    font-size: 1.2rem;
+}
+
+/* Small text */
+#formActualizarDespido small.form-text {
+    font-size: 0.875rem;
+    margin-top: 5px;
+}
+
+#formActualizarDespido small strong {
+    color: #495057;
+}
+
+/* Alert personalizado */
+#formActualizarDespido .alert-info {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    border: none;
+    border-radius: 8px;
+    margin-bottom: 25px;
+}
+
+#formActualizarDespido .alert-heading {
+    color: #01579b;
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+}
+
+#formActualizarDespido .alert-info p {
+    color: #0277bd;
+    font-size: 0.95rem;
+}
+
+/* Animaciones para SweetAlert */
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translate3d(0, -100%, 0);
+    }
+    to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0);
+    }
+}
+
+@keyframes bounceIn {
+    from, 20%, 40%, 60%, 80%, to {
+        animation-timing-function: cubic-bezier(0.215, 0.610, 0.355, 1.000);
+    }
+    0% {
+        opacity: 0;
+        transform: scale3d(.3, .3, .3);
+    }
+    20% {
+        transform: scale3d(1.1, 1.1, 1.1);
+    }
+    40% {
+        transform: scale3d(.9, .9, .9);
+    }
+    60% {
+        opacity: 1;
+        transform: scale3d(1.03, 1.03, 1.03);
+    }
+    80% {
+        transform: scale3d(.97, .97, .97);
+    }
+    to {
+        opacity: 1;
+        transform: scale3d(1, 1, 1);
+    }
+}
+
+.animate__animated {
+    animation-duration: 0.5s;
+    animation-fill-mode: both;
+}
+
+.animate__fadeInDown {
+    animation-name: fadeInDown;
+}
+
+.animate__bounceIn {
+    animation-name: bounceIn;
+}
+
+/* Botones mejorados del modal */
+.swal2-confirm.btn-lg,
+.swal2-cancel.btn-lg {
+    padding: 12px 30px !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    border-radius: 8px !important;
+    transition: all 0.3s ease !important;
+}
+
+.swal2-confirm.btn-lg:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(40,167,69,0.3) !important;
+}
+
+.swal2-cancel.btn-lg:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(108,117,125,0.3) !important;
+}
+
+/* Progress bar mejorado */
+.swal2-popup .progress {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.swal2-popup .progress-bar {
+    font-size: 14px;
+    line-height: 25px;
+}
+
+/* Estilos para iconos grandes en mensajes */
+.swal2-popup .fa-check-circle,
+.swal2-popup .fa-times-circle,
+.swal2-popup .fa-spinner {
+    text-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .swal-wide-update {
+        max-width: 95% !important;
+    }
+    
+    #formActualizarDespido .card-body {
+        padding: 15px;
+    }
+    
+    #formActualizarDespido select.form-control-lg,
+    #formActualizarDespido input[type="number"].form-control {
+        font-size: 1rem;
+        padding: 10px 12px;
+    }
+}
+
+/* Estilos para campos deshabilitados */
+#formActualizarDespido input:disabled,
+#formActualizarDespido select:disabled {
+    background-color: #f5f5f5;
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+/* Mejoras para la tabla de despedidos */
+#tablaDespedidos tbody tr {
+    transition: all 0.3s ease;
+}
+
+#tablaDespedidos tbody tr:hover {
+    background-color: #f8f9fa;
+    transform: scale(1.01);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Botones de acción en la tabla */
+#tablaDespedidos .btn-sm {
+    transition: all 0.3s ease;
+}
+
+#tablaDespedidos .btn-sm:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+}
+
+/* Badges mejorados */
+.badge {
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.badge i {
+    margin-right: 4px;
+}

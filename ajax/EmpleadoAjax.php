@@ -498,4 +498,115 @@ case 'listEmpleadosAsignadosEmpleado':
             ]);
         }
         break;
+
+    case 'listarDespedidos':
+        $tipo_despido = limpiar_cadena2($_POST['tipo_despido']);
+        $liquidacion = limpiar_cadena2($_POST['liquidacion']);
+        $fecha_desde = limpiar_cadena2($_POST['fecha_desde']);
+        $fecha_hasta = limpiar_cadena2($_POST['fecha_hasta']);
+        
+        $query = $objEmpleado->listarDespedidos($idglobal, $tipo_despido, $liquidacion, $fecha_desde, $fecha_hasta);
+        $data = array();
+        
+        while ($reg = $query->fetch_object()) {
+            $data[] = array(
+                'id' => $reg->id,
+                'empleado' => $reg->empleado,
+                'documento' => $reg->documento,
+                'cargo' => $reg->cargo,
+                'fechaDespido' => $reg->fechaDespido,
+                'tipoDespido' => $reg->tipoDespido,
+                'liquidacion' => $reg->liquidacion,
+                'estadoDocs' => $reg->estadoDocs,
+                'refEmpleado' => $reg->refEmpleado
+            );
+        }
+        
+        echo json_encode($data);
+        break;
+
+    case 'obtenerDetalleDespido':
+        $id = limpiar_cadena($_POST['id']);
+        
+        $query = $objEmpleado->obtenerDetalleDespido($id);
+        $reg = $query->fetch_object();
+        
+        if ($reg) {
+            // Calcular tiempo trabajado
+            $diasTrabajados = $reg->diasTrabajados;
+            $anios = floor($diasTrabajados / 365);
+            $meses = floor(($diasTrabajados % 365) / 30);
+            $dias = ($diasTrabajados % 365) % 30;
+            
+            $tiempoTrabajado = '';
+            if ($anios > 0) $tiempoTrabajado .= $anios . ' año' . ($anios > 1 ? 's' : '') . ' ';
+            if ($meses > 0) $tiempoTrabajado .= $meses . ' mes' . ($meses > 1 ? 'es' : '') . ' ';
+            if ($dias > 0) $tiempoTrabajado .= $dias . ' día' . ($dias > 1 ? 's' : '');
+            
+            $data = array(
+                'id' => $reg->id,
+                'empleado' => $reg->empleado,
+                'documento' => $reg->documento,
+                'cargo' => $reg->cargo,
+                'telefono' => $reg->telefono,
+                'foto' => $reg->foto,
+                'fechaIngreso' => $reg->fechaIngreso,
+                'fechaDespido' => $reg->fechaDespido,
+                'fechaUltimoTrabajo' => $reg->fechaUltimoTrabajo,
+                'tiempoTrabajado' => trim($tiempoTrabajado) ?: 'N/A',
+                'tipoDespido' => $reg->tipoDespido,
+                'motivo' => $reg->motivo,
+                'autorizadoPor' => $reg->autorizadoPor,
+                'cargoAutoriza' => $reg->cargoAutoriza,
+                'observaciones' => $reg->observaciones,
+                'liquidacion' => $reg->liquidacion,
+                'montoLiquidacion' => $reg->montoLiquidacion,
+                'entregaDocumentos' => $reg->entregaDocumentos,
+                'documentosEntregados' => $reg->documentosEntregados,
+                'actaFirmada' => $reg->actaFirmada,
+                'recontratacion' => $reg->recontratacion
+            );
+            
+            echo json_encode($data);
+        } else {
+            echo json_encode(null);
+        }
+        break;
+
+    case 'estadisticasDespedidos':
+        $query = $objEmpleado->obtenerEstadisticasDespedidos($idglobal);
+        $reg = $query->fetch_object();
+        
+        $data = array(
+            'total' => $reg->total ?? 0,
+            'meActual' => $reg->meActual ?? 0,
+            'liquidacionesPendientes' => $reg->liquidacionesPendientes ?? 0,
+            'documentosCompletos' => $reg->documentosCompletos ?? 0
+        );
+        
+        echo json_encode($data);
+        break;
+
+    case 'actualizarEstadoDespido':
+        $id = limpiar_cadena($_POST['id']);
+        $liquidacion = limpiar_cadena($_POST['liquidacion']);
+        $monto = limpiar_cadena2($_POST['monto']);
+        $documentos = limpiar_cadena($_POST['documentos']);
+        $actaFirmada = isset($_POST['actaFirmada']) ? limpiar_cadena($_POST['actaFirmada']) : null;
+        $documentosEntregados = isset($_POST['documentosEntregados']) ? limpiar_cadena($_POST['documentosEntregados']) : null;
+        $observaciones = isset($_POST['observaciones']) ? limpiar_cadena($_POST['observaciones']) : null;
+        $fechaPago = isset($_POST['fechaPago']) ? limpiar_cadena($_POST['fechaPago']) : null;
+        
+        $resultado = $objEmpleado->actualizarEstadoDespido(
+            $id, 
+            $liquidacion, 
+            $monto, 
+            $documentos, 
+            $actaFirmada, 
+            $documentosEntregados, 
+            $observaciones, 
+            $fechaPago
+        );
+        echo json_encode($resultado);
+        break;
 }

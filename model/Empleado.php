@@ -829,5 +829,187 @@ class Empleado
         }
     }
 
+    /**
+     * Listar empleados despedidos con filtros
+     */
+    public function listarDespedidos($idglobal, $tipo_despido = '', $liquidacion = '', $fecha_desde = '', $fecha_hasta = '')
+    {
+        global $conexion;
+        
+        $sql = "SELECT 
+            ed.idempleado_despido AS id,
+            CONCAT(p.str_nombres, ' ', p.str_apellidos) AS empleado,
+            CONCAT(p.str_tipo_documento, ' ', p.str_num_documento) AS documento,
+            e.str_cargo AS cargo,
+            DATE_FORMAT(ed.fecha_despido, '%d/%m/%Y') AS fechaDespido,
+            ed.tipo_despido AS tipoDespido,
+            ed.liquidacion_pendiente AS liquidacion,
+            ed.entrega_documentos AS estadoDocs,
+            e.idempleado AS refEmpleado
+        FROM tbl_empleado_despido ed
+        INNER JOIN tbl_empleado e ON e.idempleado = ed.idempleado
+        INNER JOIN tbl_persona p ON p.idpersona = e.idpersona
+        WHERE ed.idglobal = $idglobal AND ed.str_estado = 'activo'";
+        
+        // Aplicar filtros
+        if (!empty($tipo_despido)) {
+            $sql .= " AND ed.tipo_despido = '$tipo_despido'";
+        }
+        
+        if (!empty($liquidacion)) {
+            $sql .= " AND ed.liquidacion_pendiente = '$liquidacion'";
+        }
+        
+        if (!empty($fecha_desde)) {
+            $sql .= " AND ed.fecha_despido >= '$fecha_desde'";
+        }
+        
+        if (!empty($fecha_hasta)) {
+            $sql .= " AND ed.fecha_despido <= '$fecha_hasta'";
+        }
+        
+        $sql .= " ORDER BY ed.fecha_despido DESC";
+        
+        $query = $conexion->query($sql);
+        return $query;
+    }
+
+    /**
+     * Obtener detalle completo de un despido
+     */
+    public function obtenerDetalleDespido($id)
+    {
+        global $conexion;
+        
+        $sql = "SELECT 
+            ed.idempleado_despido AS id,
+            CONCAT(p.str_nombres, ' ', p.str_apellidos) AS empleado,
+            CONCAT(p.str_tipo_documento, ' ', p.str_num_documento) AS documento,
+            e.str_cargo AS cargo,
+            p.str_telefono AS telefono,
+            p.str_foto AS foto,
+            DATE_FORMAT(e.date_fecha_inicio, '%d/%m/%Y') AS fechaIngreso,
+            DATE_FORMAT(ed.fecha_despido, '%d/%m/%Y') AS fechaDespido,
+            DATE_FORMAT(ed.fecha_ultimo_trabajo, '%d/%m/%Y') AS fechaUltimoTrabajo,
+            DATEDIFF(ed.fecha_despido, e.date_fecha_inicio) AS diasTrabajados,
+            ed.tipo_despido AS tipoDespido,
+            ed.motivo_despido AS motivo,
+            ed.autorizado_por AS autorizadoPor,
+            ed.cargo_autoriza AS cargoAutoriza,
+            ed.observaciones AS observaciones,
+            ed.liquidacion_pendiente AS liquidacion,
+            ed.monto_liquidacion AS montoLiquidacion,
+            ed.entrega_documentos AS entregaDocumentos,
+            ed.documentos_entregados AS documentosEntregados,
+            ed.acta_firmada AS actaFirmada,
+            ed.derecho_recontratacion AS recontratacion
+        FROM tbl_empleado_despido ed
+        INNER JOIN tbl_empleado e ON e.idempleado = ed.idempleado
+        INNER JOIN tbl_persona p ON p.idpersona = e.idpersona
+        WHERE ed.idempleado_despido = $id";
+        
+        $query = $conexion->query($sql);
+        return $query;
+    }
+
+    /**
+     * Obtener estadísticas de despidos
+     */
+    public function obtenerEstadisticasDespedidos($idglobal)
+    {
+        global $conexion;
+        
+        $sql = "SELECT 
+            COUNT(*) AS total,
+            SUM(CASE WHEN MONTH(fecha_despido) = MONTH(CURDATE()) 
+                     AND YEAR(fecha_despido) = YEAR(CURDATE()) THEN 1 ELSE 0 END) AS meActual,
+            SUM(CASE WHEN liquidacion_pendiente = 'si' THEN 1 ELSE 0 END) AS liquidacionesPendientes,
+            SUM(CASE WHEN entrega_documentos = 'completa' THEN 1 ELSE 0 END) AS documentosCompletos
+        FROM tbl_empleado_despido
+        WHERE idglobal = $idglobal AND str_estado = 'activo'";
+        
+        $query = $conexion->query($sql);
+        return $query;
+    }
+
+    /**
+     * Actualizar estado de un despido (versión mejorada)
+     */
+    public function actualizarEstadoDespido($id, $liquidacion, $monto, $documentos, $actaFirmada = null, $documentosEntregados = null, $observaciones = null, $fechaPago = null)
+    {
+        global $conexion;
+        $sw = true;
+        $conexion->autocommit(false);
+        $dt = date('Y-m-d H:i:s');
+        
+        try {
+            // Validar y limpiar datos
+            $monto = !empty($monto) ? floatval($monto) : 'NULL';
+            
+            // Obtener observaciones anteriores si existen
+            $observacionesFinal = $observaciones;
+            if (!empty($observaciones)) {
+                $sqlObs = "SELECT observaciones FROM tbl_empleado_despido WHERE idempleado_despido = $id";
+                $resultObs = $conexion->query($sqlObs);
+                if ($rowObs = $resultObs->fetch_object()) {
+                    $obsAnteriores = !empty($rowObs->observaciones) ? $rowObs->observaciones . "\n\n" : '';
+                    $timestamp = date('Y-m-d H:i:s');
+                    $observacionesFinal = $obsAnteriores . "[$timestamp] " . $observaciones;
+                }
+            }
+            
+            // Construir SQL dinámicamente
+            $campos = [];
+            $campos[] = "liquidacion_pendiente = '$liquidacion'";
+            $campos[] = "monto_liquidacion = $monto";
+            $campos[] = "entrega_documentos = '$documentos'";
+            $campos[] = "updated_at = '$dt'";
+            
+            if (!is_null($actaFirmada)) {
+                $campos[] = "acta_firmada = '$actaFirmada'";
+            }
+            
+            if (!is_null($documentosEntregados)) {
+                $documentosEntregados = $conexion->real_escape_string($documentosEntregados);
+                $campos[] = "documentos_entregados = '$documentosEntregados'";
+            }
+            
+            if (!empty($observacionesFinal)) {
+                $observacionesFinal = $conexion->real_escape_string($observacionesFinal);
+                $campos[] = "observaciones = '$observacionesFinal'";
+            }
+            
+            if (!empty($fechaPago)) {
+                $campos[] = "fecha_pago_liquidacion = '$fechaPago'";
+            }
+            
+            $sql = "UPDATE tbl_empleado_despido 
+                    SET " . implode(", ", $campos) . "
+                    WHERE idempleado_despido = $id";
+            
+            $conexion->query($sql) or throw new Exception('Error al actualizar estado del despido');
+            
+            $conexion->commit();
+            
+            return [
+                'status' => 'success',
+                'mensaje' => 'Estado actualizado correctamente. Los cambios han sido registrados en el historial.'
+            ];
+            
+        } catch (Exception $e) {
+            $sw = false;
+            $conexion->rollback();
+            
+            return [
+                'status' => 'error',
+                'mensaje' => 'Error al actualizar: ' . $e->getMessage()
+            ];
+        } finally {
+            if ($conexion != null) {
+                $conexion->close();
+            }
+        }
+    }
+
   
 }

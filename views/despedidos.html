@@ -1,3 +1,14 @@
+<!-- DataTables -->
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css" />
+<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css" />
+<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css" />
+
+<!-- SweetAlert2 -->
+<link rel="stylesheet" href="plugins/sweetalert2-theme-bootstrap-4/bootstrap-4.min.css" />
+
+<!-- Custom CSS para Despedidos -->
+<link rel="stylesheet" href="dist/css/despedidos-custom.css" />
+
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper">
   <!-- Content Header (Page header) -->
@@ -5,7 +16,16 @@
     <div class="container-fluid">
       <div class="row mb-2">
         <div class="col-sm-6">
-          <h1 class="m-0">Despedidos</h1>
+          <h1 class="m-0">
+            <i class="fas fa-user-slash text-danger mr-2"></i>
+            Gestión de Despedidos
+          </h1>
+        </div>
+        <div class="col-sm-6">
+          <ol class="breadcrumb float-sm-right">
+            <li class="breadcrumb-item"><a href="index.php">Inicio</a></li>
+            <li class="breadcrumb-item active">Despedidos</li>
+          </ol>
         </div>
       </div>
     </div>
@@ -15,9 +35,384 @@
   <!-- Main content -->
   <section class="content">
     <div class="container-fluid">
+      
+      <!-- Tarjetas de estadísticas -->
+      <div class="row">
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-danger">
+            <div class="inner">
+              <h3 id="totalDespidos">0</h3>
+              <p>Total Despidos</p>
+            </div>
+            <div class="icon">
+              <i class="fas fa-user-times"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-warning">
+            <div class="inner">
+              <h3 id="despidosMes">0</h3>
+              <p>Despidos Este Mes</p>
+            </div>
+            <div class="icon">
+              <i class="fas fa-calendar-times"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-info">
+            <div class="inner">
+              <h3 id="liquidacionesPendientes">0</h3>
+              <p>Liquidaciones Pendientes</p>
+            </div>
+            <div class="icon">
+              <i class="fas fa-money-bill-wave"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-lg-3 col-6">
+          <div class="small-box bg-success">
+            <div class="inner">
+              <h3 id="documentosCompletos">0</h3>
+              <p>Documentos Completos</p>
+            </div>
+            <div class="icon">
+              <i class="fas fa-file-check"></i>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Filtros -->
+      <div class="card card-primary card-outline">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="fas fa-filter mr-2"></i>
+            Filtros de Búsqueda
+          </h3>
+          <div class="card-tools">
+            <button type="button" class="btn btn-tool" data-card-widget="collapse">
+              <i class="fas fa-minus"></i>
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <form id="formFiltrosDespidos">
+            <div class="row">
+              <div class="col-md-3">
+                <div class="form-group">
+                  <label for="filtroTipoDespido">
+                    <i class="fas fa-list text-primary mr-1"></i>
+                    Tipo de Despido
+                  </label>
+                  <select id="filtroTipoDespido" name="filtroTipoDespido" class="form-control">
+                    <option value="">Todos</option>
+                    <option value="despido_justificado">Despido Justificado</option>
+                    <option value="despido_injustificado">Despido Injustificado</option>
+                    <option value="renuncia_voluntaria">Renuncia Voluntaria</option>
+                    <option value="terminacion_contrato">Terminación de Contrato</option>
+                    <option value="reduccion_personal">Reducción de Personal</option>
+                    <option value="incapacidad_permanente">Incapacidad Permanente</option>
+                    <option value="jubilacion">Jubilación</option>
+                    <option value="otro">Otro</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="col-md-3">
+                <div class="form-group">
+                  <label for="filtroLiquidacion">
+                    <i class="fas fa-money-check text-success mr-1"></i>
+                    Estado Liquidación
+                  </label>
+                  <select id="filtroLiquidacion" name="filtroLiquidacion" class="form-control">
+                    <option value="">Todos</option>
+                    <option value="si">Pendiente</option>
+                    <option value="no">No Aplica</option>
+                    <option value="pagada">Pagada</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="col-md-3">
+                <div class="form-group">
+                  <label for="filtroFechaDesde">
+                    <i class="far fa-calendar-alt text-info mr-1"></i>
+                    Desde
+                  </label>
+                  <input type="date" id="filtroFechaDesde" name="filtroFechaDesde" class="form-control">
+                </div>
+              </div>
+
+              <div class="col-md-3">
+                <div class="form-group">
+                  <label for="filtroFechaHasta">
+                    <i class="far fa-calendar-alt text-info mr-1"></i>
+                    Hasta
+                  </label>
+                  <input type="date" id="filtroFechaHasta" name="filtroFechaHasta" class="form-control">
+                </div>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col-md-12 text-right">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-search mr-2"></i> Buscar
+                </button>
+                <button type="button" id="btnLimpiarFiltros" class="btn btn-secondary">
+                  <i class="fas fa-eraser mr-2"></i> Limpiar
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Tabla de despedidos -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="fas fa-table mr-2"></i>
+            Listado de Empleados Despedidos
+          </h3>
+          <div class="card-tools">
+            <button type="button" class="btn btn-sm btn-primary" id="btnExportarExcel">
+              <i class="fas fa-file-excel mr-1"></i> Exportar
+            </button>
+          </div>
+        </div>
+        <div class="card-body">
+          <table id="tablaDespedidos" class="table table-bordered table-striped table-hover">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Empleado</th>
+                <th>Documento</th>
+                <th>Cargo</th>
+                <th>Fecha Despido</th>
+                <th>Tipo Despido</th>
+                <th>Liquidación</th>
+                <th>Estado Docs</th>
+                <th>Opciones</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot>
+              <tr>
+                <th>#</th>
+                <th>Empleado</th>
+                <th>Documento</th>
+                <th>Cargo</th>
+                <th>Fecha Despido</th>
+                <th>Tipo Despido</th>
+                <th>Liquidación</th>
+                <th>Estado Docs</th>
+                <th>Opciones</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
 
     </div>
     <!-- /.container-fluid -->
   </section>
 
+</div>
+
+<!-- Modal Ver Detalles -->
+<div class="modal fade" id="modalDetalleDespido">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header bg-info">
+        <h4 class="modal-title text-white">
+          <i class="fas fa-info-circle mr-2"></i>
+          Detalles del Despido
+        </h4>
+        <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="row">
+          <!-- Columna izquierda - Info del empleado -->
+          <div class="col-md-4">
+            <div class="card card-primary card-outline">
+              <div class="card-body box-profile">
+                <div class="text-center">
+                  <img id="detalleFoto" class="profile-user-img img-fluid img-circle" 
+                       src="" alt="Foto empleado">
+                </div>
+                <h3 id="detalleNombre" class="profile-username text-center"></h3>
+                <p id="detalleCargo" class="text-muted text-center"></p>
+
+                <ul class="list-group list-group-unbordered mb-3">
+                  <li class="list-group-item">
+                    <b><i class="fas fa-id-card mr-2"></i>Documento</b>
+                    <span id="detalleDocumento" class="float-right"></span>
+                  </li>
+                  <li class="list-group-item">
+                    <b><i class="fas fa-phone mr-2"></i>Teléfono</b>
+                    <span id="detalleTelefono" class="float-right"></span>
+                  </li>
+                  <li class="list-group-item">
+                    <b><i class="fas fa-calendar mr-2"></i>Fecha Ingreso</b>
+                    <span id="detalleFechaIngreso" class="float-right"></span>
+                  </li>
+                  <li class="list-group-item">
+                    <b><i class="fas fa-calendar-times mr-2"></i>Fecha Despido</b>
+                    <span id="detalleFechaDespido" class="float-right text-danger"></span>
+                  </li>
+                  <li class="list-group-item">
+                    <b><i class="fas fa-clock mr-2"></i>Tiempo Trabajado</b>
+                    <span id="detalleTiempoTrabajado" class="float-right"></span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <!-- Columna derecha - Detalles del despido -->
+          <div class="col-md-8">
+            <!-- Tipo y motivo -->
+            <div class="card card-danger card-outline">
+              <div class="card-header">
+                <h3 class="card-title">
+                  <i class="fas fa-exclamation-triangle mr-2"></i>
+                  Información del Despido
+                </h3>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-6">
+                    <strong><i class="fas fa-list mr-2"></i>Tipo de Despido:</strong>
+                    <p id="detalleTipoDespido" class="text-muted"></p>
+                  </div>
+                  <div class="col-md-6">
+                    <strong><i class="fas fa-calendar-check mr-2"></i>Último Día Trabajado:</strong>
+                    <p id="detalleUltimoDia" class="text-muted"></p>
+                  </div>
+                </div>
+                <strong><i class="fas fa-comment-dots mr-2"></i>Motivo:</strong>
+                <p id="detalleMotivo" class="text-muted"></p>
+              </div>
+            </div>
+
+            <!-- Autorización -->
+            <div class="card card-warning card-outline">
+              <div class="card-header">
+                <h3 class="card-title">
+                  <i class="fas fa-user-shield mr-2"></i>
+                  Autorización
+                </h3>
+              </div>
+              <div class="card-body">
+                <div class="row">
+                  <div class="col-md-6">
+                    <strong><i class="fas fa-user-tie mr-2"></i>Autorizado Por:</strong>
+                    <p id="detalleAutorizadoPor" class="text-muted"></p>
+                  </div>
+                  <div class="col-md-6">
+                    <strong><i class="fas fa-briefcase mr-2"></i>Cargo:</strong>
+                    <p id="detalleCargoAutoriza" class="text-muted"></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Liquidación y Documentos -->
+            <div class="row">
+              <div class="col-md-6">
+                <div class="card card-success card-outline">
+                  <div class="card-header">
+                    <h3 class="card-title">
+                      <i class="fas fa-money-bill-wave mr-2"></i>
+                      Liquidación
+                    </h3>
+                  </div>
+                  <div class="card-body">
+                    <strong>Estado:</strong>
+                    <p id="detalleLiquidacion" class="text-muted"></p>
+                    <strong>Monto:</strong>
+                    <p id="detalleMontoLiquidacion" class="text-muted"></p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-md-6">
+                <div class="card card-primary card-outline">
+                  <div class="card-header">
+                    <h3 class="card-title">
+                      <i class="fas fa-folder-open mr-2"></i>
+                      Documentación
+                    </h3>
+                  </div>
+                  <div class="card-body">
+                    <strong>Entrega Documentos:</strong>
+                    <p id="detalleEntregaDocumentos" class="text-muted"></p>
+                    <strong>Acta Firmada:</strong>
+                    <p id="detalleActaFirmada" class="text-muted"></p>
+                    <strong>Derecho Recontratación:</strong>
+                    <p id="detalleRecontratacion" class="text-muted"></p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Observaciones -->
+            <div class="card card-secondary card-outline">
+              <div class="card-header">
+                <h3 class="card-title">
+                  <i class="fas fa-sticky-note mr-2"></i>
+                  Observaciones
+                </h3>
+              </div>
+              <div class="card-body">
+                <p id="detalleObservaciones" class="text-muted"></p>
+                <hr>
+                <strong><i class="fas fa-list-check mr-2"></i>Documentos Entregados:</strong>
+                <p id="detalleDocumentosEntregados" class="text-muted"></p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">
+          <i class="fas fa-times mr-2"></i>Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.colVis.min.js"></script>
+
+<!-- SweetAlert2 -->
+<script src="plugins/sweetalert2/sweetalert2.min.js"></script>
+
+<script type="text/javascript" src="dist/scripts/Despedidos.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+
+<script>
+  $("#li-manteniniento").addClass("menu-open");
+  $(".lia-mantenimiento").addClass("active");
+  $(".lia-despedidos").addClass("active");
+</script>
 </div>
