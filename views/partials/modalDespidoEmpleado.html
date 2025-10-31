@@ -467,6 +467,7 @@
         var nombreEmpleado = $('#txtNombreEmpleadoDespido').text();
         var tipoDespido = $('#cboTipoDespido option:selected').text().trim();
         var fechaDespido = $('#txtFechaDespido').val();
+        var derechoRecontratacion = $('#cboDerechoRecontratacion option:selected').text().trim();
 
         // Confirmación mejorada con más detalles
         Swal.fire({
@@ -488,6 +489,10 @@
                         <p style="margin: 5px 0;">
                             <i class="fas fa-list-ul text-warning"></i> 
                             <strong>Tipo:</strong> ${tipoDespido}
+                        </p>
+                        <p style="margin: 5px 0;">
+                           <i class="fas fa-redo text-danger"></i> 
+                            <strong>Derecho a Recontratación:</strong> ${derechoRecontratacion}
                         </p>
                     </div>
                     <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; border-radius: 4px;">

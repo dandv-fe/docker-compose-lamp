@@ -133,36 +133,7 @@ jQuery(document).ready(function () {
         });
     };
 
-    function ListadoEmpleado() {
-        const tabla = $("#example1").DataTable()
-        $.ajax({
-            url: './ajax/EmpleadoAjax.php?op=list',
-            type: "POST",
-            data: {},
-            dataType: "json",
-            success: function (datos) {
-                tabla.clear().draw();
-                for (let i = 0; i < datos.length; i++) {
-                    const val = datos[i];
-                    tabla.row
-                        .add([
-                            val[0],
-                            capitalizarPalabras(val[1]),
-                            val[2],
-                            val[3],
-                            val[4],
-                            val[5],
-                            val[6],
-                            val[7],
-                            val[8],
-                        ]).draw(false);
-                }
-            },
-            error: function (e) {
-                console.log(e.responseText);
-            }
-        });
-    };
+   
 
     $("#formAsignarEmpleado").submit(function (e) { 
         e.preventDefault();
@@ -228,7 +199,38 @@ function VerConfiguracion(ref) {
     $("#btnNuevoEmpleado").hide();// ocultamos el boton nuevo
     $("#VerListado").hide();// ocultamos el listado
 }
-
+ function ListadoEmpleado() {
+         OcultarForm();
+        const tabla = $("#example1").DataTable()
+        $.ajax({
+            url: './ajax/EmpleadoAjax.php?op=list',
+            type: "POST",
+            data: {},
+            dataType: "json",
+            success: function (datos) {
+                tabla.clear().draw();
+                for (let i = 0; i < datos.length; i++) {
+                    const val = datos[i];
+                    tabla.row
+                        .add([
+                            val[0],
+                            capitalizarPalabras(val[1]),
+                            val[2],
+                            val[3],
+                            val[4],
+                            val[5],
+                            val[6],
+                            val[7],
+                            val[8],
+                        ]).draw(false);
+                }
+            },
+            error: function (e) {
+                console.log(e.responseText);
+            }
+        });
+    };
+    
 function listarNomina() {
     $("#verLoadingNomina").removeClass('hide')
     $("#verListadoNomina").addClass('hide')
@@ -690,6 +692,8 @@ function cargarDataEmpleado(tipo_documento, num_documento, accion) {// funcion q
                 } else {
                     $("#modal-xl").modal('hide');
                     if (accion === 'editar') {
+                        $("#btn-submit-empleado").text("ACTUALIZAR");
+                        $("#a-btn-despedir-empleado").removeClass("hide");
                         editar(data)
                         VerForm()
                     } else if (accion === 'perfil') {
@@ -699,6 +703,8 @@ function cargarDataEmpleado(tipo_documento, num_documento, accion) {// funcion q
                         $("#custom-tabs-liquidar-tab").tab('show')
                         $("form#formSearchNominaDetallado").submit()
                     } else if (accion === 'nuevo') {
+                        $("#btn-submit-empleado").text("REGISTRAR");
+                        $("#a-btn-despedir-empleado").addClass("hide");
                         if (data === null) {
                             nuevo()
                             VerForm()
