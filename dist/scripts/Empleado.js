@@ -26,8 +26,8 @@ jQuery(document).ready(function () {
             $("form#formSearchNominaDetallado").submit()
         } else if ($(e.target).attr('id') === 'custom-tabs-authorizations-tab') {
             AuthorizacionEmpleado();
-        }else if ($(e.target).attr('id') === 'custom-tabs-asignarEmpleados-tab') {
-           manejrTabsEmpleadoAsignado()
+        } else if ($(e.target).attr('id') === 'custom-tabs-asignarEmpleados-tab') {
+            manejrTabsEmpleadoAsignado()
         }
     })
 
@@ -133,9 +133,9 @@ jQuery(document).ready(function () {
         });
     };
 
-   
 
-    $("#formAsignarEmpleado").submit(function (e) { 
+
+    $("#formAsignarEmpleado").submit(function (e) {
         e.preventDefault();
         $.post("./ajax/UsuarioAjax.php", function (r) {
             if (r === '0') {
@@ -162,8 +162,8 @@ jQuery(document).ready(function () {
                     icon: 'error',
                     title: e
                 })
-    
-    
+
+
             } else {
                 Toast.fire({
                     icon: 'success',
@@ -171,7 +171,7 @@ jQuery(document).ready(function () {
                 })
                 manejrTabsEmpleadoAsignado()
             }
-           
+
         })
     });
 
@@ -199,38 +199,38 @@ function VerConfiguracion(ref) {
     $("#btnNuevoEmpleado").hide();// ocultamos el boton nuevo
     $("#VerListado").hide();// ocultamos el listado
 }
- function ListadoEmpleado() {
-         OcultarForm();
-        const tabla = $("#example1").DataTable()
-        $.ajax({
-            url: './ajax/EmpleadoAjax.php?op=list',
-            type: "POST",
-            data: {},
-            dataType: "json",
-            success: function (datos) {
-                tabla.clear().draw();
-                for (let i = 0; i < datos.length; i++) {
-                    const val = datos[i];
-                    tabla.row
-                        .add([
-                            val[0],
-                            capitalizarPalabras(val[1]),
-                            val[2],
-                            val[3],
-                            val[4],
-                            val[5],
-                            val[6],
-                            val[7],
-                            val[8],
-                        ]).draw(false);
-                }
-            },
-            error: function (e) {
-                console.log(e.responseText);
+function ListadoEmpleado() {
+    OcultarForm();
+    const tabla = $("#example1").DataTable()
+    $.ajax({
+        url: './ajax/EmpleadoAjax.php?op=list',
+        type: "POST",
+        data: {},
+        dataType: "json",
+        success: function (datos) {
+            tabla.clear().draw();
+            for (let i = 0; i < datos.length; i++) {
+                const val = datos[i];
+                tabla.row
+                    .add([
+                        val[0],
+                        capitalizarPalabras(val[1]),
+                        val[2],
+                        val[3],
+                        val[4],
+                        val[5],
+                        val[6],
+                        val[7],
+                        val[8],
+                    ]).draw(false);
             }
-        });
-    };
-    
+        },
+        error: function (e) {
+            console.log(e.responseText);
+        }
+    });
+};
+
 function listarNomina() {
     $("#verLoadingNomina").removeClass('hide')
     $("#verListadoNomina").addClass('hide')
@@ -272,25 +272,25 @@ function listarNominaDetalle() {
     $("#verLoadingNominaDetalle").removeClass('hide')
     $("#verListadoNominaDetlles").addClass('hide')
     $.post("./ajax/UsuarioAjax.php", function (r) {
-      if (r === '0') {
-        location.reload(true);
-      }
+        if (r === '0') {
+            location.reload(true);
+        }
     });
     var formData = new FormData($("form#formSearchNominaDetallado")[0]);
 
     var tabla = $('#tblDetalleNomina').DataTable();
     //console.log('bbb');
     $.ajax({
-      url: './ajax/EmpleadoAjax.php?op=listNominaDetalle',
-      type: "POST",
-      data: formData,
-      contentType: false,
-      processData: false,
-      dataType: "json",
-      success: function (datos) {
-        const conseptos = Array.from(new Set(datos.map(x => capitalizarPalabras(x[2]))));
-        const trTableconsepto = conseptos.map(n => {
-          return `<tr>
+        url: './ajax/EmpleadoAjax.php?op=listNominaDetalle',
+        type: "POST",
+        data: formData,
+        contentType: false,
+        processData: false,
+        dataType: "json",
+        success: function (datos) {
+            const conseptos = Array.from(new Set(datos.map(x => capitalizarPalabras(x[2]))));
+            const trTableconsepto = conseptos.map(n => {
+                return `<tr>
                     <td>
                         ${n}
                     </td>
@@ -298,28 +298,28 @@ function listarNominaDetalle() {
                         $${datos.filter(x => capitalizarPalabras(x[2]) === n).map(m => m[1]).reduce((a, b) => parseFloat(a) + parseFloat(b), 0)}
                     </td>
                 </tr>`
-        })
-        $("#trTableconsepto").html(trTableconsepto.join(''));
+            })
+            $("#trTableconsepto").html(trTableconsepto.join(''));
 
-        tabla.clear().draw();
-        for (let i = 0; i < datos.length; i++) {
-          const val = datos[i];
-          tabla.row
-            .add([
-              val[0],
-              val[1],
-              capitalizarPalabras(val[2]),
-              `<b>${val[5]} ${val[4]}:</b> ${val[3]}`,
-            ]).draw(false);
+            tabla.clear().draw();
+            for (let i = 0; i < datos.length; i++) {
+                const val = datos[i];
+                tabla.row
+                    .add([
+                        val[0],
+                        val[1],
+                        capitalizarPalabras(val[2]),
+                        `<b>${val[5]} ${val[4]}:</b> ${val[3]}`,
+                    ]).draw(false);
+            }
+            $("#verLoadingNominaDetalle").addClass('hide')
+            $("#verListadoNominaDetlles").removeClass('hide')
+        },
+        error: function (e) {
+            console.log(e.responseText);
         }
-        $("#verLoadingNominaDetalle").addClass('hide')
-        $("#verListadoNominaDetlles").removeClass('hide')
-      },
-      error: function (e) {
-        console.log(e.responseText);
-      }
     });
-  }
+}
 
 function AuthorizacionEmpleado() {
     $("#verLoadingPermisos").removeClass('hide')
@@ -512,7 +512,7 @@ function quitarPermisosSucursal(ele, refSucursal) {
         confirmButtonColor: "#3085d6",
         cancelButtonColor: "#d33",
         confirmButtonText: "Si, Quitar ahora!",
-    
+
     }).then((result) => {
         if (result.isConfirmed) {
             $("#verLoadingPermisos").removeClass('hide')
@@ -525,7 +525,7 @@ function quitarPermisosSucursal(ele, refSucursal) {
             const refEmpleado = $("#txtRefEmpleadoConfig").val();
             const tipoUser = result.value
             const ope = $("#" + ele).prop('checked');
-            $.post("./ajax/EmpleadoAjax.php?op=quitarAuth", { refSucursal, refEmpleado}, function (r) {
+            $.post("./ajax/EmpleadoAjax.php?op=quitarAuth", { refSucursal, refEmpleado }, function (r) {
                 if (r.indexOf("ERROR:") !== -1) {
                     Toast.fire({
                         icon: 'error',
@@ -710,6 +710,11 @@ function cargarDataEmpleado(tipo_documento, num_documento, accion) {// funcion q
                             VerForm()
                         } else {
                             if (data.isEmpleado) {
+                                if (data.estadoEmpleado === 'inactivo') {
+
+                                    alert('El empleado se encuentra despedido. Puede reactivarlo desde la lista de Empleados despedidos')
+                                    return
+                                }
                                 perfil(data)
                                 VerConfiguracion(data.refEmpleado)
                                 $("#custom-tabs-liquidar-tab").tab('show')
@@ -717,7 +722,7 @@ function cargarDataEmpleado(tipo_documento, num_documento, accion) {// funcion q
                                 editar(data)
                                 VerForm()
                             }
-                           
+
                         }
                     }
                 }
@@ -771,7 +776,7 @@ function cargarDataEmpleado(tipo_documento, num_documento, accion) {// funcion q
         $("#txt_tipo_documento_empleado").text(data.t_documento)
         $("#txt_num_documento_empleado").text(data.n_documento)
         $("#txt_tel_empleado").text(data.telefono)
-        $("#pTextDireccionEmpleado").text(data.departamento+', '+data.ciudad+', '+data.barrio+', '+data.calle);
+        $("#pTextDireccionEmpleado").text(data.departamento + ', ' + data.ciudad + ', ' + data.barrio + ', ' + data.calle);
         // para editar
         $("#txt_t_documento_em").val(data.t_documento);
         $("#txt_cargo_en").val(data.refPersona);
@@ -809,8 +814,8 @@ function manejrTabsEmpleadoAsignado() {
     })
 
 
-   
-   
+
+
 }
 
 

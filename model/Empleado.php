@@ -334,7 +334,7 @@ class Empleado
 
          FROM tbl_empleado e INNER JOIN
             tbl_persona p ON p.idpersona=e.idpersona
-         WHERE e.idglobal=$idglobal ORDER BY e.idempleado DESC";
+         WHERE e.idglobal=$idglobal AND e.str_estado<>'inactivo' ORDER BY e.idempleado DESC";
         $query = $conexion->query($sql);
         return $query;
     }
@@ -524,7 +524,7 @@ class Empleado
         $sw = true;
         $dt = date('Y-m-d H:i:s');
         try {
-            $sql = "UPDATE tbl_auth_sucursal SET str_estado='inactivo' WHERE idsucursal= $idsucursal AND idempleado=$idempleado AND idglobal=$idglobal";
+            $sql = "UPDATE tbl_auth_sucursal SET str_estado='inactivo' WHERE idsucursal= $idsucursal AND idempleado=$idempleado";
             $conexion->query($sql) or throw new Exception('error!');
         } catch (Exception $e) {
             print_r($e);
@@ -802,6 +802,10 @@ class Empleado
                     WHERE idempleado = $idempleado";
             
             $conexion->query($sql) or throw new Exception('Error al actualizar estado del empleado');
+           
+            // eliminar todos los permisos de sucursal del empleado
+            $sql = "DELETE FROM tbl_auth_sucursal WHERE idempleado = $idempleado";
+            $conexion->query($sql) or throw new Exception('Error al eliminar permisos de sucursal del empleado');
             
             $conexion->commit();
             

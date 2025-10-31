@@ -15,6 +15,8 @@ $DB = 'websdnco_cop';*/
 
 
 $conexion = new mysqli($HOST, $USER, $PASS, $DB);
+mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+
 mysqli_set_charset($conexion,"utf8");
 if (mysqli_connect_errno()) {
       printf("Connect failed: %s\n", mysqli_connect_error());
