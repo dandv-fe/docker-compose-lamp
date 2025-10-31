@@ -682,5 +682,148 @@ class Empleado
         return $sw;
     }
 
+    /**
+     * Registra el despido de un empleado
+     * Utiliza el stored procedure sp_registrar_despido_empleado
+     */
+    public function registrarDespido(
+        $idglobal,
+        $idempleado,
+        $fecha_despido,
+        $tipo_despido,
+        $motivo_despido,
+        $autorizado_por,
+        $cargo_autoriza,
+        $observaciones,
+        $fecha_ultimo_trabajo,
+        $liquidacion_pendiente,
+        $monto_liquidacion,
+        $entrega_documentos,
+        $documentos_entregados,
+        $acta_firmada,
+        $derecho_recontratacion,
+        $created_empleado_id
+    ) {
+        global $conexion;
+        $sw = true;
+        $conexion->autocommit(false);
+        $dt = date('Y-m-d H:i:s');
+        
+        try {
+            // Verificar que el empleado existe y está activo
+            $sql = "SELECT idempleado, str_estado FROM tbl_empleado 
+                    WHERE idempleado = $idempleado AND idglobal = $idglobal";
+            $query = $conexion->query($sql);
+            $empleado = $query->fetch_object();
+            
+            if (!isset($empleado->idempleado)) {
+                return [
+                    'status' => 'error',
+                    'mensaje' => 'El empleado no existe en la empresa especificada'
+                ];
+            }
+            
+            if ($empleado->str_estado === 'inactivo') {
+                return [
+                    'status' => 'error',
+                    'mensaje' => 'El empleado ya se encuentra inactivo'
+                ];
+            }
+            
+            // Verificar que no tenga un despido previo activo
+            $sql = "SELECT idempleado_despido FROM tbl_empleado_despido 
+                    WHERE idempleado = $idempleado AND str_estado = 'activo'";
+            $query = $conexion->query($sql);
+            $despidoExistente = $query->fetch_object();
+            
+            if (isset($despidoExistente->idempleado_despido)) {
+                return [
+                    'status' => 'error',
+                    'mensaje' => 'El empleado ya tiene un registro de despido activo'
+                ];
+            }
+            
+            // Preparar valores para SQL
+            $autorizado_por = !empty($autorizado_por) ? "'$autorizado_por'" : "NULL";
+            $cargo_autoriza = !empty($cargo_autoriza) ? "'$cargo_autoriza'" : "NULL";
+            $observaciones = !empty($observaciones) ? "'$observaciones'" : "NULL";
+            $fecha_ultimo_trabajo = !empty($fecha_ultimo_trabajo) ? "'$fecha_ultimo_trabajo'" : "NULL";
+            $monto_liquidacion = !empty($monto_liquidacion) ? $monto_liquidacion : "NULL";
+            $documentos_entregados = !empty($documentos_entregados) ? "'$documentos_entregados'" : "NULL";
+            
+            // Insertar registro de despido
+            $sql = "INSERT INTO tbl_empleado_despido (
+                idglobal,
+                idempleado,
+                fecha_despido,
+                tipo_despido,
+                motivo_despido,
+                autorizado_por,
+                cargo_autoriza,
+                observaciones,
+                fecha_ultimo_trabajo,
+                liquidacion_pendiente,
+                monto_liquidacion,
+                entrega_documentos,
+                documentos_entregados,
+                acta_firmada,
+                derecho_recontratacion,
+                created_empleado_id,
+                created_at,
+                updated_at
+            ) VALUES (
+                $idglobal,
+                $idempleado,
+                '$fecha_despido',
+                '$tipo_despido',
+                '$motivo_despido',
+                $autorizado_por,
+                $cargo_autoriza,
+                $observaciones,
+                $fecha_ultimo_trabajo,
+                '$liquidacion_pendiente',
+                $monto_liquidacion,
+                '$entrega_documentos',
+                $documentos_entregados,
+                '$acta_firmada',
+                '$derecho_recontratacion',
+                $created_empleado_id,
+                '$dt',
+                '$dt'
+            )";
+            
+            $conexion->query($sql) or throw new Exception('Error al registrar el despido');
+            
+            // Actualizar estado del empleado a inactivo
+            $sql = "UPDATE tbl_empleado 
+                    SET str_estado = 'inactivo',
+                        str_comentarios = CONCAT(IFNULL(str_comentarios, ''), '\n[DESPIDO $fecha_despido] $motivo_despido'),
+                        update_at = '$dt'
+                    WHERE idempleado = $idempleado";
+            
+            $conexion->query($sql) or throw new Exception('Error al actualizar estado del empleado');
+            
+            $conexion->commit();
+            
+            return [
+                'status' => 'success',
+                'mensaje' => 'Despido registrado correctamente. El empleado ha sido marcado como inactivo.'
+            ];
+            
+        } catch (Exception $e) {
+            $sw = false;
+            $conexion->rollback();
+            
+            return [
+                'status' => 'error',
+                'mensaje' => 'Error al registrar el despido: ' . $e->getMessage()
+            ];
+        } finally {
+            if ($conexion != null) {
+                $conexion->close();
+            }
+        }
+    }
+
   
 }

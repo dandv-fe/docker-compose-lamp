@@ -276,10 +276,16 @@ switch ($_GET["op"]) {
 
         while ($reg = $query_Tipo->fetch_object()) {
             $btneditar = $reg->cargo != 'Super Administrador' ?
-                '<button class="btn btn-warning" title="Editar" onclick="cargarDataEmpleado(\'' . $reg->tDocumento . '\',\'' . $reg->nDocumento . '\',\'editar\')"><i class="fa-solid fa-user-pen fa-xl" style="color: #000000;"></i> </button>&nbsp;' :
-                '<button class="btn btn-info" title="Editar" onclick="cargarDataEmpleado(' . $reg->refPersona . ',\'' . $reg->nDocumento . '\',\'editarUser\')"><i class="fa-solid fa-user-pen fa-xl" style="color: #000000;"></i> </button>&nbsp;';
+                '<button class="btn btn-warning btn-sm" title="Editar" onclick="cargarDataEmpleado(\'' . $reg->tDocumento . '\',\'' . $reg->nDocumento . '\',\'editar\')"><i class="fa-solid fa-user-pen" style="color: #000000;"></i> </button>&nbsp;' :
+                '<button class="btn btn-info btn-sm" title="Editar" onclick="cargarDataEmpleado(' . $reg->refPersona . ',\'' . $reg->nDocumento . '\',\'editarUser\')"><i class="fa-solid fa-user-pen" style="color: #000000;"></i> </button>&nbsp;';
 
-                $estado= $reg->estado=='activo'? '<span class="badge badge-success">Activo</span>': '<span class="badge badge-danger">Inactivo</span>';
+            // Botón de despido solo para empleados activos
+            $btnDespido = $reg->estado == 'activo' && $reg->cargo != 'Super Administrador' ?
+                '<button class="btn btn-danger btn-sm" title="Registrar Despido" onclick="abrirModalDespido(' . $reg->refEmpleado . ', \'' . addslashes($reg->empleado) . '\', \'' . addslashes($reg->cargo) . '\', \'' . $reg->tDocumento . ' ' . $reg->nDocumento . '\')"><i class="fas fa-user-slash"></i></button>&nbsp;' :
+                '';
+
+            $estado = $reg->estado == 'activo' ? '<span class="badge badge-success">Activo</span>' : '<span class="badge badge-danger">Inactivo</span>';
+            
             $data[] = array(
                 "0" => $i,
                 "1" => $reg->empleado,
@@ -290,8 +296,8 @@ switch ($_GET["op"]) {
                 "6" => $reg->tel,
                 "7" => '<img width=100px height=100px src="./' . $reg->foto . '" />',
                 "8" => $btneditar .
-                    '<button class="btn btn-default" title="Configuracion" onclick="cargarDataEmpleado(\'' . $reg->tDocumento . '\',\'' . $reg->nDocumento . '\',\'perfil\')"><i class="fa-solid fa-user-gear fa-xl" style="color: #000000;"></i> </button>'
-
+                    '<button class="btn btn-default btn-sm" title="Configuracion" onclick="cargarDataEmpleado(\'' . $reg->tDocumento . '\',\'' . $reg->nDocumento . '\',\'perfil\')"><i class="fa-solid fa-user-gear" style="color: #000000;"></i> </button>&nbsp;' .
+                    $btnDespido
             );
             $i++;
         }
@@ -418,5 +424,78 @@ case 'listEmpleadosAsignadosEmpleado':
         } else {
             $objDespacar->modificar($id_detalle_ruta, $empleados_ids);
         }*/
+        break;
+
+    case 'registrarDespido':
+        try {
+            // Validar sesión y permisos
+            if (empty($_SESSION['userEmpleado'])) {
+                echo json_encode([
+                    'status' => 'error',
+                    'mensaje' => 'No tiene permisos para realizar esta acción'
+                ]);
+                return;
+            }
+
+            // Obtener y limpiar datos del formulario
+            $idempleado = limpiar_cadena($_POST['txtIdEmpleadoDespedir']);
+            $fecha_despido = limpiar_cadena($_POST['txtFechaDespido']);
+            $tipo_despido = limpiar_cadena2($_POST['cboTipoDespido']);
+            $motivo_despido = limpiar_cadena2($_POST['txtMotivoDespido']);
+            $autorizado_por = limpiar_cadena2($_POST['txtAutorizadoPor']);
+            $cargo_autoriza = limpiar_cadena2($_POST['txtCargoAutoriza']);
+            $observaciones = limpiar_cadena2($_POST['txtObservaciones']);
+            $fecha_ultimo_trabajo = limpiar_cadena2($_POST['txtFechaUltimoTrabajo']);
+            $liquidacion_pendiente = limpiar_cadena($_POST['cboLiquidacionPendiente']);
+            $monto_liquidacion = limpiar_cadena2($_POST['txtMontoLiquidacion']);
+            $entrega_documentos = limpiar_cadena($_POST['cboEntregaDocumentos']);
+            $documentos_entregados = limpiar_cadena2($_POST['txtDocumentosEntregados']);
+            $acta_firmada = limpiar_cadena($_POST['cboActaFirmada']);
+            $derecho_recontratacion = limpiar_cadena($_POST['cboDerechoRecontratacion']);
+            $created_empleado_id = $_SESSION['userEmpleado'];
+
+            // Validaciones básicas
+            if (empty($idempleado) || empty($fecha_despido) || empty($tipo_despido) || empty($motivo_despido)) {
+                echo json_encode([
+                    'status' => 'error',
+                    'mensaje' => 'Faltan datos obligatorios. Verifique el formulario.'
+                ]);
+                return;
+            }
+
+            // Convertir monto a decimal o null
+            $monto_liquidacion = !empty($monto_liquidacion) ? floatval($monto_liquidacion) : null;
+            
+            // Si fecha último trabajo está vacía, usar null
+            $fecha_ultimo_trabajo = !empty($fecha_ultimo_trabajo) ? $fecha_ultimo_trabajo : null;
+
+            // Registrar despido usando el modelo
+            $resultado = $objEmpleado->registrarDespido(
+                $idglobal,
+                $idempleado,
+                $fecha_despido,
+                $tipo_despido,
+                $motivo_despido,
+                $autorizado_por,
+                $cargo_autoriza,
+                $observaciones,
+                $fecha_ultimo_trabajo,
+                $liquidacion_pendiente,
+                $monto_liquidacion,
+                $entrega_documentos,
+                $documentos_entregados,
+                $acta_firmada,
+                $derecho_recontratacion,
+                $created_empleado_id
+            );
+
+            echo json_encode($resultado);
+
+        } catch (Exception $e) {
+            echo json_encode([
+                'status' => 'error',
+                'mensaje' => 'Error al procesar el despido: ' . $e->getMessage()
+            ]);
+        }
         break;
 }
