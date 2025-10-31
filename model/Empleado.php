@@ -334,7 +334,7 @@ class Empleado
 
          FROM tbl_empleado e INNER JOIN
             tbl_persona p ON p.idpersona=e.idpersona
-         WHERE e.idglobal=$idglobal AND e.str_estado<>'inactivo' ORDER BY e.idempleado DESC";
+         WHERE e.idglobal=$idglobal ORDER BY e.idempleado DESC";
         $query = $conexion->query($sql);
         return $query;
     }
@@ -696,8 +696,8 @@ class Empleado
         $cargo_autoriza,
         $observaciones,
         $fecha_ultimo_trabajo,
-        $liquidacion_pendiente,
-        $monto_liquidacion,
+        $monto_fraude,
+        $monto_fraude_pendiente,
         $entrega_documentos,
         $documentos_entregados,
         $acta_firmada,
@@ -748,7 +748,7 @@ class Empleado
             $cargo_autoriza = !empty($cargo_autoriza) ? "'$cargo_autoriza'" : "NULL";
             $observaciones = !empty($observaciones) ? "'$observaciones'" : "NULL";
             $fecha_ultimo_trabajo = !empty($fecha_ultimo_trabajo) ? "'$fecha_ultimo_trabajo'" : "NULL";
-            $monto_liquidacion = !empty($monto_liquidacion) ? $monto_liquidacion : "NULL";
+            $monto_fraude_pendiente = !empty($monto_fraude_pendiente) ? $monto_fraude_pendiente : "NULL";
             $documentos_entregados = !empty($documentos_entregados) ? "'$documentos_entregados'" : "NULL";
             
             // Insertar registro de despido
@@ -762,8 +762,8 @@ class Empleado
                 cargo_autoriza,
                 observaciones,
                 fecha_ultimo_trabajo,
-                liquidacion_pendiente,
-                monto_liquidacion,
+                monto_fraude,
+                monto_fraude_pendiente,
                 entrega_documentos,
                 documentos_entregados,
                 acta_firmada,
@@ -781,8 +781,8 @@ class Empleado
                 $cargo_autoriza,
                 $observaciones,
                 $fecha_ultimo_trabajo,
-                '$liquidacion_pendiente',
-                $monto_liquidacion,
+                '$monto_fraude',
+                $monto_fraude_pendiente,
                 '$entrega_documentos',
                 $documentos_entregados,
                 '$acta_firmada',
@@ -843,7 +843,7 @@ class Empleado
             e.str_cargo AS cargo,
             DATE_FORMAT(ed.fecha_despido, '%d/%m/%Y') AS fechaDespido,
             ed.tipo_despido AS tipoDespido,
-            ed.liquidacion_pendiente AS liquidacion,
+            ed.monto_fraude AS liquidacion,
             ed.entrega_documentos AS estadoDocs,
             e.idempleado AS refEmpleado
         FROM tbl_empleado_despido ed
@@ -857,7 +857,7 @@ class Empleado
         }
         
         if (!empty($liquidacion)) {
-            $sql .= " AND ed.liquidacion_pendiente = '$liquidacion'";
+            $sql .= " AND ed.monto_fraude = '$liquidacion'";
         }
         
         if (!empty($fecha_desde)) {
@@ -897,8 +897,8 @@ class Empleado
             ed.autorizado_por AS autorizadoPor,
             ed.cargo_autoriza AS cargoAutoriza,
             ed.observaciones AS observaciones,
-            ed.liquidacion_pendiente AS liquidacion,
-            ed.monto_liquidacion AS montoLiquidacion,
+            ed.monto_fraude AS liquidacion,
+            ed.monto_fraude_pendiente AS montoLiquidacion,
             ed.entrega_documentos AS entregaDocumentos,
             ed.documentos_entregados AS documentosEntregados,
             ed.acta_firmada AS actaFirmada,
@@ -923,7 +923,7 @@ class Empleado
             COUNT(*) AS total,
             SUM(CASE WHEN MONTH(fecha_despido) = MONTH(CURDATE()) 
                      AND YEAR(fecha_despido) = YEAR(CURDATE()) THEN 1 ELSE 0 END) AS meActual,
-            SUM(CASE WHEN liquidacion_pendiente = 'si' THEN 1 ELSE 0 END) AS liquidacionesPendientes,
+            SUM(CASE WHEN monto_fraude = 'si' THEN 1 ELSE 0 END) AS liquidacionesPendientes,
             SUM(CASE WHEN entrega_documentos = 'completa' THEN 1 ELSE 0 END) AS documentosCompletos
         FROM tbl_empleado_despido
         WHERE idglobal = $idglobal AND str_estado = 'activo'";
@@ -960,8 +960,8 @@ class Empleado
             
             // Construir SQL dinámicamente
             $campos = [];
-            $campos[] = "liquidacion_pendiente = '$liquidacion'";
-            $campos[] = "monto_liquidacion = $monto";
+            $campos[] = "monto_fraude = '$liquidacion'";
+            $campos[] = "monto_fraude_pendiente = $monto";
             $campos[] = "entrega_documentos = '$documentos'";
             $campos[] = "updated_at = '$dt'";
             

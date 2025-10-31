@@ -214,23 +214,31 @@
                         <div class="card-header">
                             <h3 class="card-title">
                                 <i class="fas fa-money-bill-wave mr-2"></i>
-                                <strong>Liquidación y Compensación</strong>
+                                <strong>Compensación fraude</strong>
                             </h3>
                         </div>
                         <div class="card-body">
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="form-group">
-                                        <label for="cboLiquidacionPendiente">
+                                        <label for="txtMontoTotal">
                                             <i class="fas fa-clipboard-check text-success mr-1"></i>
-                                            Estado de Liquidación <span class="text-danger">*</span>
+                                            Monto fraude total <span class="text-danger">*</span>
                                         </label>
-                                        <select required id="cboLiquidacionPendiente" name="cboLiquidacionPendiente" 
-                                                class="form-control form-control-lg">
-                                            <option value="si">⏳ Pendiente</option>
-                                            <option value="no">❌ No Aplica</option>
-                                            <option value="pagada">✅ Pagada</option>
-                                        </select>
+                                        <div class="input-group">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text bg-danger text-white">
+                                                    <i class="fas fa-coins"></i>
+                                                </span>
+                                            </div>
+                                            <input type="number" id="txtMontoTotal" name="txtMontoTotal" 
+                                                   class="form-control form-control-lg" step="0.01" min="0" 
+                                                   placeholder="0.00" />
+                                            <div class="input-group-append">
+                                                <span class="input-group-text bg-danger text-white">$</span>
+                                            </div>
+                                        </div>
+                                        
                                     </div>
                                 </div>
 
@@ -238,7 +246,7 @@
                                     <div class="form-group">
                                         <label for="txtMontoLiquidacion">
                                             <i class="fas fa-dollar-sign text-success mr-1"></i>
-                                            Monto de Liquidación
+                                            Monto fraude pendiente de recuperación
                                         </label>
                                         <div class="input-group">
                                             <div class="input-group-prepend">
@@ -404,14 +412,7 @@
             locale: 'es'
         });
 
-        // Lógica para habilitar/deshabilitar campo de monto según estado de liquidación
-        $('#cboLiquidacionPendiente').on('change', function() {
-            if ($(this).val() === 'no') {
-                $('#txtMontoLiquidacion').val('0').prop('disabled', true);
-            } else {
-                $('#txtMontoLiquidacion').prop('disabled', false);
-            }
-        });
+       
     });
 
     function handleDespedirEmpleado() {

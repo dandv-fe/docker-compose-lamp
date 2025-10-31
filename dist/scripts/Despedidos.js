@@ -264,7 +264,7 @@ jQuery(document).ready(function () {
         $('#detalleCargoAutoriza').text(data.cargoAutoriza || 'N/A');
 
         // Liquidación
-        $('#detalleLiquidacion').html(formatearLiquidacion(data.liquidacion));
+        $('#detalleLiquidacion').text(data.liquidacion ? '$' + parseFloat(data.liquidacion).toLocaleString('es-CO') : 'N/A');
         $('#detalleMontoLiquidacion').text(data.montoLiquidacion ? '$' + parseFloat(data.montoLiquidacion).toLocaleString('es-CO') : 'N/A');
 
         // Documentación
@@ -330,36 +330,38 @@ jQuery(document).ready(function () {
                                 <div class="card mb-3">
                                     <div class="card-header bg-success text-white">
                                         <i class="fas fa-money-bill-wave mr-2"></i>
-                                        <strong>Liquidación</strong>
+                                        <strong>Compensación</strong>
                                     </div>
                                     <div class="card-body">
-                                        <div class="form-group">
-                                            <label for="nuevoEstadoLiquidacion">
-                                                <i class="fas fa-clipboard-check mr-1"></i>
-                                                Estado de Liquidación: <span class="text-danger">*</span>
+                                        <div class="form-group" id="grupoMontoLiquidacion">
+                                            <label for="nuevoMontoLiquidacion">
+                                                <i class="fas fa-dollar-sign mr-1"></i>
+                                                Monto de fraude:
                                             </label>
-                                            <select id="nuevoEstadoLiquidacion" class="form-control form-control-lg">
-                                                <option value="si" ${datosActuales.liquidacion === 'si' ? 'selected' : ''}>
-                                                    ⏳ Pendiente
-                                                </option>
-                                                <option value="pagada" ${datosActuales.liquidacion === 'pagada' ? 'selected' : ''}>
-                                                    ✅ Pagada
-                                                </option>
-                                                <option value="no" ${datosActuales.liquidacion === 'no' ? 'selected' : ''}>
-                                                    ❌ No Aplica
-                                                </option>
-                                            </select>
+                                            <div class="input-group">
+                                                <div class="input-group-prepend">
+                                                    <span class="input-group-text bg-danger text-white">
+                                                        <i class="fas fa-coins"></i>
+                                                    </span>
+                                                </div>
+                                                <input disabled type="number" id="nuevoMontoLiquidacion" class="form-control" 
+                                                       placeholder="0.00" step="0.01" min="0"
+                                                       value="${datosActuales.liquidacion || ''}">
+                                                <div class="input-group-append">
+                                                    <span class="input-group-text bg-danger text-white">$</span>
+                                                </div>
+                                            </div>
                                             <small class="form-text text-muted">
-                                                <strong>Estado actual:</strong> 
-                                                ${datosActuales.liquidacion === 'si' ? 'Pendiente' : 
-                                                  datosActuales.liquidacion === 'pagada' ? 'Pagada' : 'No Aplica'}
+                                                ${datosActuales.liquidacion ? 
+                                                  '<strong>Monto actual:</strong> $' + parseFloat(datosActuales.liquidacion).toLocaleString('es-CO', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 
+                                                  'No hay monto registrado'}
                                             </small>
                                         </div>
 
                                         <div class="form-group" id="grupoMontoLiquidacion">
                                             <label for="nuevoMontoLiquidacion">
                                                 <i class="fas fa-dollar-sign mr-1"></i>
-                                                Monto de Liquidación:
+                                                Monto de pendiente:
                                             </label>
                                             <div class="input-group">
                                                 <div class="input-group-prepend">
@@ -381,16 +383,7 @@ jQuery(document).ready(function () {
                                             </small>
                                         </div>
 
-                                        <div class="form-group">
-                                            <label for="fechaPagoLiquidacion">
-                                                <i class="far fa-calendar-check mr-1"></i>
-                                                Fecha de Pago (opcional):
-                                            </label>
-                                            <input type="date" id="fechaPagoLiquidacion" class="form-control">
-                                            <small class="form-text text-muted">
-                                                Solo si el estado es "Pagada"
-                                            </small>
-                                        </div>
+                                        
                                     </div>
                                 </div>
 

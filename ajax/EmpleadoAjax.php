@@ -446,7 +446,7 @@ case 'listEmpleadosAsignadosEmpleado':
             $cargo_autoriza = limpiar_cadena2($_POST['txtCargoAutoriza']);
             $observaciones = limpiar_cadena2($_POST['txtObservaciones']);
             $fecha_ultimo_trabajo = limpiar_cadena2($_POST['txtFechaUltimoTrabajo']);
-            $liquidacion_pendiente = limpiar_cadena($_POST['cboLiquidacionPendiente']);
+            $liquidacion_pendiente = limpiar_cadena2($_POST['txtMontoTotal']);
             $monto_liquidacion = limpiar_cadena2($_POST['txtMontoLiquidacion']);
             $entrega_documentos = limpiar_cadena($_POST['cboEntregaDocumentos']);
             $documentos_entregados = limpiar_cadena2($_POST['txtDocumentosEntregados']);
