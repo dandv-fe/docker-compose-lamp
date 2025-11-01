@@ -935,7 +935,7 @@ class Empleado
     /**
      * Actualizar estado de un despido (versión mejorada)
      */
-    public function actualizarEstadoDespido($id, $liquidacion, $monto, $documentos, $actaFirmada = null, $documentosEntregados = null, $observaciones = null, $fechaPago = null)
+    public function actualizarEstadoDespido($id, $montoPendiente, $documentos, $actaFirmada = null, $documentosEntregados = null, $observaciones = null)
     {
         global $conexion;
         $sw = true;
@@ -944,7 +944,7 @@ class Empleado
         
         try {
             // Validar y limpiar datos
-            $monto = !empty($monto) ? floatval($monto) : 'NULL';
+            $montoPendiente = !empty($montoPendiente) ? floatval($montoPendiente) : 0;
             
             // Obtener observaciones anteriores si existen
             $observacionesFinal = $observaciones;
@@ -960,8 +960,7 @@ class Empleado
             
             // Construir SQL dinámicamente
             $campos = [];
-            $campos[] = "monto_fraude = '$liquidacion'";
-            $campos[] = "monto_fraude_pendiente = $monto";
+            $campos[] = "monto_fraude_pendiente = $montoPendiente";
             $campos[] = "entrega_documentos = '$documentos'";
             $campos[] = "updated_at = '$dt'";
             
@@ -977,10 +976,6 @@ class Empleado
             if (!empty($observacionesFinal)) {
                 $observacionesFinal = $conexion->real_escape_string($observacionesFinal);
                 $campos[] = "observaciones = '$observacionesFinal'";
-            }
-            
-            if (!empty($fechaPago)) {
-                $campos[] = "fecha_pago_liquidacion = '$fechaPago'";
             }
             
             $sql = "UPDATE tbl_empleado_despido 

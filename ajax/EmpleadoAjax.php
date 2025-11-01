@@ -589,23 +589,19 @@ case 'listEmpleadosAsignadosEmpleado':
 
     case 'actualizarEstadoDespido':
         $id = limpiar_cadena($_POST['id']);
-        $liquidacion = limpiar_cadena($_POST['liquidacion']);
-        $monto = limpiar_cadena2($_POST['monto']);
+        $montoPendiente = limpiar_cadena2($_POST['montoPendiente']);
         $documentos = limpiar_cadena($_POST['documentos']);
         $actaFirmada = isset($_POST['actaFirmada']) ? limpiar_cadena($_POST['actaFirmada']) : null;
         $documentosEntregados = isset($_POST['documentosEntregados']) ? limpiar_cadena($_POST['documentosEntregados']) : null;
         $observaciones = isset($_POST['observaciones']) ? limpiar_cadena($_POST['observaciones']) : null;
-        $fechaPago = isset($_POST['fechaPago']) ? limpiar_cadena($_POST['fechaPago']) : null;
         
         $resultado = $objEmpleado->actualizarEstadoDespido(
             $id, 
-            $liquidacion, 
-            $monto, 
+            $montoPendiente, 
             $documentos, 
             $actaFirmada, 
             $documentosEntregados, 
-            $observaciones, 
-            $fechaPago
+            $observaciones
         );
         echo json_encode($resultado);
         break;

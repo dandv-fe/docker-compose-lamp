@@ -333,10 +333,10 @@ jQuery(document).ready(function () {
                                         <strong>Compensación</strong>
                                     </div>
                                     <div class="card-body">
-                                        <div class="form-group" id="grupoMontoLiquidacion">
-                                            <label for="nuevoMontoLiquidacion">
+                                        <div class="form-group">
+                                            <label for="nuevoMontoFraude">
                                                 <i class="fas fa-dollar-sign mr-1"></i>
-                                                Monto de fraude:
+                                                Monto de fraude (solo lectura):
                                             </label>
                                             <div class="input-group">
                                                 <div class="input-group-prepend">
@@ -344,42 +344,42 @@ jQuery(document).ready(function () {
                                                         <i class="fas fa-coins"></i>
                                                     </span>
                                                 </div>
-                                                <input disabled type="number" id="nuevoMontoLiquidacion" class="form-control" 
+                                                <input disabled type="number" id="nuevoMontoFraude" class="form-control" 
                                                        placeholder="0.00" step="0.01" min="0"
-                                                       value="${datosActuales.liquidacion || ''}">
+                                                       value="${datosActuales.fraude || ''}">
                                                 <div class="input-group-append">
                                                     <span class="input-group-text bg-danger text-white">$</span>
                                                 </div>
                                             </div>
                                             <small class="form-text text-muted">
-                                                ${datosActuales.liquidacion ? 
-                                                  '<strong>Monto actual:</strong> $' + parseFloat(datosActuales.liquidacion).toLocaleString('es-CO', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 
-                                                  'No hay monto registrado'}
+                                                ${datosActuales.fraude ? 
+                                                  '<strong>Monto de fraude detectado:</strong> $' + parseFloat(datosActuales.fraude).toLocaleString('es-CO', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 
+                                                  'No hay fraude registrado'}
                                             </small>
                                         </div>
 
-                                        <div class="form-group" id="grupoMontoLiquidacion">
-                                            <label for="nuevoMontoLiquidacion">
+                                        <div class="form-group">
+                                            <label for="nuevoMontoPendiente">
                                                 <i class="fas fa-dollar-sign mr-1"></i>
-                                                Monto de pendiente:
+                                                Monto pendiente de recuperación:
                                             </label>
                                             <div class="input-group">
                                                 <div class="input-group-prepend">
-                                                    <span class="input-group-text bg-success text-white">
+                                                    <span class="input-group-text bg-warning text-dark">
                                                         <i class="fas fa-coins"></i>
                                                     </span>
                                                 </div>
-                                                <input type="number" id="nuevoMontoLiquidacion" class="form-control" 
+                                                <input type="number" id="nuevoMontoPendiente" class="form-control" 
                                                        placeholder="0.00" step="0.01" min="0"
-                                                       value="${datosActuales.montoLiquidacion || ''}">
+                                                       value="${datosActuales.montoFraude || ''}">
                                                 <div class="input-group-append">
-                                                    <span class="input-group-text bg-success text-white">$</span>
+                                                    <span class="input-group-text bg-warning text-dark">$</span>
                                                 </div>
                                             </div>
                                             <small class="form-text text-muted">
-                                                ${datosActuales.montoLiquidacion ? 
-                                                  '<strong>Monto actual:</strong> $' + parseFloat(datosActuales.montoLiquidacion).toLocaleString('es-CO', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 
-                                                  'No hay monto registrado'}
+                                                ${datosActuales.montoFraude ? 
+                                                  '<strong>Monto actual pendiente:</strong> $' + parseFloat(datosActuales.montoFraude).toLocaleString('es-CO', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 
+                                                  'No hay monto pendiente'}
                                             </small>
                                         </div>
 
@@ -491,56 +491,19 @@ jQuery(document).ready(function () {
                     showClass: {
                         popup: 'animate__animated animate__fadeInDown'
                     },
-                    didOpen: () => {
-                        // Lógica para habilitar/deshabilitar monto según estado
-                        const estadoLiquidacion = document.getElementById('nuevoEstadoLiquidacion');
-                        const grupoMonto = document.getElementById('grupoMontoLiquidacion');
-                        const inputMonto = document.getElementById('nuevoMontoLiquidacion');
-                        
-                        function toggleMonto() {
-                            if (estadoLiquidacion.value === 'no') {
-                                inputMonto.disabled = true;
-                                inputMonto.value = '0';
-                                grupoMonto.style.opacity = '0.5';
-                            } else {
-                                inputMonto.disabled = false;
-                                grupoMonto.style.opacity = '1';
-                            }
-                        }
-                        
-                        toggleMonto();
-                        estadoLiquidacion.addEventListener('change', toggleMonto);
-
-                        // Validar monto si estado es pagada
-                        estadoLiquidacion.addEventListener('change', function() {
-                            if (this.value === 'pagada' && !inputMonto.value) {
-                                Swal.showValidationMessage('Debe ingresar el monto de liquidación si el estado es "Pagada"');
-                            }
-                        });
-                    },
                     preConfirm: () => {
-                        const liquidacion = document.getElementById('nuevoEstadoLiquidacion').value;
-                        const monto = document.getElementById('nuevoMontoLiquidacion').value;
+                        const montoPendiente = document.getElementById('nuevoMontoPendiente').value;
                         const documentos = document.getElementById('nuevoEstadoDocumentos').value;
                         const actaFirmada = document.getElementById('nuevoActaFirmada').value;
                         const documentosEntregados = document.getElementById('nuevosDocumentosEntregados').value;
                         const observaciones = document.getElementById('observacionesActualizacion').value;
-                        const fechaPago = document.getElementById('fechaPagoLiquidacion').value;
-
-                        // Validaciones
-                        if (liquidacion === 'pagada' && (!monto || parseFloat(monto) <= 0)) {
-                            Swal.showValidationMessage('Debe ingresar un monto válido si el estado es "Pagada"');
-                            return false;
-                        }
 
                         return {
-                            liquidacion: liquidacion,
-                            monto: monto,
+                            montoPendiente: montoPendiente || '0',
                             documentos: documentos,
                             actaFirmada: actaFirmada,
                             documentosEntregados: documentosEntregados,
-                            observaciones: observaciones,
-                            fechaPago: fechaPago
+                            observaciones: observaciones
                         };
                     }
                 }).then((result) => {
@@ -551,13 +514,11 @@ jQuery(document).ready(function () {
                             type: 'POST',
                             data: {
                                 id: id,
-                                liquidacion: result.value.liquidacion,
-                                monto: result.value.monto,
+                                montoPendiente: result.value.montoPendiente,
                                 documentos: result.value.documentos,
                                 actaFirmada: result.value.actaFirmada,
                                 documentosEntregados: result.value.documentosEntregados,
-                                observaciones: result.value.observaciones,
-                                fechaPago: result.value.fechaPago
+                                observaciones: result.value.observaciones
                             },
                             beforeSend: function() {
                                 Swal.fire({
