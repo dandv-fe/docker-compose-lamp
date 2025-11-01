@@ -295,9 +295,9 @@ switch ($_GET["op"]) {
                 "5" => $reg->cargo,
                 "6" => $reg->tel,
                 "7" => '<img width=100px height=100px src="./' . $reg->foto . '" />',
-                "8" => $btneditar .
+                "8" => $reg->estado == 'activo' ? $btneditar .
                     '<button class="btn btn-default btn-sm" title="Configuracion" onclick="cargarDataEmpleado(\'' . $reg->tDocumento . '\',\'' . $reg->nDocumento . '\',\'perfil\')"><i class="fa-solid fa-user-gear" style="color: #000000;"></i> </button>&nbsp;' .
-                    $btnDespido
+                    $btnDespido:''
             );
             $i++;
         }
