@@ -334,7 +334,7 @@ class Empleado
 
          FROM tbl_empleado e INNER JOIN
             tbl_persona p ON p.idpersona=e.idpersona
-         WHERE e.idglobal=$idglobal ORDER BY e.idempleado DESC";
+         WHERE e.idglobal=$idglobal ORDER BY(e.str_estado IN ('inactivo')) ASC, e.idempleado DESC";
         $query = $conexion->query($sql);
         return $query;
     }
@@ -843,7 +843,7 @@ class Empleado
             e.str_cargo AS cargo,
             DATE_FORMAT(ed.fecha_despido, '%d/%m/%Y') AS fechaDespido,
             ed.tipo_despido AS tipoDespido,
-            ed.monto_fraude AS liquidacion,
+            ed.monto_fraude_pendiente AS liquidacion,
             ed.entrega_documentos AS estadoDocs,
             e.idempleado AS refEmpleado
         FROM tbl_empleado_despido ed
@@ -923,7 +923,7 @@ class Empleado
             COUNT(*) AS total,
             SUM(CASE WHEN MONTH(fecha_despido) = MONTH(CURDATE()) 
                      AND YEAR(fecha_despido) = YEAR(CURDATE()) THEN 1 ELSE 0 END) AS meActual,
-            SUM(CASE WHEN monto_fraude = 'si' THEN 1 ELSE 0 END) AS liquidacionesPendientes,
+            IFNULL(SUM(monto_fraude_pendiente),0) AS liquidacionesPendientes,
             SUM(CASE WHEN entrega_documentos = 'completa' THEN 1 ELSE 0 END) AS documentosCompletos
         FROM tbl_empleado_despido
         WHERE idglobal = $idglobal AND str_estado = 'activo'";

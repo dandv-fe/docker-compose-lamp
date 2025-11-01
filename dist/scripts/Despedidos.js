@@ -346,15 +346,15 @@ jQuery(document).ready(function () {
                                                 </div>
                                                 <input disabled type="number" id="nuevoMontoFraude" class="form-control" 
                                                        placeholder="0.00" step="0.01" min="0"
-                                                       value="${datosActuales.fraude || ''}">
+                                                       value="${datosActuales.liquidacion || ''}">
                                                 <div class="input-group-append">
                                                     <span class="input-group-text bg-danger text-white">$</span>
                                                 </div>
                                             </div>
                                             <small class="form-text text-muted">
-                                                ${datosActuales.fraude ? 
-                                                  '<strong>Monto de fraude detectado:</strong> $' + parseFloat(datosActuales.fraude).toLocaleString('es-CO', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 
-                                                  'No hay fraude registrado'}
+                                                ${datosActuales.liquidacion ? 
+                                                  '<strong>Monto de liquidación:</strong> $' + parseFloat(datosActuales.liquidacion).toLocaleString('es-CO', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 
+                                                  'No hay liquidación registrada'}
                                             </small>
                                         </div>
 
@@ -371,14 +371,14 @@ jQuery(document).ready(function () {
                                                 </div>
                                                 <input type="number" id="nuevoMontoPendiente" class="form-control" 
                                                        placeholder="0.00" step="0.01" min="0"
-                                                       value="${datosActuales.montoFraude || ''}">
+                                                       value="${datosActuales.montoLiquidacion || ''}">
                                                 <div class="input-group-append">
                                                     <span class="input-group-text bg-warning text-dark">$</span>
                                                 </div>
                                             </div>
                                             <small class="form-text text-muted">
-                                                ${datosActuales.montoFraude ? 
-                                                  '<strong>Monto actual pendiente:</strong> $' + parseFloat(datosActuales.montoFraude).toLocaleString('es-CO', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 
+                                                ${datosActuales.montoLiquidacion ? 
+                                                  '<strong>Monto actual pendiente:</strong> $' + parseFloat(datosActuales.montoLiquidacion).toLocaleString('es-CO', {minimumFractionDigits: 2, maximumFractionDigits: 2}) : 
                                                   'No hay monto pendiente'}
                                             </small>
                                         </div>
