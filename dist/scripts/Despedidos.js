@@ -193,6 +193,10 @@ jQuery(document).ready(function () {
 
     // Generar botones de acción
     function generarBotonesAccion(item) {
+        // Debug: ver qué datos llegan
+        console.log('Item completo:', item);
+        console.log('Recontratacion:', item.recontratacion);
+        
         var botones = `
             <button class="btn btn-info btn-sm" title="Ver Detalles" onclick="verDetalleDespido(${item.id})">
                 <i class="fas fa-eye"></i>
@@ -201,6 +205,17 @@ jQuery(document).ready(function () {
                 <i class="fas fa-edit"></i>
             </button>
         `;
+        
+        // Agregar botón de recontratación si tiene derecho
+        if (item.recontratacion === 'si') {
+            var nombreEscapado = (item.empleado || '').replace(/'/g, "\\'");
+            botones += `
+            <button class="btn btn-success btn-sm" title="Recontratar Empleado" onclick="recontratarEmpleado(${item.id}, ${item.idEmpleado}, '${nombreEscapado}')">
+                <i class="fas fa-user-check"></i>
+            </button>
+            `;
+        }
+        
         return botones;
     }
 
@@ -623,6 +638,212 @@ jQuery(document).ready(function () {
                 Toast.fire({
                     icon: 'error',
                     title: 'Error al cargar los datos del despido'
+                });
+            }
+        });
+    };
+
+    // Función global para recontratar empleado
+    window.recontratarEmpleado = function(idDespido, idEmpleado, nombreEmpleado) {
+        Swal.fire({
+            title: '<i class="fas fa-user-check text-success"></i> Recontratar Empleado',
+            html: `
+                <div style="text-align: left; padding: 20px;">
+                    <div class="alert alert-info" style="border-left: 4px solid #17a2b8;">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-user mr-2"></i>
+                            <strong>${nombreEmpleado}</strong>
+                        </h5>
+                        <p class="mb-0">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Este empleado tiene derecho a recontratación
+                        </p>
+                    </div>
+
+                    <div class="card mb-3">
+                        <div class="card-header bg-success text-white">
+                            <i class="fas fa-briefcase mr-2"></i>
+                            <strong>Información de Recontratación</strong>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="fechaReingreso">
+                                    <i class="fas fa-calendar-check mr-1"></i>
+                                    Fecha de Reingreso: <span class="text-danger">*</span>
+                                </label>
+                                <input type="date" id="fechaReingreso" class="form-control form-control-lg" 
+                                       value="${new Date().toISOString().split('T')[0]}" required>
+                                <small class="form-text text-muted">
+                                    Fecha en la que el empleado volverá a trabajar
+                                </small>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="cargoReingreso">
+                                    <i class="fas fa-user-tie mr-1"></i>
+                                    Cargo: <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" id="cargoReingreso" class="form-control form-control-lg" 
+                                       placeholder="Ej: Vendedor, Cajero, Supervisor..." required>
+                                <small class="form-text text-muted">
+                                    Cargo que ocupará el empleado al reingresar
+                                </small>
+                            </div>
+
+                            <div class="form-group mb-0">
+                                <label for="observacionesReingreso">
+                                    <i class="fas fa-comment-alt mr-1"></i>
+                                    Observaciones:
+                                </label>
+                                <textarea id="observacionesReingreso" class="form-control" rows="3" 
+                                          placeholder="Motivo de recontratación, condiciones especiales, etc..."></textarea>
+                                <small class="form-text text-muted">
+                                    Información adicional sobre la recontratación
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning mb-0" role="alert">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <strong>Nota:</strong> El empleado pasará a estado <strong>activo</strong> 
+                        y el registro de despido se marcará como <strong>recontratado</strong>.
+                    </div>
+                </div>
+            `,
+            width: '700px',
+            showCancelButton: true,
+            confirmButtonText: '<i class="fas fa-check mr-2"></i> Recontratar',
+            cancelButtonText: '<i class="fas fa-times mr-2"></i> Cancelar',
+            confirmButtonColor: '#28a745',
+            cancelButtonColor: '#6c757d',
+            customClass: {
+                confirmButton: 'btn-lg',
+                cancelButton: 'btn-lg'
+            },
+            preConfirm: () => {
+                const fechaReingreso = document.getElementById('fechaReingreso').value;
+                const cargoReingreso = document.getElementById('cargoReingreso').value;
+                const observaciones = document.getElementById('observacionesReingreso').value;
+
+                if (!fechaReingreso) {
+                    Swal.showValidationMessage('Debe seleccionar una fecha de reingreso');
+                    return false;
+                }
+
+                if (!cargoReingreso || cargoReingreso.trim() === '') {
+                    Swal.showValidationMessage('Debe especificar el cargo');
+                    return false;
+                }
+
+                const hoy = new Date();
+                hoy.setHours(0, 0, 0, 0);
+                const fechaSeleccionada = new Date(fechaReingreso + 'T00:00:00');
+                
+                if (fechaSeleccionada < hoy) {
+                    Swal.showValidationMessage('La fecha de reingreso no puede ser anterior a hoy');
+                    return false;
+                }
+
+                return {
+                    fechaReingreso: fechaReingreso,
+                    cargoReingreso: cargoReingreso.trim(),
+                    observaciones: observaciones.trim()
+                };
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.ajax({
+                    url: 'ajax/EmpleadoAjax.php?op=recontratarEmpleado',
+                    type: 'POST',
+                    data: {
+                        idDespido: idDespido,
+                        idEmpleado: idEmpleado,
+                        fechaReingreso: result.value.fechaReingreso,
+                        cargo: result.value.cargoReingreso,
+                        observaciones: result.value.observaciones
+                    },
+                    beforeSend: function() {
+                        Swal.fire({
+                            title: '<i class="fas fa-spinner fa-spin"></i> Procesando...',
+                            html: `
+                                <div style="padding: 20px;">
+                                    <p style="font-size: 16px; margin-bottom: 15px;">
+                                        Recontratando empleado
+                                    </p>
+                                    <div class="progress" style="height: 25px;">
+                                        <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" 
+                                             role="progressbar" style="width: 100%">
+                                            <strong>Actualizando registros...</strong>
+                                        </div>
+                                    </div>
+                                </div>
+                            `,
+                            allowOutsideClick: false,
+                            showConfirmButton: false
+                        });
+                    },
+                    success: function(response) {
+                        try {
+                            var data = typeof response === 'string' ? JSON.parse(response) : response;
+                            
+                            if (data.status === 'success') {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: '¡Recontratación Exitosa!',
+                                    html: `
+                                        <div style="text-align: left; padding: 20px;">
+                                            <p style="font-size: 16px; margin-bottom: 15px;">
+                                                <i class="fas fa-check-circle text-success mr-2"></i>
+                                                ${data.mensaje}
+                                            </p>
+                                            <div class="alert alert-success" role="alert">
+                                                <i class="fas fa-user-check mr-2"></i>
+                                                <strong>${nombreEmpleado}</strong> ha sido recontratado.
+                                            </div>
+                                            <ul style="list-style: none; padding-left: 0;">
+                                                <li><i class="fas fa-calendar mr-2 text-primary"></i> Reingreso: <strong>${result.value.fechaReingreso}</strong></li>
+                                                <li><i class="fas fa-briefcase mr-2 text-primary"></i> Cargo: <strong>${result.value.cargoReingreso}</strong></li>
+                                                <li><i class="fas fa-check mr-2 text-success"></i> Estado: <strong>Activo</strong></li>
+                                            </ul>
+                                        </div>
+                                    `,
+                                    confirmButtonText: 'Entendido',
+                                    confirmButtonColor: '#28a745'
+                                }).then(() => {
+                                    cargarDespedidos();
+                                    cargarEstadisticas();
+                                });
+                            } else {
+                                Swal.fire({
+                                    icon: 'error',
+                                    title: 'Error en la Recontratación',
+                                    html: `
+                                        <div style="text-align: left; padding: 20px;">
+                                            <p>${data.mensaje || 'No se pudo completar la recontratación'}</p>
+                                            ${data.detalle ? '<div class="alert alert-danger mt-2"><strong>Detalle:</strong> ' + data.detalle + '</div>' : ''}
+                                        </div>
+                                    `,
+                                    confirmButtonText: 'Cerrar'
+                                });
+                            }
+                        } catch (e) {
+                            console.error('Error:', e, response);
+                            Swal.fire({
+                                icon: 'error',
+                                title: 'Error',
+                                text: 'Error al procesar la respuesta del servidor'
+                            });
+                        }
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('AJAX Error:', error);
+                        Swal.fire({
+                            icon: 'error',
+                            title: 'Error de Conexión',
+                            text: 'No se pudo comunicar con el servidor: ' + error
+                        });
+                    }
                 });
             }
         });

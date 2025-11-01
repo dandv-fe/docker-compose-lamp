@@ -838,6 +838,7 @@ class Empleado
         
         $sql = "SELECT 
             ed.idempleado_despido AS id,
+            ed.idempleado AS idEmpleado,
             CONCAT(p.str_nombres, ' ', p.str_apellidos) AS empleado,
             CONCAT(p.str_tipo_documento, ' ', p.str_num_documento) AS documento,
             e.str_cargo AS cargo,
@@ -845,6 +846,7 @@ class Empleado
             ed.tipo_despido AS tipoDespido,
             ed.monto_fraude_pendiente AS liquidacion,
             ed.entrega_documentos AS estadoDocs,
+            ed.derecho_recontratacion AS recontratacion,
             e.idempleado AS refEmpleado
         FROM tbl_empleado_despido ed
         INNER JOIN tbl_empleado e ON e.idempleado = ed.idempleado
@@ -998,6 +1000,124 @@ class Empleado
             return [
                 'status' => 'error',
                 'mensaje' => 'Error al actualizar: ' . $e->getMessage()
+            ];
+        } finally {
+            if ($conexion != null) {
+                $conexion->close();
+            }
+        }
+    }
+
+    /**
+     * Recontratar un empleado despedido que tiene derecho a recontratación
+     */
+    public function recontratarEmpleado($idDespido, $idEmpleado, $fechaReingreso, $cargo, $observaciones, $idUsuarioRegistra)
+    {
+        global $conexion;
+        $sw = true;
+        $conexion->autocommit(false);
+        $dt = date('Y-m-d H:i:s');
+        
+        try {
+            // Verificar que el registro de despido existe y tiene derecho a recontratación
+            $sqlVerificar = "SELECT ed.idempleado_despido, ed.derecho_recontratacion, 
+                                   CONCAT(p.str_nombres, ' ', p.str_apellidos) as nombre_empleado
+                            FROM tbl_empleado_despido ed
+                            INNER JOIN tbl_empleado e ON e.idempleado = ed.idempleado
+                            INNER JOIN tbl_persona p ON p.idpersona = e.idpersona
+                            WHERE ed.idempleado_despido = $idDespido 
+                            AND ed.idempleado = $idEmpleado
+                            AND ed.str_estado = 'activo'";
+            
+            $resultVerificar = $conexion->query($sqlVerificar);
+            
+            if (!$resultVerificar || $resultVerificar->num_rows == 0) {
+                throw new Exception('Registro de despido no encontrado o ya procesado');
+            }
+            
+            $rowVerificar = $resultVerificar->fetch_object();
+            
+            if ($rowVerificar->derecho_recontratacion !== 'si') {
+                throw new Exception('Este empleado no tiene derecho a recontratación');
+            }
+            
+            // Preparar observaciones
+            $obsCompletas = "RECONTRATACIÓN [$dt]\n";
+            $obsCompletas .= "Reingreso: $fechaReingreso\n";
+            $obsCompletas .= "Cargo: $cargo\n";
+            if (!empty($observaciones)) {
+                $obsCompletas .= "Obs: $observaciones\n";
+            }
+            $obsCompletas .= "Por: ID $idUsuarioRegistra";
+            $obsCompletas = $conexion->real_escape_string($obsCompletas);
+            
+            // 1. Actualizar registro de despido
+            $sqlDespido = "UPDATE tbl_empleado_despido 
+                          SET str_estado = 'recontratado',
+                              observaciones = CONCAT(IFNULL(observaciones, ''), '\n\n', '$obsCompletas'),
+                              updated_at = '$dt'
+                          WHERE idempleado_despido = $idDespido";
+            
+            if (!$conexion->query($sqlDespido)) {
+                throw new Exception('Error al actualizar despido: ' . $conexion->error);
+            }
+            
+            // 2. Reactivar empleado
+            $cargoEsc = $conexion->real_escape_string($cargo);
+            $sqlEmpleado = "UPDATE tbl_empleado 
+                           SET str_estado = 'activo',
+                               date_fecha_inicio = '$fechaReingreso',
+                               str_cargo = '$cargoEsc',
+                               str_comentarios = CONCAT(IFNULL(str_comentarios, ''), '\n[RECONTRATADO $dt] Cargo: $cargoEsc'),
+                               update_at = '$dt'
+                           WHERE idempleado = $idEmpleado";
+            
+            if (!$conexion->query($sqlEmpleado)) {
+                throw new Exception('Error al actualizar empleado: ' . $conexion->error);
+            }
+            
+            // 3. Reactivar usuario si está inactivo
+            $sqlUsuario = "SELECT u.idusuario, u.str_estado 
+                           FROM tbl_usuario u INNER JOIN
+                          tbl_persona p on p.idpersona=u.idpersona
+                          INNER JOIN tbl_empleado e ON e.idpersona= p.idpersona
+                          WHERE e.idempleado = $idEmpleado";
+            
+            $resultUsuario = $conexion->query($sqlUsuario);
+            if ($resultUsuario && $resultUsuario->num_rows > 0) {
+                $rowUsuario = $resultUsuario->fetch_object();
+                if ($rowUsuario->str_estado !== 'activo') {
+                    $sqlUpdateUsr = "UPDATE tbl_usuario 
+                                    SET str_estado = 'activo',
+                                        update_at = '$dt'
+                                    WHERE idusuario = {$rowUsuario->idusuario}";
+                    
+                    if (!$conexion->query($sqlUpdateUsr)) {
+                        throw new Exception('Error al reactivar usuario: ' . $conexion->error);
+                    }
+                }
+            }
+            
+            $conexion->commit();
+            
+            return [
+                'status' => 'success',
+                'mensaje' => 'Empleado recontratado exitosamente',
+                'data' => [
+                    'nombreEmpleado' => $rowVerificar->nombre_empleado,
+                    'fechaReingreso' => $fechaReingreso,
+                    'cargo' => $cargo
+                ]
+            ];
+            
+        } catch (Exception $e) {
+            $sw = false;
+            $conexion->rollback();
+            
+            return [
+                'status' => 'error',
+                'mensaje' => 'Error al recontratar empleado',
+                'detalle' => $e->getMessage()
             ];
         } finally {
             if ($conexion != null) {

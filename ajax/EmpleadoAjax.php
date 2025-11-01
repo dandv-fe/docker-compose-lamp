@@ -511,6 +511,7 @@ case 'listEmpleadosAsignadosEmpleado':
         while ($reg = $query->fetch_object()) {
             $data[] = array(
                 'id' => $reg->id,
+                'idEmpleado' => $reg->idEmpleado,
                 'empleado' => $reg->empleado,
                 'documento' => $reg->documento,
                 'cargo' => $reg->cargo,
@@ -518,6 +519,7 @@ case 'listEmpleadosAsignadosEmpleado':
                 'tipoDespido' => $reg->tipoDespido,
                 'liquidacion' => $reg->liquidacion,
                 'estadoDocs' => $reg->estadoDocs,
+                'recontratacion' => $reg->recontratacion,
                 'refEmpleado' => $reg->refEmpleado
             );
         }
@@ -602,6 +604,24 @@ case 'listEmpleadosAsignadosEmpleado':
             $actaFirmada, 
             $documentosEntregados, 
             $observaciones
+        );
+        echo json_encode($resultado);
+        break;
+
+    case 'recontratarEmpleado':
+        $idDespido = limpiar_cadena($_POST['idDespido']);
+        $idEmpleado = limpiar_cadena($_POST['idEmpleado']);
+        $fechaReingreso = limpiar_cadena2($_POST['fechaReingreso']);
+        $cargo = limpiar_cadena($_POST['cargo']);
+        $observaciones = isset($_POST['observaciones']) ? limpiar_cadena2($_POST['observaciones']) : '';
+        
+        $resultado = $objEmpleado->recontratarEmpleado(
+            $idDespido,
+            $idEmpleado,
+            $fechaReingreso,
+            $cargo,
+            $observaciones,
+            $_SESSION['userEmpleado']
         );
         echo json_encode($resultado);
         break;
