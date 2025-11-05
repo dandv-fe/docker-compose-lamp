@@ -46,7 +46,7 @@ switch ($_GET["op"]) {
         $fechaIngreso= limpiar_cadena2($_POST["txt_fechaIngreso"]);
         $apodo = limpiar_cadena($_POST["txtApodo"]);
         $cargo = limpiar_cadena($_POST["txtCargo"]);
-        $estadoEmpleado = limpiar_cadena($_POST["txtEstadoEmpleado"]);
+        //$estadoEmpleado = limpiar_cadena($_POST["txtEstadoEmpleado"]);
 
         $os = array("Super Administrador", "Semanal", "Quincenal", "Mensual");
         if (in_array($cargo, $os)) {
@@ -100,7 +100,6 @@ switch ($_GET["op"]) {
                             $fechaIngreso,
                             $apodo,
                             $cargo,
-                            $estadoEmpleado,
                             $idglobal
                         );
                     } else {
@@ -130,7 +129,7 @@ switch ($_GET["op"]) {
                             $fechaIngreso,
                             $apodo,
                             $cargo,
-                            $estadoEmpleado,
+                            
                             $idglobal
                         );
                     }
@@ -166,7 +165,7 @@ switch ($_GET["op"]) {
                     $fechaIngreso,
                     $apodo,
                     $cargo,
-                    $estadoEmpleado,
+                    
                     $idglobal
                 );
             } else {
@@ -194,7 +193,7 @@ switch ($_GET["op"]) {
                     $fechaIngreso,
                     $apodo,
                     $cargo,
-                    $estadoEmpleado,
+                    
                     $idglobal
                 );
             }

@@ -31,7 +31,6 @@ class Empleado
         $fechaIngreso,
         $apodo,
         $cargo,
-        $estadoEmpleado,
         $idglobal
     ) {
         global $conexion;
@@ -42,8 +41,8 @@ class Empleado
             $sql = "SELECT idpersona 
             FROM tbl_persona
              WHERE idglobal=$idglobal AND 
-             str_tipo_documento='$tipo_documento' AND 
-             str_num_documento='$num_documento'";
+             str_num_documento='$num_documento'
+             ";
             $query = $conexion->query($sql);
             $request = $query->fetch_object();
 
@@ -100,7 +99,7 @@ class Empleado
                      created_at,
                      update_at
              )
-              VALUES ($idglobal, $idpersona, '$apodo', '$cargo', '$estadoEmpleado', '', '$fechaIngreso', '$dt', '$dt')";
+              VALUES ($idglobal, $idpersona, '$apodo', '$cargo', 'activo', '', '$fechaIngreso', '$dt', '$dt')";
             $conexion->query($sql) or throw new Exception('error!');
 
             $sql = "INSERT INTO `tbl_usuario`(
@@ -148,7 +147,6 @@ class Empleado
         $fechaIngreso,
         $apodo,
         $cargo,
-        $estadoEmpleado,
         $idglobal
     ) {
         global $conexion;
@@ -219,13 +217,12 @@ class Empleado
                     created_at,
                     update_at
             )
-             VALUES ($idglobal, $idpersona, '$apodo', '$cargo', '$estadoEmpleado', '', '$fechaIngreso', '$dt', '$dt')";
+             VALUES ($idglobal, $idpersona, '$apodo', '$cargo', 'activo', '', '$fechaIngreso', '$dt', '$dt')";
                 $conexion->query($sql) or throw new Exception('error!');
             } else {
                 $sql = "UPDATE `tbl_empleado` SET
                     str_apodo='$apodo',
                     str_cargo='$cargo',
-                    str_estado='$estadoEmpleado',
                     str_comentarios='',
                     date_fecha_inicio='$fechaIngreso',
                     update_at='$dt'
