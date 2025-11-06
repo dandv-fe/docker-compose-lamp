@@ -1,4 +1,21 @@
 jQuery(document).ready(function () {
+     $("#editarDocumentoEmpleado").click(function (e) {
+        $("#titleModalBuscarPersona").text("Editar Documento");
+
+        var dd = $("#txt_tipo_documento_empleado").text();
+
+
+        $("#refBuscarPersona").val($(this).data('editDocument'));
+
+        $("#cboBusTipo_Documento").val(dd)
+
+        $("#txtbusNum_Documento").val($("#txt_num_documento_empleado").text());
+        $("#btnSubmitFormBuscarPersona").text("Editar");
+
+        $("#modal-xl").modal('show');
+    });
+
+
     ListadoEmpleado();
 
     OcultarForm();
@@ -96,9 +113,45 @@ jQuery(document).ready(function () {
 
     function buscarPersona(e) {
         e.preventDefault()
+         let refPersona = $("#refBuscarPersona").val();
         let tipo_documento = $("#cboBusTipo_Documento").val()
         let num_documento = $("#txtbusNum_Documento").val()
-        cargarDataEmpleado(tipo_documento, num_documento, 'nuevo');
+         if (refPersona) {
+            var formData = new FormData($("form#formBuscarPersona")[0]);
+
+            $.ajax({
+
+                url: "./ajax/ClienteAjax.php?op=updateDocumentoPersona",
+                type: "POST",
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function (datos) {
+
+                    if (datos.indexOf("ERROR:") !== -1) {
+                        Toast.fire({
+                            icon: 'error',
+                            title: datos
+                        })
+                    } else {
+
+                        Toast.fire({
+                            icon: 'success',
+                            title: datos
+                        })
+                        $("#frmCliente").trigger('reset')
+                        $("#frmCliente input:hidden").val('')
+                        
+                        cargarDataEmpleado(tipo_documento, num_documento, 'perfil');
+                    }
+                }
+            });
+
+        } else {
+            //cargarDataCliente(tipo_documento, num_documento);
+            cargarDataEmpleado(tipo_documento, num_documento, 'nuevo');
+        }
+        
     }
 
     function SaveOrUpdate(e) {
@@ -756,7 +809,7 @@ function cargarDataEmpleado(tipo_documento, num_documento, accion) {// funcion q
         $("#txt_Direccion_Provincia").val(data.ciudad)
         $("#txt_Direccion_Distrito").val(data.barrio)
         $("#txt_Direccion_Calle").val(data.calle)
-        console.log(data.fecha_inicio);
+        
         $("#txt_fechaIngreso").val(data.fecha_inicio)
         $("#txtRefEmpleado").val(data.refEmpleado)
         $("#txtApodo").val(data.apodo)
@@ -775,6 +828,7 @@ function cargarDataEmpleado(tipo_documento, num_documento, accion) {// funcion q
         $("#txt_sexo_empleado").text(data.sexo)
         $("#txt_tipo_documento_empleado").text(data.t_documento)
         $("#txt_num_documento_empleado").text(data.n_documento)
+        $("#editarDocumentoEmpleado").data("editDocument", data.refPersona);
         $("#txt_tel_empleado").text(data.telefono)
         $("#pTextDireccionEmpleado").text(data.departamento + ', ' + data.ciudad + ', ' + data.barrio + ', ' + data.calle);
         // para editar
