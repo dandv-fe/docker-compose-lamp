@@ -279,7 +279,7 @@ switch ($_GET["op"]) {
                 '<button class="btn btn-info btn-sm" title="Editar" onclick="cargarDataEmpleado(' . $reg->refPersona . ',\'' . $reg->nDocumento . '\',\'editarUser\')"><i class="fa-solid fa-user-pen" style="color: #000000;"></i> </button>&nbsp;';
 
             // Botón de despido solo para empleados activos
-            $btnDespido = $reg->estado == 'activo' && $reg->cargo != 'Super Administrador' ?
+            $btnDespido = $reg->estado == 'activo1' && $reg->cargo != 'Super Administrador' ?
                 '<button class="btn btn-danger btn-sm" title="Registrar Despido" onclick="abrirModalDespido(' . $reg->refEmpleado . ', \'' . addslashes($reg->empleado) . '\', \'' . addslashes($reg->cargo) . '\', \'' . $reg->tDocumento . ' ' . $reg->nDocumento . '\')"><i class="fas fa-user-slash"></i></button>&nbsp;' :
                 '';
 
