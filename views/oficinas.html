@@ -97,3 +97,37 @@
     $(".lia-mantenimiento").addClass('active')
     $(".lia-oficinas").addClass('active')
 </script>
+
+<script type="text/javascript">
+    // Cargar listado de oficinas y poblar la tabla
+    $(function(){
+        function cargarOficinas(){
+            $.getJSON('ajax/OficinaAjax.php?op=list', function(res){
+                if(!res.ok){ console.error(res.msg); return; }
+                var $tbody = $('div#VerListado table tbody');
+                $tbody.empty();
+                var i = 1;
+                res.data.forEach(function(item){
+                    var representante = item.representante || '';
+                    var idpersona = item.idpersona_representante || '';
+                    var idEmpleadoAdmin = item.idempleado_administrador || '';
+                    var $tr = $('<tr>');
+                    $tr.append('<td>'+ (i++) +'</td>');
+                    $tr.append('<td>'+ (item.str_nombre || '') +'</td>');
+                    $tr.append('<td data-idempleado="'+idEmpleadoAdmin+'" data-idpersona="'+idpersona+'">'+ representante +'</td>');
+                    $tr.append('<td><!-- Opciones futuras --></td>');
+                    $tbody.append($tr);
+                });
+            }).fail(function(err){ console.error('Error cargando oficinas', err); });
+        }
+
+        // cargar al inicio
+        cargarOficinas();
+
+        // Si existe botón para recargar o crear nueva oficina, puedes enlazar eventos aquí
+        $('#btnNuevaOficina').on('click', function(){
+            // mostrar formulario de creación - placeholder
+            alert('Funcionalidad crear nueva oficina no implementada aún.');
+        });
+    });
+</script>
