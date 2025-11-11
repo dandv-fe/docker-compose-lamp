@@ -24,4 +24,26 @@
 			return $query;
 		}
 
+		public function Registrar($str_nombre, $idempleado_administrador, $idglobal){
+			global $conexion;
+			$sql = "INSERT INTO tbl_oficina (idglobal, str_nombre, idempleado_administrador) ";
+			$sql .= "VALUES ($idglobal, '$str_nombre', ".($idempleado_administrador ? intval($idempleado_administrador) : 'NULL').")";
+			$conexion->query($sql) or die('ERROR: No se pudo registrar oficina');
+			return $conexion->insert_id;
+		}
+
+		public function Modificar($idoficina, $str_nombre, $idempleado_administrador, $idglobal){
+			global $conexion;
+			$sql = "UPDATE tbl_oficina SET str_nombre='$str_nombre', idempleado_administrador=".($idempleado_administrador?intval($idempleado_administrador):'NULL')." WHERE idoficina=$idoficina AND idglobal=$idglobal";
+			$conexion->query($sql) or die('ERROR: No se pudo actualizar oficina');
+			return true;
+		}
+
+		public function Eliminar($idoficina){
+			global $conexion;
+			$sql = "DELETE FROM tbl_oficina WHERE idoficina=$idoficina";
+			$conexion->query($sql) or die('ERROR: No se pudo eliminar oficina');
+			return true;
+		}
+
 	}

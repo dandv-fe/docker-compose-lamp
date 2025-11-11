@@ -115,7 +115,7 @@
                     $tr.append('<td>'+ (i++) +'</td>');
                     $tr.append('<td>'+ (item.str_nombre || '') +'</td>');
                     $tr.append('<td data-idempleado="'+idEmpleadoAdmin+'" data-idpersona="'+idpersona+'">'+ representante +'</td>');
-                    $tr.append('<td><!-- Opciones futuras --></td>');
+                    $tr.append('<td><button class="btn btn-sm btn-warning btnEditar" data-id="'+item.id+'">Editar</button></td>');
                     $tbody.append($tr);
                 });
             }).fail(function(err){ console.error('Error cargando oficinas', err); });
@@ -126,8 +126,99 @@
 
         // Si existe botón para recargar o crear nueva oficina, puedes enlazar eventos aquí
         $('#btnNuevaOficina').on('click', function(){
-            // mostrar formulario de creación - placeholder
-            alert('Funcionalidad crear nueva oficina no implementada aún.');
+                // mostrar formulario de creación
+                $('#modalOficinaTitle').text('Crear Nueva Oficina');
+                $('#formOficina')[0].reset();
+                $('#txtRefOficina').val('0');
+                $('#modalOficina').modal('show');
         });
     });
 </script>
+
+    <!-- Modal Crear/Editar Oficina -->
+    <div class="modal fade" id="modalOficina">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 id="modalOficinaTitle" class="modal-title">Nueva Oficina</h4>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <form id="formOficina">
+                        <input type="hidden" id="txtRefOficina" name="txtRefOficina" value="0">
+                        <div class="form-group">
+                            <label>Nombre</label>
+                            <input type="text" id="txtNombre" name="txtNombre" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Administrador (Empleado)</label>
+                            <select id="cboAdministrador" name="cboAdministrador" class="form-control">
+                                <option value="">--Seleccione--</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                    <button type="button" id="btnGuardarOficina" class="btn btn-primary">Guardar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        // Llenar select de empleados
+        $(function(){
+            $.get('./ajax/EmpleadoAjax.php?op=listEmpleados', function(html){
+                $('#cboAdministrador').append(html);
+            });
+
+            // guardar oficina
+            $('#btnGuardarOficina').on('click', function(){
+                var data = $('#formOficina').serialize();
+                $.post('ajax/OficinaAjax.php?op=SaveOrUpdate', data, function(resp){
+                    // respuesta en texto
+                    $('#modalOficina').modal('hide');
+                    // recargar tabla
+                    $('div#VerListado table tbody').empty();
+                    // volver a cargar
+                    $.getJSON('ajax/OficinaAjax.php?op=list', function(res){
+                        if(res.ok){
+                            var i=1; var $tbody = $('div#VerListado table tbody');
+                            res.data.forEach(function(item){
+                                var representante = item.representante || '';
+                                var idpersona = item.idpersona_representante || '';
+                                var idEmpleadoAdmin = item.idempleado_administrador || '';
+                                var $tr = $('<tr>');
+                                $tr.append('<td>'+ (i++) +'</td>');
+                                $tr.append('<td>'+ (item.str_nombre || '') +'</td>');
+                                $tr.append('<td data-idempleado="'+idEmpleadoAdmin+'" data-idpersona="'+idpersona+'">'+ representante +'</td>');
+                                $tr.append('<td><button class="btn btn-sm btn-warning btnEditar" data-id="'+item.id+'">Editar</button></td>');
+                                $tbody.append($tr);
+                            });
+                        }
+                    });
+                });
+            });
+
+            // Delegation para editar
+            $(document).on('click', '.btnEditar', function(){
+                var id = $(this).data('id');
+                // buscar en la lista actual mediante ajax
+                $.getJSON('ajax/OficinaAjax.php?op=list', function(res){
+                    if(res.ok){
+                        var found = res.data.find(function(x){ return x.id == id; });
+                        if(found){
+                            $('#modalOficinaTitle').text('Editar Oficina');
+                            $('#txtRefOficina').val(found.id);
+                            $('#txtNombre').val(found.str_nombre);
+                            $('#cboAdministrador').val(found.idempleado_administrador);
+                            $('#modalOficina').modal('show');
+                        }
+                    }
+                });
+            });
+        });
+    </script>
