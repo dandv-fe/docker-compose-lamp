@@ -331,7 +331,7 @@ class Empleado
 
          FROM tbl_empleado e INNER JOIN
             tbl_persona p ON p.idpersona=e.idpersona
-         WHERE e.idglobal=$idglobal ORDER BY(e.str_estado IN ('inactivo')) ASC, e.idempleado DESC";
+         WHERE e.idglobal=$idglobal AND e.str_estado<>'inactivo' ORDER BY e.idempleado DESC";
         $query = $conexion->query($sql);
         return $query;
     }

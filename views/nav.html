@@ -191,7 +191,7 @@ $str_cero = str_split($dias_restantes);
                     <a href="despachar.php" class="nav-link lia-despachar">
                         <i class="nav-icon fa-solid fa-d"></i>
                         <p>
-                            Despachar
+                            espachar
                             <span id="spanDespachar" class="right badge badge-success hide">></span>
                         </p>
                     </a>
@@ -204,12 +204,20 @@ $str_cero = str_split($dias_restantes);
                     <a href="recibir.php" class="nav-link lia-recibir">
                         <i class="nav-icon fa-solid fa-r"></i>
                         <p>
-                            Recibir
+                            ecibir
                             <span id="spanRecibir" class="right badge badge-success hide">></span>
                         </p>
                     </a>
                 </li>
                 <?php    } ?>
+
+
+                <li class="nav-item">
+                    <a href="mi_ahorro.php" class="nav-link lia-ahorros-personales">
+                        <i class="fa-solid fa-piggy-bank nav-icon"></i>
+                        <p>Ahorros</p>
+                    </a>
+                </li>
 
 
                 <!--<li id="li-estadisticas" class="nav-item">
@@ -230,30 +238,6 @@ $str_cero = str_split($dias_restantes);
                     </ul>
                 </li>-->
 
-                <li id="li-ahorros" class="nav-item">
-                    <a href="#" class="nav-link lia-ahorros">
-                        <i class="nav-icon fa-solid fa-piggy-bank"></i>
-                        <p>
-                            Ahorros
-                            <i class="right fas fa-angle-left"></i>
-                        </p>
-                    </a>
-                    <ul class="nav nav-treeview">
-                        <li class="nav-item">
-                            <a href="" class="nav-link lia-sucursal">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Mis ahorros</p>
-                            </a>
-                        </li>
-                        <li class="nav-item">
-                            <a href="" class="nav-link lia-global">
-                                <i class="far fa-circle nav-icon"></i>
-                                <p>Lista</p>
-                            </a>
-                        </li>
-                        
-                    </ul>
-                </li>
 
                 <?PHP
                 if(isset($_SESSION['userEmpresa'])){ ?>
@@ -487,7 +471,7 @@ $str_cero = str_split($dias_restantes);
                         <!-- Timelime example  -->
                         <div class="row">
                             <div id="body-search-persona" class="col-md-12">
-                               
+
                             </div>
                             <!-- /.col -->
                         </div>

@@ -279,11 +279,11 @@ switch ($_GET["op"]) {
                 '<button class="btn btn-info btn-sm" title="Editar" onclick="cargarDataEmpleado(' . $reg->refPersona . ',\'' . $reg->nDocumento . '\',\'editarUser\')"><i class="fa-solid fa-user-pen" style="color: #000000;"></i> </button>&nbsp;';
 
             // Botón de despido solo para empleados activos
-            $btnDespido = $reg->estado == 'activo1' && $reg->cargo != 'Super Administrador' ?
+            $btnDespido = ($reg->estado == 'activo' || $reg->estado == 'despido pendiente') && $reg->cargo != 'Super Administrador' ?
                 '<button class="btn btn-danger btn-sm" title="Registrar Despido" onclick="abrirModalDespido(' . $reg->refEmpleado . ', \'' . addslashes($reg->empleado) . '\', \'' . addslashes($reg->cargo) . '\', \'' . $reg->tDocumento . ' ' . $reg->nDocumento . '\')"><i class="fas fa-user-slash"></i></button>&nbsp;' :
                 '';
 
-            $estado = $reg->estado == 'activo' ? '<span class="badge badge-success">Activo</span>' : '<span class="badge badge-danger">Inactivo</span>';
+            $estado = $reg->estado == 'activo' ? '<span class="badge badge-success">Activo</span>' : '<span class="badge badge-danger">'.$reg->estado.'</span>';
             
             $data[] = array(
                 "0" => $i,
@@ -295,8 +295,8 @@ switch ($_GET["op"]) {
                 "6" => $reg->tel,
                 "7" => '<img width=100px height=100px src="./' . $reg->foto . '" />',
                 "8" => $reg->estado == 'activo' ? $btneditar .
-                    '<button class="btn btn-default btn-sm" title="Configuracion" onclick="cargarDataEmpleado(\'' . $reg->tDocumento . '\',\'' . $reg->nDocumento . '\',\'perfil\')"><i class="fa-solid fa-user-gear" style="color: #000000;"></i> </button>&nbsp;' .
-                    $btnDespido:''
+                    '<button class="btn btn-default btn-sm" title="Configuracion" onclick="cargarDataEmpleado(\'' . $reg->tDocumento . '\',\'' . $reg->nDocumento . '\',\'perfil\')"><i class="fa-solid fa-user-gear" style="color: #000000;"></i> </button>&nbsp;'
+                    :''.$btnDespido
             );
             $i++;
         }
