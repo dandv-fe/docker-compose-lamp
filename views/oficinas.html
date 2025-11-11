@@ -42,6 +42,7 @@
                                 </div>
                                 <!-- /.card-header -->
                                 <div class="card-body">
+                                    <div class="table-responsive">
                                     <table class="table table-bordered table-striped">
                                         <thead>
                                             <tr>
@@ -62,6 +63,7 @@
                                             </tr>
                                         </tfoot>
                                     </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -98,6 +100,16 @@
     $(".lia-oficinas").addClass('active')
 </script>
 
+<style>
+/* Mejoras responsive para la vista de oficinas */
+.table th, .table td{ white-space: normal; vertical-align: middle; }
+.btnEditar{ min-width: 72px; }
+/* en pantallas pequeñas hacer los botones full-width */
+@media (max-width: 576px){
+    .btnEditar{ display:block; width:100%; }
+}
+</style>
+
 <script type="text/javascript">
     // Cargar listado de oficinas y poblar la tabla
     $(function(){
@@ -115,7 +127,7 @@
                     $tr.append('<td>'+ (i++) +'</td>');
                     $tr.append('<td>'+ (item.str_nombre || '') +'</td>');
                     $tr.append('<td data-idempleado="'+idEmpleadoAdmin+'" data-idpersona="'+idpersona+'">'+ representante +'</td>');
-                    $tr.append('<td><button class="btn btn-sm btn-warning btnEditar" data-id="'+item.id+'">Editar</button></td>');
+                    $tr.append('<td><button class="btn btn-sm btn-warning btnEditar" data-id="'+item.id+'"><i class="fa fa-pen"></i> <span class="d-none d-sm-inline">Editar</span></button></td>');
                     $tbody.append($tr);
                 });
             }).fail(function(err){ console.error('Error cargando oficinas', err); });
@@ -137,7 +149,7 @@
 
     <!-- Modal Crear/Editar Oficina -->
     <div class="modal fade" id="modalOficina">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h4 id="modalOficinaTitle" class="modal-title">Nueva Oficina</h4>
@@ -195,7 +207,7 @@
                                 $tr.append('<td>'+ (i++) +'</td>');
                                 $tr.append('<td>'+ (item.str_nombre || '') +'</td>');
                                 $tr.append('<td data-idempleado="'+idEmpleadoAdmin+'" data-idpersona="'+idpersona+'">'+ representante +'</td>');
-                                $tr.append('<td><button class="btn btn-sm btn-warning btnEditar" data-id="'+item.id+'">Editar</button></td>');
+                                $tr.append('<td><button class="btn btn-sm btn-warning btnEditar" data-id="'+item.id+'"><i class="fa fa-pen"></i> <span class="d-none d-sm-inline">Editar</span></button></td>');
                                 $tbody.append($tr);
                             });
                         }
