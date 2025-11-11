@@ -100,7 +100,7 @@
   jQuery(document).ready(function() {
     var Toast = Swal.mixin({
         toast: true,
-        position: 'top-senter',
+        position: 'center-start',
         showConfirmButton: false,
         timer: 2000
     });
@@ -113,7 +113,11 @@
       let pass=$("#form-password").val();
      // console.log(user,pass);
       $.getJSON("ajax/UsuarioAjax.php?op=IngresarSistema",{empresa, user, pass},function (r) {
-        if (r?.nombre) {
+      
+      console.log(r);
+      
+      
+         if (r?.nombre) {
               sessionStorage.setItem('empresa', r.empresa)
               sessionStorage.setItem('userNameEmpleado', r.usuario)
               sessionStorage.setItem('empleado', r.nombre)

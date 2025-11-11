@@ -36,7 +36,7 @@ switch ($_GET["op"]) {
 			return;
 		}
 
-		$query = $objusuario->Auth($user, md5($pass), $empresa);
+		$query = $objusuario->SignIn($user, md5($pass), $empresa);
 		$fetch = $query->fetch_object();
 
 

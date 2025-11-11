@@ -195,7 +195,7 @@ class usuario
     }
 
     // inicio de seccion con password
-    public function Auth($user, $pass, $empresa)
+    public function SignIn($user, $pass, $empresa)
     {
         global $conexion;
         $idglobal = intval($empresa);
@@ -229,6 +229,7 @@ class usuario
                     g.str_tipo as typeEmpresa,
                     g.superadmin_personaid as userEmpresa,
                     g.str_logo AS logo,
+                    g.bit_natillera AS isNatillera,
                     e.str_cargo As cargo
                     FROM tbl_usuario u INNER JOIN
                         tbl_persona p ON u.idpersona=p.idpersona INNER JOIN
