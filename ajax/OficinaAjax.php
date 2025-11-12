@@ -17,12 +17,27 @@ switch (isset($_GET["op"]) ? $_GET["op"] : '') {
 				'str_nombre' => $row->str_nombre,
 				'idempleado_administrador' => $row->idempleado_administrador,
 				'idpersona_representante' => $row->idpersona_representante,
-				'representante' => $row->representante
+				'representante' => $row->representante,
+				'telefono_representante' => $row->telefono_representante,
+				'cantidad_carteras' => $row->cantidad_carteras,
+				'cantidad_empleados' => $row->cantidad_empleados,
+				'cantidad_despedidos' => $row->cantidad_despedidos
 			);
 		}
 		//header('Content-Type: application/json; charset=utf-8');
 		echo json_encode(array('ok'=>true,'data'=>$data));
 		break;
+
+	case 'detalle':
+		$idOficina = intval($_GET['id']);
+		$query = $objOficina->Obtener($idOficina);
+		if ($query) {
+			echo json_encode(array('ok'=>true,'data'=>$query));
+		} else {
+			echo json_encode(array('ok'=>false,'msg'=>'Oficina no encontrada'));
+		}
+		break;
+
 	case 'SaveOrUpdate':
 		$idoficina = intval($_POST['txtRefOficina']);
 		$str_nombre = limpiar_cadena($_POST['txtNombre']);

@@ -15,7 +15,11 @@
 				o.str_nombre AS str_nombre,
 				o.idempleado_administrador AS idempleado_administrador,
 				e.idpersona AS idpersona_representante,
-				CONCAT(p.str_nombres,' ',p.str_apellidos) AS representante
+				CONCAT(p.str_nombres,' ',p.str_apellidos) AS representante,
+				p.str_telefono AS telefono_representante,
+				(SELECT COUNT(*) FROM tbl_sucursal s WHERE s.idoficina = o.idoficina) AS cantidad_carteras,
+				(SELECT COUNT(*) FROM tbl_empleado e WHERE e.idoficina = o.idoficina AND e.str_estado <> 'inactivo') AS cantidad_empleados,
+				(SELECT COUNT(*) FROM tbl_empleado e WHERE e.idoficina = o.idoficina AND e.str_estado = 'inactivo') AS cantidad_despedidos
 			FROM tbl_oficina o
 			LEFT JOIN tbl_empleado e ON e.idempleado = o.idempleado_administrador
 			LEFT JOIN tbl_persona p ON p.idpersona = e.idpersona
@@ -23,7 +27,29 @@
 			$query = $conexion->query($sql);
 			return $query;
 		}
-
+		public function Obtener($idoficina){
+			global $conexion;
+			$sql = "SELECT 
+				o.idoficina AS refOficina,
+				o.str_nombre AS str_nombre,
+				o.idempleado_administrador AS idempleado_administrador,
+				e.idpersona AS idpersona_representante,
+				CONCAT(p.str_nombres,' ',p.str_apellidos) AS representante,
+				p.str_telefono AS telefono_representante,
+				(SELECT COUNT(*) FROM tbl_sucursal s WHERE s.idoficina = o.idoficina) AS cantidad_carteras,
+				(SELECT COUNT(*) FROM tbl_empleado e WHERE e.idoficina = o.idoficina AND e.str_estado <> 'inactivo') AS cantidad_empleados,
+				(SELECT COUNT(*) FROM tbl_empleado e WHERE e.idoficina = o.idoficina AND e.str_estado = 'inactivo') AS cantidad_despedidos
+			FROM tbl_oficina o
+			LEFT JOIN tbl_empleado e ON e.idempleado = o.idempleado_administrador
+			LEFT JOIN tbl_persona p ON p.idpersona = e.idpersona
+			WHERE o.idoficina=$idoficina";
+			$query = $conexion->query($sql);
+			if ($row = $query->fetch_object()) {
+				return $row;
+			} else {
+				return null;
+			}
+		}
 		public function Registrar($str_nombre, $idempleado_administrador, $idglobal){
 			global $conexion;
 			$sql = "INSERT INTO tbl_oficina (idglobal, str_nombre, idempleado_administrador) ";
