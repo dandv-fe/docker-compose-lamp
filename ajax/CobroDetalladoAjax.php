@@ -49,7 +49,7 @@ switch ($_GET["op"]) {
             $data[] = array(
                 $reg->fecha_at,
                 '<div class="user-block">
-                    <img class="img-circle img-bordered-sm" src="' . $reg->logo . '"
+                    <img class="img-circle img-bordered-sm" src=""
                             alt="empleado">
                     <span class="username">
                         <a href="#">' . $reg->tipo . ': ' . $reg->codigo . '</a>

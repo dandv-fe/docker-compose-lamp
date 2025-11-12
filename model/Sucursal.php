@@ -7,7 +7,7 @@
 		public function __construct(){
 		}
 
-		public function Registrar($useridglobal,$tipo,$razon_social,$tipo_documento,$num_documento,$direccion,$telefono,$email,$idreprecentante,$logo,$estado,$adicional){
+		public function Registrar($useridglobal,$tipo,$razon_social,$telefono,$idreprecentante,$estado,$adicional){
 			global $conexion;
 			$dt = date('Y-m-d H:i:s');
 			$sw=true;
@@ -31,15 +31,14 @@
 			 }
 
 			$sql = "INSERT INTO tbl_sucursal(
-				idglobal, str_tipo, str_codigo, str_tipo_documento,
-				str_num_documento, str_direccion, str_telefono,
-				str_email, idempleado, str_logo, str_cobro_adicional,
+				idglobal, str_tipo, str_codigo,
+				str_telefono, idempleado, str_cobro_adicional,
 				str_estado, created_at, updated_at
 			)
 			
-			VALUES($useridglobal, '$tipo', '$razon_social', '$tipo_documento',
-			'$num_documento','$direccion','$telefono',
-			'$email',$idreprecentante,'$logo', '$adicional',
+			VALUES($useridglobal, '$tipo', '$razon_social', 
+			'$telefono',
+			$idreprecentante, '$adicional',
 			'$estado', '$dt', '$dt'
 			)";
 			$conexion->query($sql) or throw new Exception('error!'); 
@@ -68,7 +67,7 @@
 		  return;
 		}
 
-		public function Modificar($idsucursal,$useridglobal,$tipo,$razon_social,$tipo_documento,$num_documento,$direccion,$telefono,$email,$idreprecentante,$logo,$estado,$adicional){
+		public function Modificar($idsucursal,$useridglobal,$tipo,$razon_social,$telefono,$idreprecentante,$estado,$adicional){
 			global $conexion;
 			$dt = date('Y-m-d H:i:s');
 			$sw=true;
@@ -83,13 +82,8 @@
 			$sql = "UPDATE tbl_sucursal SET
 				str_tipo='$tipo',
 				str_codigo='$razon_social',
-				str_tipo_documento='$tipo_documento',
-				str_num_documento='$num_documento',
-				str_direccion='$direccion',
 				str_telefono='$telefono',
-				str_email='$email',
 				idempleado=$idreprecentante,
-				str_logo='$logo',
 				str_cobro_adicional='$adicional',
 				str_estado='$estado',
 				updated_at='$dt'
@@ -155,7 +149,6 @@
 			s.idsucursal AS id,
 			s.str_tipo AS tipo,
 			s.str_codigo AS codigo,
-			s.str_logo AS logo,
 			s.str_estado AS estado,
 			CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado
 			 FROM tbl_sucursal s INNER JOIN 
@@ -171,13 +164,8 @@
 				idsucursal AS ref,
 				str_tipo AS tipo,
 				str_codigo AS codigo,
-				str_tipo_documento AS tDocumento,
-				str_num_documento AS nDocumento,
-				str_direccion AS direccion,
 				str_telefono AS tel,
-				str_email AS email,
 				idempleado AS refEmpleado,
-				str_logo AS logo,
 				str_cobro_adicional AS adicional,
 				str_estado AS estado,
 				created_at AS fecha_at
