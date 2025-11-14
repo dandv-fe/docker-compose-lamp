@@ -1,9 +1,19 @@
 <?php
+require "data.php";
+if ($isPagoSistema == -1) {
+   include "views/pago_vencido.html";
+} else {
+   include "views/tarjetas_canceladas_por_cartera.html";
+}
+
+include "views/footer.html";
+/*
 session_start();
 require_once "info_sistema.php";
 $infoSistemaCuentas=infoSistemaCuentas();
 require_once "model/Usuario.php";
 $objusuario = new usuario();
+$_SESSION['authSucursal']=null;
 if (isset($_SESSION["idusuario"])) {
     if (isset($_SESSION['userEmpleado'])) {
        $userIdEmpresa = $_SESSION['userEmpresa'];
@@ -29,15 +39,13 @@ if (isset($_SESSION["idusuario"])) {
         }
         include "views/header.html";
         include "views/nav.html";
-        if(isset($_SESSION['userEmpresa']) || in_array('ver canceladas', array_column($_SESSION['AUTHS'], 'nombre'))){
-            
-            $decicion!=-1?include "views/tarjetas_canceladas_por_cartera.html": include "views/pago_vencido.html";
-        }
+        
+        $decicion!=-1?include "views/sucursal.html": include "views/pago_vencido.html";
         include "views/footer.html";
-    }
+    } 
 } else {
     echo "<script>
  location.href ='login.php';
   </script>";
 }
-
+*/

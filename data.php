@@ -9,9 +9,13 @@ require_once "info_sistema.php";
 $infoSistemaCuentas = infoSistemaCuentas();
 require_once "model/Usuario.php";
 $objusuario = new usuario();
+require "model/Conexion.php";
+global $conexion;
+
 
 $userSession = $objusuario->viewUsuarioSession($_SESSION["idusuario"]);
 $_SESSION['userEmpresa'] = $userSession["usuario"]->idglobal;
+$idglobal = $userSession['usuario']->idglobal;
 // variables de estado de pago
 $dias_extras = 10;
 $dias_restantes = 10;

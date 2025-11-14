@@ -108,7 +108,7 @@ $str_cero = str_split($dias_restantes);
   <!-- Right navbar links -->
   <ul class="navbar-nav ml-auto">
     <?PHP if(intval($_SESSION['MYSESSION_idsucursal'])>0){
-            $indexAllSucursal= array_search($_SESSION['MYSESSION_idsucursal'], array_column($allSucursal, 0)); 
+            //$indexAllSucursal= array_search($_SESSION['MYSESSION_idsucursal'], array_column($allSucursal, 0)); 
             
             
             ?>
@@ -378,7 +378,7 @@ $str_cero = str_split($dias_restantes);
             <?php
                         if(isset($_SESSION['userEmpresa']) || in_array('ver canceladas', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
             <li class="nav-item">
-              <a id="lia-tarjetasCanceladas" href="tarjetas_canceladas.php" class="nav-link">
+              <a id="lia-tarjetasCanceladas" href="tarjetasCanceladasCartera.php" class="nav-link">
                 <i class="far fa-circle nav-icon"></i>
                 <p>Canceladas</p>
               </a>

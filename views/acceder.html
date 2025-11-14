@@ -177,30 +177,47 @@ $fetch=array();
                         </tr>
                       </thead>
                       <tbody>
-                        <?php 
-                        
-                      $allSucursal=array();
-                        foreach ($allSucursal as $valor) {
-                          $seleted= $_SESSION['MYSESSION_idsucursal']==$valor[0]? 'checked':'';
-                          
-                          ?>
+                        <?php $sql = "SELECT 
+                                s.idsucursal AS refSucursal,
+                                s.str_tipo AS tipo,
+                                s.str_codigo AS codigo,
+                                s.str_cobro_adicional as adicional,
+                                s.str_estado AS estado,
+                                CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado,
+                                p.str_tipo_documento AS t_documento,
+                                p.str_num_documento AS n_documento,
+                                p.str_telefono AS tel,
+                                p.str_foto AS foto,
+                                '' AS nameAuth
+                              FROM tbl_sucursal s INNER JOIN 
+                                tbl_empleado e ON e.idempleado=s.idempleado INNER JOIN
+                                tbl_persona p ON p.idpersona=e.idpersona
+                              where s.str_estado<>'inactiva' and s.idglobal=$idglobal order by s.idsucursal desc";
+                                $query = $conexion->query($sql);
+                                
+                                while ($reg = $query->fetch_object()) {
+                                  $seleted= $_SESSION['MYSESSION_idsucursal']==$reg->refSucursal? 'checked':'';
+                               /* $allSucursal=array();
+                                  foreach ($allSucursal as $valor) {
+                                    $seleted= $_SESSION['MYSESSION_idsucursal']==$valor[0]? 'checked':'';*/
+                                    
+                                    ?>
                         <tr>
-
                           <td>
                             <div class="user-block ">
-                              <img class="img-circle img-bordered-sm" src="<?PHP echo $valor[9];?>" alt="empleado">
+                              <img class="img-circle img-bordered-sm" src="<?PHP echo $reg->foto;?>" alt="empleado">
                               <span class="username mt-0">
 
 
                                 <div class="icheck-success d-inline">
-                                  <input id="checkboxMontarSeccion_<?PHP echo $valor[0];?>"
+                                  <input id="checkboxMontarSeccion_<?PHP echo $reg->refSucursal;?>"
                                     class="aMontarSeccionActividad" type="checkbox"
-                                    data-rseccion="<?PHP echo $_SESSION['MYSESSION_idsucursal']==$valor[0]? '':$valor[0];?>"
+                                    data-rseccion="<?PHP echo $_SESSION['MYSESSION_idsucursal']==$reg->refSucursal? '':$reg->refSucursal;?>"
                                     <?PHP echo $seleted;?>
                                   >
-                                  <label for="checkboxMontarSeccion_<?PHP echo $valor[0];?>">
-                                    <?PHP echo $valor[1];?>:
-                                    <?PHP echo $valor[2];?>
+                                  <label for="checkboxMontarSeccion_<?PHP echo $reg->refSucursal;?>">
+                                    <?PHP echo $reg->tipo;?>:
+                                    <?PHP echo $reg->codigo;?>
                                   </label>
                                 </div>
 
@@ -211,14 +228,14 @@ $fetch=array();
                             <div class="user-block">
                               <img class="img-circle img-bordered-sm" src="<?PHP echo '';?>" alt="empleado">
                               <span class="username">
-                                <label class="m-0" for="checkboxMontarSeccion_<?PHP echo $valor[0];?>">
-                                  <?PHP echo $valor[5];?>
+                                <label class="m-0" for="checkboxMontarSeccion_<?PHP echo $reg->refSucursal;?>">
+                                  <?PHP echo $reg->empleado;?>
                                 </label>
 
                               </span>
                               <span class="description"> <b>Tel.: </b> <label class="lead text-lg m-0"
-                                  for="checkboxMontarSeccion_<?PHP echo $valor[0];?>">
-                                  <?PHP echo $valor[8];?>
+                                  for="checkboxMontarSeccion_<?PHP echo $reg->refSucursal;?>">
+                                  <?PHP echo $reg->tel;?>
                                 </label></span>
                             </div>
                           </td>

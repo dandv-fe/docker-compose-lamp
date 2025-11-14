@@ -31,140 +31,139 @@
 
 
 
-<script type="text/javascript" src="dist/scripts/TarjetasCanceladas.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+<script type="text/javascript"
+  src="dist/scripts/TarjetasCanceladass.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper">
-    <!-- Content Header (Page header) -->
-    <div class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h1 class="m-0">Targetas Canceladas
-                    </h1>
-                </div><!-- /.col -->
-            </div><!-- /.row -->
-        </div><!-- /.container-fluid -->
-    </div>
-    <!-- /.content-header -->
-    <!-- Main content -->
-    <section class="content">
-        <div class="container-fluid">
+  <!-- Content Header (Page header) -->
+  <div class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1 class="m-0">Targetas Canceladas
+          </h1>
+        </div><!-- /.col -->
+      </div><!-- /.row -->
+    </div><!-- /.container-fluid -->
+  </div>
+  <!-- /.content-header -->
+  <!-- Main content -->
+  <section class="content">
+    <div class="container-fluid">
 
 
-            <div class="row">
-                <div class="col-12">
+      <div class="row">
+        <div class="col-12">
 
 
-                    <div class="card">
-                        <div class="card-header">
-                            <form id="formSearchTarjetasCanceladas">
-                                <input type="hidden" name="txtUltimo" id="txtUltimo">
-                                <div class="card-header row m-0 p-0">
-                                    <div class="col-md-4">
-                                        <div class="form-group">
-                                            <label>Desde:</label>
-                                            <div class="input-group date " id="dateDeste" data-target-input="nearest">
-                                                <input required type="text" class="form-control datetimepicker-input"
-                                                    data-target="#dateDeste" id="txtFechaDesde" name="txtFechaDesde" />
-                                                <div class="input-group-append" data-target="#dateDeste"
-                                                    data-toggle="datetimepicker">
-                                                    <div class="input-group-text"><i class="fa fa-calendar"></i></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="form-group">
-                                            <label>Hasta:</label>
-                                            <div class="input-group date" id="dateHasta" data-target-input="nearest">
-                                                <input required type="text" class="form-control datetimepicker-input"
-                                                    data-target="#dateHasta" id="txtFechaHasta" name="txtFechaHasta" />
-                                                <div class="input-group-append" data-target="#dateHasta"
-                                                    data-toggle="datetimepicker">
-                                                    <div class="input-group-text"><i class="fa fa-calendar"></i></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <input type="submit" style="display: none;">
-                            </form>
+          <div class="card">
+            <div class="card-header">
+              <form id="formSearchTarjetasCanceladas">
+                <input type="hidden" name="txtUltimo" id="txtUltimo">
+                <div class="card-header row m-0 p-0">
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label>Desde:</label>
+                      <div class="input-group date " id="dateDeste" data-target-input="nearest">
+                        <input required type="text" class="form-control datetimepicker-input" data-target="#dateDeste"
+                          id="txtFechaDesde" name="txtFechaDesde" />
+                        <div class="input-group-append" data-target="#dateDeste" data-toggle="datetimepicker">
+                          <div class="input-group-text"><i class="fa fa-calendar"></i></div>
                         </div>
-                        <!-- /.card-header -->
-                        <div class="card-body table-responsive p-0">
-
-                            <table id="tblTarjetasCanceladas" class="table table-bordered table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Cancelo</th>
-                                        
-                                        <th>Costo</th>
-                                        <th>Credito</th>
-                                        <th>Cobro Adicional</th>
-                                        <th>Fecha-Cancelo</th>
-                                        <th>Fecha-Inicio</th>
-                                        <th>Cliente</th>
-                                        <th>Documento</th>
-                                        <th>Telefono</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-
-                                </tbody>
-                                <tfoot>
-                                    <tr>
-                                        <th>Cancelo</th>
-                                        
-                                        <th>Costo</th>
-                                        <th>Credito</th>
-                                        <th>Cobro Adicional</th>
-                                        <th>Fecha-Cancelo</th>
-                                        <th>Fecha-Inicio</th>
-                                        <th>Cliente</th>
-                                        <th>Documento</th>
-                                        <th>Telefono</th>
-                                    </tr>
-                                </tfoot>
-                            </table>
-                        </div>
-                        <!-- /.card-body -->
+                      </div>
                     </div>
-                    <!-- /.card -->
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label>Hasta:</label>
+                      <div class="input-group date" id="dateHasta" data-target-input="nearest">
+                        <input required type="text" class="form-control datetimepicker-input" data-target="#dateHasta"
+                          id="txtFechaHasta" name="txtFechaHasta" />
+                        <div class="input-group-append" data-target="#dateHasta" data-toggle="datetimepicker">
+                          <div class="input-group-text"><i class="fa fa-calendar"></i></div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                <!-- /.col -->
+                <input type="submit" style="display: none;">
+              </form>
             </div>
+            <!-- /.card-header -->
+            <div class="card-body table-responsive p-0">
+
+              <table id="tblTarjetasCanceladas" class="table table-bordered table-striped">
+                <thead>
+                  <tr>
+                    <th>Cancelo</th>
+
+                    <th>Costo</th>
+                    <th>Credito</th>
+                    <th>Cobro Adicional</th>
+                    <th>Fecha-Cancelo</th>
+                    <th>Fecha-Inicio</th>
+                    <th>Cliente</th>
+                    <th>Documento</th>
+                    <th>Telefono</th>
+                  </tr>
+                </thead>
+                <tbody>
+
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th>Cancelo</th>
+
+                    <th>Costo</th>
+                    <th>Credito</th>
+                    <th>Cobro Adicional</th>
+                    <th>Fecha-Cancelo</th>
+                    <th>Fecha-Inicio</th>
+                    <th>Cliente</th>
+                    <th>Documento</th>
+                    <th>Telefono</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <!-- /.card-body -->
+          </div>
+          <!-- /.card -->
         </div>
-    </section>
+        <!-- /.col -->
+      </div>
+    </div>
+  </section>
 </div>
 
 <script type="text/javascript">
-    $("#li-creditos").addClass('menu-open')
-    $("#lia-creditos").addClass('active')
-    $("#lia-tarjetasCanceladas").addClass('active')
+  $("#li-creditos").addClass('menu-open')
+  $("#lia-creditos").addClass('active')
+  $("#lia-tarjetasCanceladas").addClass('active')
 
 
-    var Tabla = $("#tblTarjetasCanceladas").DataTable({
-        "sort": false,
-        "responsive": true, "lengthChange": false, "autoWidth": false,
-        "buttons": ["csv", "excel", "pdf", "colvis"]
-    }).buttons().container().appendTo('#tblTarjetasCanceladas_wrapper .col-md-6:eq(0)');
+  var Tabla = $("#tblTarjetasCanceladas").DataTable({
+    "sort": false,
+    "responsive": true, "lengthChange": false, "autoWidth": false,
+    "buttons": ["csv", "excel", "pdf", "colvis"]
+  }).buttons().container().appendTo('#tblTarjetasCanceladas_wrapper .col-md-6:eq(0)');
 
 
-    //Date picker
-    const dateDesde = $('#dateDeste').datetimepicker({
-        format: 'YYYY-MM-DD',
-        date: moment(),
-        locale: 'es'
-    });
+  //Date picker
+  const dateDesde = $('#dateDeste').datetimepicker({
+    format: 'YYYY-MM-DD',
+    date: moment(),
+    locale: 'es'
+  });
 
 
 
-    // dateDesde.locale(tempusDominus.locales['es'].es);
-    //Date picker
-    $('#dateHasta').datetimepicker({
-        format: 'YYYY-MM-DD',
-        date: moment(),
-        locale: 'es'
-    });
+  // dateDesde.locale(tempusDominus.locales['es'].es);
+  //Date picker
+  $('#dateHasta').datetimepicker({
+    format: 'YYYY-MM-DD',
+    date: moment(),
+    locale: 'es'
+  });
 
 </script>
