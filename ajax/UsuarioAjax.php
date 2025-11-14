@@ -5,92 +5,67 @@ session_start();
 require_once "../method.php";
 
 if (empty($_GET["op"])) {
-	if (empty($_SESSION["idusuario"])) {
-		echo 0;
-	} else {
-		echo 1;
-	}
-	exit;
+   if (empty($_SESSION["idusuario"])) {
+      echo 0;
+   } else {
+      echo 1;
+   }
+   exit;
 }
 require_once "../model/Usuario.php";
 
 $objusuario = new usuario();
 
 switch ($_GET["op"]) {
-	case 'seccionValidarHoja':
-		$par=limpiar_cadena($_POST['parametro']);
-		$otrop=limpiar_cadena($_POST['otro_parametro']);
+   case 'seccionValidarHoja':
+      $par = limpiar_cadena($_POST['parametro']);
+      $otrop = limpiar_cadena($_POST['otro_parametro']);
 
-		$_SESSION['MYSESSION_idsucursal']=$par;		
-		$_SESSION['MYSESSION_usuario']=$otrop;
-		echo 'Ok';
-		break; 
+      $_SESSION['MYSESSION_idsucursal'] = $par;
+      $_SESSION['MYSESSION_usuario'] = $otrop;
+      echo 'Ok';
+      break;
 
-	case "IngresarSistema":
-		$empresa = limpiar_cadena($_REQUEST["empresa"]);
-		$user = limpiar_cadena($_REQUEST["user"]);
-		$pass = limpiar_cadena2($_REQUEST["pass"]);
-		
-		if (!$empresa || !$user || !$pass) {
-			echo json_encode(0);
-			return;
-		}
+   case "IngresarSistema":
+      $encoder = new CustomEncoder();
+      $empresa = limpiar_cadena($_REQUEST["empresa"]);
+      $user = limpiar_cadena($_REQUEST["user"]);
+      $pass = limpiar_cadena2($_REQUEST["pass"]);
+      if (!$empresa || !$user || !$pass) {
+         echo json_encode(0);
+         return;
+      }
+      $idglobal = intval($empresa);
+      $query = $objusuario->SignIn($user, md5($pass), $idglobal);
+      $fetch = $query->fetch_object();
+      if (isset($fetch)) {
+         $_SESSION['MYSESSION_idoficina'] = 0;
+         $_SESSION['MYSESSION_idsucursal'] = 0;
+         $_SESSION['idusuario'] = $fetch->idusuario;
+         $fetch->idusuario = $encoder->encode($fetch->idusuario);
+         echo json_encode($fetch);
+         return;
+      }
+      /* // Uso
+      $txt = 'Duvan';
 
-		$query = $objusuario->SignIn($user, md5($pass), $empresa);
-		$fetch = $query->fetch_object();
+      // Codificar
+      $key = $encoder->encode($txt);
+      echo "Codificado: " . $key . "\n"; // WsuIoPqAjK
 
+      // Descodicar
+      $decoded = $encoder->decode($key);
+      echo "Descodificado: " . $decoded . "\n"; // Versy
+      */
+      echo json_encode($fetch);
+      break;
 
+   case "Salir":
 
-		if (isset($fetch)) {
-			
-			$_SESSION['MYSESSION_idsucursal']=0;
+      session_unset();
+      session_destroy();
 
-			// datos del usuario
-			$_SESSION['idusuario'] = $fetch->numeroUsuario;
-			$_SESSION['idglobal'] = $fetch->numeroGlobal;
-			$_SESSION['idpersona'] = $fetch->numeroPersona;
-			$_SESSION['userName'] = $fetch->usuario;
-			$_SESSION['terminosCondiciones'] = $fetch->terminosCondiciones;
-			$_SESSION['userEstado'] = $fetch->userEstado;
-
-			// datos de la persona
-			$_SESSION['personName'] = $fetch->nombre;
-			$_SESSION['personPhoto'] = $fetch->foto;
-			$_SESSION['personTypeDocument'] = $fetch->typeDocument;
-			$_SESSION['personDocument'] = $fetch->document;
-			$_SESSION['personSexo'] = $fetch->sexo;
-			$_SESSION['personPhone'] = $fetch->phone;
-			$_SESSION['personEmail'] = $fetch->email;
-			$_SESSION['personEmailVerificado'] = $fetch->emailVerificado;
-
-			//los ids suscripciones
-			$_SESSION['userEmpleado'] = $fetch->userEmpleado;
-			$_SESSION['userCliente'] = $fetch->userCliente;
-			$_SESSION['userNatillera'] = $fetch->userNatillera;
-
-
-			// is empresa Superadmin
-			$_SESSION['userEmpresa'] = $fetch->cargo === 'Super Administrador' ? $fetch->numeroGlobal : null;
-
-			//datos de la empresa
-			$_SESSION['typeEmpresa'] = $fetch->typeEmpresa;
-			$_SESSION['nameEmpresa'] = $fetch->empresa;
-			$_SESSION['logoEmpresa'] = $fetch->logo;
-			
-			$fetch->session = 0;
-		}
-
-		//array_push($_SESSION[''],$unicosesion);
-		//print_r($fetch);
-		echo json_encode($fetch);
-
-		break;
-	case "Salir":
-
-		session_unset();
-		session_destroy();
-
-		echo "<script>
+      echo "<script>
 			sessionStorage.removeItem('empleado')
 			sessionStorage.removeItem('empresa')
 			sessionStorage.removeItem('userNameEmpleado')
@@ -99,24 +74,24 @@ switch ($_GET["op"]) {
 			window.name='';
 			location.href ='../login.php';
 		  </script>";
-		break;
+      break;
 
-	case 'IngresarSistemaActividad':
-		$idsucursal = limpiar_cadena($_REQUEST['empresa']);
-		//$refSession = limpiar_cadena($_REQUEST['refSession']);
-    //$idempleado = $_SESSION['userEmpleado'];
+   case 'IngresarSistemaActividad':
+      $idsucursal = limpiar_cadena($_REQUEST['empresa']);
+      //$refSession = limpiar_cadena($_REQUEST['refSession']);
+      //$idempleado = $_SESSION['userEmpleado'];
 
-		//if (empty($_SESSION['userEmpresa'])) {
-		//	echo json_encode(array('session'=> $idsucursal));
-		//} else {
-			$_SESSION['MYSESSION_idsucursal']=$idsucursal;
-			echo json_encode(array('session'=> $idsucursal));
-		//}
-		break;
-	case 'BajarSistemaActividad':
-		$refSession = limpiar_cadena($_REQUEST['refSession']);
-		unset($_SESSION[$refSession]);
-		$_SESSION['MYSESSION_idsucursal']='';
-		echo json_encode(1);
-		break;
+      //if (empty($_SESSION['userEmpresa'])) {
+      //	echo json_encode(array('session'=> $idsucursal));
+      //} else {
+      $_SESSION['MYSESSION_idsucursal'] = $idsucursal;
+      echo json_encode(array('session' => $idsucursal));
+      //}
+      break;
+   case 'BajarSistemaActividad':
+      $refSession = limpiar_cadena($_REQUEST['refSession']);
+      unset($_SESSION[$refSession]);
+      $_SESSION['MYSESSION_idsucursal'] = '';
+      echo json_encode(1);
+      break;
 }

@@ -1,4 +1,13 @@
 <?php
+require "data.php";
+if ($isPagoSistema == -1) {
+   include "views/pago_vencido.html";
+} else {
+   include "views/oficinas.html";
+}
+
+include "views/footer.html";
+/*
 session_start();
 require_once "info_sistema.php";
 $infoSistemaCuentas=infoSistemaCuentas();
@@ -40,5 +49,4 @@ if (isset($_SESSION["idusuario"])) {
   </script>";
 }
 
-
-
+*/

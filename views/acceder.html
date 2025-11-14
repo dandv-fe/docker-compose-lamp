@@ -57,17 +57,18 @@
           <div class="card card-primary card-outline">
             <div class="card-body box-profile p-0">
               <div class="text-center">
-                <img class="profile-user-img img-fluid img-circle" src="<?PHP echo $_SESSION['logoEmpresa'];?>"
+                <img class="profile-user-img img-fluid img-circle" src="<?PHP echo $userSession['usuario']->str_logo;?>"
                   alt="Logotipo">
               </div>
 
               <h3 class="profile-username text-center">
-                <?PHP echo $_SESSION['nameEmpresa'];?>
+                <?PHP echo $userSession['usuario']->str_razon_social;?>
               </h3>
 
 
               <ul class="list-group list-group-unbordered mb-3">
-                <?php     
+                <?php 
+$fetch=array();
                         foreach ($fetch as $clave => $valor) { ?>
                 <li class="list-group-item">
                   <b>
@@ -80,7 +81,7 @@
                 ?>
 
               </ul>
-             
+
             </div>
             <!-- /.card-body -->
           </div>
@@ -109,7 +110,7 @@
               <div class="tab-content" id="custom-tabs-three-tabContent">
                 <div class="tab-pane fade show active" id="custom-tabs-three-home" role="tabpanel"
                   aria-labelledby="custom-tabs-three-home-tab">
-                  <?php if($_SESSION['typeEmpresa'] === 'servicio'){ ?>
+                  <?php if($userSession['usuario']->str_tipo === 'servicio'){ ?>
                   <div class="card-header">
                     <h3 class="card-title"> Lista de Empresas</h3>
                   </div>
@@ -178,7 +179,7 @@
                       <tbody>
                         <?php 
                         
-                      
+                      $allSucursal=array();
                         foreach ($allSucursal as $valor) {
                           $seleted= $_SESSION['MYSESSION_idsucursal']==$valor[0]? 'checked':'';
                           
@@ -192,12 +193,10 @@
 
 
                                 <div class="icheck-success d-inline">
-                                  <input 
-                                    id="checkboxMontarSeccion_<?PHP echo $valor[0];?>" 
-                                    class="aMontarSeccionActividad" 
-                                    type="checkbox" 
+                                  <input id="checkboxMontarSeccion_<?PHP echo $valor[0];?>"
+                                    class="aMontarSeccionActividad" type="checkbox"
                                     data-rseccion="<?PHP echo $_SESSION['MYSESSION_idsucursal']==$valor[0]? '':$valor[0];?>"
-                                    <?PHP echo $seleted;?> 
+                                    <?PHP echo $seleted;?>
                                   >
                                   <label for="checkboxMontarSeccion_<?PHP echo $valor[0];?>">
                                     <?PHP echo $valor[1];?>:
@@ -215,11 +214,12 @@
                                 <label class="m-0" for="checkboxMontarSeccion_<?PHP echo $valor[0];?>">
                                   <?PHP echo $valor[5];?>
                                 </label>
-                               
+
                               </span>
-                              <span class="description"> <b>Tel.: </b>  <label class="lead text-lg m-0" for="checkboxMontarSeccion_<?PHP echo $valor[0];?>">
-                                <?PHP echo $valor[8];?>
-                              </label></span>
+                              <span class="description"> <b>Tel.: </b> <label class="lead text-lg m-0"
+                                  for="checkboxMontarSeccion_<?PHP echo $valor[0];?>">
+                                  <?PHP echo $valor[8];?>
+                                </label></span>
                             </div>
                           </td>
                         </tr>
@@ -473,7 +473,7 @@
       })
     });
 
-   
+
   })
 
 
@@ -514,8 +514,8 @@
         tabla.clear().draw();
         for (let i = 0; i < datos.length; i++) {
           const val = datos[i];
-        
-          
+
+
           tabla.row
             .add([
               val[0],

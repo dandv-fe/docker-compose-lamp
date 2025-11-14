@@ -1,11 +1,10 @@
 <?php
 session_start();
 require_once "info_sistema.php";
-$infoSistemaCuentas=infoSistemaCuentas();
+$infoSistemaCuentas = infoSistemaCuentas();
 require_once "model/Usuario.php";
-require_once "method.php";
 $objusuario = new usuario();
-$_SESSION['authSucursal']=null;
+$_SESSION['authSucursal'] = null;
 if (isset($_SESSION["idusuario"])) {
     if (isset($_SESSION['userEmpleado'])) {
         $userIdEmpresa = $_SESSION['userEmpresa'];
@@ -29,26 +28,34 @@ if (isset($_SESSION["idusuario"])) {
     
             $decicion = $dias_restantes+ $dias_extras <=> 0;
         }
-        include "views/header.html";
+
+       
+       
+       
+        //$v= strval($dias_restantes);
+
+           
+
+
+       include "views/header.html";
         include "views/nav.html";
-        
-        require_once "model/Up.php";
-        $classUp= new ClassUp();
+       $decicion!=-1?include "views/acceder.html": include "views/pago_vencido.html";
 
 
-        
-
-    
-
-       // if($_SESSION['userEmpresa']==1039 || $_SESSION['userEmpresa']==1039 ){
-    
-            $decicion!=-1?include "views/upsadteSdn.html": include "views/pago_vencido.html";
-       // }
         include "views/footer.html";
+
+
+
+
+    } elseif (isset($_SESSION['userCliente'])) {
+
+    } elseif (isset($_SESSION['userNatillera'])) {
+
     }
+
 } else {
+    // echo $_SESSION['MYSESSION_usuario'];
     echo "<script>
  location.href ='login.php';
   </script>";
 }
-

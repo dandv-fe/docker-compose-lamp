@@ -1,24 +1,24 @@
 <!-- Navbar Search -->
 <li class="nav-item">
-    <a class="nav-link" data-widget="navbar-search" href="#" role="button">
-        <i class="fas fa-search"></i>
-    </a>
-    <div class="navbar-search-block">
-        <form id="search-form" class="form-inline">
-            <div class="input-group input-group-sm">
-                <input required class="form-control form-control-navbar" type="search" placeholder="Buscar..."
-                    aria-label="Search">
-                <div class="input-group-append">
-                    <button class="btn btn-navbar" type="submit">
-                        <i class="fas fa-search"></i>
-                    </button>
-                    <button class="btn btn-navbar" type="button" data-widget="navbar-search">
-                        <i class="fas fa-times"></i>
-                    </button>
-                </div>
-            </div>
-        </form>
-    </div>
+  <a class="nav-link" data-widget="navbar-search" href="#" role="button">
+    <i class="fas fa-search"></i>
+  </a>
+  <div class="navbar-search-block" style="padding-right: 190px !important;">
+    <form id="search-form" class="form-inline">
+      <div class="input-group input-group-sm">
+        <input required class="form-control form-control-navbar" type="search" placeholder="Buscar..."
+          aria-label="Search">
+        <div class="input-group-append">
+          <button class="btn btn-navbar" type="submit">
+            <i class="fas fa-search"></i>
+          </button>
+          <button class="btn btn-navbar" type="button" data-widget="navbar-search">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
 </li>
 
 
@@ -29,31 +29,31 @@
 
 
 <script>
-    //const def={'moroso':"danger",'activo':"success",'inactivo':"secondary",'pendiente':"warning",'pagado':"primary"};
-    $(document).ready(function () {
-        $('#search-form').on('submit', function (e) {
-            e.preventDefault();
-            var query = $(this).find('input[type="search"]').val();
+  //const def={'moroso':"danger",'activo':"success",'inactivo':"secondary",'pendiente':"warning",'pagado':"primary"};
+  $(document).ready(function () {
+    $('#search-form').on('submit', function (e) {
+      e.preventDefault();
+      var query = $(this).find('input[type="search"]').val();
 
-            $("#title-search-persona").text("Resultados documento: " + query);
-            var tabla = $('#tblNomina').DataTable();
-            $.ajax({
-                url: './ajax/ClienteAjax.php?op=search',
-                type: "POST",
-                data: { ref: query },
-                dataType: "json",
-                success: function (datos) {
-                    const htmlModal = []
-                    if (datos.length > 0) {
-                        const isBoton = datos.find(d => d.isBoton === 0);
-                        //console.log(isBoton);
+      $("#title-search-persona").text("Resultados documento: " + query);
+      var tabla = $('#tblNomina').DataTable();
+      $.ajax({
+        url: './ajax/ClienteAjax.php?op=search',
+        type: "POST",
+        data: { ref: query },
+        dataType: "json",
+        success: function (datos) {
+          const htmlModal = []
+          if (datos.length > 0) {
+            const isBoton = datos.find(d => d.isBoton === 0);
+            //console.log(isBoton);
 
-                        htmlModal.push(`<div class="timeline">`)
-                        for (let i = 0; i < datos.length; i++) {
-                            const val = datos[i];
-                            //console.log(val);
+            htmlModal.push(`<div class="timeline">`)
+            for (let i = 0; i < datos.length; i++) {
+              const val = datos[i];
+              //console.log(val);
 
-                            let empleado = val['empleado'] ? `<div class="card card-primary card-outline">
+              let empleado = val['empleado'] ? `<div class="card card-primary card-outline">
                                                                 <a class="d-block w-100" data-toggle="collapse" href="#collapseOne${val['empleado'].idempleado}">
                                                                     <div class="card-header">
                                                                         <h4 class="card-title w-100">
@@ -71,48 +71,48 @@
                                                                 </div>
                                                             </div>` : '';
 
-                            const listaObligaciones = [];
-                            for (let j = 0; j < val['tarjetas'].length; j++) {
-                                const obli = val['tarjetas'][j];
-                                let classEstado = '';
-                                let estado = '';
-                                //console.log(obli);
-                                
-                                switch (obli.estado) {
-                                    case 'moroso':
-                                        classEstado = 'badge-danger';
-                                        estado = 'Moroso';
-                                        break;
-                                    case 'retirado':
-                                        classEstado = 'badge-danger';
-                                        estado = 'Retirado Persida';
-                                        break;
-                                    case 'fallecio':
-                                        classEstado = 'badge-light';
-                                        estado = 'Fallecido';
-                                        break;
-                                    default:
-                                        classEstado = 'badge-success';
-                                        const tiempo = cuantoTiempo(obli);
-                                        //console.log(tiempo);
-                                        if (tiempo.info.indexOf('vencida') !== -1) {
-                                            classEstado = 'badge-danger';
-                                        } else {
-                                            classEstado = 'badge-success';
-                                        }
-                                        estado = tiempo.info
+              const listaObligaciones = [];
+              for (let j = 0; j < val['tarjetas'].length; j++) {
+                const obli = val['tarjetas'][j];
+                let classEstado = '';
+                let estado = '';
+                //console.log(obli);
 
-                                        break;
-                                }
-                                listaObligaciones.push(` <tr>
+                switch (obli.estado) {
+                  case 'moroso':
+                    classEstado = 'badge-danger';
+                    estado = 'Moroso';
+                    break;
+                  case 'retirado':
+                    classEstado = 'badge-danger';
+                    estado = 'Retirado Persida';
+                    break;
+                  case 'fallecio':
+                    classEstado = 'badge-light';
+                    estado = 'Fallecido';
+                    break;
+                  default:
+                    classEstado = 'badge-success';
+                    const tiempo = cuantoTiempo(obli);
+                    //console.log(tiempo);
+                    if (tiempo.info.indexOf('vencida') !== -1) {
+                      classEstado = 'badge-danger';
+                    } else {
+                      classEstado = 'badge-success';
+                    }
+                    estado = tiempo.info
+
+                    break;
+                }
+                listaObligaciones.push(` <tr>
                                                             <td>${obli.fecha_at}</td>
                                                             <td>${obli.consepto}</td>
                                                             <td><span class="badge ${classEstado}">${estado}</span></td>
 
                                                         </tr>`)
-                            }
+              }
 
-                            let tarjetas = val['tarjetas'].length > 0 ? `<div class="card card-warning card-outline">
+              let tarjetas = val['tarjetas'].length > 0 ? `<div class="card card-warning card-outline">
                                                                 <a class="d-block w-100" data-toggle="collapse" href="#collapseFour${val['persona'].idpersona}">
                                                                     <div class="card-header">
                                                                         <h4 class="card-title w-100">
@@ -140,19 +140,19 @@
                                                                     </div>
                                                                 </div>
                                                             </div>` : '';
-                            const listaDescuentos = [];
+              const listaDescuentos = [];
 
-                            for (let x = 0; x < val['descuentos'].length; x++) {
-                                const desc = val['descuentos'][x];
+              for (let x = 0; x < val['descuentos'].length; x++) {
+                const desc = val['descuentos'][x];
 
-                                listaDescuentos.push(` <tr>
+                listaDescuentos.push(` <tr>
                                                             <td>${desc.created_at}</td>
                                                             <td>${desc.dec_abono}</td>
                                                             <td>${desc.str_descripcion}</td>
 
                                                         </tr>`)
-                            }
-                            let descuentos = val['descuentos'].length > 0 ? `<div class="card card-danger card-outline">
+              }
+              let descuentos = val['descuentos'].length > 0 ? `<div class="card card-danger card-outline">
                                                                 <a class="d-block w-100" data-toggle="collapse" href="#collapseSeven${val['persona'].idpersona}">
                                                                     <div class="card-header">
                                                                         <h4 class="card-title w-100">
@@ -181,7 +181,7 @@
                                                                 </div>
                                                             </div>` : '';
 
-                            htmlModal.push(`<div class="time-label">
+              htmlModal.push(`<div class="time-label">
                                               <span class="bg-red">${moment(val['persona'].created_at).format('DD MMM. YYYY')}</span>
                                             </div>
                                             <div>
@@ -209,44 +209,44 @@
                                                     </div>
                                                     
                                                    ${isBoton ? `` : '<div class="timeline-footer">' +
-                                                        '<button onclick="crearPersona(\''+val['persona'].idpersona+'\',\''+val['persona'].nombre+'\',\''+val['persona'].str_sexo+'\',\''+val['persona'].str_tipo_documento+'\',\''+val['persona'].str_num_documento+'\',\''+val['persona'].str_telefono+'\',\''+val['persona'].str_email+'\',\''+val['persona'].str_direccion_departamento+'\',\''+val['persona'].str_direccion_ciudad+'\',\''+val['persona'].str_direccion_barrio+'\',\''+val['persona'].str_direccion_calle+'\',\''+val['persona'].str_ocupacion+'\',\''+val['persona'].str_nota+'\',\''+val['persona'].created_at+'\')" class="btn btn-primary btn-sm">Crear esta Persona</button>' +
-                                                    '</div>'}
+                  '<button onclick="crearPersona(\'' + val['persona'].idpersona + '\',\'' + val['persona'].nombre + '\',\'' + val['persona'].str_sexo + '\',\'' + val['persona'].str_tipo_documento + '\',\'' + val['persona'].str_num_documento + '\',\'' + val['persona'].str_telefono + '\',\'' + val['persona'].str_email + '\',\'' + val['persona'].str_direccion_departamento + '\',\'' + val['persona'].str_direccion_ciudad + '\',\'' + val['persona'].str_direccion_barrio + '\',\'' + val['persona'].str_direccion_calle + '\',\'' + val['persona'].str_ocupacion + '\',\'' + val['persona'].str_nota + '\',\'' + val['persona'].created_at + '\')" class="btn btn-primary btn-sm">Crear esta Persona</button>' +
+                  '</div>'}
                                                 </div>
                                             </div>
                                             
                                             `)
 
 
-                        }
-                        htmlModal.push(`<div> <i class="fas fa-clock bg-gray"></i></div></div>`)
-                    } else {
-                        htmlModal.push('<h1>No se encontraron resultados</h1>');
-                    }
-
-                    $("#body-search-persona").html(htmlModal.join(''));
-                    $('#modal-search-persona').modal('show');
-
-                },
-                error: function (e) {
-                    console.log(e.responseText);
-                }
-            });
-
-        });
-    });
-
-    function crearPersona(ref, nombre, sexo, tipo_documento, num_documento, telefono, email, departamento, ciudad, barrio, calle, ocupacion, nota, created_at) {
-        
-    
-        $.post("./ajax/UsuarioAjax.php", function (r) {
-            if (r === '0') {
-                location.reload(true);
             }
-        });
-        Swal.fire({
-            title: '¡Está Seguro de Guardar!',
-            text: `Se creará la persona:`,
-            html: `<b>Nombre:</b> ${nombre} <br>
+            htmlModal.push(`<div> <i class="fas fa-clock bg-gray"></i></div></div>`)
+          } else {
+            htmlModal.push('<h1>No se encontraron resultados</h1>');
+          }
+
+          $("#body-search-persona").html(htmlModal.join(''));
+          $('#modal-search-persona').modal('show');
+
+        },
+        error: function (e) {
+          console.log(e.responseText);
+        }
+      });
+
+    });
+  });
+
+  function crearPersona(ref, nombre, sexo, tipo_documento, num_documento, telefono, email, departamento, ciudad, barrio, calle, ocupacion, nota, created_at) {
+
+
+    $.post("./ajax/UsuarioAjax.php", function (r) {
+      if (r === '0') {
+        location.reload(true);
+      }
+    });
+    Swal.fire({
+      title: '¡Está Seguro de Guardar!',
+      text: `Se creará la persona:`,
+      html: `<b>Nombre:</b> ${nombre} <br>
                    <b>Sexo:</b> ${sexo} <br>
                    <b>Tipo documento:</b> ${tipo_documento} <br>
                    <b>Número documento:</b> ${num_documento} <br>
@@ -254,205 +254,205 @@
                    <b>Email:</b> ${email} <br>
                    <b>Dirección:</b> ${departamento} ${ciudad} ${barrio} ${calle} <br>
                    <b>Ocupación:</b> ${ocupacion} <br>`,
-            icon: 'warning',
-            showCancelButton: true,
-            confirmButtonColor: '#3085d6',
-            cancelButtonColor: '#d33',
-            confirmButtonText: 'Si, Guardar ahora!'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.post("./ajax/ClienteAjax.php?op=savePersona", { ref}, function (datos) {
-                    //console.log(datos);
-                    
-                    if (datos.indexOf("ERROR:") !== -1) {
-                        Toast.fire({
-                            icon: 'error',
-                            title: datos,
-                            position: 'top',
-                        })
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#3085d6',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Si, Guardar ahora!'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        $.post("./ajax/ClienteAjax.php?op=savePersona", { ref }, function (datos) {
+          //console.log(datos);
 
-                    } else {
-                        Toast.fire({
-                            icon: 'success',
-                            title: datos,
-                            position: 'top',
-                        })
+          if (datos.indexOf("ERROR:") !== -1) {
+            Toast.fire({
+              icon: 'error',
+              title: datos,
+              position: 'top',
+            })
 
-                        $('#modal-search-persona').modal('hide');
-                        //location.reload(true)
-                    }
-                });
-            }
-        })
-    }
+          } else {
+            Toast.fire({
+              icon: 'success',
+              title: datos,
+              position: 'top',
+            })
 
-
-    // dias semanas quincenas meses
-    function cuantoTiempo(tarjeta) {
-        let name = ''
-        let info = 'al dia'
-        let infoValor = 0
-        let cuotasPagasPicos = 0
-        const valorCuota = parseFloat((parseFloat(tarjeta.valor) + parseFloat(tarjeta.inicial)) / parseInt(tarjeta.plazo)).toFixed(2);
-        const cuotas = (parseFloat(tarjeta.valor) + parseFloat(tarjeta.inicial) - parseFloat(tarjeta.resta)) / valorCuota
-        let cuotasPagas = Math.floor(cuotas)
+            $('#modal-search-persona').modal('hide');
+            //location.reload(true)
+          }
+        });
+      }
+    })
+  }
 
 
-        const manejoPicos = (parseFloat(tarjeta.valor) + parseFloat(tarjeta.inicial) - parseFloat(tarjeta.resta)) - (cuotasPagas * valorCuota)
-        cuotasPagasPicos = manejoPicos ? ' mas $ ' + manejoPicos.toFixed(2) : '';
+  // dias semanas quincenas meses
+  function cuantoTiempo(tarjeta) {
+    let name = ''
+    let info = 'al dia'
+    let infoValor = 0
+    let cuotasPagasPicos = 0
+    const valorCuota = parseFloat((parseFloat(tarjeta.valor) + parseFloat(tarjeta.inicial)) / parseInt(tarjeta.plazo)).toFixed(2);
+    const cuotas = (parseFloat(tarjeta.valor) + parseFloat(tarjeta.inicial) - parseFloat(tarjeta.resta)) / valorCuota
+    let cuotasPagas = Math.floor(cuotas)
+
+
+    const manejoPicos = (parseFloat(tarjeta.valor) + parseFloat(tarjeta.inicial) - parseFloat(tarjeta.resta)) - (cuotasPagas * valorCuota)
+    cuotasPagasPicos = manejoPicos ? ' mas $ ' + manejoPicos.toFixed(2) : '';
 
 
 
 
-        // Crea dos objetos de momento con las fechas para comparar
-        const hoy = new moment()
-        let days
-        if (hoy.format('L') == new moment(tarjeta.fecha_at).format('L')) {
-            name = false
-        } else {
-            var diasEntreFechas = function (desde, hasta) {
-                var dia_actual = desde;
-                var fechas = [];
-                while (dia_actual.isSameOrBefore(hasta)) {
-                    fechas.push(dia_actual.format('YYYY-MM-DD'));
-                    dia_actual.add(1, 'days');
-                }
-                return fechas;
-            };
-
-            var desde = moment(tarjeta.fecha_at);
-            var hasta = moment();
-            var results = diasEntreFechas(desde.add(1, 'days'), hasta);
-
-            //console.log(results);
-            days = results.length
-            switch (tarjeta.modo) {
-                case 'Semanal':
-                    let contador_semanas = 0
-
-
-                    const fecha_init_semanal = moment(tarjeta.fecha_at.slice(0, 10));
-                    var daySemanal = fecha_init_semanal.day();
-
-                    for (let clave in results) {
-                        var date_sem = moment(results[clave]);
-                        var dow_sem = date_sem.day();
-                        if (daySemanal === dow_sem) {
-                            contador_semanas++
-                        }
-                    }
-                    days = contador_semanas
-                    name = contador_semanas > 1 ? ' semanas' : ' semana'
-                    const real_sem = days
-                    if (real_sem > tarjeta.plazo) {
-
-                        info = `vencida ${real_sem - tarjeta.plazo} ${real_sem - tarjeta.plazo === 1 ? ' semanas' : ' semana'}`
-                    } else {
-                        const sem_info = real_sem - cuotasPagas
-                        if (sem_info < 0) {
-                            info = `adelantada ${sem_info * -1} ${sem_info * -1 > 1 ? ' semanas' : ' semana'}`
-                        } else if (sem_info > 0) {
-                            info = `atrasada ${sem_info} ${sem_info > 1 ? ' semanas' : ' semana'}`
-                        }
-
-                    }
-
-                    break;
-                case 'Quincenal':
-                    let contador_quinsenas = 0
-                    let init_quin = 0
-                    for (let clave in results) {
-                        init_quin++
-                        if (init_quin === 15) {
-                            contador_quinsenas++
-                            init_quin = 0
-                        }
-                    }
-
-                    days = contador_quinsenas
-                    name = contador_quinsenas > 1 ? ' quincenas' : ' quincena'
-                    const real_quin = days
-                    if (real_quin > tarjeta.plazo) {
-                        info = `vencida ${real_quin - tarjeta.plazo} ${real_quin - tarjeta.plazo === 1 ? ' quincena' : ' quincenas'}`
-
-                    } else {
-                        const quin_info = real_quin - cuotasPagas
-                        if (quin_info < 0) {
-                            info = `adelantada ${quin_info * -1} ${quin_info * -1 > 1 ? ' quincenas' : ' quincena'}`
-                        } else if (quin_info > 0) {
-                            info = `atrasada ${quin_info} ${quin_info > 1 ? ' quincenas' : ' quincena'}`
-                        }
-
-                    }
-
-                    break;
-                case 'Mensual':
-                    let contador_mes = 0
-                    const fecha_init_mes = tarjeta.fecha_at.slice(8, 10);
-                    for (let clave in results) {
-                        var date_mes = results[clave].slice(8, 10);
-
-                        if (fecha_init_mes === date_mes) {
-                            contador_mes++
-                        }
-                    }
-
-                    days = contador_mes
-                    name = contador_mes > 1 ? ' meses' : ' mes'
-                    const real_mes = days
-                    if (real_mes > tarjeta.plazo) {
-                        info = `vencida ${real_mes - tarjeta.plazo} ${real_mes - tarjeta.plazo === 1 ? ' mes' : ' meses'}`
-                    } else {
-                        const mes_info = real_mes - cuotasPagas
-                        if (mes_info < 0) {
-                            info = `adelantada ${mes_info * -1} ${mes_info * -1 > 1 ? ' meses' : ' mes'}`
-                        } else if (mes_info > 0) {
-                            info = `atrasada ${mes_info} ${mes_info > 1 ? ' meses' : ' mes'}`
-                        }
-
-                    }
-
-                    break;
-                default:
-                    let contador_domingos = 0
-                    name = days === 1 ? ' dia' : ' dias'
-                    for (let clave in results) {
-
-                        var date = moment(results[clave]);
-                        var dow = date.day();
-                        if (!dow) {
-                            contador_domingos++
-                        }
-
-                    }
-                    const real_dias = days - contador_domingos
-
-                    if (real_dias > tarjeta.plazo) {
-                        info = `vencida ${real_dias - tarjeta.plazo} ${real_dias - tarjeta.plazo === 1 ? ' dia' : ' dias'}`
-                    } else {
-                        const diasinfo = real_dias - cuotasPagas
-                        if (diasinfo < 0) {
-                            info = `adelantada ${diasinfo * -1} ${diasinfo * -1 === 1 ? ' dia' : ' dias'}`
-                        } else if (diasinfo > 0) {
-                            info = `atrasada ${diasinfo} ${diasinfo === 1 ? ' dia' : ' dias'}`
-                        }
-
-                    }
-
-
-                    break;
-            }
+    // Crea dos objetos de momento con las fechas para comparar
+    const hoy = new moment()
+    let days
+    if (hoy.format('L') == new moment(tarjeta.fecha_at).format('L')) {
+      name = false
+    } else {
+      var diasEntreFechas = function (desde, hasta) {
+        var dia_actual = desde;
+        var fechas = [];
+        while (dia_actual.isSameOrBefore(hasta)) {
+          fechas.push(dia_actual.format('YYYY-MM-DD'));
+          dia_actual.add(1, 'days');
         }
-        return {
-            tiempo: days,
-            name,
-            info,
-            infoValor,
-            cuotasPagas,
-            cuotasPagasPicos,
-            valorCuota
-        }
+        return fechas;
+      };
+
+      var desde = moment(tarjeta.fecha_at);
+      var hasta = moment();
+      var results = diasEntreFechas(desde.add(1, 'days'), hasta);
+
+      //console.log(results);
+      days = results.length
+      switch (tarjeta.modo) {
+        case 'Semanal':
+          let contador_semanas = 0
+
+
+          const fecha_init_semanal = moment(tarjeta.fecha_at.slice(0, 10));
+          var daySemanal = fecha_init_semanal.day();
+
+          for (let clave in results) {
+            var date_sem = moment(results[clave]);
+            var dow_sem = date_sem.day();
+            if (daySemanal === dow_sem) {
+              contador_semanas++
+            }
+          }
+          days = contador_semanas
+          name = contador_semanas > 1 ? ' semanas' : ' semana'
+          const real_sem = days
+          if (real_sem > tarjeta.plazo) {
+
+            info = `vencida ${real_sem - tarjeta.plazo} ${real_sem - tarjeta.plazo === 1 ? ' semanas' : ' semana'}`
+          } else {
+            const sem_info = real_sem - cuotasPagas
+            if (sem_info < 0) {
+              info = `adelantada ${sem_info * -1} ${sem_info * -1 > 1 ? ' semanas' : ' semana'}`
+            } else if (sem_info > 0) {
+              info = `atrasada ${sem_info} ${sem_info > 1 ? ' semanas' : ' semana'}`
+            }
+
+          }
+
+          break;
+        case 'Quincenal':
+          let contador_quinsenas = 0
+          let init_quin = 0
+          for (let clave in results) {
+            init_quin++
+            if (init_quin === 15) {
+              contador_quinsenas++
+              init_quin = 0
+            }
+          }
+
+          days = contador_quinsenas
+          name = contador_quinsenas > 1 ? ' quincenas' : ' quincena'
+          const real_quin = days
+          if (real_quin > tarjeta.plazo) {
+            info = `vencida ${real_quin - tarjeta.plazo} ${real_quin - tarjeta.plazo === 1 ? ' quincena' : ' quincenas'}`
+
+          } else {
+            const quin_info = real_quin - cuotasPagas
+            if (quin_info < 0) {
+              info = `adelantada ${quin_info * -1} ${quin_info * -1 > 1 ? ' quincenas' : ' quincena'}`
+            } else if (quin_info > 0) {
+              info = `atrasada ${quin_info} ${quin_info > 1 ? ' quincenas' : ' quincena'}`
+            }
+
+          }
+
+          break;
+        case 'Mensual':
+          let contador_mes = 0
+          const fecha_init_mes = tarjeta.fecha_at.slice(8, 10);
+          for (let clave in results) {
+            var date_mes = results[clave].slice(8, 10);
+
+            if (fecha_init_mes === date_mes) {
+              contador_mes++
+            }
+          }
+
+          days = contador_mes
+          name = contador_mes > 1 ? ' meses' : ' mes'
+          const real_mes = days
+          if (real_mes > tarjeta.plazo) {
+            info = `vencida ${real_mes - tarjeta.plazo} ${real_mes - tarjeta.plazo === 1 ? ' mes' : ' meses'}`
+          } else {
+            const mes_info = real_mes - cuotasPagas
+            if (mes_info < 0) {
+              info = `adelantada ${mes_info * -1} ${mes_info * -1 > 1 ? ' meses' : ' mes'}`
+            } else if (mes_info > 0) {
+              info = `atrasada ${mes_info} ${mes_info > 1 ? ' meses' : ' mes'}`
+            }
+
+          }
+
+          break;
+        default:
+          let contador_domingos = 0
+          name = days === 1 ? ' dia' : ' dias'
+          for (let clave in results) {
+
+            var date = moment(results[clave]);
+            var dow = date.day();
+            if (!dow) {
+              contador_domingos++
+            }
+
+          }
+          const real_dias = days - contador_domingos
+
+          if (real_dias > tarjeta.plazo) {
+            info = `vencida ${real_dias - tarjeta.plazo} ${real_dias - tarjeta.plazo === 1 ? ' dia' : ' dias'}`
+          } else {
+            const diasinfo = real_dias - cuotasPagas
+            if (diasinfo < 0) {
+              info = `adelantada ${diasinfo * -1} ${diasinfo * -1 === 1 ? ' dia' : ' dias'}`
+            } else if (diasinfo > 0) {
+              info = `atrasada ${diasinfo} ${diasinfo === 1 ? ' dia' : ' dias'}`
+            }
+
+          }
+
+
+          break;
+      }
     }
+    return {
+      tiempo: days,
+      name,
+      info,
+      infoValor,
+      cuotasPagas,
+      cuotasPagasPicos,
+      valorCuota
+    }
+  }
 
 
 </script>
