@@ -1,0 +1,147 @@
+{
+  "folders": [
+    {
+      "name": "WebGoez",
+      "path": "."
+    }
+  ],
+  "settings": {
+    // Configuración de archivos para mejor contexto
+    "files.watcherExclude": {
+      "**/vendor/**": true,
+      "**/node_modules/**": true,
+      "**/tmp/**": true,
+      "**/cache/**": true,
+      "**/.git/objects/**": true,
+      "**/.git/subtree-cache/**": true
+    },
+    
+    // IntelliSense mejorado para PHP
+    "intelephense.files.associations": [
+      "*.php",
+      "*.phtml", 
+      "*.inc"
+    ],
+    "intelephense.stubs": [
+      "apache",
+      "bcmath",
+      "bz2",
+      "calendar",
+      "com_dotnet",
+      "Core",
+      "ctype",
+      "curl",
+      "date",
+      "dba",
+      "dom",
+      "enchant",
+      "exif",
+      "fileinfo",
+      "filter",
+      "fpm",
+      "ftp",
+      "gd",
+      "hash",
+      "iconv",
+      "imap",
+      "intl",
+      "json",
+      "ldap",
+      "libxml",
+      "mbstring",
+      "mcrypt",
+      "mysql",
+      "mysqli",
+      "openssl",
+      "pcntl",
+      "pcre",
+      "PDO",
+      "Phar",
+      "posix",
+      "pspell",
+      "readline",
+      "recode",
+      "Reflection",
+      "session",
+      "SimpleXML",
+      "soap",
+      "sockets",
+      "sodium",
+      "SPL",
+      "standard",
+      "superglobals",
+      "sysvsem",
+      "sysvshm",
+      "tokenizer",
+      "xml",
+      "xdebug",
+      "xmlreader",
+      "xmlwriter",
+      "yaml",
+      "zip",
+      "zlib"
+    ],
+    
+    // Configuración de búsqueda optimizada
+    "search.showLineNumbers": true,
+    "search.smartCase": true,
+    "search.useGlobalIgnoreFiles": true,
+    
+    // Editor mejorado para desarrollo PHP
+    "editor.semanticHighlighting.enabled": true,
+    "editor.codeLens": true,
+    "editor.hover.enabled": true,
+    "editor.lightBulb.enabled": true,
+    
+    // Configuración de Git
+    "git.decorations.enabled": true,
+    "git.showUnpushedChanges": true,
+    "git.showIncomingChanges": true
+  },
+  
+  "extensions": {
+    "recommendations": [
+      "github.copilot",
+      "github.copilot-chat", 
+      "bmewburn.vscode-intelephense-client",
+      "ms-vscode.vscode-json",
+      "formulahendry.auto-rename-tag",
+      "bradlc.vscode-tailwindcss",
+      "esbenp.prettier-vscode",
+      "ms-vscode.vscode-typescript-next",
+      "ms-vscode.vscode-html-language-features",
+      "ms-vscode.vscode-css-language-features"
+    ]
+  },
+  
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "Iniciar servidor PHP",
+        "type": "shell",
+        "command": "php",
+        "args": ["-S", "localhost:8000"],
+        "group": "build",
+        "presentation": {
+          "echo": true,
+          "reveal": "always",
+          "focus": false,
+          "panel": "new"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "Verificar sintaxis PHP",
+        "type": "shell", 
+        "command": "find",
+        "args": [".", "-name", "*.php", "-exec", "php", "-l", "{}", ";"],
+        "group": "test",
+        "presentation": {
+          "echo": true,
+          "reveal": "always"
+        }
+      }
+    ]
+  }
+}

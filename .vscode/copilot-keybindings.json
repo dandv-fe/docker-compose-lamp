@@ -1,0 +1,76 @@
+[
+  {
+    "key": "ctrl+shift+i",
+    "command": "github.copilot.generate",
+    "when": "editorTextFocus && !editorReadonly"
+  },
+  {
+    "key": "ctrl+shift+a",
+    "command": "github.copilot.acceptCursorPanelSuggestion",
+    "when": "github.copilot.activated && editorTextFocus"
+  },
+  {
+    "key": "alt+]",
+    "command": "github.copilot.nextInlineSuggestion",
+    "when": "editorTextFocus && github.copilot.activated"
+  },
+  {
+    "key": "alt+[",
+    "command": "github.copilot.previousInlineSuggestion", 
+    "when": "editorTextFocus && github.copilot.activated"
+  },
+  {
+    "key": "ctrl+shift+enter",
+    "command": "github.copilot.acceptInlineSuggestion",
+    "when": "editorTextFocus && github.copilot.activated"
+  },
+  {
+    "key": "escape",
+    "command": "github.copilot.dismissInlineSuggestion",
+    "when": "editorTextFocus && github.copilot.activated"
+  },
+  {
+    "key": "ctrl+shift+c",
+    "command": "workbench.panel.chat.view.copilot.focus"
+  },
+  {
+    "key": "f1",
+    "command": "github.copilot.interactiveEditor.explain",
+    "when": "editorHasSelection"
+  },
+  {
+    "key": "f2",
+    "command": "github.copilot.interactiveEditor.fix",
+    "when": "editorHasSelection"
+  },
+  {
+    "key": "f3",
+    "command": "github.copilot.interactiveEditor.optimize",
+    "when": "editorHasSelection"
+  },
+  {
+    "key": "ctrl+k ctrl+i",
+    "command": "editor.action.showHover",
+    "when": "editorTextFocus"
+  },
+  {
+    "key": "ctrl+space",
+    "command": "editor.action.triggerSuggest",
+    "when": "editorHasCompletionItemProvider && textInputFocus && !editorReadonly"
+  },
+  {
+    "key": "ctrl+shift+space",
+    "command": "editor.action.triggerParameterHints",
+    "when": "editorHasSignatureHelpProvider && editorTextFocus"
+  },
+  {
+    "key": "ctrl+shift+f",
+    "command": "editor.action.formatDocument",
+    "when": "editorHasDocumentFormattingProvider && editorTextFocus && !editorReadonly"
+  },
+  {
+    "key": "alt+shift+f",
+    "command": "editor.action.formatSelection",
+    "when": "editorHasDocumentSelectionFormattingProvider && editorTextFocus && !editorReadonly"
+  }
+]

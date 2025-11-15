@@ -1,0 +1,183 @@
+{
+  "PHP Class Constructor with Connection": {
+    "prefix": "phpclass",
+    "body": [
+      "<?php",
+      "require \"Conexion.php\";",
+      "",
+      "class ${1:ClassName}",
+      "{",
+      "   public function __construct()",
+      "   {",
+      "   }",
+      "",
+      "   ${0}",
+      "}"
+    ],
+    "description": "Plantilla base para clases PHP con conexión"
+  },
+
+  "PHP Method with Transaction": {
+    "prefix": "phptransaction",
+    "body": [
+      "public function ${1:methodName}(${2:parameters})",
+      "{",
+      "   global \\$conexion;",
+      "   \\$sw = true;",
+      "   \\$conexion->autocommit(false);",
+      "   \\$dt = date('Y-m-d H:i:s');",
+      "   ",
+      "   try {",
+      "      ${3:// Lógica del método}",
+      "      \\$sql = \"${4:SQL_QUERY}\";",
+      "      \\$conexion->query(\\$sql) or throw new Exception('error!');",
+      "      ",
+      "   } catch (Exception \\$e) {",
+      "      \\$sw = false;",
+      "      \\$conexion->rollback();",
+      "   }",
+      "   ",
+      "   \\$conexion->commit();",
+      "   if (\\$conexion != null) {",
+      "      \\$conexion->close();",
+      "   }",
+      "   ",
+      "   \\$msg = \\$sw ? \"${5:Operación exitosa}\" : \"ERROR: ${6:Operación fallida}\";",
+      "   echo \\$msg;",
+      "   return \\$sw;",
+      "}"
+    ],
+    "description": "Método PHP with full transaction handling"
+  },
+
+  "PHP Query Method": {
+    "prefix": "phpquery",
+    "body": [
+      "public function ${1:methodName}(${2:parameters})",
+      "{",
+      "   global \\$conexion;",
+      "   \\$sql = \"${3:SELECT_QUERY}\";",
+      "   \\$query = \\$conexion->query(\\$sql);",
+      "   return \\$query;",
+      "}"
+    ],
+    "description": "Simple query method template"
+  },
+
+  "PHP Duplicate Check": {
+    "prefix": "phpduplicatecheck",
+    "body": [
+      "\\$sql = \"SELECT ${1:id_field} FROM ${2:table_name} WHERE ${3:field}='\\${3:field}' AND idglobal=\\$idglobal\";",
+      "\\$query = \\$conexion->query(\\$sql);",
+      "\\$result = \\$query->fetch_object();",
+      "",
+      "if (isset(\\$result->${1:id_field})) {",
+      "   echo \"ERROR: Ya existe un registro con estos datos\";",
+      "   return;",
+      "}"
+    ],
+    "description": "Check for duplicate records before insert"
+  },
+
+  "PHP Auth Check": {
+    "prefix": "phpauthcheck",
+    "body": [
+      "\\$sql = \"SELECT a.str_nombre",
+      "         FROM tbl_auth_sucursal au ",
+      "         INNER JOIN tbl_auths b ON b.idauth_sucursal=au.idauth_sucursal ",
+      "         INNER JOIN tbl_auth a ON a.idauth=b.idauth ",
+      "         WHERE au.str_estado<>'inactivo' AND ",
+      "               au.idempleado=\\$${1:empleado_id} AND ",
+      "               au.idsucursal=\\$${2:idsucursal} AND ",
+      "               a.str_nombre='${3:permission_name}'\";",
+      "\\$queryAuth = \\$conexion->query(\\$sql);",
+      "\\$authResult = \\$queryAuth->fetch_object();",
+      "",
+      "if (!isset(\\$authResult->str_nombre)) {",
+      "   echo \"ERROR: No tiene permisos para esta operación\";",
+      "   return;",
+      "}"
+    ],
+    "description": "Check user permissions for operation"
+  },
+
+  "PHP Insert Template": {
+    "prefix": "phpinsert",
+    "body": [
+      "\\$sql = \"INSERT INTO ${1:table_name}(",
+      "         ${2:field1},",
+      "         ${3:field2},",
+      "         idglobal,",
+      "         str_estado,",
+      "         created_at,",
+      "         update_at,",
+      "         created_empleado_id",
+      "         )",
+      "         VALUES ('\\$${2:field1}', '\\$${3:field2}', \\$idglobal, 'activo', '\\$dt', '\\$dt', \\$created_empleado_id)\";",
+      "",
+      "\\$conexion->query(\\$sql) or throw new Exception('error!');"
+    ],
+    "description": "Standard insert template with common fields"
+  },
+
+  "PHP Update Template": {
+    "prefix": "phpupdate",
+    "body": [
+      "\\$sql = \"UPDATE ${1:table_name} SET",
+      "         ${2:field1}='\\$${2:field1}',",
+      "         ${3:field2}='\\$${3:field2}',",
+      "         update_at='\\$dt'",
+      "         WHERE ${4:id_field}=\\$${4:id_field}\";",
+      "",
+      "\\$conexion->query(\\$sql) or throw new Exception('error!');"
+    ],
+    "description": "Standard update template"
+  },
+
+  "PHP Session Check": {
+    "prefix": "phpsession",
+    "body": [
+      "session_start();",
+      "require_once \"info_sistema.php\";",
+      "\\$infoSistemaCuentas = infoSistemaCuentas();",
+      "require_once \"model/Usuario.php\";",
+      "\\$objusuario = new usuario();",
+      "",
+      "if (isset(\\$_SESSION[\"idusuario\"])) {",
+      "   if (isset(\\$_SESSION['userEmpleado'])) {",
+      "      \\$userIdEmpresa = \\$_SESSION['userEmpresa'];",
+      "      \\$idglobal = \\$_SESSION['idglobal'];",
+      "      ",
+      "      // Continuar con la lógica...",
+      "      ${0}",
+      "   } else {",
+      "      header(\"location: acceder.php\");",
+      "   }",
+      "} else {",
+      "   header(\"location: login.php\");",
+      "}"
+    ],
+    "description": "Standard session validation template"
+  },
+
+  "PHP AJAX Response": {
+    "prefix": "phpajax",
+    "body": [
+      "<?php",
+      "require_once \"../model/${1:ModelName}.php\";",
+      "",
+      "\\$obj${1:ModelName} = new ${1:ModelName}();",
+      "",
+      "switch (\\$_GET[\"op\"]) {",
+      "   case '${2:operation}':",
+      "      ${3:// Handle operation}",
+      "      break;",
+      "   ",
+      "   default:",
+      "      echo \"Operación no válida\";",
+      "      break;",
+      "}"
+    ],
+    "description": "AJAX controller template"
+  }
+}
