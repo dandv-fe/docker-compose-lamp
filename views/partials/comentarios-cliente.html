@@ -10,7 +10,7 @@
       <div class="card-footer card-comments pb-0">
         <div class="card-footer pt-0">
           <form id="formComentario">
-            <img class="img-fluid img-circle img-sm" src="<?php echo $_SESSION['personPhoto']; ?>" alt="Us">
+            <img class="img-fluid img-circle img-sm" src="<?php //echo $_SESSION['personPhoto']; ?>" alt="Us">
             <!-- .img-push is used to add margin to elements next to floating images -->
             <div class="img-push">
               <input type="hidden" id="txtHiddenRefComentario" name="txtHiddenRefComentario">
@@ -80,49 +80,49 @@
             saveOrUpdateComentario(formData)
           }
         });
-      }else{
+      } else {
         saveOrUpdateComentario(formData)
       }
     }
 
     function saveOrUpdateComentario(formData) {
       $.post("./ajax/UsuarioAjax.php", function (r) {
-          if (r === '0') {
-            location.reload(true);
-          }
-        });
+        if (r === '0') {
+          location.reload(true);
+        }
+      });
 
 
-        $.ajax({
+      $.ajax({
 
-          url: "./ajax/ClienteAjax.php?op=SaveOrupdateComentario",
-          type: "POST",
-          data: formData,
-          contentType: false,
-          processData: false,
-          success: function (datos) {
+        url: "./ajax/ClienteAjax.php?op=SaveOrupdateComentario",
+        type: "POST",
+        data: formData,
+        contentType: false,
+        processData: false,
+        success: function (datos) {
 
-            if (datos.indexOf("ERROR:") !== -1) {
-              Toast.fire({
-                icon: 'error',
-                title: datos,
-                position: 'top',
-              })
+          if (datos.indexOf("ERROR:") !== -1) {
+            Toast.fire({
+              icon: 'error',
+              title: datos,
+              position: 'top',
+            })
 
-            } else {
-              Toast.fire({
-                icon: 'success',
-                title: datos,
-                position: 'top',
-              })
-              $("#formComentario").trigger('reset')
-              $("#formComentario input:hidden").val('')
-              cargarDatosEnPanel()
-            }
-
+          } else {
+            Toast.fire({
+              icon: 'success',
+              title: datos,
+              position: 'top',
+            })
+            $("#formComentario").trigger('reset')
+            $("#formComentario input:hidden").val('')
+            cargarDatosEnPanel()
           }
 
-        });
+        }
+
+      });
 
     }
   });

@@ -14,8 +14,11 @@ global $conexion;
 
 
 $userSession = $objusuario->viewUsuarioSession($_SESSION["idusuario"]);
-$_SESSION['userEmpresa'] = $userSession["usuario"]->idglobal;
+// is empresa Superadmin || si es superadmin o no valor 0 o idglobal de la empresa
+$_SESSION['userEmpresa'] = $userSession['usuario']->str_cargo === 'Super Administrador' ? $userSession['usuario']->idglobal : null;
+$_SESSION['idempleado'] = $userSession["usuario"]->idempleado;
 $idglobal = $userSession['usuario']->idglobal;
+
 // variables de estado de pago
 $dias_extras = 10;
 $dias_restantes = 10;

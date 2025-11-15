@@ -42,6 +42,7 @@ switch ($_GET["op"]) {
          $_SESSION['MYSESSION_idoficina'] = 0;
          $_SESSION['MYSESSION_idsucursal'] = 0;
          $_SESSION['idusuario'] = $fetch->idusuario;
+         $_SESSION['idglobal'] = $idglobal;
          $fetch->idusuario = $encoder->encode($fetch->idusuario);
          echo json_encode($fetch);
          return;
