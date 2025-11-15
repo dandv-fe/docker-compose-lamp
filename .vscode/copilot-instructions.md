@@ -95,7 +95,7 @@ Usar estas variables según corresponda:
 - `$_SESSION['idusuario']`: ID del usuario logueado
 - `$_SESSION['userEmpleado']`: ID del empleado actual
 - `$_SESSION['idglobal']`: ID de la empresa
-- `$_SESSION['MYSESSION_idsucursal']`: Sucursal activa
+- `$_SESSION['idsucursal']`: Sucursal activa
 
 ### Manejo de Errores
 

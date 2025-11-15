@@ -14,7 +14,7 @@ switch ($_GET["op"]) {
    case 'SaveOrUpdate':
       $errors = array();
       $permitidos = array('ninguno', 'boleta', 'seguro');
-      $idsucursal = $_SESSION['MYSESSION_idsucursal']; // de SESSION
+      $idsucursal = $_SESSION['idsucursal']; // de SESSION
       $idventa = 0; // DE pendiente
 
       $tipoAdicional = limpiar_cadena($_POST['txtHiddenAdicional']);
@@ -109,7 +109,7 @@ switch ($_GET["op"]) {
       );
       break;
    case 'SaveOrUpdateAbono':
-      $idsucursal = $_SESSION['MYSESSION_idsucursal'];
+      $idsucursal = $_SESSION['idsucursal'];
 
       $iddescripcion = limpiar_cadena($_POST['textRefDexcripcionHidden']);
       $idtarjeta = limpiar_cadena($_POST['txtrefTarjetaHidden']);
@@ -136,7 +136,7 @@ switch ($_GET["op"]) {
       $objEmpleado = new Empleado();
 
       // $nombre = 'TICKET';
-      $idsucursal = $_SESSION['MYSESSION_idsucursal'];
+      $idsucursal = $_SESSION['idsucursal'];
 
 
 
@@ -217,14 +217,14 @@ switch ($_GET["op"]) {
       break;
 
    case 'getDiferencia':
-      $idsucursal = $_SESSION['MYSESSION_idsucursal'];
+      $idsucursal = $_SESSION['idsucursal'];
       $query = $classCartera->getDiferencias($idsucursal);
       $req = $query->fetch_object();
       echo json_encode($req->diferencia);
       break;
 
    case "listarRuta":
-      $idsucursal = $_SESSION['MYSESSION_idsucursal'];
+      $idsucursal = $_SESSION['idsucursal'];
       $data = array();
 
       $query = $classCartera->listRuta($idsucursal);
@@ -242,7 +242,7 @@ switch ($_GET["op"]) {
       $classCartera->moverOrdenar($idtarjeta, $item);
       break;
    case 'SaveDescuentoMaxInteres':
-      $idsucursal = $_SESSION['MYSESSION_idsucursal'];
+      $idsucursal = $_SESSION['idsucursal'];
 
       $operacion = limpiar_cadena($_POST['txtFormTipo']);
       $idtarjeta = limpiar_cadena($_POST['txtRefTarjeta']);
@@ -266,7 +266,7 @@ switch ($_GET["op"]) {
       break;
 
    case 'valid': // verifica carterea montada en Session 
-      echo json_encode($_SESSION['MYSESSION_idsucursal']);
+      echo json_encode($_SESSION['idsucursal']);
       break;
    case 'VerfCuentas':
       $idsucursal = limpiar_cadena($_REQUEST['id']);
@@ -362,7 +362,7 @@ switch ($_GET["op"]) {
 
    case 'listarTarjetasCanceladas':
 
-      $idsucursal = $_SESSION['MYSESSION_idsucursal'];
+      $idsucursal = $_SESSION['idsucursal'];
       $desde = limpiar_cadena2($_POST['txtFechaDesde']);
       $hasta = limpiar_cadena2($_POST['txtFechaHasta']);
       if (empty($desde) || empty($hasta)) {

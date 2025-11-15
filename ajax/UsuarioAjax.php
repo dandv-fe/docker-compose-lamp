@@ -21,7 +21,7 @@ switch ($_GET["op"]) {
       $par = limpiar_cadena($_POST['parametro']);
       $otrop = limpiar_cadena($_POST['otro_parametro']);
 
-      $_SESSION['MYSESSION_idsucursal'] = $par;
+      $_SESSION['idsucursal'] = $par;
       $_SESSION['MYSESSION_usuario'] = $otrop;
       echo 'Ok';
       break;
@@ -39,8 +39,8 @@ switch ($_GET["op"]) {
       $query = $objusuario->SignIn($user, md5($pass), $idglobal);
       $fetch = $query->fetch_object();
       if (isset($fetch)) {
-         $_SESSION['MYSESSION_idoficina'] = 0;
-         $_SESSION['MYSESSION_idsucursal'] = 0;
+         $_SESSION['idsucursal'] = 0; // Cortera activa
+         $_SESSION['idoficina'] = 0; // oficina activa
          $_SESSION['idusuario'] = $fetch->idusuario;
          $_SESSION['idglobal'] = $idglobal;
          $fetch->idusuario = $encoder->encode($fetch->idusuario);
@@ -85,14 +85,14 @@ switch ($_GET["op"]) {
       //if (empty($_SESSION['userEmpresa'])) {
       //	echo json_encode(array('session'=> $idsucursal));
       //} else {
-      $_SESSION['MYSESSION_idsucursal'] = $idsucursal;
+      $_SESSION['idsucursal'] = $idsucursal;
       echo json_encode(array('session' => $idsucursal));
       //}
       break;
    case 'BajarSistemaActividad':
       $refSession = limpiar_cadena($_REQUEST['refSession']);
       unset($_SESSION[$refSession]);
-      $_SESSION['MYSESSION_idsucursal'] = '';
+      $_SESSION['idsucursal'] = '';
       echo json_encode(1);
       break;
 }

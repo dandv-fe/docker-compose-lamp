@@ -70,7 +70,7 @@
                                                     <?php
                                                     foreach ($allSucursal as $valor) {
                                                         if (isset($_SESSION['userEmpresa']) || in_array('egresos', $valor[10])) {
-                                                            if ($_SESSION['MYSESSION_idsucursal'] == $valor[0]) { ?>
+                                                            if ($_SESSION['idsucursal'] == $valor[0]) { ?>
                                                     <option selected value="<?PHP echo $valor[0]; ?>">
                                                         <?PHP echo $valor[2]; ?>
                                                     </option>

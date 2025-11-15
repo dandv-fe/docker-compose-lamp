@@ -1,38 +1,43 @@
 <?php
-	require "Conexion.php";
+require "Conexion.php";
 
-	class Cliente{
-	
-		
-		public function __construct(){
-		}
+class Cliente
+{
 
-		public function Registrar(
-			$nombres,
-			$apellidos,
-			$sexo,
-			$fecha_nacimiento,
-			$tipo_documento,
-			$num_documento,
-			$direccion_departamento,
-			$direccion_siudad,
-			$direccion_barrio,
-			$direccion_calle,
-			$telefono,
-			$email,
-			$ruta_carga,
-			$ocupacion,
-			$notaPersona,
-			$max_credito, $apodo, $notaCliente, $estadoCliente, $fiador, $created_empleado_id,
-			$idglobal
-		) {
-			global $conexion;
-			$sw = true;
-			$conexion->autocommit(false);
-			$dt = date('Y-m-d H:i:s');
-			try {
-				$idsucursal = $_SESSION['MYSESSION_idsucursal'];
-				$sql = "SELECT
+
+   public function __construct() {}
+
+   public function Registrar(
+      $nombres,
+      $apellidos,
+      $sexo,
+      $fecha_nacimiento,
+      $tipo_documento,
+      $num_documento,
+      $direccion_departamento,
+      $direccion_siudad,
+      $direccion_barrio,
+      $direccion_calle,
+      $telefono,
+      $email,
+      $ruta_carga,
+      $ocupacion,
+      $notaPersona,
+      $max_credito,
+      $apodo,
+      $notaCliente,
+      $estadoCliente,
+      $fiador,
+      $created_empleado_id,
+      $idglobal
+   ) {
+      global $conexion;
+      $sw = true;
+      $conexion->autocommit(false);
+      $dt = date('Y-m-d H:i:s');
+      try {
+         $idsucursal = $_SESSION['idsucursal'];
+         $sql = "SELECT
 				a.str_nombre
 				 FROM  `tbl_auth_sucursal` au INNER JOIN 
 						tbl_auths b ON b.idauth_sucursal=au.idauth_sucursal INNER JOIN 
@@ -41,34 +46,33 @@
 						 au.idempleado=$created_empleado_id AND 
 						 au.idsucursal=$idsucursal AND 
 						 a.str_nombre='crear cliente'";
-				$qry = $conexion->query($sql);
-				$bloq = $qry->fetch_object();
-				if (isset($_SESSION['userEmpresa']) ||isset($bloq->str_nombre)){
-	
-				}else {
-					echo "ERROR: No estas authorizado para esta accion";
-					return;
-				}
-	
-				$sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$idglobal AND str_tipo_documento='$tipo_documento' AND str_num_documento='$num_documento'";
-				 $query = $conexion->query($sql);
-				 $request= $query->fetch_object();
-				 if (isset($request->idpersona)) {
-					echo "ERROR: Este Documento ya existe";
-					return;
-				 }
+         $qry = $conexion->query($sql);
+         $bloq = $qry->fetch_object();
+         if (isset($_SESSION['userEmpresa']) || isset($bloq->str_nombre)) {
+         } else {
+            echo "ERROR: No estas authorizado para esta accion";
+            return;
+         }
 
-				 $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$idglobal AND str_email='$email'";
-				 $query = $conexion->query($sql);
-				 $request= $query->fetch_object();
-				 if (isset($request->idpersona) && $email!='') {
-					echo "ERROR: Este Email ya existe";
-					return;
-				 }
+         $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$idglobal AND str_tipo_documento='$tipo_documento' AND str_num_documento='$num_documento'";
+         $query = $conexion->query($sql);
+         $request = $query->fetch_object();
+         if (isset($request->idpersona)) {
+            echo "ERROR: Este Documento ya existe";
+            return;
+         }
 
-	
-	
-				$sql = "INSERT INTO `tbl_persona`(	
+         $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$idglobal AND str_email='$email'";
+         $query = $conexion->query($sql);
+         $request = $query->fetch_object();
+         if (isset($request->idpersona) && $email != '') {
+            echo "ERROR: Este Email ya existe";
+            return;
+         }
+
+
+
+         $sql = "INSERT INTO `tbl_persona`(	
 					idglobal,
 					str_nombres,
 					str_apellidos,
@@ -100,11 +104,11 @@
 							'$dt',
 							'$dt'
 							)";
-	
-				$conexion->query($sql) or throw new Exception('error!');
-				$idpersona = $conexion->insert_id;
-			   
-				$sql = "INSERT INTO `tbl_clientes`(
+
+         $conexion->query($sql) or throw new Exception('error!');
+         $idpersona = $conexion->insert_id;
+
+         $sql = "INSERT INTO `tbl_clientes`(
 						idglobal,
 						idpersona,
 						dec_max_credito,
@@ -119,50 +123,54 @@
 
 				 )
 				  VALUES ($idglobal, $idpersona, $max_credito, '$apodo', '$notaCliente', '$estadoCliente','nuevo', $fiador, $created_empleado_id, '$dt', '$dt')";
-				$conexion->query($sql) or throw new Exception('error!');
-	
-			} catch (Exception $e) {
-				//
-				$sw = false;
-				$conexion->rollback();
-			}
-			$conexion->commit();
-			if ($conexion != null) {
-				
-				$conexion->close();
-			}
-			return $sw;
-		}
-	
-		public function Modificar(
-			$idpersona,
-			$nombres,
-			$apellidos,
-			$sexo,
-			$fecha_nacimiento,
-			$tipo_documento,
-			$num_documento,
-			$direccion_departamento,
-			$direccion_siudad,
-			$direccion_barrio,
-			$direccion_calle,
-			$telefono,
-			$email,
-			$ruta_carga,
-			$ocupacion,
-			$notaPersona,
-			$idcliente,
-			$max_credito, $apodo, $notaCliente, $estadoCliente, $fiador, $created_empleado_id,
-			$idglobal
-		) {
-			global $conexion;
-			$sw = true;
-			$conexion->autocommit(false);
-			$dt = date('Y-m-d H:i:s');
-			try {
+         $conexion->query($sql) or throw new Exception('error!');
+      } catch (Exception $e) {
+         //
+         $sw = false;
+         $conexion->rollback();
+      }
+      $conexion->commit();
+      if ($conexion != null) {
 
-				$idsucursal = $_SESSION['MYSESSION_idsucursal'];
-				$sql = "SELECT
+         $conexion->close();
+      }
+      return $sw;
+   }
+
+   public function Modificar(
+      $idpersona,
+      $nombres,
+      $apellidos,
+      $sexo,
+      $fecha_nacimiento,
+      $tipo_documento,
+      $num_documento,
+      $direccion_departamento,
+      $direccion_siudad,
+      $direccion_barrio,
+      $direccion_calle,
+      $telefono,
+      $email,
+      $ruta_carga,
+      $ocupacion,
+      $notaPersona,
+      $idcliente,
+      $max_credito,
+      $apodo,
+      $notaCliente,
+      $estadoCliente,
+      $fiador,
+      $created_empleado_id,
+      $idglobal
+   ) {
+      global $conexion;
+      $sw = true;
+      $conexion->autocommit(false);
+      $dt = date('Y-m-d H:i:s');
+      try {
+
+         $idsucursal = $_SESSION['idsucursal'];
+         $sql = "SELECT
 				a.str_nombre
 				 FROM  `tbl_auth_sucursal` au INNER JOIN 
 						tbl_auths b ON b.idauth_sucursal=au.idauth_sucursal INNER JOIN 
@@ -171,29 +179,28 @@
 						 au.idempleado=$created_empleado_id AND 
 						 au.idsucursal=$idsucursal AND 
 						 a.str_nombre='editar cliente'";
-				$qry = $conexion->query($sql);
-				$bloq = $qry->fetch_object();
-				if (isset($_SESSION['userEmpresa']) ||isset($bloq->str_nombre)){
-	
-				}else {
-					echo "ERROR: No estas authorizado para esta accion";
-					return;
-				}
+         $qry = $conexion->query($sql);
+         $bloq = $qry->fetch_object();
+         if (isset($_SESSION['userEmpresa']) || isset($bloq->str_nombre)) {
+         } else {
+            echo "ERROR: No estas authorizado para esta accion";
+            return;
+         }
 
-				$sql = "SELECT idpersona FROM tbl_persona
+         $sql = "SELECT idpersona FROM tbl_persona
 				 WHERE idglobal=$idglobal 
 				 AND str_email='$email' 
 				 AND  idpersona<>$idpersona";
-				$query = $conexion->query($sql);
-				$request= $query->fetch_object();
-				if (isset($request->idpersona) && $email!='') {
-				   echo "ERROR: Este Email ya existe";
-				   return;
-				}
-	
-			 
-	
-				$sql = "UPDATE `tbl_persona` SET	
+         $query = $conexion->query($sql);
+         $request = $query->fetch_object();
+         if (isset($request->idpersona) && $email != '') {
+            echo "ERROR: Este Email ya existe";
+            return;
+         }
+
+
+
+         $sql = "UPDATE `tbl_persona` SET	
 					str_nombres='$nombres',
 					str_apellidos='$apellidos',
 					str_sexo='$sexo',
@@ -211,12 +218,12 @@
 					str_direccion_calle='$direccion_calle',
 					update_at='$dt'
 					WHERE idpersona=$idpersona";
-	
-				$conexion->query($sql) or throw new Exception('error!');
-			   
 
-				 if (empty($idcliente)) {
-					$sql = "INSERT INTO `tbl_clientes`(
+         $conexion->query($sql) or throw new Exception('error!');
+
+
+         if (empty($idcliente)) {
+            $sql = "INSERT INTO `tbl_clientes`(
 						idglobal,
 						idpersona,
 						dec_max_credito,
@@ -231,9 +238,9 @@
 
 				 )
 				  VALUES ($idglobal, $idpersona, $max_credito, '$apodo', '$notaCliente', '$estadoCliente','nuevo', $fiador, $created_empleado_id, '$dt', '$dt')";
-				$conexion->query($sql) or throw new Exception('error!');
-				 } else {
-					$sql = "UPDATE `tbl_clientes` SET
+            $conexion->query($sql) or throw new Exception('error!');
+         } else {
+            $sql = "UPDATE `tbl_clientes` SET
 						dec_max_credito=$max_credito,
 						str_apodo='$apodo',
 						str_nota='$notaCliente',
@@ -243,38 +250,36 @@
 						update_at='$dt'
 						WHERE idcliente=$idcliente
 				";
-			   $conexion->query($sql) or throw new Exception('error!');
-				 }
-				 
-				
-			   
-			} catch (Exception $e) {
-				print_r($e);
-				$sw = false;
-				$conexion->rollback();
-			}
-			$conexion->commit();
-			if ($conexion != null) {
-				
-				$conexion->close();
-			}
-			return $sw;
-		}
+            $conexion->query($sql) or throw new Exception('error!');
+         }
+      } catch (Exception $e) {
+         print_r($e);
+         $sw = false;
+         $conexion->rollback();
+      }
+      $conexion->commit();
+      if ($conexion != null) {
 
-		public function editarDocumentoPersona($idglobal,$idpersona,$tipo_documento,$num_documento,$created_empleado_id)  {
-			global $conexion;
-			$conexion->autocommit(false);
-			$sw = true;
-			$sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$idglobal AND str_tipo_documento='$tipo_documento' AND str_num_documento='$num_documento'";
-				 $query = $conexion->query($sql);
-				 $request= $query->fetch_object();
-				 if (isset($request->idpersona)) {
-					echo "!ERROR:! Este Documento ya existe";
-					return;
-				 }
+         $conexion->close();
+      }
+      return $sw;
+   }
 
-				 $idsucursal = $_SESSION['MYSESSION_idsucursal'];
-				$sql = "SELECT
+   public function editarDocumentoPersona($idglobal, $idpersona, $tipo_documento, $num_documento, $created_empleado_id)
+   {
+      global $conexion;
+      $conexion->autocommit(false);
+      $sw = true;
+      $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$idglobal AND str_tipo_documento='$tipo_documento' AND str_num_documento='$num_documento'";
+      $query = $conexion->query($sql);
+      $request = $query->fetch_object();
+      if (isset($request->idpersona)) {
+         echo "!ERROR:! Este Documento ya existe";
+         return;
+      }
+
+      $idsucursal = $_SESSION['idsucursal'];
+      $sql = "SELECT
 				a.str_nombre
 				 FROM  `tbl_auth_sucursal` au INNER JOIN 
 						tbl_auths b ON b.idauth_sucursal=au.idauth_sucursal INNER JOIN 
@@ -283,52 +288,52 @@
 						 au.idempleado=$created_empleado_id AND 
 						 au.idsucursal=$idsucursal AND 
 						 a.str_nombre='editar documento'";
-				$qry = $conexion->query($sql);
-				$bloq = $qry->fetch_object();
-
-				
-				if (isset($_SESSION['userEmpresa']) ||isset($bloq->str_nombre)){
-	
-				}else {
-					echo "ERROR: No estas authorizado para esta accion";
-					return;
-				}
+      $qry = $conexion->query($sql);
+      $bloq = $qry->fetch_object();
 
 
+      if (isset($_SESSION['userEmpresa']) || isset($bloq->str_nombre)) {
+      } else {
+         echo "ERROR: No estas authorizado para esta accion";
+         return;
+      }
 
-			try {
 
-				$sql="UPDATE tbl_persona SET str_tipo_documento='$tipo_documento', str_num_documento='$num_documento'
+
+      try {
+
+         $sql = "UPDATE tbl_persona SET str_tipo_documento='$tipo_documento', str_num_documento='$num_documento'
 						WHERE idpersona=$idpersona";
-				$conexion->query($sql) or throw new Exception('error!');
+         $conexion->query($sql) or throw new Exception('error!');
+      } catch (Exception $e) {
+         $sw = false;
+         $conexion->rollback();
+      }
+      $conexion->commit();
+      if ($conexion != null) {
+         $conexion->close();
+      }
+      $mensaje = $sw ? "Documento de Persona editado ¡Correctamente!" : "¡ERROR: Inesperado!";
+      echo $mensaje;
+      return $sw;
+   }
 
-			} catch (Exception $e) {
-				$sw = false;
-				$conexion->rollback();
-			}
-			$conexion->commit();
-			if ($conexion != null) {
-				$conexion->close();
-			}
-			$mensaje = $sw ? "Documento de Persona editado ¡Correctamente!" : "¡ERROR: Inesperado!";
-			echo $mensaje;
-			return $sw;
-		}
-	
-	 
 
-		
-		public function ListarClientesDeCartera($idsucursal){
-           
-			global $conexion;
-			$sql = "SELECT * FROM view_list_client WHERE refSucursal=$idsucursal";
-			$query = $conexion->query($sql);
-			return $query;
-		}
-		public function ListarClientesMorososDeCartera($idsucursal){
-           
-			global $conexion;
-			$sql = "SELECT 
+
+
+   public function ListarClientesDeCartera($idsucursal)
+   {
+
+      global $conexion;
+      $sql = "SELECT * FROM view_list_client WHERE refSucursal=$idsucursal";
+      $query = $conexion->query($sql);
+      return $query;
+   }
+   public function ListarClientesMorososDeCartera($idsucursal)
+   {
+
+      global $conexion;
+      $sql = "SELECT 
 				refTarjeta,
 				resta,
 				costo,
@@ -343,14 +348,15 @@
 			
 			
 			 FROM view_ruta WHERE refSucursal=$idsucursal AND estado='moroso'";
-       
-			$query = $conexion->query($sql);
-			return $query;
-		}
-		public function ListarClientesRetiradosDeCartera($idsucursal){
-           
-			global $conexion;
-			$sql = "SELECT 
+
+      $query = $conexion->query($sql);
+      return $query;
+   }
+   public function ListarClientesRetiradosDeCartera($idsucursal)
+   {
+
+      global $conexion;
+      $sql = "SELECT 
 				refTarjeta,
 				resta,
 				costo,
@@ -367,18 +373,19 @@
 			
 			 FROM view_ruta WHERE refSucursal=$idsucursal AND estado='fallecio' OR 
 			 refSucursal=$idsucursal AND estado='discapacitado' ";
-       
-			$query = $conexion->query($sql);
-			return $query;
-		}
-		public function createComentario($idcomentario,$comentario,$idusuario,$idcliente,$tipo){
-			global $conexion;
-			$conexion->autocommit(false);
-			$sw = true;
-			$fecha = date('Y-m-d H:i:s');
-			$idcomentarioVliente=uniqidReal();
-			try {
-					$sql = "INSERT INTO tbl_comentarios(
+
+      $query = $conexion->query($sql);
+      return $query;
+   }
+   public function createComentario($idcomentario, $comentario, $idusuario, $idcliente, $tipo)
+   {
+      global $conexion;
+      $conexion->autocommit(false);
+      $sw = true;
+      $fecha = date('Y-m-d H:i:s');
+      $idcomentarioVliente = uniqidReal();
+      try {
+         $sql = "INSERT INTO tbl_comentarios(
 							idcomentario,
 							str_comentario,
 							str_tipo,
@@ -393,54 +400,56 @@
 							$idusuario,
 							'$fecha',
 							'$fecha'
-					)";  
-					 $conexion->query($sql) or throw new Exception("error!");
+					)";
+         $conexion->query($sql) or throw new Exception("error!");
 
-				 $sql="INSERT INTO tbl_comentarios_cliente (
+         $sql = "INSERT INTO tbl_comentarios_cliente (
 							idcomentariocliente,
 							idcliente,
 							idcomentario
 				 )
-				 VALUES ( '$idcomentarioVliente', $idcliente, '$idcomentario')"; 
-				 $conexion->query($sql) or throw new Exception("error!");
-			} catch (Exception $e) {
-				
-					$sw = false;
-					$conexion->rollback();
-			}
-			$conexion->commit();
-			if ($conexion != null) {
-					$conexion->close();
-			}
-			$mensaje = $sw ? "¡Creado Correctamente!" : "¡ERROR: Inesperado!";
-			echo $mensaje;
-			return;
-	}
+				 VALUES ( '$idcomentarioVliente', $idcliente, '$idcomentario')";
+         $conexion->query($sql) or throw new Exception("error!");
+      } catch (Exception $e) {
 
-	public function updateComentario($idcomentario,$comentario, $idusuario){
-		global $conexion;
-		$conexion->autocommit(false);
-		$sw = true;
-		try {
-				$sql = "UPDATE tbl_comentarios SET	str_comentario='$comentario' 
-				WHERE idcomentario='$idcomentario' AND idusuario=$idusuario";  
-				 $conexion->query($sql) or throw new Exception("error!");
-		} catch (Exception $e) {
-				$sw = false;
-				$conexion->rollback();
-		}
-		$conexion->commit();
-		if ($conexion != null) {
-				$conexion->close();
-		}
-		$mensaje = $sw ? "¡Editado Correctamente!" : "¡ERROR: Inesperado!";
-		echo $mensaje;
-		return;
-}
+         $sw = false;
+         $conexion->rollback();
+      }
+      $conexion->commit();
+      if ($conexion != null) {
+         $conexion->close();
+      }
+      $mensaje = $sw ? "¡Creado Correctamente!" : "¡ERROR: Inesperado!";
+      echo $mensaje;
+      return;
+   }
 
-	public function listComentarios($idcliente, $idusuario){
-			global $conexion;
-			$sql="SELECT 
+   public function updateComentario($idcomentario, $comentario, $idusuario)
+   {
+      global $conexion;
+      $conexion->autocommit(false);
+      $sw = true;
+      try {
+         $sql = "UPDATE tbl_comentarios SET	str_comentario='$comentario' 
+				WHERE idcomentario='$idcomentario' AND idusuario=$idusuario";
+         $conexion->query($sql) or throw new Exception("error!");
+      } catch (Exception $e) {
+         $sw = false;
+         $conexion->rollback();
+      }
+      $conexion->commit();
+      if ($conexion != null) {
+         $conexion->close();
+      }
+      $mensaje = $sw ? "¡Editado Correctamente!" : "¡ERROR: Inesperado!";
+      echo $mensaje;
+      return;
+   }
+
+   public function listComentarios($idcliente, $idusuario)
+   {
+      global $conexion;
+      $sql = "SELECT 
 			cc.idcomentariocliente AS refComentarioCliente,
 			c.idcomentario AS refComentario,
 			c.str_comentario AS comentario,
@@ -459,69 +468,73 @@
 			u.idusuario=$idusuario AND c.str_tipo='alerta' AND cc.idcliente=$idcliente
 			
 			ORDER BY c.created_at DESC";
-			$query= $conexion->query( $sql );
-			return $query;
-	}
+      $query = $conexion->query($sql);
+      return $query;
+   }
 
-		public function eliminarComentario($refComentario, $idusuario){
-			global $conexion;
-			$sw = true;
-			$conexion->autocommit(false);
-			try {
-			$sql = "DELETE FROM tbl_comentarios WHERE idcomentario = '$refComentario' AND idusuario=$idusuario"; 
-			$conexion->query($sql) or throw new Exception('error!');
-		} catch (Exception $e) {
-			$sw = false;
-			$conexion->rollback();
-		}
-		$conexion->commit();
-		if ($conexion != null) {
-			$conexion->close();
-		}
-		$mensaje = $sw ? "¡Eliminado Correctamente!" : "¡ERROR: Inesperado!";
-		echo $mensaje;
-		return;
-		}
+   public function eliminarComentario($refComentario, $idusuario)
+   {
+      global $conexion;
+      $sw = true;
+      $conexion->autocommit(false);
+      try {
+         $sql = "DELETE FROM tbl_comentarios WHERE idcomentario = '$refComentario' AND idusuario=$idusuario";
+         $conexion->query($sql) or throw new Exception('error!');
+      } catch (Exception $e) {
+         $sw = false;
+         $conexion->rollback();
+      }
+      $conexion->commit();
+      if ($conexion != null) {
+         $conexion->close();
+      }
+      $mensaje = $sw ? "¡Eliminado Correctamente!" : "¡ERROR: Inesperado!";
+      echo $mensaje;
+      return;
+   }
 
-		public function SearchAlerta($idcliente,$idusuario) {
-			global $conexion;
-			$sql="SELECT 
+   public function SearchAlerta($idcliente, $idusuario)
+   {
+      global $conexion;
+      $sql = "SELECT 
 			c.idcomentario AS id
 			FROM `tbl_comentarios_cliente`  cc INNER JOIN
 			tbl_comentarios c ON c.idcomentario=cc.idcomentario INNER JOIN
 			tbl_usuario u ON u.idusuario=c.idusuario 
 			WHERE cc.idcliente=$idcliente AND c.str_tipo='alerta' AND u.idusuario=$idusuario";
-			$query= $conexion->query( $sql );
-			return $query;
-		}
+      $query = $conexion->query($sql);
+      return $query;
+   }
 
-		public function restaurarMoroso($idtarjeta) {
-			global $conexion;
-			$sw = true;
-			$conexion->autocommit(false);
-			try {
-				$sql="SELECT str_estado FROM tbl_tarjetas WHERE idtarjeta = '$idtarjeta'";
-				$quer=$conexion->query($sql);
-				$req=$quer->fetch_object();
-				$newEstado='estubo en los '.$req->str_estado;
-			$sql = "UPDATE tbl_tarjetas SET str_estado='$newEstado' WHERE idtarjeta = '$idtarjeta'"; 
-			$conexion->query($sql) or throw new Exception('error!');
-		} catch (Exception $e) {
-			$sw = false;
-			$conexion->rollback();
-		}
-		$conexion->commit();
-		if ($conexion != null) {
-			$conexion->close();
-		}
-		$mensaje = $sw ? "¡restaurada Correctamente!" : "¡ERROR: Inesperado!";
-		echo $mensaje;
-		return;
-		}
-		
-		public function searchClientes($search) {
-			global $conexion;
-			$sql = "SELECT p.idpersona,
+   public function restaurarMoroso($idtarjeta)
+   {
+      global $conexion;
+      $sw = true;
+      $conexion->autocommit(false);
+      try {
+         $sql = "SELECT str_estado FROM tbl_tarjetas WHERE idtarjeta = '$idtarjeta'";
+         $quer = $conexion->query($sql);
+         $req = $quer->fetch_object();
+         $newEstado = 'estubo en los ' . $req->str_estado;
+         $sql = "UPDATE tbl_tarjetas SET str_estado='$newEstado' WHERE idtarjeta = '$idtarjeta'";
+         $conexion->query($sql) or throw new Exception('error!');
+      } catch (Exception $e) {
+         $sw = false;
+         $conexion->rollback();
+      }
+      $conexion->commit();
+      if ($conexion != null) {
+         $conexion->close();
+      }
+      $mensaje = $sw ? "¡restaurada Correctamente!" : "¡ERROR: Inesperado!";
+      echo $mensaje;
+      return;
+   }
+
+   public function searchClientes($search)
+   {
+      global $conexion;
+      $sql = "SELECT p.idpersona,
 				g.idglobal,
 				g.str_razon_social,
 				CONCAT(p.str_nombres,' ',p.str_apellidos) AS nombre,
@@ -542,75 +555,79 @@
 			FROM tbl_persona p INNER JOIN tbl_global g ON g.idglobal=p.idglobal
 			
 			WHERE str_num_documento = '$search'";
-			$query = $conexion->query($sql);
-			return $query;
-		}
+      $query = $conexion->query($sql);
+      return $query;
+   }
 
-		public function isEmpleado($idpersona) {
-			global $conexion;
-			$sql = "SELECT * FROM tbl_empleado WHERE idpersona = $idpersona";
-			$query = $conexion->query($sql);
-			return $query;
-		}
-		public function obligaciones($idpersona) {
-			global $conexion;
-			$sql = "SELECT * FROM view_ruta WHERE refPersona=$idpersona
+   public function isEmpleado($idpersona)
+   {
+      global $conexion;
+      $sql = "SELECT * FROM tbl_empleado WHERE idpersona = $idpersona";
+      $query = $conexion->query($sql);
+      return $query;
+   }
+   public function obligaciones($idpersona)
+   {
+      global $conexion;
+      $sql = "SELECT * FROM view_ruta WHERE refPersona=$idpersona
 				AND estado<>'cancelado'
 				";
-			$query = $conexion->query($sql);
-			return $query;
-
-		}
-		public function descuentos($idpersona) {
-			global $conexion;
-			$sql = "SELECT d.* FROM tbl_descripcion d INNER JOIN 
+      $query = $conexion->query($sql);
+      return $query;
+   }
+   public function descuentos($idpersona)
+   {
+      global $conexion;
+      $sql = "SELECT d.* FROM tbl_descripcion d INNER JOIN 
 			tbl_tarjetas t ON t.idtarjeta=d.idtarjeta INNER JOIN 
 			tbl_clientes c ON c.idcliente=t.idcliente
 			WHERE c.idpersona = $idpersona AND d.str_descripcion like 'Descuento%'";
-			$query = $conexion->query($sql);
-			return $query;
-		}
-		public function getPersona($idpersona) {
-			global $conexion;
-			$sql = "SELECT * FROM tbl_persona WHERE idpersona = $idpersona";
-			$query = $conexion->query($sql);
-			return $query;
-		}
-		public function createPersona($reg) {
-			global $conexion;
-			$sw = true;
-			$conexion->autocommit(false);
-			$dt = date('Y-m-d H:i:s');
-			try {
+      $query = $conexion->query($sql);
+      return $query;
+   }
+   public function getPersona($idpersona)
+   {
+      global $conexion;
+      $sql = "SELECT * FROM tbl_persona WHERE idpersona = $idpersona";
+      $query = $conexion->query($sql);
+      return $query;
+   }
+   public function createPersona($reg)
+   {
+      global $conexion;
+      $sw = true;
+      $conexion->autocommit(false);
+      $dt = date('Y-m-d H:i:s');
+      try {
 
-					$sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$reg->idglobal AND 
+         $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$reg->idglobal AND 
 					str_tipo_documento='$reg->str_tipo_documento' AND str_num_documento='$reg->str_num_documento'";
-				 $query = $conexion->query($sql);
-				 $request= $query->fetch_object();
-				 if (isset($request->idpersona)) {
-					echo "ERROR: Este Documento ya existe";
-					return;
-				 }
+         $query = $conexion->query($sql);
+         $request = $query->fetch_object();
+         if (isset($request->idpersona)) {
+            echo "ERROR: Este Documento ya existe";
+            return;
+         }
 
-				 $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$reg->idglobal AND str_email='$reg->str_email'";
-				 $query = $conexion->query($sql);
-				 $request= $query->fetch_object();
-				 if (isset($request->idpersona) && $reg->str_email!='') {
-					echo "ERROR: Este Email ya existe";
-					return;
-				 }
+         $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$reg->idglobal AND str_email='$reg->str_email'";
+         $query = $conexion->query($sql);
+         $request = $query->fetch_object();
+         if (isset($request->idpersona) && $reg->str_email != '') {
+            echo "ERROR: Este Email ya existe";
+            return;
+         }
 
-				 $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$reg->idglobal AND str_telefono='$reg->str_telefono'";
-				 $query = $conexion->query($sql);
-				 $request= $query->fetch_object();
-				 if (isset($request->idpersona) && $reg->str_telefono!='') {
-					echo "ERROR: Este telefono ya existe";
-					return;
-				 }
+         $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$reg->idglobal AND str_telefono='$reg->str_telefono'";
+         $query = $conexion->query($sql);
+         $request = $query->fetch_object();
+         if (isset($request->idpersona) && $reg->str_telefono != '') {
+            echo "ERROR: Este telefono ya existe";
+            return;
+         }
 
 
-				
-				$sql = "INSERT INTO `tbl_persona`(	
+
+         $sql = "INSERT INTO `tbl_persona`(	
 					idglobal,
 					str_nombres,
 					str_apellidos,
@@ -642,19 +659,18 @@
 							'$dt',
 							'$dt'
 							)";
-	
-				$conexion->query($sql) or throw new Exception('error!');
-			   
-			} catch (Exception $e) {
-				$sw = false;
-				$conexion->rollback();
-			}
-			$conexion->commit();
-			if ($conexion != null) {
-				$conexion->close();
-			}
-			$mensaje = $sw ? "¡Registrado Correctamente!" : "¡ERROR: Inesperado!";
-			echo $mensaje;
-			return;
-		}
-	}
+
+         $conexion->query($sql) or throw new Exception('error!');
+      } catch (Exception $e) {
+         $sw = false;
+         $conexion->rollback();
+      }
+      $conexion->commit();
+      if ($conexion != null) {
+         $conexion->close();
+      }
+      $mensaje = $sw ? "¡Registrado Correctamente!" : "¡ERROR: Inesperado!";
+      echo $mensaje;
+      return;
+   }
+}

@@ -67,8 +67,18 @@
 
 
               <ul class="list-group list-group-unbordered mb-3">
-                <?php 
-$fetch=array();
+                <?php  
+                $idempleado = $_SESSION['idempleado'];
+                $idglobal = $_SESSION['userEmpresa'];
+                $sql = "SELECT
+                str_cargo AS cargo,
+               ( SELECT COUNT( idglobal ) FROM tbl_sucursal WHERE idglobal = $idglobal ) AS actividades,
+               ( SELECT COUNT( idglobal ) FROM tbl_empleado WHERE idempleado <> $idempleado AND idglobal = $idglobal ) AS empleados,
+               ( SELECT COUNT( idglobal ) FROM tbl_clientes WHERE idglobal = $idglobal ) AS clientes
+               FROM tbl_empleado WHERE  idempleado = $idempleado";
+            $query = $conexion->query($sql);
+            $fetch = $query->fetch_object();
+
                         foreach ($fetch as $clave => $valor) { ?>
                 <li class="list-group-item">
                   <b>
@@ -196,10 +206,10 @@ $fetch=array();
                                 $query = $conexion->query($sql);
                                 
                                 while ($reg = $query->fetch_object()) {
-                                  $seleted= $_SESSION['MYSESSION_idsucursal']==$reg->refSucursal? 'checked':'';
+                                  $seleted= $_SESSION['idsucursal']==$reg->refSucursal? 'checked':'';
                                /* $allSucursal=array();
                                   foreach ($allSucursal as $valor) {
-                                    $seleted= $_SESSION['MYSESSION_idsucursal']==$valor[0]? 'checked':'';*/
+                                    $seleted= $_SESSION['idsucursal']==$valor[0]? 'checked':'';*/
                                     
                                     ?>
                         <tr>
@@ -212,7 +222,7 @@ $fetch=array();
                                 <div class="icheck-success d-inline">
                                   <input id="checkboxMontarSeccion_<?PHP echo $reg->refSucursal;?>"
                                     class="aMontarSeccionActividad" type="checkbox"
-                                    data-rseccion="<?PHP echo $_SESSION['MYSESSION_idsucursal']==$reg->refSucursal? '':$reg->refSucursal;?>"
+                                    data-rseccion="<?PHP echo $_SESSION['idsucursal']==$reg->refSucursal? '':$reg->refSucursal;?>"
                                     <?PHP echo $seleted;?>
                                   >
                                   <label for="checkboxMontarSeccion_<?PHP echo $reg->refSucursal;?>">

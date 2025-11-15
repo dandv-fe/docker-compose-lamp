@@ -162,8 +162,8 @@ class usuario
             );
             array_push($au, ...explode(",", $reg->nameAuth));
          }
-         if ($_SESSION['MYSESSION_idsucursal'] > 0) {
-            $idsuc = $_SESSION['MYSESSION_idsucursal'];
+         if ($_SESSION['idsucursal'] > 0) {
+            $idsuc = $_SESSION['idsucursal'];
             $sql = "SELECT
                         a.str_categoria AS categoria,
                         a.str_nombre AS nombre
@@ -213,14 +213,14 @@ class usuario
    {
       global $conexion;
       $oficinas = array();
-
+      // obtener datos del usuario
       $sql = "SELECT 
             *
             FROM view_usuario_session
             WHERE idusuario=$idusuario ";
       $query = $conexion->query($sql);
       $request = $query->fetch_object();
-
+      // obtener estado de pago se la plataforma
       $sql = "SELECT date_corte, int_dias_extras FROM `tbl_descripcion_global` WHERE idglobal_accion=$request->idglobal AND str_estado='actual'";
       $query_ep = $conexion->query($sql);
       $estadoPago = $query_ep->fetch_object();

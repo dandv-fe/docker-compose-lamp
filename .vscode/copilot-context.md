@@ -110,7 +110,7 @@ public function metodo($param1, $param2) {
 - `$_SESSION['idusuario']`: ID del usuario logueado
 - `$_SESSION['userEmpleado']`: ID del empleado
 - `$_SESSION['idglobal']`: ID de la empresa/global
-- `$_SESSION['MYSESSION_idsucursal']`: ID de sucursal activa
+- `$_SESSION['idsucursal']`: ID de sucursal activa
 
 ## Campos Recurrentes en Tablas
 
