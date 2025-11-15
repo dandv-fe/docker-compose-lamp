@@ -16,7 +16,7 @@
   },
   {
     "key": "alt+[",
-    "command": "github.copilot.previousInlineSuggestion", 
+    "command": "github.copilot.previousInlineSuggestion",
     "when": "editorTextFocus && github.copilot.activated"
   },
   {

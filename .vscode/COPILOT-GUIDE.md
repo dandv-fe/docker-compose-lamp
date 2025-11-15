@@ -5,6 +5,7 @@
 Se ha configurado tu entorno de desarrollo para obtener el **máximo rendimiento** de GitHub Copilot:
 
 ### 📁 Archivos de Configuración Creados:
+
 - `.vscode/settings.json` - Configuración optimizada de VS Code y Copilot
 - `.vscode/copilot-context.md` - Contexto del proyecto para Copilot
 - `.vscode/copilot-instructions.md` - Instrucciones específicas de codificación
@@ -15,15 +16,17 @@ Se ha configurado tu entorno de desarrollo para obtener el **máximo rendimiento
 ## 🎯 Cómo Maximizar el Rendimiento de Copilot
 
 ### 1. **Usa Comentarios Descriptivos**
+
 Escribe comentarios detallados antes del código para guiar a Copilot:
 
 ```php
-// Registrar un nuevo cliente con validación de duplicados, 
+// Registrar un nuevo cliente con validación de duplicados,
 // verificación de permisos y manejo de transacciones
 public function registrarCliente($datos) {
 ```
 
 ### 2. **Nombres de Variables Descriptivos**
+
 Usa nombres que describan claramente el propósito:
 
 ```php
@@ -33,6 +36,7 @@ $maximoCreditoPermitido = 1000000;
 ```
 
 ### 3. **Patrones Consistentes**
+
 Mantén patrones consistentes que Copilot pueda aprender:
 
 ```php
@@ -45,16 +49,16 @@ $dt = date('Y-m-d H:i:s');
 
 ## ⌨️ Atajos de Teclado Personalizados
 
-| Atajo | Acción |
-|-------|--------|
-| `Ctrl+Shift+I` | Generar código con Copilot |
-| `Ctrl+Shift+A` | Aceptar sugerencia del panel |
-| `Alt+]` / `Alt+[` | Navegar entre sugerencias |
-| `Ctrl+Shift+Enter` | Aceptar sugerencia inline |
-| `Ctrl+Shift+C` | Abrir Copilot Chat |
-| `F1` | Explicar código seleccionado |
-| `F2` | Corregir código seleccionado |
-| `F3` | Optimizar código seleccionado |
+| Atajo              | Acción                        |
+| ------------------ | ----------------------------- |
+| `Ctrl+Shift+I`     | Generar código con Copilot    |
+| `Ctrl+Shift+A`     | Aceptar sugerencia del panel  |
+| `Alt+]` / `Alt+[`  | Navegar entre sugerencias     |
+| `Ctrl+Shift+Enter` | Aceptar sugerencia inline     |
+| `Ctrl+Shift+C`     | Abrir Copilot Chat            |
+| `F1`               | Explicar código seleccionado  |
+| `F2`               | Corregir código seleccionado  |
+| `F3`               | Optimizar código seleccionado |
 
 ## 💡 Snippets Personalizados Disponibles
 
@@ -73,17 +77,19 @@ Escribe estos prefijos y presiona `Tab`:
 ## 🎨 Mejores Prácticas para Prompts
 
 ### ✅ Buenos Prompts:
+
 ```
-// Crear método para listar clientes activos de una sucursal específica 
+// Crear método para listar clientes activos de una sucursal específica
 // con paginación, filtros por nombre y ordenamiento por fecha de registro
 ```
 
 ```
-// Función que actualiza el estado de una cartera a 'pagada' y registra 
+// Función que actualiza el estado de una cartera a 'pagada' y registra
 // el pago en el historial con validación de montos y permisos de usuario
 ```
 
 ### ❌ Prompts Poco Efectivos:
+
 ```
 // hacer consulta
 // actualizar tabla
@@ -93,6 +99,7 @@ Escribe estos prefijos y presiona `Tab`:
 ## 🔧 Configuraciones Específicas Activadas
 
 ### Copilot Features:
+
 - ✅ Autocompletado inteligente activado
 - ✅ Sugerencias en tiempo real
 - ✅ Code actions habilitadas
@@ -100,12 +107,14 @@ Escribe estos prefijos y presiona `Tab`:
 - ✅ Chat en español configurado
 
 ### PHP Intelephense:
+
 - ✅ Stubs de PHP/MySQL cargados
 - ✅ Autocompletado mejorado
 - ✅ Diagnósticos en tiempo real
 - ✅ Formateo automático
 
 ### Editor:
+
 - ✅ IntelliSense optimizado
 - ✅ Sugerencias rápidas (10ms delay)
 - ✅ Colorización de brackets
@@ -114,23 +123,29 @@ Escribe estos prefijos y presiona `Tab`:
 ## 📝 Tips Específicos para tu Proyecto
 
 ### 1. **Consultas SQL**
+
 Copilot está entrenado con tus patrones de BD. Empieza escribiendo:
+
 ```php
 $sql = "SELECT c.idcliente, CONCAT(p.str_nombres, ' ', p.str_apellidos) as nombre_completo
-        FROM tbl_clientes c 
+        FROM tbl_clientes c
         INNER JOIN tbl_persona p ON p.idpersona = c.idpersona
         WHERE c.idglobal = $idglobal AND ...
 ```
 
 ### 2. **Validaciones Comunes**
+
 Copilot reconoce tus patrones de validación:
+
 ```php
 // Verificar si el cliente ya existe
 $sql = "SELECT idcliente FROM tbl_clientes WHERE str_num_documento='$documento' AND idglobal=$idglobal";
 ```
 
 ### 3. **Manejo de Errores**
+
 Usa el patrón estándar que Copilot ya conoce:
+
 ```php
 try {
     // Tu código aquí
@@ -144,6 +159,7 @@ try {
 ## 🚀 Funciones Avanzadas de Copilot Chat
 
 ### Comandos Útiles:
+
 - `/explain` - Explica código complejo
 - `/fix` - Sugiere correcciones
 - `/tests` - Genera casos de prueba
@@ -151,6 +167,7 @@ try {
 - `/optimize` - Optimiza rendimiento
 
 ### Ejemplos de Prompts para Chat:
+
 ```
 "Crea una función PHP que calcule el total de deuda de un cliente sumando todas sus tarjetas activas, siguiendo los patrones del proyecto WebGoez"
 
@@ -162,12 +179,14 @@ try {
 ## 📊 Monitoreo de Rendimiento
 
 ### Indicadores de Que Copilot Está Optimizado:
+
 - ⚡ Sugerencias aparecen en menos de 1 segundo
 - 🎯 Sugerencias son relevantes para tu contexto
 - 🔄 Copilot completa patrones específicos de tu proyecto
 - 📝 Genera código siguiendo tus convenciones exactas
 
 ### Si el Rendimiento es Lento:
+
 1. Reinicia VS Code
 2. Verifica conexión a internet
 3. Cierra archivos innecesarios
@@ -176,6 +195,7 @@ try {
 ## 🔄 Actualizaciones Futuras
 
 Para mantener el máximo rendimiento:
+
 - Actualiza las extensiones regularmente
 - Revisa las configuraciones cada mes
 - Añade nuevos snippets según evolucione tu proyecto
