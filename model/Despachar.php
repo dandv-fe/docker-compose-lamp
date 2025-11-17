@@ -124,13 +124,14 @@ class Despachar
    public function ListarDespachar($idglobal, $superadmin, $userEmpleadoId)
    {
       global $conexion;
+      $idoficina = $_SESSION['idoficina'];
       $idsucursals = array();
       $query = null;
       if (empty($superadmin)) {
          $sql = "SELECT refSucursal FROM view_auth_sucursal WHERE refEmpleado=$userEmpleadoId  AND nameAccion='despachar' AND estadoAuthSucursal='activo'";
          $query = $conexion->query($sql);
       } else {
-         $sql = "SELECT idsucursal AS refSucursal FROM tbl_sucursal WHERE idglobal=$idglobal";
+         $sql = "SELECT idsucursal AS refSucursal FROM tbl_sucursal WHERE idglobal=$idglobal and idoficina=$idoficina";
          $query = $conexion->query($sql);
       }
 

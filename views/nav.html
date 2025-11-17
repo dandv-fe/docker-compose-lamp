@@ -69,8 +69,8 @@ $str_cero = str_split($dias_restantes);
           //listar todas las oficinas de la empresa
           $query_oficinas = $objusuario->oficinas($userSession['usuario']->idglobal);
           ?>
-    <li class="nav-item dropdown">
-      <a id="oficina-selecionada-session" class="nav-link font-weight-bold pl-0" data-toggle="dropdown" href="#">
+    <li id="oficina-selecionada-session" class="nav-item dropdown">
+      <a class="nav-link font-weight-bold pl-0" data-toggle="dropdown" href="#">
         <?php 
         
         $idoficina=$_SESSION['idoficina'];
@@ -86,16 +86,20 @@ $str_cero = str_split($dias_restantes);
 
       </a>
       <div class="dropdown-menu dropdown-menu-lg dropdown-menu-left">
-        <span class="dropdown-item dropdown-header">15 Oficinas</span>
+        <span class="dropdown-item dropdown-header">
+          <?php echo $query_oficinas->num_rows; ?> Oficinas
+        </span>
         <?php
             while ($reg = $query_oficinas->fetch_object()) {
              
               ?>
         <div class="dropdown-divider"></div>
-        <a href="#" class="dropdown-item">
+        <a href="#" class="dropdown-item cambiar-oficina" data-idoficina="<?php echo $reg->idoficina;?>">
           <i class="fas fa-wallet mr-2"></i>
           <?php echo $reg->str_nombre;?>
-          <span class="float-right text-muted text-sm">3 mins</span>
+          <span class="float-right text-muted text-sm">
+            <?php echo $reg->totalSucursales; ?> Carteras
+          </span>
         </a>
         <div class="dropdown-divider"></div>
         <?php
@@ -549,3 +553,31 @@ $str_cero = str_split($dias_restantes);
   </div>
   <!-- /.modal-dialog -->
 </div>
+<script>
+  $('.cambiar-oficina').on('click', function (e) {
+    e.preventDefault();
+    var idoficina = $(this).data('idoficina');
+    $.ajax({
+      url: 'ajax/OficinaAjax.php?op=SeleccionarOficinaSession',
+      type: 'POST',
+      data: { idoficina: idoficina },
+      dataType: 'json',
+      success: function (response) {
+        if (response.success) {
+          location.reload();
+        } else {
+          Toast.fire({
+            icon: 'error',
+            title: 'Error al cambiar de oficina'
+          });
+        }
+      },
+      error: function () {
+        Toast.fire({
+          icon: 'error',
+          title: 'Error en la solicitud'
+        });
+      }
+    });
+  });
+</script>

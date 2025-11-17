@@ -18,6 +18,8 @@ $userSession = $objusuario->viewUsuarioSession($_SESSION["idusuario"]);
 $_SESSION['userEmpresa'] = $userSession['usuario']->str_cargo === 'Super Administrador' ? $userSession['usuario']->idglobal : null;
 $_SESSION['idempleado'] = $userSession["usuario"]->idempleado;
 $idglobal = $userSession['usuario']->idglobal;
+$idoficina = $_SESSION['idoficina'] ?? 0;
+$idsucursal = $_SESSION['idsucursal'] ?? 0;
 
 // variables de estado de pago
 $dias_extras = 10;

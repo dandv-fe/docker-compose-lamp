@@ -72,9 +72,12 @@
                 $idglobal = $_SESSION['userEmpresa'];
                 $sql = "SELECT
                 str_cargo AS cargo,
-               ( SELECT COUNT( idglobal ) FROM tbl_sucursal WHERE idglobal = $idglobal ) AS actividades,
-               ( SELECT COUNT( idglobal ) FROM tbl_empleado WHERE idempleado <> $idempleado AND idglobal = $idglobal ) AS empleados,
-               ( SELECT COUNT( idglobal ) FROM tbl_clientes WHERE idglobal = $idglobal ) AS clientes
+               ( SELECT COUNT( idglobal ) FROM tbl_sucursal WHERE idglobal = $idglobal AND idoficina = $idoficina ) AS actividades,
+               ( SELECT COUNT( idglobal ) FROM tbl_empleado WHERE idempleado <> $idempleado AND idglobal = $idglobal AND idoficina = $idoficina ) AS empleados,
+               ( SELECT COUNT( t.idcliente ) FROM tbl_tarjetas t
+              INNER JOIN tbl_sucursal s ON s.idsucursal = t.idsucursal
+              WHERE t.idglobal = $idglobal
+              AND s.idoficina = $idoficina) AS clientes
                FROM tbl_empleado WHERE  idempleado = $idempleado";
             $query = $conexion->query($sql);
             $fetch = $query->fetch_object();
@@ -202,7 +205,7 @@
                               FROM tbl_sucursal s INNER JOIN 
                                 tbl_empleado e ON e.idempleado=s.idempleado INNER JOIN
                                 tbl_persona p ON p.idpersona=e.idpersona
-                              where s.str_estado<>'inactiva' and s.idglobal=$idglobal order by s.idsucursal desc";
+                              where s.str_estado<>'inactiva' and s.idglobal=$idglobal AND s.idoficina = $idoficina order by s.idsucursal desc";
                                 $query = $conexion->query($sql);
                                 
                                 while ($reg = $query->fetch_object()) {

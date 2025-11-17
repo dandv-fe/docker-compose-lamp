@@ -233,10 +233,12 @@ class usuario
    public function oficinas($idglobal)
    {
       global $conexion;
+
       $sql = "SELECT 
-            *
-            FROM tbl_oficina
-            WHERE idglobal=$idglobal ";
+            *,
+            (SELECT COUNT( idsucursal ) FROM tbl_sucursal WHERE idoficina=tg.idoficina ) AS totalSucursales
+            FROM tbl_oficina tg
+            WHERE tg.idglobal=$idglobal ";
       $query = $conexion->query($sql);
       return $query;
    }
