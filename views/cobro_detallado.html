@@ -32,272 +32,272 @@
 
 
 <script type="text/javascript"
-    src="dist/scripts/CobroDetallado.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+  src="dist/scripts/CobroDetallado.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper">
-    <!-- Content Header (Page header) -->
-    <div class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h1 class="m-0">Cobro detallado <b id="txtcodigoSucursal"></b>
-                    </h1>
-                </div><!-- /.col -->
-            </div><!-- /.row -->
-        </div><!-- /.container-fluid -->
-    </div>
-    <!-- /.content-header -->
-    <!-- Main content -->
-    <section class="content">
-        <div class="container-fluid">
+  <!-- Content Header (Page header) -->
+  <div class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1 class="m-0">Cobro detallado <b id="txtcodigoSucursal"></b>
+          </h1>
+        </div><!-- /.col -->
+      </div><!-- /.row -->
+    </div><!-- /.container-fluid -->
+  </div>
+  <!-- /.content-header -->
+  <!-- Main content -->
+  <section class="content">
+    <div class="container-fluid">
 
 
-            <div class="row">
-                <div class="col-12">
+      <div class="row">
+        <div class="col-12">
 
-                    <div id="VerListado">
-                        <div class="card">
-                            <div class="card-header">
-                                <form id="formSearchCobrosDetallado">
-                                    <input type="hidden" name="txtUltimo" id="txtUltimo">
-                                    <div class="card-header row m-0 p-0">
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label>Actividad:</label>
-                                                <select required name="cbosucursal" id="cbosucursal"
-                                                    class="form-control">
+          <div id="VerListado">
+            <div class="card">
+              <div class="card-header">
+                <form id="formSearchCobrosDetallado">
+                  <input type="hidden" name="txtUltimo" id="txtUltimo">
+                  <div class="card-header row m-0 p-0">
+                    <div class="col-md-4">
+                      <div class="form-group">
+                        <label>Actividad:</label>
+                        <select required name="cbosucursal" id="cbosucursal" class="form-control">
 
-                                                    <option value=""> ---selecione---</option>
-                                                    <?php 
-                                                    foreach ($allSucursal as $valor) {
-                                                        if(isset($_SESSION['userEmpresa']) || in_array('cobro detallado',$valor[10])){
-                                                            if($_SESSION['idsucursal']==$valor[0]){?>
-                                                    <option selected value="<?PHP echo $valor[0];?>">
-                                                        <?PHP echo $valor[2];?>
-                                                    </option>
-                                                    <?PHP }else{?>
-                                                    <option value="<?PHP echo $valor[0];?>">
-                                                        <?PHP echo $valor[2];?>
-                                                    </option>
-                                                    <?PHP }
+                          <option value=""> ---selecione---</option>
+                          <?php $allSucursal=null;
+                                if($_SESSION['userEmpresa']){
+                                $sql="SELECT idsucursal, str_codigo FROM tbl_sucursal WHERE idglobal=$idglobal AND idoficina=$idoficina AND str_estado<>'inactiva' ORDER BY str_codigo ASC";
+                                $resultado=$conexion->query($sql);
+                                while ($row = $resultado->fetch_array()) {
+                                    $allSucursal[]= $row;
+                                }
+                              }else{
+
+                              }
+                              foreach ($allSucursal as $valor) {
+                                  if(isset($_SESSION['userEmpresa']) || in_array('cobro detallado',$valor[10])){
+                                      if($_SESSION['idsucursal']==$valor[0]){?>
+                          <option selected value="<?PHP echo $valor[0];?>">
+                            <?PHP echo $valor[1];?>
+                          </option>
+                          <?PHP }else{?>
+                          <option value="<?PHP echo $valor[0];?>">
+                            <?PHP echo $valor[1];?>
+                          </option>
+                          <?PHP }
                                                         }
                                                     }
                                                     ?>
-                                                </select>
+                        </select>
 
 
 
 
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label>Desde:</label>
-                                                <div class="input-group date " id="dateDeste"
-                                                    data-target-input="nearest">
-                                                    <input required type="text"
-                                                        class="form-control datetimepicker-input"
-                                                        data-target="#dateDeste" id="txtFechaDesde"
-                                                        name="txtFechaDesde" />
-                                                    <div class="input-group-append" data-target="#dateDeste"
-                                                        data-toggle="datetimepicker">
-                                                        <div class="input-group-text"><i class="fa fa-calendar"></i>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label>Hasta:</label>
-                                                <div class="input-group date" id="dateHasta"
-                                                    data-target-input="nearest">
-                                                    <input required type="text"
-                                                        class="form-control datetimepicker-input"
-                                                        data-target="#dateHasta" id="txtFechaHasta"
-                                                        name="txtFechaHasta" />
-                                                    <div class="input-group-append" data-target="#dateHasta"
-                                                        data-toggle="datetimepicker">
-                                                        <div class="input-group-text"><i class="fa fa-calendar"></i>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <input type="submit" style="display: none;">
-                                </form>
-                            </div>
-                          
-
-                                <table id="tbl1" class="table table-bordered table-striped">
-                                    <thead>
-                                        <tr>
-                                           
-                                            <th>Recaudo</th>
-                                            <th title="cantidad total de Abonos">#</th>
-                                            <th>Prestamos</th>
-                                            <th>Venta</th>
-                                            <th>Seguro</th>
-                                            <th>Diferencia</th>
-                                            <th>Base</th>
-                                            <th>Efectivo</th>
-                                            <th>Monedas</th>
-                                            <th>Descuento</th>
-                                            <th>Utilidal</th>
-                                            <th>Uti-Neta</th>
-                                            <th>Gastos</th>
-                                            <th>OtGastos</th>
-                                            <th>Salida</th>
-                                            <th>Entrada</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-
-                                    </tbody>
-                              
-                                </table>
-                         
-                            <!-- /.card-header -->
-                            <div class="card-body table-responsive p-0">
-
-                                <table id="tblCobroDetallado" class="table table-bordered table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th style="min-width: 80px;">Fecha</th>
-                                            <th>Código</th>
-                                            <th>Caja</th>
-                                            <th>Recaudo</th>
-                                            <th title="cantidad total de Abonos">#</th>
-                                            <th>Prestamos</th>
-                                            <th>Venta</th>
-
-                                            <th>Seguro</th>
-                                            <th>Diferencia</th>
-                                            <th>Base</th>
-                                            <th>Efectivo</th>
-                                            <th>Monedas</th>
-                                            <th>Descuento</th>
-                                            <th>Utilidal</th>
-                                            <th>Uti-Neta</th>
-                                            <th style="min-width: 250px;">Empleados</th>
-                                            <th>Gastos</th>
-                                            <th>Descripcion_gastos</th>
-
-
-                                            <th>OtGastos</th>
-                                            <th>Descripcion_Ot_gastos</th>
-                                            <th>Salida</th>
-                                            <th>Descripcion_salida</th>
-                                            <th>Entrada</th>
-                                            <th>Descripcion_entrada</th>
-
-
-                                            <th></th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-
-                                    </tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <th>Fecha</th>
-                                            <th>Código</th>
-                                            <th>Caja</th>
-                                            <th>Recaudo</th>
-                                            <th>#</th>
-                                            <th>Prestamos</th>
-                                            <th>Venta</th>
-
-                                            <th>Seguro</th>
-                                            <th>Diferencia</th>
-                                            <th>Base</th>
-                                            <th>Efectivo</th>
-                                            <th>Monedas</th>
-                                            <th>Descuento</th>
-                                            <th>Utilidal</th>
-                                            <th>Uti-Neta</th>
-                                            <th>Empleados</th>
-                                            <th>Gastos</th>
-                                            <th>Descripcion_gastos</th>
-
-
-                                            <th>OtGastos</th>
-                                            <th>Descripcion_Ot_gastos</th>
-                                            <th>Salida</th>
-                                            <th>Descripcion_salida</th>
-                                            <th>Entrada</th>
-                                            <th>Descripcion_entrada</th>
-
-                                            <th></th>
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-                            <!-- /.card-body -->
-                        </div>
-                        <!-- /.card -->
+                      </div>
                     </div>
+                    <div class="col-md-4">
+                      <div class="form-group">
+                        <label>Desde:</label>
+                        <div class="input-group date " id="dateDeste" data-target-input="nearest">
+                          <input required type="text" class="form-control datetimepicker-input" data-target="#dateDeste"
+                            id="txtFechaDesde" name="txtFechaDesde" />
+                          <div class="input-group-append" data-target="#dateDeste" data-toggle="datetimepicker">
+                            <div class="input-group-text"><i class="fa fa-calendar"></i>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-group">
+                        <label>Hasta:</label>
+                        <div class="input-group date" id="dateHasta" data-target-input="nearest">
+                          <input required type="text" class="form-control datetimepicker-input" data-target="#dateHasta"
+                            id="txtFechaHasta" name="txtFechaHasta" />
+                          <div class="input-group-append" data-target="#dateHasta" data-toggle="datetimepicker">
+                            <div class="input-group-text"><i class="fa fa-calendar"></i>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <input type="submit" style="display: none;">
+                </form>
+              </div>
 
-                    <div id="VerformContabilidad" class="card" style="display: none;">
 
-                        <!-- /.card-header -->
-                        <div class="card-body p-0">
+              <table id="tbl1" class="table table-bordered table-striped">
+                <thead>
+                  <tr>
 
-                            <?php
+                    <th>Recaudo</th>
+                    <th title="cantidad total de Abonos">#</th>
+                    <th>Prestamos</th>
+                    <th>Venta</th>
+                    <th>Seguro</th>
+                    <th>Diferencia</th>
+                    <th>Base</th>
+                    <th>Efectivo</th>
+                    <th>Monedas</th>
+                    <th>Descuento</th>
+                    <th>Utilidal</th>
+                    <th>Uti-Neta</th>
+                    <th>Gastos</th>
+                    <th>OtGastos</th>
+                    <th>Salida</th>
+                    <th>Entrada</th>
+                  </tr>
+                </thead>
+                <tbody>
+
+                </tbody>
+
+              </table>
+
+              <!-- /.card-header -->
+              <div class="card-body table-responsive p-0">
+
+                <table id="tblCobroDetallado" class="table table-bordered table-striped">
+                  <thead>
+                    <tr>
+                      <th style="min-width: 80px;">Fecha</th>
+                      <th>Código</th>
+                      <th>Caja</th>
+                      <th>Recaudo</th>
+                      <th title="cantidad total de Abonos">#</th>
+                      <th>Prestamos</th>
+                      <th>Venta</th>
+
+                      <th>Seguro</th>
+                      <th>Diferencia</th>
+                      <th>Base</th>
+                      <th>Efectivo</th>
+                      <th>Monedas</th>
+                      <th>Descuento</th>
+                      <th>Utilidal</th>
+                      <th>Uti-Neta</th>
+                      <th style="min-width: 250px;">Empleados</th>
+                      <th>Gastos</th>
+                      <th>Descripcion_gastos</th>
+
+
+                      <th>OtGastos</th>
+                      <th>Descripcion_Ot_gastos</th>
+                      <th>Salida</th>
+                      <th>Descripcion_salida</th>
+                      <th>Entrada</th>
+                      <th>Descripcion_entrada</th>
+
+
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Código</th>
+                      <th>Caja</th>
+                      <th>Recaudo</th>
+                      <th>#</th>
+                      <th>Prestamos</th>
+                      <th>Venta</th>
+
+                      <th>Seguro</th>
+                      <th>Diferencia</th>
+                      <th>Base</th>
+                      <th>Efectivo</th>
+                      <th>Monedas</th>
+                      <th>Descuento</th>
+                      <th>Utilidal</th>
+                      <th>Uti-Neta</th>
+                      <th>Empleados</th>
+                      <th>Gastos</th>
+                      <th>Descripcion_gastos</th>
+
+
+                      <th>OtGastos</th>
+                      <th>Descripcion_Ot_gastos</th>
+                      <th>Salida</th>
+                      <th>Descripcion_salida</th>
+                      <th>Entrada</th>
+                      <th>Descripcion_entrada</th>
+
+                      <th></th>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+              <!-- /.card-body -->
+            </div>
+            <!-- /.card -->
+          </div>
+
+          <div id="VerformContabilidad" class="card" style="display: none;">
+
+            <!-- /.card-header -->
+            <div class="card-body p-0">
+
+              <?php
                                    include "views/form/viewCobroDetalleRuta.html";
                                 ?>
 
-                        </div>
-
-                    </div>
-
-
-                </div>
-                <!-- /.col -->
             </div>
+
+          </div>
+
+
         </div>
-    </section>
+        <!-- /.col -->
+      </div>
+    </div>
+  </section>
 </div>
 
 <script type="text/javascript">
-    $("#li-consultaCobros").addClass('menu-open')
-    $("#lia-consultaCobros").addClass('active')
-    $("#lia-cobroDetallado").addClass('active')
-
-    
-    var Tabla = $("#tblCobroDetallado").DataTable({
-        "sort": false,
-        "responsive": true, "lengthChange": false, "autoWidth": false,
-        "buttons": ["csv", "excel", "pdf", "colvis"]
-    }).buttons().container().appendTo('#tblCobroDetallado_wrapper .col-md-6:eq(0)');
-    $('#tbl1').DataTable({
-       
-      "paging": true,
-      "lengthChange": false,
-      "searching": false,
-      "ordering": true,
-      "info": true,
-      "autoWidth": false,
-      "responsive": true,
-
-    });
-
-    //Date picker
-    const dateDesde = $('#dateDeste').datetimepicker({
-        format: 'YYYY-MM-DD',
-        date: moment(),
-        locale: 'es'
-    });
+  $("#li-consultaCobros").addClass('menu-open')
+  $("#lia-consultaCobros").addClass('active')
+  $("#lia-cobroDetallado").addClass('active')
 
 
+  var Tabla = $("#tblCobroDetallado").DataTable({
+    "sort": false,
+    "responsive": true, "lengthChange": false, "autoWidth": false,
+    "buttons": ["csv", "excel", "pdf", "colvis"]
+  }).buttons().container().appendTo('#tblCobroDetallado_wrapper .col-md-6:eq(0)');
+  $('#tbl1').DataTable({
 
-    // dateDesde.locale(tempusDominus.locales['es'].es);
-    //Date picker
-    $('#dateHasta').datetimepicker({
-        format: 'YYYY-MM-DD',
-        date: moment(),
-        locale: 'es'
-    });
+    "paging": true,
+    "lengthChange": false,
+    "searching": false,
+    "ordering": true,
+    "info": true,
+    "autoWidth": false,
+    "responsive": true,
+
+  });
+
+  //Date picker
+  const dateDesde = $('#dateDeste').datetimepicker({
+    format: 'YYYY-MM-DD',
+    date: moment(),
+    locale: 'es'
+  });
+
+
+
+  // dateDesde.locale(tempusDominus.locales['es'].es);
+  //Date picker
+  $('#dateHasta').datetimepicker({
+    format: 'YYYY-MM-DD',
+    date: moment(),
+    locale: 'es'
+  });
 
 </script>
