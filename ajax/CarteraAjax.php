@@ -185,7 +185,7 @@ switch ($_GET["op"]) {
          $req->estadoCliente = $request->estadoCliente;
          $req->total_deuda_actual = $request->total_deuda_actual;
 
-         if ($idglobal == "1002") {
+         /*if ($idglobal == "1002") {
 
             require_once "../model/Archivo1002.php";
             $classArchivo1002 = new ClassArchivo1002();
@@ -195,7 +195,7 @@ switch ($_GET["op"]) {
                array_push($req->tarjetas, $reg1);
                ///  array_push($req->tarjetasHistorial, $reg1);
             }
-         }
+         }*/
 
          $query = $classCartera->buscarTarjetas($request->refCliente);
 

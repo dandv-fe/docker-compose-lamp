@@ -1,21 +1,40 @@
 /*
  Navicat Premium Dump SQL
 
- Source Server         : webgoez
+ Source Server         : local
  Source Server Type    : MariaDB
- Source Server Version : 101114 (10.11.14-MariaDB-cll-lve)
- Source Host           : webgoez.com:3306
+ Source Server Version : 101114 (10.11.14-MariaDB-ubu2204)
+ Source Host           : localhost:3306
  Source Schema         : websdnco_db_webgoez
 
  Target Server Type    : MariaDB
- Target Server Version : 101114 (10.11.14-MariaDB-cll-lve)
+ Target Server Version : 101114 (10.11.14-MariaDB-ubu2204)
  File Encoding         : 65001
 
- Date: 07/11/2025 10:17:08
+ Date: 18/11/2025 14:34:16
 */
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
+
+-- ----------------------------
+-- Table structure for archivo_tar
+-- ----------------------------
+DROP TABLE IF EXISTS `archivo_tar`;
+CREATE TABLE `archivo_tar`  (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `idsucrsal` int(11) NULL DEFAULT NULL,
+  `idtargeta` int(11) NULL DEFAULT NULL,
+  `cc_cliente` varchar(50) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish_ci NULL DEFAULT NULL,
+  `targeta` text CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish_ci NULL DEFAULT NULL,
+  `fecha` date NULL DEFAULT NULL,
+  `val_can` int(11) NULL DEFAULT NULL,
+  `datos` text CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish_ci NULL DEFAULT NULL,
+  `descuento` int(11) NULL DEFAULT NULL,
+  `det_descuento` varchar(150) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish_ci NULL DEFAULT NULL,
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `cc_cliente`(`cc_cliente` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 144822 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tbl_articulo
@@ -71,7 +90,7 @@ CREATE TABLE `tbl_auth_sucursal`  (
   INDEX `index`(`idglobal` ASC) USING BTREE,
   CONSTRAINT `fk_usuario_empleado` FOREIGN KEY (`idempleado`) REFERENCES `tbl_empleado` (`idempleado`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk_usuario_sucursal` FOREIGN KEY (`idsucursal`) REFERENCES `tbl_sucursal` (`idsucursal`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB AUTO_INCREMENT = 736 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci ROW_FORMAT = Compact;
+) ENGINE = InnoDB AUTO_INCREMENT = 734 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci ROW_FORMAT = Compact;
 
 -- ----------------------------
 -- Table structure for tbl_auths
@@ -86,7 +105,7 @@ CREATE TABLE `tbl_auths`  (
   INDEX `fk_tbl_auths_tbl_auth_sucursal_1`(`idauth_sucursal` ASC) USING BTREE,
   CONSTRAINT `fk_tbl_auths_tbl_auth_1` FOREIGN KEY (`idauth`) REFERENCES `tbl_auth` (`idauth`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk_tbl_auths_tbl_auth_sucursal_1` FOREIGN KEY (`idauth_sucursal`) REFERENCES `tbl_auth_sucursal` (`idauth_sucursal`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB AUTO_INCREMENT = 10393 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 10377 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tbl_banco
@@ -135,7 +154,7 @@ CREATE TABLE `tbl_clientes`  (
   INDEX `index`(`idglobal` ASC) USING BTREE,
   INDEX `index2`(`idpersona` ASC) USING BTREE,
   CONSTRAINT `fk_tbl_clientes_tbl_persona_1` FOREIGN KEY (`idpersona`) REFERENCES `tbl_persona` (`idpersona`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB AUTO_INCREMENT = 67477 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 67275 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tbl_comentarios
@@ -254,7 +273,7 @@ CREATE TABLE `tbl_descripcion_global`  (
   `str_estado` varchar(20) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish_ci NOT NULL,
   `created_at` datetime NOT NULL,
   PRIMARY KEY (`iddescripcion_global`) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 164 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 155 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tbl_detalle_documento_sucursal
@@ -273,7 +292,7 @@ CREATE TABLE `tbl_detalle_documento_sucursal`  (
   INDEX `index`(`idglobal` ASC) USING BTREE,
   CONSTRAINT `fk_detalle_sucursal` FOREIGN KEY (`idsucursal`) REFERENCES `tbl_sucursal` (`idsucursal`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk_documento_sucursal` FOREIGN KEY (`idtipo_documento`) REFERENCES `tbl_tipo_documento` (`idtipo_documento`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB AUTO_INCREMENT = 174 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci ROW_FORMAT = Compact;
+) ENGINE = InnoDB AUTO_INCREMENT = 173 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci ROW_FORMAT = Compact;
 
 -- ----------------------------
 -- Table structure for tbl_detalle_ingreso
@@ -305,20 +324,25 @@ CREATE TABLE `tbl_detalle_ingreso`  (
 -- ----------------------------
 DROP TABLE IF EXISTS `tbl_detalle_natillera`;
 CREATE TABLE `tbl_detalle_natillera`  (
-  `iddetalle_natillera` int(11) NOT NULL,
+  `iddetalle_natillera` int(11) NOT NULL AUTO_INCREMENT,
   `idglobal` int(11) NOT NULL,
   `idnatillera` int(11) NOT NULL,
-  `str_operacion` enum('Ahorro','Retiro') CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL,
+  `idusuario_created` int(11) NOT NULL,
+  `date_movimiento` datetime NOT NULL DEFAULT current_timestamp(),
+  `str_tipo` enum('aporte','retiro','ajuste') CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL DEFAULT 'aporte',
   `dec_valor` decimal(10, 2) NOT NULL,
-  `str_comentario` varchar(150) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL,
+  `str_descripcion` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL,
+  `int_codigo` int(11) NULL DEFAULT NULL,
   `str_estado` varchar(15) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL,
   `created_at` datetime NOT NULL,
   `update_at` datetime NOT NULL,
   PRIMARY KEY (`iddetalle_natillera`) USING BTREE,
   INDEX `indexid`(`idglobal` ASC) USING BTREE,
   INDEX `index_idnatillera`(`idnatillera` ASC) USING BTREE,
+  INDEX `fk_tbl_detalle_natillera`(`idusuario_created` ASC) USING BTREE,
+  CONSTRAINT `fk_tbl_detalle_natillera` FOREIGN KEY (`idusuario_created`) REFERENCES `tbl_usuario` (`idusuario`) ON DELETE RESTRICT ON UPDATE RESTRICT,
   CONSTRAINT `fk_tbl_detalle_natillera_tbl_natillera_1` FOREIGN KEY (`idnatillera`) REFERENCES `tbl_natillera` (`idnatillera`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tbl_detalle_nomina
@@ -337,7 +361,7 @@ CREATE TABLE `tbl_detalle_nomina`  (
   INDEX `fk_tbl_detalle_nomina_tbl_contabilidad_detalle_1`(`idcontabilidad_detalle` ASC) USING BTREE,
   CONSTRAINT `fk_tbl_detalle_nomina_tbl_contabilidad_detalle_1` FOREIGN KEY (`idcontabilidad_detalle`) REFERENCES `tbl_contabilidad_detalle` (`idcontabilidad_detalle`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fk_tbl_detalle_nomina_tbl_nomina_1` FOREIGN KEY (`idnomina`) REFERENCES `tbl_nomina` (`idnomina`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB AUTO_INCREMENT = 24208 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish_ci ROW_FORMAT = Compact;
+) ENGINE = InnoDB AUTO_INCREMENT = 24138 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish_ci ROW_FORMAT = Compact;
 
 -- ----------------------------
 -- Table structure for tbl_detalle_pedido
@@ -376,7 +400,7 @@ CREATE TABLE `tbl_detalle_ruta`  (
   INDEX `index`(`idglobal` ASC) USING BTREE,
   INDEX `fk_tbl_detalle_ruta_tbl_sucursal_1`(`idsucursal` ASC) USING BTREE,
   CONSTRAINT `fk_tbl_detalle_ruta_tbl_sucursal_1` FOREIGN KEY (`idsucursal`) REFERENCES `tbl_sucursal` (`idsucursal`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB AUTO_INCREMENT = 44518 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 44143 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tbl_direccion
@@ -453,11 +477,12 @@ CREATE TABLE `tbl_empleado`  (
   `date_fecha_inicio` date NOT NULL,
   `created_at` datetime NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   `update_at` datetime NULL DEFAULT NULL,
+  `idoficina` int(11) NULL DEFAULT NULL,
   PRIMARY KEY (`idempleado`) USING BTREE,
   INDEX `index1`(`idglobal` ASC) USING BTREE,
   INDEX `index2`(`idpersona` ASC) USING BTREE,
   CONSTRAINT `fk_tbl_empleado_tbl_persona_1` FOREIGN KEY (`idpersona`) REFERENCES `tbl_persona` (`idpersona`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB AUTO_INCREMENT = 400 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci ROW_FORMAT = Compact;
+) ENGINE = InnoDB AUTO_INCREMENT = 400 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tbl_empleado_despido
@@ -493,7 +518,7 @@ CREATE TABLE `tbl_empleado_despido`  (
   INDEX `idx_estado`(`str_estado` ASC) USING BTREE,
   CONSTRAINT `fk_empleado_despido_created_by` FOREIGN KEY (`created_empleado_id`) REFERENCES `tbl_empleado` (`idempleado`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk_empleado_despido_empleado` FOREIGN KEY (`idempleado`) REFERENCES `tbl_empleado` (`idempleado`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB AUTO_INCREMENT = 3 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci COMMENT = 'Tabla para registrar despidos de empleados con información detallada' ROW_FORMAT = Compact;
+) ENGINE = InnoDB AUTO_INCREMENT = 6 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci COMMENT = 'Tabla para registrar despidos de empleados con información detallada' ROW_FORMAT = Compact;
 
 -- ----------------------------
 -- Table structure for tbl_empleados_asignado
@@ -508,7 +533,7 @@ CREATE TABLE `tbl_empleados_asignado`  (
   INDEX `fkidempleado_asignado`(`idempleado_asignado` ASC) USING BTREE,
   CONSTRAINT `fk_idempleado` FOREIGN KEY (`idempleado`) REFERENCES `tbl_empleado` (`idempleado`) ON DELETE CASCADE ON UPDATE CASCADE,
   CONSTRAINT `fkidempleado_asignado` FOREIGN KEY (`idempleado_asignado`) REFERENCES `tbl_empleado` (`idempleado`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB AUTO_INCREMENT = 342 CHARACTER SET = latin1 COLLATE = latin1_spanish_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 339 CHARACTER SET = latin1 COLLATE = latin1_spanish_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tbl_empleados_cobrando
@@ -549,6 +574,7 @@ CREATE TABLE `tbl_global`  (
   `divisaid` int(11) NULL DEFAULT NULL,
   `empresaid` int(10) UNSIGNED NOT NULL,
   `superadmin_personaid` int(11) NOT NULL,
+  `bit_natillera` bit(1) NOT NULL DEFAULT b'0',
   `created_at` datetime NULL DEFAULT NULL,
   `updated_at` datetime NULL DEFAULT NULL,
   PRIMARY KEY (`idglobal`) USING BTREE,
@@ -561,7 +587,7 @@ CREATE TABLE `tbl_global`  (
   CONSTRAINT `fk_tbl_gobal_tbl_divisa_1` FOREIGN KEY (`divisaid`) REFERENCES `tbl_divisa` (`iddivisa`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk_tbl_gobal_tbl_gobal_1` FOREIGN KEY (`empresaid`) REFERENCES `tbl_global` (`idglobal`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk_tbl_gobal_tbl_persona_1` FOREIGN KEY (`superadmin_personaid`) REFERENCES `tbl_persona` (`idpersona`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB AUTO_INCREMENT = 1044 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci ROW_FORMAT = Compact;
+) ENGINE = InnoDB AUTO_INCREMENT = 1043 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci ROW_FORMAT = Compact;
 
 -- ----------------------------
 -- Table structure for tbl_imagen
@@ -655,9 +681,13 @@ CREATE TABLE `tbl_ingreso`  (
 -- ----------------------------
 DROP TABLE IF EXISTS `tbl_natillera`;
 CREATE TABLE `tbl_natillera`  (
-  `idnatillera` int(11) NOT NULL,
+  `idnatillera` int(11) NOT NULL AUTO_INCREMENT,
   `idglobal` int(11) NOT NULL,
   `idpersona` int(11) NOT NULL,
+  `dec_porcentaje` decimal(5, 2) NOT NULL,
+  `dec_ganancia_acumulada` decimal(10, 2) NOT NULL DEFAULT 0.00,
+  `str_pago_utilidad` enum('automatico','manual') CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL DEFAULT 'manual',
+  `bit_auth_movimientos` bit(1) NOT NULL DEFAULT b'0',
   `str_estado` varchar(15) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL,
   `created_at` datetime NULL DEFAULT NULL,
   `updated_at` datetime NULL DEFAULT NULL,
@@ -665,7 +695,7 @@ CREATE TABLE `tbl_natillera`  (
   INDEX `index_idglobal`(`idglobal` ASC) USING BTREE,
   INDEX `index_idpersona`(`idpersona` ASC) USING BTREE,
   CONSTRAINT `fk_tbl_natillera_tbl_persona_1` FOREIGN KEY (`idpersona`) REFERENCES `tbl_persona` (`idpersona`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tbl_nomina
@@ -684,7 +714,21 @@ CREATE TABLE `tbl_nomina`  (
   INDEX `index`(`idglobal` ASC) USING BTREE,
   INDEX `index2`(`idempleado` ASC) USING BTREE,
   CONSTRAINT `fk_tbl_nomina_tbl_empleado_1` FOREIGN KEY (`idempleado`) REFERENCES `tbl_empleado` (`idempleado`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB AUTO_INCREMENT = 387 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 383 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for tbl_oficina
+-- ----------------------------
+DROP TABLE IF EXISTS `tbl_oficina`;
+CREATE TABLE `tbl_oficina`  (
+  `idoficina` int(11) NOT NULL AUTO_INCREMENT,
+  `idglobal` int(11) NOT NULL,
+  `str_nombre` varchar(45) CHARACTER SET latin1 COLLATE latin1_spanish_ci NULL DEFAULT NULL,
+  `idempleado_administrador` int(11) NULL DEFAULT NULL,
+  PRIMARY KEY (`idoficina`) USING BTREE,
+  INDEX `fk`(`idempleado_administrador` ASC) USING BTREE,
+  CONSTRAINT `fk` FOREIGN KEY (`idempleado_administrador`) REFERENCES `tbl_empleado` (`idempleado`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE = InnoDB AUTO_INCREMENT = 79 CHARACTER SET = latin1 COLLATE = latin1_spanish_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tbl_pedido
@@ -740,7 +784,7 @@ CREATE TABLE `tbl_persona`  (
   PRIMARY KEY (`idpersona`) USING BTREE,
   INDEX `index`(`str_num_documento` ASC) USING BTREE,
   INDEX `index_idgloba`(`idglobal` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 67728 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish_ci ROW_FORMAT = Compact;
+) ENGINE = InnoDB AUTO_INCREMENT = 67524 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish_ci ROW_FORMAT = Compact;
 
 -- ----------------------------
 -- Table structure for tbl_proveedor
@@ -768,22 +812,20 @@ CREATE TABLE `tbl_sucursal`  (
   `idglobal` int(11) NOT NULL,
   `str_tipo` varchar(20) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
   `str_codigo` varchar(100) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
-  `str_tipo_documento` varchar(20) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
-  `str_num_documento` varchar(15) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
-  `str_direccion` varchar(150) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
   `str_telefono` varchar(10) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
-  `str_email` varchar(70) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
   `idempleado` int(11) NOT NULL COMMENT 'representante',
-  `str_logo` varchar(50) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
   `str_cobro_adicional` enum('seguro','boleta','ninguno') CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL DEFAULT 'seguro',
   `str_estado` varchar(15) CHARACTER SET latin1 COLLATE latin1_swedish_ci NOT NULL,
   `created_at` datetime NULL DEFAULT NULL,
   `updated_at` datetime NULL DEFAULT NULL,
+  `idoficina` int(11) NULL DEFAULT NULL,
   PRIMARY KEY (`idsucursal`) USING BTREE,
   INDEX `fkuser`(`idempleado` ASC) USING BTREE,
   INDEX `index`(`idglobal` ASC) USING BTREE,
+  INDEX `fkoficina`(`idoficina` ASC) USING BTREE,
+  CONSTRAINT `fkoficina` FOREIGN KEY (`idoficina`) REFERENCES `tbl_oficina` (`idoficina`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fkuser` FOREIGN KEY (`idempleado`) REFERENCES `tbl_empleado` (`idempleado`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB AUTO_INCREMENT = 175 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci ROW_FORMAT = Compact;
+) ENGINE = InnoDB AUTO_INCREMENT = 174 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci ROW_FORMAT = Compact;
 
 -- ----------------------------
 -- Table structure for tbl_tarjetas
@@ -892,7 +934,7 @@ CREATE TABLE `tbl_usuario`  (
   INDEX `index_pass`(`str_password` ASC) USING BTREE,
   INDEX `index_username`(`str_user_name` ASC) USING BTREE,
   CONSTRAINT `fk_tbl_usuario_tbl_persona_1` FOREIGN KEY (`idpersona`) REFERENCES `tbl_persona` (`idpersona`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB AUTO_INCREMENT = 401 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 398 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tbl_venta
@@ -930,7 +972,7 @@ CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `view_auth_sucursal` AS s
 -- View structure for view_cobro_detallado
 -- ----------------------------
 DROP VIEW IF EXISTS `view_cobro_detallado`;
-CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `view_cobro_detallado` AS select `s`.`str_codigo` AS `codigo`,`s`.`str_logo` AS `logo`,`s`.`str_tipo` AS `tipo`,`dr`.`iddetalleruta` AS `refDetalle_ruta`,`dr`.`idglobal` AS `refGlobal`,`dr`.`idsucursal` AS `refSucursal`,`dr`.`idempleado_resibe` AS `idcreated`,`dr`.`str_estado` AS `estado`,`dr`.`created_at` AS `fecha_at`,`dr`.`updated_at` AS `fecha_up`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` <> 8) AS `efectivoCaja`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'recaudo') AS `recaudo`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'cantidad-abonos') AS `cantidadRecaudos`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'prestamos') AS `prestamo`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'articulos') AS `ventaArticulo`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'efectivo-otra-utilidad') AS `efectivoOtraUtilidad`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'diferencia') AS `diferencia`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'base') AS `base`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'efectivo') AS `efectivo`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'efectivoMonedas') AS `efectivoMonedas`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'descuento') AS `descuento`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'mas-utilidad') AS `masUtilidad`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'valorTotalCreditos') AS `valorTotalCreditos`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) * -1 from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` <> 'prestamos' and `tbl_contabilidad_detalle`.`str_nombre` <> 'articulos' and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-totalizar%') AS `gastos`,(select group_concat(`tbl_contabilidad_detalle`.`str_nombre`,' ',`tbl_contabilidad_detalle`.`dec_total`,'  : ',`tbl_contabilidad_detalle`.`str_detalle` separator ' ||<br/> ') from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` <> 'prestamos' and `tbl_contabilidad_detalle`.`str_nombre` <> 'articulos' and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-totalizar%') AS `descripcion_gastos`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) * -1 from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` <> 6 and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-contabilidad%') AS `otros_gastos`,(select group_concat(`tbl_contabilidad_detalle`.`str_nombre`,' ',`tbl_contabilidad_detalle`.`dec_total`,'  : ',`tbl_contabilidad_detalle`.`str_detalle` separator ' ||<br/> ') from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` <> 6 and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-contabilidad%') AS `descripcion_otros_gastos`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) * -1 from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` = 6 and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-contabilidad%') AS `salida`,(select group_concat(`tbl_contabilidad_detalle`.`str_nombre`,' ',`tbl_contabilidad_detalle`.`dec_total`,'  : ',`tbl_contabilidad_detalle`.`str_detalle` separator ' ||<br/> ') from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` = 6 and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-contabilidad%') AS `descripcion_salida`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` = 9) AS `entrada`,(select group_concat(`tbl_contabilidad_detalle`.`str_nombre`,' ',`tbl_contabilidad_detalle`.`dec_total`,'  : ',`tbl_contabilidad_detalle`.`str_detalle` separator ' ||<br/> ') from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` = 9) AS `descripcion_entrada` from (`tbl_detalle_ruta` `dr` join `tbl_sucursal` `s` on(`s`.`idsucursal` = `dr`.`idsucursal`));
+CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `view_cobro_detallado` AS select `s`.`str_codigo` AS `codigo`,`s`.`str_tipo` AS `tipo`,`dr`.`iddetalleruta` AS `refDetalle_ruta`,`dr`.`idglobal` AS `refGlobal`,`dr`.`idsucursal` AS `refSucursal`,`dr`.`idempleado_resibe` AS `idcreated`,`dr`.`str_estado` AS `estado`,`dr`.`created_at` AS `fecha_at`,`dr`.`updated_at` AS `fecha_up`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` <> 8) AS `efectivoCaja`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'recaudo') AS `recaudo`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'cantidad-abonos') AS `cantidadRecaudos`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'prestamos') AS `prestamo`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'articulos') AS `ventaArticulo`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'efectivo-otra-utilidad') AS `efectivoOtraUtilidad`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'diferencia') AS `diferencia`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'base') AS `base`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'efectivo') AS `efectivo`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'efectivoMonedas') AS `efectivoMonedas`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'descuento') AS `descuento`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'mas-utilidad') AS `masUtilidad`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'valorTotalCreditos') AS `valorTotalCreditos`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) * -1 from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` <> 'prestamos' and `tbl_contabilidad_detalle`.`str_nombre` <> 'articulos' and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-totalizar%') AS `gastos`,(select group_concat(`tbl_contabilidad_detalle`.`str_nombre`,' ',`tbl_contabilidad_detalle`.`dec_total`,'  : ',`tbl_contabilidad_detalle`.`str_detalle` separator ' ||<br/> ') from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` <> 'prestamos' and `tbl_contabilidad_detalle`.`str_nombre` <> 'articulos' and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-totalizar%') AS `descripcion_gastos`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) * -1 from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` <> 6 and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-contabilidad%') AS `otros_gastos`,(select group_concat(`tbl_contabilidad_detalle`.`str_nombre`,' ',`tbl_contabilidad_detalle`.`dec_total`,'  : ',`tbl_contabilidad_detalle`.`str_detalle` separator ' ||<br/> ') from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` <> 6 and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-contabilidad%') AS `descripcion_otros_gastos`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) * -1 from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` = 6 and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-contabilidad%') AS `salida`,(select group_concat(`tbl_contabilidad_detalle`.`str_nombre`,' ',`tbl_contabilidad_detalle`.`dec_total`,'  : ',`tbl_contabilidad_detalle`.`str_detalle` separator ' ||<br/> ') from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` = 6 and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-contabilidad%') AS `descripcion_salida`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` = 9) AS `entrada`,(select group_concat(`tbl_contabilidad_detalle`.`str_nombre`,' ',`tbl_contabilidad_detalle`.`dec_total`,'  : ',`tbl_contabilidad_detalle`.`str_detalle` separator ' ||<br/> ') from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` = 9) AS `descripcion_entrada` from (`tbl_detalle_ruta` `dr` join `tbl_sucursal` `s` on(`s`.`idsucursal` = `dr`.`idsucursal`));
 
 -- ----------------------------
 -- View structure for view_contabilidad
@@ -942,7 +984,7 @@ CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `view_contabilidad` AS se
 -- View structure for view_contabilidad_detalle_ruta
 -- ----------------------------
 DROP VIEW IF EXISTS `view_contabilidad_detalle_ruta`;
-CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `view_contabilidad_detalle_ruta` AS select `s`.`str_codigo` AS `codigo`,`s`.`str_logo` AS `logo`,`s`.`str_tipo` AS `tipo`,`dr`.`iddetalleruta` AS `refDetalle_ruta`,`dr`.`idglobal` AS `refGlobal`,`dr`.`idsucursal` AS `refSucursal`,`dr`.`idempleado_resibe` AS `idcreated`,`dr`.`str_estado` AS `estado`,`dr`.`created_at` AS `fecha_at`,`dr`.`updated_at` AS `fecha_up`,(select ifnull(sum(`tbl_tarjetas`.`dec_prestamo`),0) from `tbl_tarjetas` where `tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_tarjetas`.`str_concepto` = 'Prestamo') + (select ifnull(sum(`tbl_tarjetas`.`dec_prestamo`),0) from `tbl_tarjetas` where `tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_tarjetas`.`str_concepto` = 'Articulo') AS `creditos`,(select ifnull(sum(`tbl_tarjetas`.`dec_valor`),0) from `tbl_tarjetas` where `tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta`) AS `valorTotalCreditos`,(select ifnull(sum(`tbl_tarjetas`.`dec_prestamo`),0) from `tbl_tarjetas` where `tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_tarjetas`.`str_concepto` = 'Prestamo') AS `prestamo`,(select ifnull(sum(`tbl_tarjetas`.`dec_prestamo`),0) from `tbl_tarjetas` where `tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_tarjetas`.`str_concepto` = 'Articulo') AS `articulo`,(select ifnull(sum(`tbl_tarjetas`.`dec_c_adicional_valor`),0) from `tbl_tarjetas` where `tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta`) AS `efectivoOtraUtilidad`,(select ifnull(sum(`tbl_descripcion`.`dec_abono`),0) * -1 from `tbl_descripcion` where `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Abono%' or `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Inicial%' or `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Cancelado%') AS `recaudo`,(select ifnull(count(`tbl_descripcion`.`iddetalleruta`),0) from `tbl_descripcion` where `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Abono%' or `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Inicial%' or `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Cancelado%') AS `cantidadTotalRecaudos`,(select ifnull(sum(`tbl_descripcion`.`dec_abono`),0) * -1 from `tbl_descripcion` where `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like 'Intereses%') AS `masUtilidad`,(select ifnull(sum(`tbl_descripcion`.`dec_abono`),0) * -1 from `tbl_descripcion` where `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like 'Descuento%') AS `descuento`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-totalizar%') AS `gastos`,(select group_concat(`tbl_contabilidad_detalle`.`str_nombre`,' ',`tbl_contabilidad_detalle`.`dec_total`,'  : ',`tbl_contabilidad_detalle`.`str_detalle` separator ' ||<br/> ') from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` <> 'prestamos' and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-totalizar%') AS `descripcion_gastos`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) * -1 from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` <> 6 and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-contabilidad%') AS `otros_gastos`,(select group_concat(`tbl_contabilidad_detalle`.`str_nombre`,' ',`tbl_contabilidad_detalle`.`dec_total`,'  : ',`tbl_contabilidad_detalle`.`str_detalle` separator ' ||<br/> ') from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` <> 6 and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-contabilidad%') AS `descripcion_otros_gastos`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) * -1 from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` = 6) AS `salida`,(select group_concat(`tbl_contabilidad_detalle`.`str_nombre`,' ',`tbl_contabilidad_detalle`.`dec_total`,'  : ',`tbl_contabilidad_detalle`.`str_detalle` separator ' ||<br/> ') from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` = 6) AS `descripcion_salida`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` = 9) AS `entrada`,(select group_concat(`tbl_contabilidad_detalle`.`str_nombre`,' ',`tbl_contabilidad_detalle`.`dec_total`,'  : ',`tbl_contabilidad_detalle`.`str_detalle` separator ' ||<br/> ') from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` = 9) AS `descripcion_entrada`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'base') AS `base`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'efectivo') AS `efectivo`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'efectivoMonedas') AS `efectivoMonedas`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'diferencia') AS `diferencia` from (`tbl_detalle_ruta` `dr` join `tbl_sucursal` `s` on(`s`.`idsucursal` = `dr`.`idsucursal`));
+CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `view_contabilidad_detalle_ruta` AS select `s`.`str_codigo` AS `codigo`,`s`.`str_tipo` AS `tipo`,`dr`.`iddetalleruta` AS `refDetalle_ruta`,`dr`.`idglobal` AS `refGlobal`,`dr`.`idsucursal` AS `refSucursal`,`dr`.`idempleado_resibe` AS `idcreated`,`dr`.`str_estado` AS `estado`,`dr`.`created_at` AS `fecha_at`,`dr`.`updated_at` AS `fecha_up`,(select ifnull(sum(`tbl_tarjetas`.`dec_prestamo`),0) from `tbl_tarjetas` where `tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_tarjetas`.`str_concepto` = 'Prestamo') + (select ifnull(sum(`tbl_tarjetas`.`dec_prestamo`),0) from `tbl_tarjetas` where `tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_tarjetas`.`str_concepto` = 'Articulo') AS `creditos`,(select ifnull(sum(`tbl_tarjetas`.`dec_valor`),0) from `tbl_tarjetas` where `tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta`) AS `valorTotalCreditos`,(select ifnull(sum(`tbl_tarjetas`.`dec_prestamo`),0) from `tbl_tarjetas` where `tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_tarjetas`.`str_concepto` = 'Prestamo') AS `prestamo`,(select ifnull(sum(`tbl_tarjetas`.`dec_prestamo`),0) from `tbl_tarjetas` where `tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_tarjetas`.`str_concepto` = 'Articulo') AS `articulo`,(select ifnull(sum(`tbl_tarjetas`.`dec_c_adicional_valor`),0) from `tbl_tarjetas` where `tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta`) AS `efectivoOtraUtilidad`,(select ifnull(sum(`tbl_descripcion`.`dec_abono`),0) * -1 from `tbl_descripcion` where `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Abono%' or `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Inicial%' or `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Cancelado%') AS `recaudo`,(select ifnull(count(`tbl_descripcion`.`iddetalleruta`),0) from `tbl_descripcion` where `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Abono%' or `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Inicial%' or `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Cancelado%') AS `cantidadTotalRecaudos`,(select ifnull(sum(`tbl_descripcion`.`dec_abono`),0) * -1 from `tbl_descripcion` where `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like 'Intereses%') AS `masUtilidad`,(select ifnull(sum(`tbl_descripcion`.`dec_abono`),0) * -1 from `tbl_descripcion` where `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like 'Descuento%') AS `descuento`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-totalizar%') AS `gastos`,(select group_concat(`tbl_contabilidad_detalle`.`str_nombre`,' ',`tbl_contabilidad_detalle`.`dec_total`,'  : ',`tbl_contabilidad_detalle`.`str_detalle` separator ' ||<br/> ') from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` <> 'prestamos' and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-totalizar%') AS `descripcion_gastos`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) * -1 from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` <> 6 and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-contabilidad%') AS `otros_gastos`,(select group_concat(`tbl_contabilidad_detalle`.`str_nombre`,' ',`tbl_contabilidad_detalle`.`dec_total`,'  : ',`tbl_contabilidad_detalle`.`str_detalle` separator ' ||<br/> ') from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` <> 6 and `tbl_contabilidad_detalle`.`str_operacion` like 'salida-contabilidad%') AS `descripcion_otros_gastos`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) * -1 from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` = 6) AS `salida`,(select group_concat(`tbl_contabilidad_detalle`.`str_nombre`,' ',`tbl_contabilidad_detalle`.`dec_total`,'  : ',`tbl_contabilidad_detalle`.`str_detalle` separator ' ||<br/> ') from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` = 6) AS `descripcion_salida`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` = 9) AS `entrada`,(select group_concat(`tbl_contabilidad_detalle`.`str_nombre`,' ',`tbl_contabilidad_detalle`.`dec_total`,'  : ',`tbl_contabilidad_detalle`.`str_detalle` separator ' ||<br/> ') from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`idtipo_contabilidad` = 9) AS `descripcion_entrada`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'base') AS `base`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'efectivo') AS `efectivo`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'efectivoMonedas') AS `efectivoMonedas`,(select ifnull(sum(`tbl_contabilidad_detalle`.`dec_total`),0) from `tbl_contabilidad_detalle` where `tbl_contabilidad_detalle`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_contabilidad_detalle`.`str_nombre` = 'diferencia') AS `diferencia` from (`tbl_detalle_ruta` `dr` join `tbl_sucursal` `s` on(`s`.`idsucursal` = `dr`.`idsucursal`));
 
 -- ----------------------------
 -- View structure for view_detalle_nomina
@@ -972,7 +1014,7 @@ CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `view_empresas_publica` A
 -- View structure for view_libro_contabilidad
 -- ----------------------------
 DROP VIEW IF EXISTS `view_libro_contabilidad`;
-CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `view_libro_contabilidad` AS select `s`.`str_codigo` AS `codigo`,`s`.`str_logo` AS `logo`,`s`.`str_tipo` AS `tipo`,`dr`.`iddetalleruta` AS `refDetalle_ruta`,`dr`.`idglobal` AS `refGlobal`,`dr`.`idsucursal` AS `refSucursal`,`dr`.`idempleado_resibe` AS `idcreated`,`dr`.`str_estado` AS `estado`,`dr`.`created_at` AS `fecha_at`,`dr`.`updated_at` AS `fecha_up`,sum(if(`cd`.`iddetalleruta` = `dr`.`iddetalleruta` and `cd`.`str_nombre` = 'efectivo',`cd`.`dec_total`,0)) AS `efectivo`,sum(if(`cd`.`iddetalleruta` = `dr`.`iddetalleruta` and `cd`.`str_nombre` = 'efectivoMonedas',`cd`.`dec_total`,0)) AS `efectivoMonedas`,sum(if(`cd`.`iddetalleruta` = `dr`.`iddetalleruta` and `cd`.`str_nombre` = 'base',`cd`.`dec_total`,0)) AS `base`,(select ifnull(sum(`tbl_descripcion`.`dec_abono`),0) from `tbl_descripcion` where `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Abono%' or `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Inicial%' or `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Cancelado%') AS `recaudo`,(select ifnull(count(`tbl_descripcion`.`iddetalleruta`),0) from `tbl_descripcion` where `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Abono%' or `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Inicial%' or `tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_descripcion`.`str_descripcion` like '%Cancelado%') AS `cantidadRecaudos`,(select ifnull(sum(`tbl_tarjetas`.`dec_prestamo`),0) from `tbl_tarjetas` where `tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_tarjetas`.`str_concepto` = 'Prestamo') AS `creditoPrestamos`,(select ifnull(sum(`tbl_tarjetas`.`dec_prestamo`),0) from `tbl_tarjetas` where `tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta` and `tbl_tarjetas`.`str_concepto` = 'Articulo') AS `creditosArticulos`,(select ifnull(sum(`tbl_tarjetas`.`dec_valor`),0) from `tbl_tarjetas` where `tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta`) AS `creditosValorTotal`,(select ifnull(sum(`tbl_tarjetas`.`dec_c_adicional_valor`),0) from `tbl_tarjetas` where `tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta`) AS `efectivoAdicional` from ((`tbl_detalle_ruta` `dr` join `tbl_sucursal` `s` on(`s`.`idsucursal` = `dr`.`idsucursal`)) join `tbl_contabilidad_detalle` `cd` on(`cd`.`iddetalleruta` = `dr`.`iddetalleruta`)) where `dr`.`str_estado` = 'saved' group by `dr`.`iddetalleruta`;
+CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `view_libro_contabilidad` AS select `s`.`str_codigo` AS `codigo`,`s`.`str_logo` AS `logo`,`s`.`str_tipo` AS `tipo`,`dr`.`iddetalleruta` AS `refDetalle_ruta`,`dr`.`idglobal` AS `refGlobal`,`dr`.`idsucursal` AS `refSucursal`,`dr`.`idempleado_resibe` AS `idcreated`,`dr`.`str_estado` AS `estado`,`dr`.`created_at` AS `fecha_at`,`dr`.`updated_at` AS `fecha_up`,sum(if(`cd`.`iddetalleruta` = `dr`.`iddetalleruta` and `cd`.`str_nombre` = 'efectivo',`cd`.`dec_total`,0)) AS `efectivo`,sum(if(`cd`.`iddetalleruta` = `dr`.`iddetalleruta` and `cd`.`str_nombre` = 'efectivoMonedas',`cd`.`dec_total`,0)) AS `efectivoMonedas`,sum(if(`cd`.`iddetalleruta` = `dr`.`iddetalleruta` and `cd`.`str_nombre` = 'base',`cd`.`dec_total`,0)) AS `base`,(select ifnull(sum(`websdnco_db_webgoez`.`tbl_descripcion`.`dec_abono`),0) from `tbl_descripcion` where `websdnco_db_webgoez`.`tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `websdnco_db_webgoez`.`tbl_descripcion`.`str_descripcion` like '%Abono%' or `websdnco_db_webgoez`.`tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `websdnco_db_webgoez`.`tbl_descripcion`.`str_descripcion` like '%Inicial%' or `websdnco_db_webgoez`.`tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `websdnco_db_webgoez`.`tbl_descripcion`.`str_descripcion` like '%Cancelado%') AS `recaudo`,(select ifnull(count(`websdnco_db_webgoez`.`tbl_descripcion`.`iddetalleruta`),0) from `tbl_descripcion` where `websdnco_db_webgoez`.`tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `websdnco_db_webgoez`.`tbl_descripcion`.`str_descripcion` like '%Abono%' or `websdnco_db_webgoez`.`tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `websdnco_db_webgoez`.`tbl_descripcion`.`str_descripcion` like '%Inicial%' or `websdnco_db_webgoez`.`tbl_descripcion`.`iddetalleruta` = `dr`.`iddetalleruta` and `websdnco_db_webgoez`.`tbl_descripcion`.`str_descripcion` like '%Cancelado%') AS `cantidadRecaudos`,(select ifnull(sum(`websdnco_db_webgoez`.`tbl_tarjetas`.`dec_prestamo`),0) from `tbl_tarjetas` where `websdnco_db_webgoez`.`tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta` and `websdnco_db_webgoez`.`tbl_tarjetas`.`str_concepto` = 'Prestamo') AS `creditoPrestamos`,(select ifnull(sum(`websdnco_db_webgoez`.`tbl_tarjetas`.`dec_prestamo`),0) from `tbl_tarjetas` where `websdnco_db_webgoez`.`tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta` and `websdnco_db_webgoez`.`tbl_tarjetas`.`str_concepto` = 'Articulo') AS `creditosArticulos`,(select ifnull(sum(`websdnco_db_webgoez`.`tbl_tarjetas`.`dec_valor`),0) from `tbl_tarjetas` where `websdnco_db_webgoez`.`tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta`) AS `creditosValorTotal`,(select ifnull(sum(`websdnco_db_webgoez`.`tbl_tarjetas`.`dec_c_adicional_valor`),0) from `tbl_tarjetas` where `websdnco_db_webgoez`.`tbl_tarjetas`.`iddetalleruta` = `dr`.`iddetalleruta`) AS `efectivoAdicional` from ((`tbl_detalle_ruta` `dr` join `tbl_sucursal` `s` on(`s`.`idsucursal` = `dr`.`idsucursal`)) join `tbl_contabilidad_detalle` `cd` on(`cd`.`iddetalleruta` = `dr`.`iddetalleruta`)) where `dr`.`str_estado` = 'saved' group by `dr`.`iddetalleruta`;
 
 -- ----------------------------
 -- View structure for view_list_client
@@ -993,12 +1035,18 @@ DROP VIEW IF EXISTS `view_ruta`;
 CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `view_ruta` AS select `t`.`idtarjeta` AS `refTarjeta`,`t`.`idglobal` AS `refGlobal`,`t`.`idsucursal` AS `refSucursal`,`t`.`idcliente` AS `refCliente`,`t`.`idventa` AS `refVenta`,`t`.`str_concepto` AS `consepto`,`t`.`dec_valor` AS `valor`,`t`.`str_modo` AS `modo`,`t`.`int_tiempo` AS `plazo`,`t`.`dec_prestamo` AS `costo`,`t`.`dec_resta` AS `resta`,`t`.`str_descripcion` AS `descripcion`,`t`.`float_item` AS `item`,`t`.`dec_utilidad` AS `ut`,`t`.`str_c_adicional_numero` AS `ut_adi_num`,`t`.`dec_c_adicional_valor` AS `ut_adi_valor`,`t`.`str_tipo_comprobante` AS `comprobante`,`t`.`str_serie` AS `serie`,`t`.`str_numero` AS `numero`,`t`.`str_nota` AS `comentarios`,`t`.`str_abono` AS `ultimo_pago`,`t`.`str_style` AS `stylo`,`t`.`str_estado` AS `estado`,`t`.`created_empleado_id` AS `creado_por`,`t`.`date_acuerdo` AS `acuerdo`,`t`.`created_at` AS `fecha_at`,`t`.`updated_at` AS `fercha_up`,`c`.`str_apodo` AS `apodo`,`c`.`str_calificacion` AS `calificacion`,`p`.`idpersona` AS `refPersona`,concat(`p`.`str_nombres`,' ',`p`.`str_apellidos`) AS `cliente`,`p`.`str_tipo_documento` AS `t_documento`,`p`.`str_num_documento` AS `n_documento`,`p`.`str_telefono` AS `tel`,`p`.`str_ocupacion` AS `ocupacion`,`p`.`str_foto` AS `foto`,(select ifnull(sum(`tbl_descripcion`.`dec_abono`),0) from `tbl_descripcion` where `tbl_descripcion`.`idtarjeta` = `t`.`idtarjeta` and `tbl_descripcion`.`str_estado` <> 'saved' and `tbl_descripcion`.`str_descripcion` like '%Abono%' or `tbl_descripcion`.`idtarjeta` = `t`.`idtarjeta` and `tbl_descripcion`.`str_estado` <> 'saved' and `tbl_descripcion`.`str_descripcion` like '%Inicial%' or `tbl_descripcion`.`idtarjeta` = `t`.`idtarjeta` and `tbl_descripcion`.`str_estado` <> 'saved' and `tbl_descripcion`.`str_descripcion` like '%Cancelado%') AS `recaudo`,(select ifnull(sum(`tbl_descripcion`.`dec_abono`),0) from `tbl_descripcion` where `tbl_descripcion`.`idtarjeta` = `t`.`idtarjeta` and `tbl_descripcion`.`str_descripcion` like '%Inicial%') AS `inicial` from ((`tbl_tarjetas` `t` join `tbl_clientes` `c` on(`c`.`idcliente` = `t`.`idcliente`)) join `tbl_persona` `p` on(`p`.`idpersona` = `c`.`idpersona`)) order by `t`.`float_item`;
 
 -- ----------------------------
+-- View structure for view_usuario_session
+-- ----------------------------
+DROP VIEW IF EXISTS `view_usuario_session`;
+CREATE ALGORITHM = UNDEFINED SQL SECURITY DEFINER VIEW `view_usuario_session` AS select `u`.`idusuario` AS `idusuario`,`u`.`str_user_name` AS `str_user_name`,`u`.`str_terminos_condiciones` AS `str_terminos_condiciones`,`u`.`str_estado` AS `estado_usuario`,`p`.`idpersona` AS `idpersona`,`p`.`str_nombres` AS `str_nombres`,`p`.`str_apellidos` AS `str_apellidos`,`p`.`str_sexo` AS `str_sexo`,`p`.`str_fecha_nacimiento` AS `str_fecha_nacimiento`,`p`.`str_tipo_documento` AS `str_tipo_documento`,`p`.`str_num_documento` AS `str_num_documento`,`p`.`str_telefono` AS `str_telefono`,`p`.`str_email` AS `str_email`,`p`.`str_foto` AS `str_foto`,`p`.`str_estado` AS `estado_persona`,`p`.`str_nota` AS `str_nota`,`p`.`str_email_verificado` AS `str_email_verificado`,`g`.`idglobal` AS `idglobal`,`g`.`str_razon_social` AS `str_razon_social`,`g`.`str_tipo_documento` AS `tipo_documento_empresa`,`g`.`str_documento` AS `str_documento`,`g`.`str_email` AS `email_empresa`,`g`.`str_tipo` AS `str_tipo`,`g`.`str_nombre_impuesto` AS `str_nombre_impuesto`,`g`.`dec_porcentaje_impuesto` AS `dec_porcentaje_impuesto`,`g`.`str_logo` AS `str_logo`,`g`.`str_estado` AS `estado_emoresa`,`g`.`str_telefono` AS `telefono_empresa`,`g`.`int_maxsucursal` AS `int_maxsucursal`,`g`.`bool_writemiles` AS `bool_writemiles`,`g`.`bool_viewmiles` AS `bool_viewmiles`,`g`.`divisaid` AS `divisaid`,`g`.`empresaid` AS `empresaid`,`g`.`superadmin_personaid` AS `superadmin_personaid`,`g`.`bit_natillera` AS `bit_natillera`,`e`.`idempleado` AS `idempleado`,`e`.`str_apodo` AS `str_apodo`,`e`.`str_cargo` AS `str_cargo`,`e`.`str_estado` AS `estado_empleado`,`e`.`str_comentarios` AS `str_comentarios`,`e`.`date_fecha_inicio` AS `date_fecha_inicio`,`e`.`idoficina` AS `idoficina`,`c`.`idcliente` AS `idcliente`,`c`.`dec_max_credito` AS `dec_max_credito`,`c`.`str_apodo` AS `apodo_cliente`,`c`.`str_nota` AS `nota_cliente`,`c`.`str_estado` AS `estado_cliente`,`c`.`str_calificacion` AS `str_calificacion` from ((((`tbl_usuario` `u` join `tbl_persona` `p` on(`p`.`idpersona` = `u`.`idpersona`)) join `tbl_global` `g` on(`g`.`idglobal` = `u`.`idglobal`)) left join `tbl_empleado` `e` on(`e`.`idpersona` = `p`.`idpersona`)) left join `tbl_clientes` `c` on(`c`.`idpersona` = `p`.`idpersona`));
+
+-- ----------------------------
 -- Function structure for fn_estadisticas_despidos
 -- ----------------------------
 DROP FUNCTION IF EXISTS `fn_estadisticas_despidos`;
 delimiter ;;
 CREATE FUNCTION `fn_estadisticas_despidos`(p_idglobal INT,
-  p_tipo_estadistica VARCHAR(20), -- 'total', 'mes_actual', 'año_actual', 'tipo'
+  p_tipo_estadistica VARCHAR(20), 
   p_parametro VARCHAR(50))
  RETURNS int(11)
   READS SQL DATA 
@@ -1071,7 +1119,7 @@ BEGIN
 
   START TRANSACTION;
   
-  -- Verificar que el empleado existe y está activo
+  
   SELECT COUNT(*), str_estado INTO v_count, v_estado_empleado
   FROM tbl_empleado 
   WHERE idempleado = p_idempleado AND idglobal = p_idglobal;
@@ -1085,7 +1133,7 @@ BEGIN
     SET p_mensaje = 'El empleado ya se encuentra inactivo';
     ROLLBACK;
   ELSE
-    -- Verificar que no tenga un despido previo activo
+    
     SELECT COUNT(*) INTO v_count
     FROM tbl_empleado_despido 
     WHERE idempleado = p_idempleado AND str_estado = 'activo';
@@ -1095,7 +1143,7 @@ BEGIN
       SET p_mensaje = 'El empleado ya tiene un registro de despido activo';
       ROLLBACK;
     ELSE
-      -- Registrar el despido
+      
       INSERT INTO tbl_empleado_despido (
         idglobal,
         idempleado,
@@ -1118,7 +1166,7 @@ BEGIN
         p_created_empleado_id
       );
       
-      -- Actualizar estado del empleado a inactivo
+      
       UPDATE tbl_empleado 
       SET str_estado = 'inactivo', 
           str_comentarios = CONCAT(str_comentarios, '\n[DESPIDO ', p_fecha_despido, '] ', p_motivo_despido),
