@@ -4,7 +4,6 @@ jQuery(document).ready(function () {
   OcultarForm();
   ListadoSucursal()
   ComboEmpleado()
-  ComboTipo_Documento()
   $("form#frmSucursal").submit(SaveOrUpdate);
   $("#btnNuevoSucursal").click(VerForm);
   var Toast = Swal.mixin({
@@ -86,13 +85,7 @@ jQuery(document).ready(function () {
     });
   };
 
-  function ComboTipo_Documento() {
 
-    $.get("./ajax/SucursalAjax.php?op=listTipoDoc", function (r) {
-      $("#comboTipo_Documento").html(r);
-
-    })
-  }
   function ComboEmpleado() {
 
     $.get("./ajax/EmpleadoAjax.php?op=listEmpleados", function (r) {
@@ -137,15 +130,8 @@ function cargarDataSucursal(id) {// funcion que llamamos del archivo ajax/Catego
         if (data) {
           $("#txtIdSucursal").val(data.ref);// recibimos la variable id a la caja de texto txtIdCategoria
           $("#txtRazon_Social").val(data.codigo);
-          $("#comboTipo_Documento").val(data.tDocumento);
-          $("#txtNum_Documento").val(data.nDocumento);
-          $("#txtDireccion").val(data.direccion);
           $("#txtTelefono").val(data.tel);
-          $("#txtEmail").val(data.email);
           $("#cboRepresentante").val(data.refEmpleado);
-          //$("#txtLogo").val(logo);
-          $("#txtRutaImgSuc").val(data.logo);
-          $("#txtRutaImgSuc").show();
           $("#txtEstado").val(data.estado);
           $("#txtTipo").val(data.tipo);
           $("#cboAdicional").val(data.adicional)

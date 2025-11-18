@@ -33,37 +33,14 @@
             </div>
             <!-- /.card-header -->
             <div class="card-body">
-              <div class="row">
-                <div class="col-md-6">
+              <div class="row justify-content-center">
+                <div class="col-md-8">
                   <div class="form-group">
                     <input id="txtIdSucursal" type="hidden" maxlength="50" name="txtIdSucursal" />
-                    <label for="txtRazon_Social">Razón Social (CODIGO):</label>
-                    <input id="txtRazon_Social" type="text" maxlength="7" class="form-control" name="txtRazon_Social"
-                      required="" placeholder="(CODIGO) Ingrese la razón Social de la Sucursal" autofocus="" />
-
-                  </div>
-                  <!-- /.form-group -->
-                  <div class="form-group">
-                    <label for="comboTipo_Documento">Tipo Documento:</label>
-                    <select id="comboTipo_Documento" name="comboTipo_Documento" class="form-control">
-
-                    </select>
-                  </div>
-                  <!-- /.form-group -->
-                </div>
-                <!-- /.col -->
-                <div class="col-md-6">
-                  <div class="form-group">
-                    <label for="txtNum_Documento">Documento:</label>
-                    <input id="txtNum_Documento" type="text" maxlength="15" name="txtNum_Documento" class="form-control"
-                      placeholder="Número de documento" autofocus="" />
-
-                  </div>
-                  <!-- /.form-group -->
-                  <div class="form-group">
-                    <label for="txtDireccion">Dirección:</label>
-                    <input id="txtDireccion" type="text" maxlength="100" name="txtDireccion"
-                      placeholder="Ingrese la dirección" class="form-control" autofocus="" />
+                    <label for="txtRazon_Social" class="font-weight-bold">Razón Social (CODIGO):</label>
+                    <input id="txtRazon_Social" type="text" maxlength="7" class="form-control form-control-lg"
+                      name="txtRazon_Social" required="" placeholder="(CODIGO) Ingrese la razón Social de la Sucursal"
+                      autofocus="" />
                   </div>
                   <!-- /.form-group -->
                 </div>
@@ -73,35 +50,18 @@
               <div class="row">
                 <div class="col-md-6">
                   <div class="form-group">
-                    <label for="txtTelefono">Teléfono:</label>
+                    <label for="txtTelefono" class="font-weight-bold">Teléfono:</label>
                     <input id="txtTelefono" type="text" maxlength="10" name="txtTelefono" required=""
-                      class="form-control" placeholder="Ingrese el teléfono" autofocus="" />
-
-                  </div>
-                  <!-- /.form-group -->
-                  <div class="form-group">
-                    <label for="txtEmail">Email:</label>
-                    <input id="txtEmail" type="email" maxlength="70" name="txtEmail" class="form-control"
-                      placeholder="Ingrese el email" autofocus="" />
-
+                      class="form-control form-control-lg" placeholder="Ingrese el teléfono" autofocus="" />
                   </div>
                   <!-- /.form-group -->
                 </div>
                 <!-- /.col -->
                 <div class="col-md-6">
                   <div class="form-group">
-                    <label for="cboRepresentante">Representante:</label>
-                    <select required class="form-control" id="cboRepresentante" name="cboRepresentante">
-
+                    <label for="cboRepresentante" class="font-weight-bold">Representante:</label>
+                    <select required class="form-control form-control-lg" id="cboRepresentante" name="cboRepresentante">
                     </select>
-
-                  </div>
-                  <!-- /.form-group -->
-                  <div class="form-group">
-                    <label for="imagenSuc">Logo:</label>
-                    <input id="imagenSuc" type="file" class="form-control" name="imagenSuc" autofocus="" />
-                    <input id="txtRutaImgSuc" type="text" class="form-control" name="txtRutaImgSuc" autofocus="" />
-
                   </div>
                   <!-- /.form-group -->
                 </div>
@@ -110,45 +70,37 @@
               <!-- /.row -->
 
               <div class="row">
-                <div class="col-md-6">
+                <div class="col-md-4">
                   <div class="form-group">
-                    <label for="txtEstado">Estado:</label>
-                    <select required class="form-control" id="txtEstado" name="txtEstado">
+                    <label for="txtEstado" class="font-weight-bold">Estado:</label>
+                    <select required class="form-control form-control-lg" id="txtEstado" name="txtEstado">
                       <option value="Disponible">Disponible</option>
-                      <option value="inactiva">inactiva</option>
+                      <option value="inactiva">Inactiva</option>
                     </select>
-
                   </div>
                   <!-- /.form-group -->
                 </div>
                 <!-- /.col -->
-                <div class="col-md-6">
+                <div class="col-md-4">
                   <div class="form-group">
-                    <label for="txtTipo">Tipo:</label>
-                    <select required class="form-control" id="txtTipo" name="txtTipo">
+                    <label for="txtTipo" class="font-weight-bold">Tipo:</label>
+                    <select required class="form-control form-control-lg" id="txtTipo" name="txtTipo">
                       <option>Ruta</option>
                       <option>PuntoVenta</option>
                     </select>
                   </div>
                 </div>
-
-              </div>
-              <!-- /.row -->
-              <div class="row">
-
                 <!-- /.col -->
-                <div class="col-md-6">
+                <div class="col-md-4">
                   <div class="form-group">
-                    <label for="cboAdicional">Descuento adicional a prestamos:</label>
-                    <select required class="form-control" id="cboAdicional" name="cboAdicional">
-                      <option value="">--selecione--</option>
-                      <option value="seguro">seguro</option>
-                      <option value="boleta">boleta</option>
-                      <option value="ninguno">ninguno</option>
+                    <label for="cboAdicional" class="font-weight-bold">Descuento adicional a préstamos:</label>
+                    <select required class="form-control form-control-lg" id="cboAdicional" name="cboAdicional">
+                      <option value="">--Seleccione--</option>
+                      <option value="seguro">Seguro</option>
+                      <option value="boleta">Boleta</option>
+                      <option value="ninguno">Ninguno</option>
                     </select>
-
                   </div>
-
                 </div>
                 <!-- /.col -->
               </div>
@@ -157,11 +109,14 @@
 
             </div>
             <!-- /.card-body -->
-            <div class="card-footer">
-              <button class="btn btn-success" type="submit"><i class="fa fa-floppy-o"></i> Registrar
+            <div class="card-footer text-center">
+              <button class="btn btn-success btn-lg mr-3" type="submit">
+                <i class="fa fa-save"></i> Registrar
               </button>
-              <a href="sucursal.php" class="btn btn-primary"><i class="fa fa-remove"></i> Cancelar</a>
-              <hr>
+              <a href="sucursal.php" class="btn btn-secondary btn-lg">
+                <i class="fa fa-times"></i> Cancelar
+              </a>
+              <hr class="mt-3">
               <span class="lead text-primary"></span>
             </div>
 

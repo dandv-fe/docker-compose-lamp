@@ -52,17 +52,7 @@ switch ($_GET["op"]) {
       echo json_encode($data);
       break;
 
-   case "listTipoDoc":
-      require_once "../model/Tipo_Documento.php";
 
-      $objTipo_Documento = new Tipo_Documento();
-
-      $query_tipo_Documento = $objTipo_Documento->VerTipo_Documento_Persona();
-      while ($reg = $query_tipo_Documento->fetch_object()) {
-         echo '<option value="' . $reg->str_nombre . '">' . $reg->str_nombre . '</option>';
-      }
-
-      break;
 
    case 'buscarSucursal':
       $idsucursal = limpiar_cadena($_REQUEST['id']);
