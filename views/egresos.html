@@ -34,213 +34,214 @@
 <script type="text/javascript" src="dist/scripts/Egresos.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper">
-    <!-- Content Header (Page header) -->
-    <div class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col">
-                    <h3 class="m-0">Un egreso es la salida de recursos financieros <b id="txtcodigoSucursal"></b>
-                    </h3>
-                </div><!-- /.col -->
-            </div><!-- /.row -->
-        </div><!-- /.container-fluid -->
-    </div>
-    <!-- /.content-header -->
-    <!-- Main content -->
-    <section class="content">
-        <div class="container-fluid">
+  <!-- Content Header (Page header) -->
+  <div class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col">
+          <h3 class="m-0">Un egreso es la salida de recursos financieros <b id="txtcodigoSucursal"></b>
+          </h3>
+        </div><!-- /.col -->
+      </div><!-- /.row -->
+    </div><!-- /.container-fluid -->
+  </div>
+  <!-- /.content-header -->
+  <!-- Main content -->
+  <section class="content">
+    <div class="container-fluid">
 
 
-            <div class="row">
-                <div class="col-12">
+      <div class="row">
+        <div class="col-12">
 
-                    <div id="VerListado">
-                        <div class="card">
-                            <div class="card-header">
-                                <form id="formSearchCobrosEgresos">
+          <div id="VerListado">
+            <div class="card">
+              <div class="card-header">
+                <form id="formSearchCobrosEgresos">
 
-                                    <div class="card-header row m-0 p-0">
-                                        <div class="col-md-4">
-                                            <div class="input-group">
-                                                <label>Actividad:</label>
-                                                <select required name="cbosucursal" id="cbosucursal"
-                                                    class="form-control mt-4">
+                  <div class="card-header row m-0 p-0">
+                    <div class="col-md-4">
+                      <div class="form-group">
+                        <label>Actividad:</label>
+                        <div class="input-group">
+                          <select required name="cbosucursal" id="cbosucursal" class="form-control">
 
-                                                    <option value=""> ---selecione---</option>
-                                                    <?php
-                                                    foreach ($allSucursal as $valor) {
-                                                        if (isset($_SESSION['userEmpresa']) || in_array('egresos', $valor[10])) {
-                                                            if ($_SESSION['idsucursal'] == $valor[0]) { ?>
-                                                    <option selected value="<?PHP echo $valor[0]; ?>">
-                                                        <?PHP echo $valor[2]; ?>
-                                                    </option>
-                                                    <?PHP } else { ?>
-                                                    <option value="<?PHP echo $valor[0]; ?>">
-                                                        <?PHP echo $valor[2]; ?>
-                                                    </option>
-                                                    <?PHP }
+                            <option value=""> ---selecione---</option>
+                            <?php $allSucursal=null;
+                                  if($_SESSION['userEmpresa']){
+                                  $sql="SELECT idsucursal, str_codigo FROM tbl_sucursal WHERE idglobal=$idglobal AND idoficina=$idoficina AND str_estado<>'inactiva' ORDER BY str_codigo ASC";
+                                  $resultado=$conexion->query($sql);
+                                  while ($row = $resultado->fetch_array()) {
+                                      $allSucursal[]= $row;
+                                  }
+                                }else{
+
+                                }
+                          foreach ($allSucursal as $valor) {
+                              if (isset($_SESSION['userEmpresa']) || in_array('egresos', $valor[10])) {
+                                  if ($_SESSION['idsucursal'] == $valor[0]) { ?>
+                            <option selected value="<?PHP echo $valor[0]; ?>">
+                              <?PHP echo $valor[1]; ?>
+                            </option>
+                            <?PHP } else { ?>
+                            <option value="<?PHP echo $valor[0]; ?>">
+                              <?PHP echo $valor[1]; ?>
+                            </option>
+                            <?PHP }
                                                         }
                                                     }
                                                     ?>
-                                                </select>
+                          </select>
 
 
-                                                <span class="input-group-append mt-4">
-                                                    <button type="submit" class="btn btn-info btn-flat">
-                                                        <i id="btnstatico" class="fa-solid fa-arrows-rotate"></i>
-                                                        <i id="btnspinner"
-                                                            class="fa-solid fa-spinner fa-pulse hide"></i>
-                                                    </button>
-                                                </span>
-                                            </div>
-
-
-
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label>Desde:</label>
-                                                <div class="input-group date " id="dateDeste"
-                                                    data-target-input="nearest">
-                                                    <input required type="text"
-                                                        class="form-control datetimepicker-input"
-                                                        data-target="#dateDeste" id="txtFechaDesde"
-                                                        name="txtFechaDesde" />
-                                                    <div class="input-group-append" data-target="#dateDeste"
-                                                        data-toggle="datetimepicker">
-                                                        <div class="input-group-text"><i class="fa fa-calendar"></i>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <div class="form-group">
-                                                <label>Hasta:</label>
-                                                <div class="input-group date" id="dateHasta"
-                                                    data-target-input="nearest">
-                                                    <input required type="text"
-                                                        class="form-control datetimepicker-input"
-                                                        data-target="#dateHasta" id="txtFechaHasta"
-                                                        name="txtFechaHasta" />
-                                                    <div class="input-group-append" data-target="#dateHasta"
-                                                        data-toggle="datetimepicker">
-                                                        <div class="input-group-text"><i class="fa fa-calendar"></i>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <input type="submit" style="display: none;">
-                                </form>
-                            </div>
-
-                            <div class="card table-responsive p-0">
-
-                                <table class="table table-striped table-valign-middle">
-                                    <thead>
-                                        <tr>
-                                            <th>Valor</th>
-                                            <th>Consepto</th>
-                                            <th>Categoría</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="trTableconsepto">
-
-
-                                    </tbody>
-                                </table>
-
-                            </div>
-
-                            <!-- /.card-header -->
-                            <div class="card-body p-0">
-                                <table id="tblDetalleEgresos" class="table table-bordered table-striped">
-                                    <thead>
-                                        <tr>
-                                            <th>Fecha</th>
-                                            <th>Valor</th>
-                                            <th>Consepto</th>
-                                            <th>Categoría</th>
-                                            <th>detalle</th>
-
-                                        </tr>
-                                    </thead>
-                                    <tbody></tbody>
-                                    <tfoot>
-                                        <tr>
-                                            <th>Fecha</th>
-                                            <th>Valor</th>
-                                            <th>Consepto</th>
-                                            <th>Categoría</th>
-                                            <th>detalle</th>
-
-                                        </tr>
-                                    </tfoot>
-                                </table>
-                            </div>
-
+                          <span class="input-group-append">
+                            <button type="submit" class="btn btn-info btn-flat">
+                              <i id="btnstatico" class="fa-solid fa-arrows-rotate"></i>
+                              <i id="btnspinner" class="fa-solid fa-spinner fa-pulse hide"></i>
+                            </button>
+                          </span>
                         </div>
-                        <!-- /.card -->
+                      </div>
+
+
+
                     </div>
+                    <div class="col-md-4">
+                      <div class="form-group">
+                        <label>Desde:</label>
+                        <div class="input-group date " id="dateDeste" data-target-input="nearest">
+                          <input required type="text" class="form-control datetimepicker-input" data-target="#dateDeste"
+                            id="txtFechaDesde" name="txtFechaDesde" />
+                          <div class="input-group-append" data-target="#dateDeste" data-toggle="datetimepicker">
+                            <div class="input-group-text"><i class="fa fa-calendar"></i>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div class="col-md-4">
+                      <div class="form-group">
+                        <label>Hasta:</label>
+                        <div class="input-group date" id="dateHasta" data-target-input="nearest">
+                          <input required type="text" class="form-control datetimepicker-input" data-target="#dateHasta"
+                            id="txtFechaHasta" name="txtFechaHasta" />
+                          <div class="input-group-append" data-target="#dateHasta" data-toggle="datetimepicker">
+                            <div class="input-group-text"><i class="fa fa-calendar"></i>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <input type="submit" style="display: none;">
+                </form>
+              </div>
 
-                    <div id="VerformContabilidad" class="card" style="display: none;">
+              <div class="card table-responsive p-0">
 
-                        <!-- /.card-header -->
-                        <div class="card-body p-0">
+                <table class="table table-striped table-valign-middle">
+                  <thead>
+                    <tr>
+                      <th>Valor</th>
+                      <th>Consepto</th>
+                      <th>Categoría</th>
+                    </tr>
+                  </thead>
+                  <tbody id="trTableconsepto">
 
-                            <?php
+
+                  </tbody>
+                </table>
+
+              </div>
+
+              <!-- /.card-header -->
+              <div class="card-body p-0">
+                <table id="tblDetalleEgresos" class="table table-bordered table-striped">
+                  <thead>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Valor</th>
+                      <th>Consepto</th>
+                      <th>Categoría</th>
+                      <th>detalle</th>
+
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                  <tfoot>
+                    <tr>
+                      <th>Fecha</th>
+                      <th>Valor</th>
+                      <th>Consepto</th>
+                      <th>Categoría</th>
+                      <th>detalle</th>
+
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+
+            </div>
+            <!-- /.card -->
+          </div>
+
+          <div id="VerformContabilidad" class="card" style="display: none;">
+
+            <!-- /.card-header -->
+            <div class="card-body p-0">
+
+              <?php
                                    include "views/form/viewCobroDetalleRuta.html";
                                 ?>
 
-                        </div>
-
-                    </div>
-
-
-                </div>
-                <!-- /.col -->
             </div>
+
+          </div>
+
+
         </div>
-    </section>
+        <!-- /.col -->
+      </div>
+    </div>
+  </section>
 </div>
 
 <script type="text/javascript">
-    $("#li-consultaCobros").addClass('menu-open')
-    $("#lia-consultaCobros").addClass('active')
-    $("#lia-consultaEgresos").addClass('active')
+  $("#li-consultaCobros").addClass('menu-open')
+  $("#lia-consultaCobros").addClass('active')
+  $("#lia-consultaEgresos").addClass('active')
 
 
-    $("#tblDetalleEgresos")
-        .DataTable({
+  $("#tblDetalleEgresos")
+    .DataTable({
 
-            responsive: true,
-            lengthChange: false,
-            autoWidth: false,
-            buttons: ["csv", "excel", "pdf", "print", "colvis"],
-        })
-        .buttons()
-        .container()
-        .appendTo("#tblDetalleEgresos_wrapper .col-md-6:eq(0)");
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#tblDetalleEgresos_wrapper .col-md-6:eq(0)");
 
-    //Date picker
-    const dateDesde = $('#dateDeste').datetimepicker({
-        format: 'YYYY-MM-DD',
-        date: moment(),
-        date: moment().startOf('month'),
-        locale: 'es'
-    });
+  //Date picker
+  const dateDesde = $('#dateDeste').datetimepicker({
+    format: 'YYYY-MM-DD',
+    date: moment(),
+    date: moment().startOf('month'),
+    locale: 'es'
+  });
 
 
 
-    // dateDesde.locale(tempusDominus.locales['es'].es);
-    //Date picker
-    $('#dateHasta').datetimepicker({
-        format: 'YYYY-MM-DD',
-        date: moment(),
-        date: moment().endOf('month'),
-        locale: 'es'
-    });
+  // dateDesde.locale(tempusDominus.locales['es'].es);
+  //Date picker
+  $('#dateHasta').datetimepicker({
+    format: 'YYYY-MM-DD',
+    date: moment(),
+    date: moment().endOf('month'),
+    locale: 'es'
+  });
 
 </script>

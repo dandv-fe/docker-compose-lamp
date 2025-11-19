@@ -64,10 +64,11 @@
                     <div class="col-md-4">
                       <div class="form-group">
                         <label>Actividad:</label>
-                        <select required name="cbosucursal" id="cbosucursal" class="form-control">
+                        <div class="input-group">
+                          <select required name="cbosucursal" id="cbosucursal" class="form-control">
 
-                          <option value=""> ---selecione---</option>
-                          <?php $allSucursal=null;
+                            <option value=""> ---selecione---</option>
+                            <?php $allSucursal=null;
                                 if($_SESSION['userEmpresa']){
                                 $sql="SELECT idsucursal, str_codigo FROM tbl_sucursal WHERE idglobal=$idglobal AND idoficina=$idoficina AND str_estado<>'inactiva' ORDER BY str_codigo ASC";
                                 $resultado=$conexion->query($sql);
@@ -80,22 +81,27 @@
                               foreach ($allSucursal as $valor) {
                                   if(isset($_SESSION['userEmpresa']) || in_array('cobro detallado',$valor[10])){
                                       if($_SESSION['idsucursal']==$valor[0]){?>
-                          <option selected value="<?PHP echo $valor[0];?>">
-                            <?PHP echo $valor[1];?>
-                          </option>
-                          <?PHP }else{?>
-                          <option value="<?PHP echo $valor[0];?>">
-                            <?PHP echo $valor[1];?>
-                          </option>
-                          <?PHP }
+                            <option selected value="<?PHP echo $valor[0];?>">
+                              <?PHP echo $valor[1];?>
+                            </option>
+                            <?PHP }else{?>
+                            <option value="<?PHP echo $valor[0];?>">
+                              <?PHP echo $valor[1];?>
+                            </option>
+                            <?PHP }
                                                         }
                                                     }
                                                     ?>
-                        </select>
+                          </select>
 
 
-
-
+                          <span class="input-group-append">
+                            <button type="submit" class="btn btn-info btn-flat">
+                              <i id="btnstatico" class="fa-solid fa-arrows-rotate"></i>
+                              <i id="btnspinner" class="fa-solid fa-spinner fa-pulse hide"></i>
+                            </button>
+                          </span>
+                        </div>
                       </div>
                     </div>
                     <div class="col-md-4">
