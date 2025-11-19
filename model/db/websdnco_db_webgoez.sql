@@ -11,7 +11,7 @@
  Target Server Version : 101114 (10.11.14-MariaDB-ubu2204)
  File Encoding         : 65001
 
- Date: 18/11/2025 14:34:16
+ Date: 19/11/2025 14:25:19
 */
 
 SET NAMES utf8mb4;
@@ -35,6 +35,27 @@ CREATE TABLE `archivo_tar`  (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `cc_cliente`(`cc_cliente` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 144822 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish_ci ROW_FORMAT = Dynamic;
+
+-- ----------------------------
+-- Table structure for tbl_ahorros
+-- ----------------------------
+DROP TABLE IF EXISTS `tbl_ahorros`;
+CREATE TABLE `tbl_ahorros`  (
+  `idahorro` int(11) NOT NULL AUTO_INCREMENT,
+  `idglobal` int(11) NOT NULL,
+  `idpersona` int(11) NOT NULL,
+  `dec_porcentaje` decimal(5, 2) NOT NULL,
+  `dec_ganancia_acumulada` decimal(10, 2) NOT NULL DEFAULT 0.00,
+  `str_pago_utilidad` enum('automatico','manual') CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL DEFAULT 'manual',
+  `bit_auth_movimientos` bit(1) NOT NULL DEFAULT b'0',
+  `str_estado` varchar(15) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL,
+  `created_at` datetime NULL DEFAULT NULL,
+  `updated_at` datetime NULL DEFAULT NULL,
+  PRIMARY KEY (`idahorro`) USING BTREE,
+  INDEX `index_idglobal`(`idglobal` ASC) USING BTREE,
+  INDEX `index_idpersona`(`idpersona` ASC) USING BTREE,
+  CONSTRAINT `fk_tbl_ahorro_tbl_persona_1` FOREIGN KEY (`idpersona`) REFERENCES `tbl_persona` (`idpersona`) ON DELETE NO ACTION ON UPDATE NO ACTION
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tbl_articulo
@@ -105,7 +126,7 @@ CREATE TABLE `tbl_auths`  (
   INDEX `fk_tbl_auths_tbl_auth_sucursal_1`(`idauth_sucursal` ASC) USING BTREE,
   CONSTRAINT `fk_tbl_auths_tbl_auth_1` FOREIGN KEY (`idauth`) REFERENCES `tbl_auth` (`idauth`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk_tbl_auths_tbl_auth_sucursal_1` FOREIGN KEY (`idauth_sucursal`) REFERENCES `tbl_auth_sucursal` (`idauth_sucursal`) ON DELETE CASCADE ON UPDATE CASCADE
-) ENGINE = InnoDB AUTO_INCREMENT = 10377 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 10379 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tbl_banco
@@ -320,31 +341,6 @@ CREATE TABLE `tbl_detalle_ingreso`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci ROW_FORMAT = Compact;
 
 -- ----------------------------
--- Table structure for tbl_detalle_natillera
--- ----------------------------
-DROP TABLE IF EXISTS `tbl_detalle_natillera`;
-CREATE TABLE `tbl_detalle_natillera`  (
-  `iddetalle_natillera` int(11) NOT NULL AUTO_INCREMENT,
-  `idglobal` int(11) NOT NULL,
-  `idnatillera` int(11) NOT NULL,
-  `idusuario_created` int(11) NOT NULL,
-  `date_movimiento` datetime NOT NULL DEFAULT current_timestamp(),
-  `str_tipo` enum('aporte','retiro','ajuste') CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL DEFAULT 'aporte',
-  `dec_valor` decimal(10, 2) NOT NULL,
-  `str_descripcion` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL,
-  `int_codigo` int(11) NULL DEFAULT NULL,
-  `str_estado` varchar(15) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL,
-  `created_at` datetime NOT NULL,
-  `update_at` datetime NOT NULL,
-  PRIMARY KEY (`iddetalle_natillera`) USING BTREE,
-  INDEX `indexid`(`idglobal` ASC) USING BTREE,
-  INDEX `index_idnatillera`(`idnatillera` ASC) USING BTREE,
-  INDEX `fk_tbl_detalle_natillera`(`idusuario_created` ASC) USING BTREE,
-  CONSTRAINT `fk_tbl_detalle_natillera` FOREIGN KEY (`idusuario_created`) REFERENCES `tbl_usuario` (`idusuario`) ON DELETE RESTRICT ON UPDATE RESTRICT,
-  CONSTRAINT `fk_tbl_detalle_natillera_tbl_natillera_1` FOREIGN KEY (`idnatillera`) REFERENCES `tbl_natillera` (`idnatillera`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
-
--- ----------------------------
 -- Table structure for tbl_detalle_nomina
 -- ----------------------------
 DROP TABLE IF EXISTS `tbl_detalle_nomina`;
@@ -478,6 +474,7 @@ CREATE TABLE `tbl_empleado`  (
   `created_at` datetime NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
   `update_at` datetime NULL DEFAULT NULL,
   `idoficina` int(11) NULL DEFAULT NULL,
+  `dec_max_credito` decimal(10, 2) NULL DEFAULT NULL,
   PRIMARY KEY (`idempleado`) USING BTREE,
   INDEX `index1`(`idglobal` ASC) USING BTREE,
   INDEX `index2`(`idpersona` ASC) USING BTREE,
@@ -518,7 +515,7 @@ CREATE TABLE `tbl_empleado_despido`  (
   INDEX `idx_estado`(`str_estado` ASC) USING BTREE,
   CONSTRAINT `fk_empleado_despido_created_by` FOREIGN KEY (`created_empleado_id`) REFERENCES `tbl_empleado` (`idempleado`) ON DELETE NO ACTION ON UPDATE NO ACTION,
   CONSTRAINT `fk_empleado_despido_empleado` FOREIGN KEY (`idempleado`) REFERENCES `tbl_empleado` (`idempleado`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB AUTO_INCREMENT = 6 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci COMMENT = 'Tabla para registrar despidos de empleados con información detallada' ROW_FORMAT = Compact;
+) ENGINE = InnoDB AUTO_INCREMENT = 7 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci COMMENT = 'Tabla para registrar despidos de empleados con información detallada' ROW_FORMAT = Compact;
 
 -- ----------------------------
 -- Table structure for tbl_empleados_asignado
@@ -677,24 +674,28 @@ CREATE TABLE `tbl_ingreso`  (
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci ROW_FORMAT = Compact;
 
 -- ----------------------------
--- Table structure for tbl_natillera
+-- Table structure for tbl_movimientos
 -- ----------------------------
-DROP TABLE IF EXISTS `tbl_natillera`;
-CREATE TABLE `tbl_natillera`  (
-  `idnatillera` int(11) NOT NULL AUTO_INCREMENT,
+DROP TABLE IF EXISTS `tbl_movimientos`;
+CREATE TABLE `tbl_movimientos`  (
+  `idmovimiento` int(11) NOT NULL AUTO_INCREMENT,
   `idglobal` int(11) NOT NULL,
-  `idpersona` int(11) NOT NULL,
-  `dec_porcentaje` decimal(5, 2) NOT NULL,
-  `dec_ganancia_acumulada` decimal(10, 2) NOT NULL DEFAULT 0.00,
-  `str_pago_utilidad` enum('automatico','manual') CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL DEFAULT 'manual',
-  `bit_auth_movimientos` bit(1) NOT NULL DEFAULT b'0',
+  `idahorro` int(11) NOT NULL,
+  `idusuario_created` int(11) NOT NULL,
+  `date_movimiento` datetime NOT NULL DEFAULT current_timestamp(),
+  `str_tipo` enum('aporte','retiro','ajuste') CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL DEFAULT 'aporte',
+  `dec_valor` decimal(10, 2) NOT NULL,
+  `str_descripcion` varchar(255) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL,
+  `int_codigo` int(11) NULL DEFAULT NULL,
   `str_estado` varchar(15) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL,
-  `created_at` datetime NULL DEFAULT NULL,
-  `updated_at` datetime NULL DEFAULT NULL,
-  PRIMARY KEY (`idnatillera`) USING BTREE,
-  INDEX `index_idglobal`(`idglobal` ASC) USING BTREE,
-  INDEX `index_idpersona`(`idpersona` ASC) USING BTREE,
-  CONSTRAINT `fk_tbl_natillera_tbl_persona_1` FOREIGN KEY (`idpersona`) REFERENCES `tbl_persona` (`idpersona`) ON DELETE NO ACTION ON UPDATE NO ACTION
+  `created_at` datetime NOT NULL,
+  `update_at` datetime NOT NULL,
+  PRIMARY KEY (`idmovimiento`) USING BTREE,
+  INDEX `indexid`(`idglobal` ASC) USING BTREE,
+  INDEX `FK_tbl_movimientos_tbl_ahorros`(`idahorro` ASC) USING BTREE,
+  INDEX `FK_tbl_movimientos_tbl_usuarios`(`idusuario_created` ASC) USING BTREE,
+  CONSTRAINT `FK_tbl_movimientos_tbl_ahorros` FOREIGN KEY (`idahorro`) REFERENCES `tbl_ahorros` (`idahorro`) ON DELETE RESTRICT ON UPDATE RESTRICT,
+  CONSTRAINT `FK_tbl_movimientos_tbl_usuarios` FOREIGN KEY (`idusuario_created`) REFERENCES `tbl_usuario` (`idusuario`) ON DELETE RESTRICT ON UPDATE RESTRICT
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
