@@ -1,289 +1,283 @@
 <div class="modal fade" id="modal-nuevo-credito">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header py-0">
-                <h4 class="modal-title">Nuevo Credito</h4>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close"
-                    style="padding-top: 25px; padding-bottom: 5px;">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header py-0">
+        <h4 class="modal-title">Nuevo Credito</h4>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"
+          style="padding-top: 25px; padding-bottom: 5px;">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form id="formSaveNewCredit">
+        <input type="hidden" id="txt_refDetalle_documento_sucursalfHidden"
+          name="txt_refDetalle_documento_sucursalfHidden">
+        <input type="hidden" name="txt_tipo_comprobanteHidden" id="txt_tipo_comprobanteHidden">
+        <input type="hidden" id="txt_ultima_serieHidden" name="txt_ultima_serieHidden">
+        <input type="hidden" id="txt_ultimo_numeroHidden" name="txt_ultimo_numeroHidden">
+        <input type="hidden" id="txtrefTarjetaHidden" name="txtrefTarjetaHidden">
+        <input type="hidden" id="txtitemHidden" name="txtitemHidden">
+        <input type="hidden" name="txtHiddenAdicional" id="txtHiddenAdicional"
+          value="<?php echo $sucursal->str_cobro_adicional; ?>">
+
+        <div class="modal-body p-0 text-center">
+          <div class="form-group clearfix mb-0 mt-1">
+            <div class="icheck-primary d-inline">
+              <input onchange="onChangeRdo(this)" id="rdoPrimera" type="radio" name="r1">
+              <label for="rdoPrimera">
+                Primera
+              </label>
             </div>
-            <form id="formSaveNewCredit">
-                <input type="hidden" id="txt_refDetalle_documento_sucursalfHidden"
-                    name="txt_refDetalle_documento_sucursalfHidden">
-                <input type="hidden" name="txt_tipo_comprobanteHidden" id="txt_tipo_comprobanteHidden">
-                <input type="hidden" id="txt_ultima_serieHidden" name="txt_ultima_serieHidden">
-                <input type="hidden" id="txt_ultimo_numeroHidden" name="txt_ultimo_numeroHidden">
-                <input type="hidden" id="txtrefTarjetaHidden" name="txtrefTarjetaHidden">
-                <input type="hidden" id="txtitemHidden" name="txtitemHidden">
-                <input type="hidden" name="txtHiddenAdicional" id="txtHiddenAdicional" value="<?php echo $allSucursal[$indexAllSucursal][11]; ?>">
+            <div class="icheck-primary d-inline">
+              <input onchange="onChangeRdo(this)" id="rdoAntes" type="radio" name="r1">
+              <label for="rdoAntes">
+                Antes
+              </label>
+            </div>
+            <div class="icheck-primary d-inline">
+              <input onchange="onChangeRdo(this)" id="rdoDespues" type="radio" name="r1">
+              <label for="rdoDespues">
+                Despues
+              </label>
+            </div>
+            <div class="icheck-primary d-inline">
+              <input onchange="onChangeRdo(this)" id="rdoUltima" type="radio" name="r1">
+              <label for="rdoUltima">
+                Ultima
+              </label>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col pr-0">
 
-                <div class="modal-body p-0 text-center">
-                    <div class="form-group clearfix mb-0 mt-1">
-                        <div class="icheck-primary d-inline">
-                            <input onchange="onChangeRdo(this)" id="rdoPrimera" type="radio" name="r1">
-                            <label for="rdoPrimera">
-                                Primera
-                            </label>
-                        </div>
-                        <div class="icheck-primary d-inline">
-                            <input onchange="onChangeRdo(this)" id="rdoAntes" type="radio" name="r1">
-                            <label for="rdoAntes">
-                                Antes
-                            </label>
-                        </div>
-                        <div class="icheck-primary d-inline">
-                            <input onchange="onChangeRdo(this)" id="rdoDespues" type="radio" name="r1">
-                            <label for="rdoDespues">
-                                Despues
-                            </label>
-                        </div>
-                        <div class="icheck-primary d-inline">
-                            <input onchange="onChangeRdo(this)" id="rdoUltima" type="radio" name="r1">
-                            <label for="rdoUltima">
-                                Ultima
-                            </label>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col pr-0">
+              <div class="divForNuevoCredito">
 
-                            <div class="divForNuevoCredito">
-
-                                <label for="txtConsepto" class="labelForNuevoCredito">
-                                    <span class="spanForNuevoCredito top badge-success"> Consepto</span>
-                                    <select name="txtConsepto" id="txtConsepto"
-                                        class="form-control inputForNuevoCredito">
-                                        <option value="Prestamo">Prestamo</option>
-                                        <option value="Articulo">Articulo</option>
-                                        <!--<option value="Inventario">Articulo Inventario</option>-->
-                                    </select>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col pl-1">
-                            <div class="divForNuevoCredito">
-                                <label class="labelForNuevoCredito" for="txtCuota">
-                                    <span class="spanForNuevoCredito top badge-success">Cuota</span>
-                                    <input onkeyup="return onKeyupFormNuevoCredit(this,event);" value="0" id="txtCuota"
-                                        name="txtCuota" class="form-control inputForNuevoCredito" readonly />
-                                </label>
-                            </div>
+                <label for="txtConsepto" class="labelForNuevoCredito">
+                  <span class="spanForNuevoCredito top badge-success"> Consepto</span>
+                  <select name="txtConsepto" id="txtConsepto" class="form-control inputForNuevoCredito">
+                    <option value="Prestamo">Prestamo</option>
+                    <option value="Articulo">Articulo</option>
+                    <!--<option value="Inventario">Articulo Inventario</option>-->
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div class="col pl-1">
+              <div class="divForNuevoCredito">
+                <label class="labelForNuevoCredito" for="txtCuota">
+                  <span class="spanForNuevoCredito top badge-success">Cuota</span>
+                  <input onkeyup="return onKeyupFormNuevoCredit(this,event);" value="0" id="txtCuota" name="txtCuota"
+                    class="form-control inputForNuevoCredito" readonly />
+                </label>
+              </div>
 
 
-                            <div class="divForNuevoCredito hide">
-                                <label for="txtObligacion" class="labelForNuevoCredito">
-                                    <span class="spanForNuevoCredito">Serie: <b id="txtserieview"></b> N°</span>
+              <div class="divForNuevoCredito hide">
+                <label for="txtObligacion" class="labelForNuevoCredito">
+                  <span class="spanForNuevoCredito">Serie: <b id="txtserieview"></b> N°</span>
 
-                                    <input onkeyup="return onKeyupFormNuevoCredit(this, event);" id="txtObligacion"
-                                        type="text" maxlength="30" name="txtObligacion"
-                                        class="form-control inputForNuevoCredito" />
+                  <input onkeyup="return onKeyupFormNuevoCredit(this, event);" id="txtObligacion" type="text"
+                    maxlength="30" name="txtObligacion" class="form-control inputForNuevoCredito" />
 
-                                </label>
-                            </div>
+                </label>
+              </div>
 
-                        </div>
-                    </div>
-                    <div id="divDescipcionArticuloInicial" class="row">
-                        <div class="col pr-0">
-                            <div class="divForNuevoCredito">
-                                <label class="labelForNuevoCredito" for="txtdescricion">
-                                    <span class="spanForNuevoCredito">Descripcion</span>
-                                    <textarea type="text" id="txtdescricion" name="txtdescricion"
-                                        class=" form-control inputForNuevoCredito " rows="2"></textarea>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col pl-1">
-                            <div class="divForNuevoCredito">
-                                <label class="labelForNuevoCredito" for="txtCuotaInicial">
-                                    <span class="spanForNuevoCredito">Cuota inicial</span>
-                                    <input onkeyup="return onKeyupFormNuevoCredit(this, event);" id="txtCuotaInicial"
-                                        type="number" maxlength="12" name="txtCuotaInicial"
-                                        class="form-control inputForNuevoCredito" />
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col pr-0">
+            </div>
+          </div>
+          <div id="divDescipcionArticuloInicial" class="row">
+            <div class="col pr-0">
+              <div class="divForNuevoCredito">
+                <label class="labelForNuevoCredito" for="txtdescricion">
+                  <span class="spanForNuevoCredito">Descripcion</span>
+                  <textarea type="text" id="txtdescricion" name="txtdescricion"
+                    class=" form-control inputForNuevoCredito " rows="2"></textarea>
+                </label>
+              </div>
+            </div>
+            <div class="col pl-1">
+              <div class="divForNuevoCredito">
+                <label class="labelForNuevoCredito" for="txtCuotaInicial">
+                  <span class="spanForNuevoCredito">Cuota inicial</span>
+                  <input onkeyup="return onKeyupFormNuevoCredit(this, event);" id="txtCuotaInicial" type="number"
+                    maxlength="12" name="txtCuotaInicial" class="form-control inputForNuevoCredito" />
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="row">
+            <div class="col pr-0">
 
-                            <div class="divForNuevoCredito">
-                                <label class="labelForNuevoCredito" for="txtValor">
-                                    <span class="spanForNuevoCredito">Valor a pagar</span>
-                                    <input onchange="onChangeFormNuevoCredit(this)"
-                                        onkeyup="return onKeyupFormNuevoCredit(this,event);" type="number" id="txtValor"
-                                        name="txtValor" class="form-control inputForNuevoCredito" maxlength="12" />
-                                </label>
-                            </div>
+              <div class="divForNuevoCredito">
+                <label class="labelForNuevoCredito" for="txtValor">
+                  <span class="spanForNuevoCredito">Valor a pagar</span>
+                  <input onchange="onChangeFormNuevoCredit(this)" onkeyup="return onKeyupFormNuevoCredit(this,event);"
+                    type="number" id="txtValor" name="txtValor" class="form-control inputForNuevoCredito"
+                    maxlength="12" />
+                </label>
+              </div>
 
-                        </div>
-                        <div class="col pl-1">
+            </div>
+            <div class="col pl-1">
 
-                            <div class="divForNuevoCredito">
-                                <label class="labelForNuevoCredito" for="txtCosto">
-                                    <span class="spanForNuevoCredito top badge-success"> Costo</span>
-                                    <input value="0" onkeyup="return onKeyupFormNuevoCredit(this, event);" id="txtCosto"
-                                        type="number" maxlength="12" name="txtCosto"
-                                        class="form-control inputForNuevoCredito" />
-                                </label>
-                            </div>
+              <div class="divForNuevoCredito">
+                <label class="labelForNuevoCredito" for="txtCosto">
+                  <span class="spanForNuevoCredito top badge-success"> Costo</span>
+                  <input value="0" onkeyup="return onKeyupFormNuevoCredit(this, event);" id="txtCosto" type="number"
+                    maxlength="12" name="txtCosto" class="form-control inputForNuevoCredito" />
+                </label>
+              </div>
 
-                        </div>
-                    </div>
+            </div>
+          </div>
 
-                    <div class="row">
-                        <div class="col pr-0">
-                            <div class="divForNuevoCredito">
-                                <label class="labelForNuevoCredito" for="txtModo">
-                                    <span class="spanForNuevoCredito">Diario, S, Q, M</span>
-                                    <input onkeyup="return onKeyupFormNuevoCredit(this,event);" type="text" id="txtModo"
-                                        name="txtModo" class="form-control inputForNuevoCredito" maxlength="12" />
-                                </label>
-                            </div>
-                        </div>
-                        <div class="col pl-1">
-                            <div class="divForNuevoCredito">
-                                <label class="labelForNuevoCredito" for="txtTiempo">
-                                    <span class="spanForNuevoCredito">Plazo</span>
-                                    <input onkeyup="return onKeyupFormNuevoCredit(this,event);" id="txtTiempo"
-                                        type="number" maxlength="5" name="txtTiempo"
-                                        class="form-control inputForNuevoCredito" />
-                                </label>
-                            </div>
+          <div class="row">
+            <div class="col pr-0">
+              <div class="divForNuevoCredito">
+                <label class="labelForNuevoCredito" for="txtModo">
+                  <span class="spanForNuevoCredito">Diario, S, Q, M</span>
+                  <input onkeyup="return onKeyupFormNuevoCredit(this,event);" type="text" id="txtModo" name="txtModo"
+                    class="form-control inputForNuevoCredito" maxlength="12" />
+                </label>
+              </div>
+            </div>
+            <div class="col pl-1">
+              <div class="divForNuevoCredito">
+                <label class="labelForNuevoCredito" for="txtTiempo">
+                  <span class="spanForNuevoCredito">Plazo</span>
+                  <input onkeyup="return onKeyupFormNuevoCredit(this,event);" id="txtTiempo" type="number" maxlength="5"
+                    name="txtTiempo" class="form-control inputForNuevoCredito" />
+                </label>
+              </div>
 
-                        </div>
-                    </div>
+            </div>
+          </div>
 
-                        <div class="row <?PHP echo $allSucursal[$indexAllSucursal][11]=='ninguno'? 'hide': ''; ?>">
-                            <div class="divSeguroFormNuevoCredito col pr-0">
-                                <div class="divForNuevoCredito">
-                                    <label class="labelForNuevoCredito" for="txtRecaudo">
-                                        <span class="spanForNuevoCredito"> 
-                                            <?PHP echo $allSucursal[$indexAllSucursal][11]=='seguro'? "Seguro": "Valor boleta"; ?>
-                                        
-                                        </span>
-                                        <input onkeyup="return onKeyupFormNuevoCredit(this,event);" type="number"
-                                            id="txtRecaudo" name="txtRecaudo" class="form-control inputForNuevoCredito"
-                                            maxlength="12" />
-                                    </label>
-                                </div>
-    
-                            </div>
-                            <div class="col pl-1">
-                                <div class="<?PHP echo $allSucursal[$indexAllSucursal][11]=='seguro'? 'hide': ''; ?>"> 
-                                    <div class="divSeguroFormNuevoCredito col pr-0">
-                                        <div class="divForNuevoCredito">
-                                            <label class="labelForNuevoCredito" for="txtNumBoleta">
-                                                <span class="spanForNuevoCredito">Número boleta</span>
-                                                <input onkeyup="return onKeyupFormNuevoCredit(this,event);" type="number"
-                                                    id="txtNumBoleta" name="txtNumBoleta" class="form-control inputForNuevoCredito"
-                                                    maxlength="12" />
-                                            </label>
-                                        </div>
-            
-                                    </div>
-                                </div>
+          <div class="row <?PHP echo $sucursal->str_cobro_adicional=='ninguno'? 'hide': ''; ?>">
+            <div class="divSeguroFormNuevoCredito col pr-0">
+              <div class="divForNuevoCredito">
+                <label class="labelForNuevoCredito" for="txtRecaudo">
+                  <span class="spanForNuevoCredito">
+                    <?PHP echo $sucursal->str_cobro_adicional=='seguro'? "Seguro": "Valor boleta"; ?>
 
-                                
-    
-                            </div>
-                        </div>
+                  </span>
+                  <input onkeyup="return onKeyupFormNuevoCredit(this,event);" type="number" id="txtRecaudo"
+                    name="txtRecaudo" class="form-control inputForNuevoCredito" maxlength="12" />
+                </label>
+              </div>
 
-                       
-
-
+            </div>
+            <div class="col pl-1">
+              <div class="<?PHP echo $sucursal->str_cobro_adicional=='seguro'? 'hide': ''; ?>">
+                <div class="divSeguroFormNuevoCredito col pr-0">
+                  <div class="divForNuevoCredito">
+                    <label class="labelForNuevoCredito" for="txtNumBoleta">
+                      <span class="spanForNuevoCredito">Número boleta</span>
+                      <input onkeyup="return onKeyupFormNuevoCredit(this,event);" type="number" id="txtNumBoleta"
+                        name="txtNumBoleta" class="form-control inputForNuevoCredito" maxlength="12" />
+                    </label>
+                  </div>
 
                 </div>
+              </div>
 
-                <div class="modal-footer justify-content-between">
-                    <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
-                    <button id="btnFormNewCredito" type="button" class="btn btn-primary">Registrar</button>
-                </div>
-            </form>
+
+
+            </div>
+          </div>
+
+
+
+
+
         </div>
-        <!-- /.modal-content -->
+
+        <div class="modal-footer justify-content-between">
+          <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
+          <button id="btnFormNewCredito" type="button" class="btn btn-primary">Registrar</button>
+        </div>
+      </form>
     </div>
-    <!-- /.modal-dialog -->
+    <!-- /.modal-content -->
+  </div>
+  <!-- /.modal-dialog -->
 </div>
 <!-- /.modal -->
 
 <script type="text/javascript">
-    function onChangeRdo(e) {
-        sessionStorage.setItem('rdo', $(e).attr('id'))
+  function onChangeRdo(e) {
+    sessionStorage.setItem('rdo', $(e).attr('id'))
+  }
+
+
+  $(function () {
+
+
+
+    $('body').on('focus', '.inputForNuevoCredito', function (e) {
+
+      $(e.target).prev().addClass('top');
+      $(e.target).prev().addClass('badge-success');
+      $(e.target).prev().addClass('focus');
+      $(e.target).parent().addClass('focus')
+    });
+
+    $('body').on('blur', '.inputForNuevoCredito', function (e) {
+
+      const input = $(e.target).val()
+
+      if (input.trim() == '') {
+        $(e.target).prev().removeClass('top');
+        $(e.target).prev().removeClass('badge-success');
+      }
+      $(e.target).prev().removeClass('focus');
+      $(e.target).parent().removeClass('focus')
+    });
+
+
+
+    $('#modal-nuevo-credito').on('show.bs.modal', function (e) {
+      banderasavedcredito = 0
+      if (screen.width < 360) {
+        const rdoPrimera = 'Pri';
+        const rdoAntes = 'Ant';
+        const rdoDespues = 'Des';
+        const rdoUltima = 'Ult';
+        $("#rdoPrimera").next().text(rdoPrimera);
+        $("#rdoAntes").next().text(rdoAntes);
+        $("#rdoDespues").next().text(rdoDespues);
+        $("#rdoUltima").next().text(rdoUltima);
+      }
+
+      verFormPanel()
+      $("#txtserieview").text($("#txt_ultima_serieHidden").val());
+      // $("#txtObligacion").val($("#txt_ultimo_numeroHidden").val());
+      if ($("#txtConsepto").val() === 'Articulo') {
+        $("#divDescipcionArticuloInicial").show();
+        $(".divSeguroFormNuevoCredito").hide();
+      } else {
+        $("#divDescipcionArticuloInicial").hide();
+        $(".divSeguroFormNuevoCredito").show();
+      }
+
+
+      //resetStyleFormNuevoPrestamo()
+      setTimeout(obligacionFocus, 300)
+      const rdo = sessionStorage.getItem('rdo');
+      if (rdo) {
+
+        $("#" + rdo + "").attr('checked', true);
+      } else {
+        sessionStorage.setItem('rdo', 'rdoAntes')
+        $("#rdoAntes").attr('checked', true);
+      }
+    })
+    function obligacionFocus() {
+      $("#txtValor").focus();
     }
 
+    $('#modal-nuevo-credito').on('hidden.bs.modal', function (e) {
+      $("#formSaveNewCredit button").attr('disabled', false);
+      $('#formSaveNewCredit').trigger("reset");
+    })
 
-    $(function () {
-
-        
-
-        $('body').on('focus', '.inputForNuevoCredito', function (e) {
-
-            $(e.target).prev().addClass('top');
-            $(e.target).prev().addClass('badge-success');
-            $(e.target).prev().addClass('focus');
-            $(e.target).parent().addClass('focus')
-        });
-
-        $('body').on('blur', '.inputForNuevoCredito', function (e) {
-
-            const input = $(e.target).val()
-           
-            if (input.trim() == '') {
-                $(e.target).prev().removeClass('top');
-                $(e.target).prev().removeClass('badge-success');
-            }
-            $(e.target).prev().removeClass('focus');
-            $(e.target).parent().removeClass('focus')
-        });
-
-
-
-        $('#modal-nuevo-credito').on('show.bs.modal', function (e) {
-            banderasavedcredito = 0
-            if (screen.width < 360) {
-                const rdoPrimera = 'Pri';
-                const rdoAntes = 'Ant';
-                const rdoDespues = 'Des';
-                const rdoUltima = 'Ult';
-                $("#rdoPrimera").next().text(rdoPrimera);
-                $("#rdoAntes").next().text(rdoAntes);
-                $("#rdoDespues").next().text(rdoDespues);
-                $("#rdoUltima").next().text(rdoUltima);
-            }
-
-            verFormPanel()
-            $("#txtserieview").text($("#txt_ultima_serieHidden").val());
-            // $("#txtObligacion").val($("#txt_ultimo_numeroHidden").val());
-            if ($("#txtConsepto").val() === 'Articulo') {
-                $("#divDescipcionArticuloInicial").show();
-                $(".divSeguroFormNuevoCredito").hide();
-            } else {
-                $("#divDescipcionArticuloInicial").hide();
-                $(".divSeguroFormNuevoCredito").show();
-            }
-
-
-            //resetStyleFormNuevoPrestamo()
-            setTimeout(obligacionFocus, 300)
-            const rdo = sessionStorage.getItem('rdo');
-            if (rdo) {
-
-                $("#" + rdo + "").attr('checked', true);
-            } else {
-                sessionStorage.setItem('rdo', 'rdoAntes')
-                $("#rdoAntes").attr('checked', true);
-            }
-        })
-        function obligacionFocus() {
-            $("#txtValor").focus();
-        }
-
-        $('#modal-nuevo-credito').on('hidden.bs.modal', function (e) {
-            $("#formSaveNewCredit button").attr('disabled', false);
-            $('#formSaveNewCredit').trigger("reset");
-        })
-
-    });
+  });
 </script>
