@@ -46,6 +46,7 @@ switch ($_GET["op"]) {
       $fechaIngreso = limpiar_cadena2($_POST["txt_fechaIngreso"]);
       $apodo = limpiar_cadena($_POST["txtApodo"]);
       $cargo = limpiar_cadena($_POST["txtCargo"]);
+      $maxCredito = limpiar_cadena($_POST["txtMaxCredito"]) ?: 0; // Valor por defecto 0 si está vacío
       //$estadoEmpleado = limpiar_cadena($_POST["txtEstadoEmpleado"]);
 
       $os = array("Super Administrador", "Semanal", "Quincenal", "Mensual");
@@ -100,6 +101,7 @@ switch ($_GET["op"]) {
                      $fechaIngreso,
                      $apodo,
                      $cargo,
+                     $maxCredito,
                      $idglobal
                   );
                } else {
@@ -129,7 +131,7 @@ switch ($_GET["op"]) {
                      $fechaIngreso,
                      $apodo,
                      $cargo,
-
+                     $maxCredito,
                      $idglobal
                   );
                }
@@ -165,7 +167,7 @@ switch ($_GET["op"]) {
                $fechaIngreso,
                $apodo,
                $cargo,
-
+               $maxCredito,
                $idglobal
             );
          } else {
@@ -193,7 +195,7 @@ switch ($_GET["op"]) {
                $fechaIngreso,
                $apodo,
                $cargo,
-
+               $maxCredito,
                $idglobal
             );
          }
@@ -239,6 +241,7 @@ switch ($_GET["op"]) {
       $req->refEmpleado = '';
       $req->apodo = '';
       $req->cargo = '';
+      $req->dec_max_credito = 0;
       $req->estadoEmpleado = '';
       $req->comentarios = '';
       $req->fecha_at = '';
@@ -254,6 +257,7 @@ switch ($_GET["op"]) {
          $req->refEmpleado = $request->refEmpleado;
          $req->apodo = $request->apodo;
          $req->cargo = $request->cargo;
+         $req->dec_max_credito = $request->dec_max_credito ?: 0;
          $req->estadoEmpleado = $request->estadoEmpleado;
          $req->comentarios = $request->comentarios;
          $req->fecha_inicio = $request->fecha_inicio;

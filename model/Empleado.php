@@ -29,6 +29,7 @@ class Empleado
       $fechaIngreso,
       $apodo,
       $cargo,
+      $maxCredito,
       $idglobal
    ) {
       global $conexion;
@@ -94,10 +95,11 @@ class Empleado
                      str_estado,
                      str_comentarios,
                      date_fecha_inicio,
+                     dec_max_credito,
                      created_at,
                      update_at
              )
-              VALUES ($idglobal, $idpersona, '$apodo', '$cargo', 'activo', '', '$fechaIngreso', '$dt', '$dt')";
+              VALUES ($idglobal, $idpersona, '$apodo', '$cargo', 'activo', '', '$fechaIngreso', $maxCredito, '$dt', '$dt')";
          $conexion->query($sql) or throw new Exception('error!');
 
          $sql = "INSERT INTO `tbl_usuario`(
@@ -145,6 +147,7 @@ class Empleado
       $fechaIngreso,
       $apodo,
       $cargo,
+      $maxCredito,
       $idglobal
    ) {
       global $conexion;
@@ -212,10 +215,11 @@ class Empleado
                     str_estado,
                     str_comentarios,
                     date_fecha_inicio,
+                    dec_max_credito,
                     created_at,
                     update_at
             )
-             VALUES ($idglobal, $idpersona, '$apodo', '$cargo', 'activo', '', '$fechaIngreso', '$dt', '$dt')";
+             VALUES ($idglobal, $idpersona, '$apodo', '$cargo', 'activo', '', '$fechaIngreso', $maxCredito, '$dt', '$dt')";
             $conexion->query($sql) or throw new Exception('error!');
          } else {
             $sql = "UPDATE `tbl_empleado` SET
@@ -223,6 +227,7 @@ class Empleado
                     str_cargo='$cargo',
                     str_comentarios='',
                     date_fecha_inicio='$fechaIngreso',
+                    dec_max_credito=$maxCredito,
                     update_at='$dt'
                     WHERE idempleado=$idempleado
             ";
@@ -316,6 +321,7 @@ class Empleado
       $sql = "SELECT 
         e.idempleado AS refEmpleado,
             e.str_cargo AS cargo,
+            e.dec_max_credito AS dec_max_credito,
             e.date_fecha_inicio AS fecha_init,
             p.idpersona AS refPersona,
             CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado,
@@ -380,6 +386,7 @@ class Empleado
             e.idempleado AS refEmpleado,
             e.str_apodo AS apodo,
             e.str_cargo AS cargo,
+            e.dec_max_credito AS dec_max_credito,
             e.str_estado AS estadoEmpleado,
             e.str_comentarios AS comentarios,
             e.date_fecha_inicio AS fecha_inicio,

@@ -815,6 +815,7 @@ function cargarDataEmpleado(tipo_documento, num_documento, accion) {// funcion q
     $("#txtRefEmpleado").val(data.refEmpleado)
     $("#txtApodo").val(data.apodo)
     $("#txtCargo").val(data.cargo)
+    $("#txtMaxCredito").val(data.dec_max_credito || 0)
     $("#txtEstadoEmpleado").val(data.estadoEmpleado)
     $("#txt_Comentario").val(data.comentarios)
     $("#txtRefUsuario").val(data.refUsuario)
@@ -831,6 +832,9 @@ function cargarDataEmpleado(tipo_documento, num_documento, accion) {// funcion q
     $("#txt_num_documento_empleado").text(data.n_documento)
     $("#editarDocumentoEmpleado").data("editDocument", data.refPersona);
     $("#txt_tel_empleado").text(data.telefono)
+    // Formatear y mostrar el máximo crédito
+    const maxCredito = parseFloat(data.dec_max_credito || 0);
+    $("#txt_max_credito_empleado").text('$' + maxCredito.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
     $("#pTextDireccionEmpleado").text(data.departamento + ', ' + data.ciudad + ', ' + data.barrio + ', ' + data.calle);
     // para editar
     $("#txt_t_documento_em").val(data.t_documento);
