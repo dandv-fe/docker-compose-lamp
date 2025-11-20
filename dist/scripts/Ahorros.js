@@ -1,81 +1,58 @@
 jQuery(document).ready(function () {
-  $("#editarDocumentoEmpleado").click(function (e) {
+  $("#editarDocumentoAhorrador").click(function (e) {
     $("#titleModalBuscarPersona").text("Editar Documento");
 
-    var dd = $("#txt_tipo_documento_empleado").text();
-
+    var dd = $("#txt_tipo_documento_ahorrador").text();
 
     $("#refBuscarPersona").val($(this).data('editDocument'));
-
-    $("#cboBusTipo_Documento").val(dd)
-
-    $("#txtbusNum_Documento").val($("#txt_num_documento_empleado").text());
+    $("#cboBusTipo_Documento").val(dd);
+    $("#txtbusNum_Documento").val($("#txt_num_documento_ahorrador").text());
     $("#btnSubmitFormBuscarPersona").text("Editar");
 
     $("#modal-xl").modal('show');
   });
 
-
-  ListadoEmpleado();
+  ListadoAhorradores();
 
   OcultarForm();
 
-  $("#dateDeste").on("hide.datetimepicker", function (e) {
-    $("form#formSearchNominaDetallado").trigger('submit');
-  });
-  $("#dateHasta").on("hide.datetimepicker", function (e) {
-    $("form#formSearchNominaDetallado").trigger('submit');
-  });
-
-
-
-  $("form#formSearchNominaDetallado").submit(function (e) {
-    e.preventDefault();
-    $("#txtUltimo").val($("#txtRefEmpleadoConfig").val());
-
-    listarNominaDetalle();
-  });
-
+  // Event listeners para tabs de ahorros
   $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
-    if ($(e.target).attr('id') === 'custom-tabs-nomina-tab') {
-      listarNomina();
-    } else if ($(e.target).attr('id') === 'custom-tabs-liquidar-tab') {
-      $("form#formSearchNominaDetallado").submit()
-    } else if ($(e.target).attr('id') === 'custom-tabs-authorizations-tab') {
-      AuthorizacionEmpleado();
-    } else if ($(e.target).attr('id') === 'custom-tabs-asignarEmpleados-tab') {
-      manejrTabsEmpleadoAsignado()
+    if ($(e.target).attr('id') === 'custom-tabs-movimientos-tab') {
+      listarMovimientos();
+    } else if ($(e.target).attr('id') === 'custom-tabs-ganancias-tab') {
+      listarGanancias();
     }
-  })
-
-  $("form#frmEmpleado").submit(SaveOrUpdate);
-
-  $("form#formPactarSueldo").submit(SaveOrUpdateSueldoPactado);
-
-  $("form#formEmpleadoEditar").submit(function (e) {
-    e.preventDefault()
-    let num_documento = $("#txt_n_documento_em").val();
-    let tipo_documento = $("#txt_t_documento_em").val();
-    let accion = 'editar'
-    let cargo = $("#txt_cargo_en").val();
-    if (cargo != '') {
-      tipo_documento = cargo;
-      accion = 'editarUser'
-    }
-    cargarDataEmpleado(tipo_documento, num_documento, accion);
   });
 
-  function SaveOrUpdateSueldoPactado(e) {
-    e.preventDefault()
-    $("#txtRefEmpleado_formPactarSueldo").val($("#txtRefEmpleadoConfig").val());
+  // Submit del formulario principal de ahorro
+  $("form#frmAhorro").submit(SaveOrUpdate);
+
+  // Submit del formulario de configuración
+  $("form#formConfiguracionAhorro").submit(SaveOrUpdateConfiguracion);
+
+  // Submit del formulario de edición de ahorrador
+  $("form#formAhorroEditar").submit(function (e) {
+    e.preventDefault();
+    let num_documento = $("#txt_n_documento_ah").val();
+    let tipo_documento = $("#txt_t_documento_ah").val();
+    let accion = 'editar';
+    cargarDataAhorrador(tipo_documento, num_documento, accion);
+  });
+
+  function SaveOrUpdateConfiguracion(e) {
+    e.preventDefault();
+    $("#txtIdAhorroConfig").val($("#txtRefAhorroConfig").val());
+
     $.post("./ajax/UsuarioAjax.php", function (r) {
       if (r === '0') {
         location.reload(true);
       }
     });
-    var formData = new FormData($("#formPactarSueldo")[0]);
+
+    var formData = new FormData($("#formConfiguracionAhorro")[0]);
     $.ajax({
-      url: "./ajax/EmpleadoAjax.php?op=SaveOrUpdateSueldoPactado",
+      url: "./ajax/AhorrosAjax.php?op=SaveOrUpdateConfiguracion",
       type: "POST",
       data: formData,
       contentType: false,
@@ -85,25 +62,29 @@ jQuery(document).ready(function () {
           Toast.fire({
             icon: 'error',
             title: datos
-          })
+          });
         } else {
           Toast.fire({
             icon: 'success',
             title: datos
-          })
-          $("#modal-pactar-sueldo").modal('hide');
-          listarNomina()
+          });
+          // Actualizar la vista del perfil
+          const refAhorro = $("#txtRefAhorroConfig").val();
+          actualizarPerfilAhorrador(refAhorro);
         }
       }
     });
   }
 
+  // Submit del formulario de búsqueda de persona
   $("form#formBuscarPersona").submit(buscarPersona);
 
+  // Botón cancelar
   $("#btnCancelarForm").on('click', () => {
     OcultarForm();
-  })
+  });
 
+  // Configuración de Toast (igual que empleados)
   var Toast = Swal.mixin({
     toast: true,
     position: 'top-end',
@@ -112,46 +93,40 @@ jQuery(document).ready(function () {
   });
 
   function buscarPersona(e) {
-    e.preventDefault()
+    e.preventDefault();
     let refPersona = $("#refBuscarPersona").val();
-    let tipo_documento = $("#cboBusTipo_Documento").val()
-    let num_documento = $("#txtbusNum_Documento").val()
+    let tipo_documento = $("#cboBusTipo_Documento").val();
+    let num_documento = $("#txtbusNum_Documento").val();
+
     if (refPersona) {
       var formData = new FormData($("form#formBuscarPersona")[0]);
 
       $.ajax({
-
         url: "./ajax/ClienteAjax.php?op=updateDocumentoPersona",
         type: "POST",
         data: formData,
         contentType: false,
         processData: false,
         success: function (datos) {
-
           if (datos.indexOf("ERROR:") !== -1) {
             Toast.fire({
               icon: 'error',
               title: datos
-            })
+            });
           } else {
-
             Toast.fire({
               icon: 'success',
               title: datos
-            })
-            $("#frmCliente").trigger('reset')
-            $("#frmCliente input:hidden").val('')
-
-            cargarDataEmpleado(tipo_documento, num_documento, 'perfil');
+            });
+            $("#frmAhorro").trigger('reset');
+            $("#frmAhorro input:hidden").val('');
+            cargarDataAhorrador(tipo_documento, num_documento, 'perfil');
           }
         }
       });
-
     } else {
-      //cargarDataCliente(tipo_documento, num_documento);
-      cargarDataEmpleado(tipo_documento, num_documento, 'nuevo');
+      cargarDataAhorrador(tipo_documento, num_documento, 'nuevo');
     }
-
   }
 
   function SaveOrUpdate(e) {
@@ -161,9 +136,10 @@ jQuery(document).ready(function () {
         location.reload(true);
       }
     });
-    var formData = new FormData($("#frmEmpleado")[0]);
+
+    var formData = new FormData($("#frmAhorro")[0]);
     $.ajax({
-      url: "./ajax/EmpleadoAjax.php?op=SaveOrUpdate",
+      url: "./ajax/AhorrosAjax.php?op=SaveOrUpdate",
       type: "POST",
       data: formData,
       contentType: false,
@@ -173,90 +149,52 @@ jQuery(document).ready(function () {
           Toast.fire({
             icon: 'error',
             title: datos
-          })
+          });
         } else {
           Toast.fire({
             icon: 'success',
             title: datos
-          })
-          ListadoEmpleado();
+          });
+          ListadoAhorradores();
           OcultarForm();
         }
       }
     });
-  };
-
-
-
-  $("#formAsignarEmpleado").submit(function (e) {
-    e.preventDefault();
-    $.post("./ajax/UsuarioAjax.php", function (r) {
-      if (r === '0') {
-        location.reload(true);
-      }
-    });
-
-    const refEmpleados = document.querySelectorAll("#bootstrap-duallistbox-selected-list_cboEmpleadosAsignadosEmpleado > option")
-
-    const emplsData = []
-    refEmpleados.forEach(option => {
-      emplsData.push($(option).val())
-    })
-
-    const data = {
-      refEmpleado: $("#txtRefEmpleadoConfig").val(),
-      empls: emplsData
-    }
-    console.log(data);
-
-    $.post("./ajax/EmpleadoAjax.php?op=SaveEmpleadosAsignados", data, function (e) {
-      if (e.indexOf("ERROR:") != -1) {
-        Toast.fire({
-          icon: 'error',
-          title: e
-        })
-
-
-      } else {
-        Toast.fire({
-          icon: 'success',
-          title: e
-        })
-        manejrTabsEmpleadoAsignado()
-      }
-
-    })
-  });
+  }
 
 }); // ./ready
 
+// Funciones auxiliares (iguales a empleados pero adaptadas)
 function VerForm() {
   $("#VerConfiguracion").hide();
-  $("#VerForm").show();// Mostramos el formulario
-  $("#btnNuevoEmpleado").hide();// ocultamos el boton nuevo
-  $("#VerListado").hide();// ocultamos el listado
+  $("#VerForm").show();
+  $("#btnNuevoAhorrador").hide();
+  $("#VerListado").hide();
 }
 
 function OcultarForm() {
   $("#VerConfiguracion").hide();
-  $("form#frmEmpleado").trigger('reset');
-  $("#VerForm").hide();// Mostramos el formulario
-  $("#btnNuevoEmpleado").show();// ocultamos el boton nuevo
-  $("#VerListado").show();// ocultamos el listado
+  $("form#frmAhorro").trigger('reset');
+  $("#VerForm").hide();
+  $("#btnNuevoAhorrador").show();
+  $("#VerListado").show();
 }
 
 function VerConfiguracion(ref) {
-  $("#txtRefEmpleadoConfig").val(ref);
-  $("#VerForm").hide();// Mostramos el formulario
-  $("#VerConfiguracion").show();// Mostramos el formulario
-  $("#btnNuevoEmpleado").hide();// ocultamos el boton nuevo
-  $("#VerListado").hide();// ocultamos el listado
+  $("#txtRefAhorroConfig").val(ref);
+  $("#VerForm").hide();
+  $("#VerConfiguracion").show();
+  $("#btnNuevoAhorrador").hide();
+  $("#VerListado").hide();
 }
-function ListadoEmpleado() {
+
+// Función principal de listado (adaptada de ListadoEmpleado)
+function ListadoAhorradores() {
   OcultarForm();
-  const tabla = $("#example1").DataTable()
+  const tabla = $("#example1").DataTable();
+
   $.ajax({
-    url: './ajax/EmpleadoAjax.php?op=list',
+    url: './ajax/AhorrosAjax.php?op=list',
     type: "POST",
     data: {},
     dataType: "json",
@@ -264,55 +202,57 @@ function ListadoEmpleado() {
       tabla.clear().draw();
       for (let i = 0; i < datos.length; i++) {
         const val = datos[i];
-        tabla.row
-          .add([
-            val[0],
-            capitalizarPalabras(val[1]),
-            val[2],
-            val[3],
-            val[4],
-            val[5],
-            val[6],
-            val[7],
-            val[8],
-          ]).draw(false);
+        tabla.row.add([
+          capitalizarPalabras(val[0]), // Nombre
+          val[1], // Documento
+          val[2], // Porcentaje
+          val[3], // Tipo Pago
+          val[4], // Auth Movimientos
+          val[5], // Estado
+          val[6], // Fecha Creación
+          val[7]  // Opciones
+        ]).draw(false);
       }
     },
     error: function (e) {
       console.log(e.responseText);
     }
   });
-};
+}
 
-function listarNomina() {
-  $("#verLoadingNomina").removeClass('hide')
-  $("#verListadoNomina").addClass('hide')
+// Función para listar movimientos
+function listarMovimientos() {
+  $("#verLoadingMovimientos").removeClass('hide');
+  $("#verListadoMovimientos").addClass('hide');
+
   $.post("./ajax/UsuarioAjax.php", function (r) {
     if (r === '0') {
       location.reload(true);
     }
   });
-  const refEmpleado = $("#txtRefEmpleadoConfig").val();
-  var tabla = $('#tblNomina').DataTable();
+
+  const refAhorro = $("#txtRefAhorroConfig").val();
+  var tabla = $('#tblMovimientos').DataTable();
+
   $.ajax({
-    url: './ajax/EmpleadoAjax.php?op=listNomina',
+    url: './ajax/AhorrosAjax.php?op=listMovimientos',
     type: "POST",
-    data: { refEmpleado },
+    data: { refAhorro },
     dataType: "json",
     success: function (datos) {
       tabla.clear().draw();
       for (let i = 0; i < datos.length; i++) {
         const val = datos[i];
-        tabla.row
-          .add([
-            val[0],
-            val[1],
-            val[2],
-            val[3]
-          ]).draw(false);
+        tabla.row.add([
+          val[0], // Fecha
+          val[1], // Tipo
+          val[2], // Monto
+          val[3], // Descripción
+          val[4]  // Estado
+        ]).draw(false);
       }
-      $("#verLoadingNomina").addClass('hide')
-      $("#verListadoNomina").removeClass('hide')
+      $("#verLoadingMovimientos").addClass('hide');
+      $("#verListadoMovimientos").removeClass('hide');
     },
     error: function (e) {
       console.log(e.responseText);
@@ -320,53 +260,38 @@ function listarNomina() {
   });
 }
 
-function listarNominaDetalle() {
+// Función para listar ganancias
+function listarGanancias() {
+  $("#verLoadingGanancias").removeClass('hide');
+  $("#verListadoGanancias").addClass('hide');
 
-  $("#verLoadingNominaDetalle").removeClass('hide')
-  $("#verListadoNominaDetlles").addClass('hide')
   $.post("./ajax/UsuarioAjax.php", function (r) {
     if (r === '0') {
       location.reload(true);
     }
   });
-  var formData = new FormData($("form#formSearchNominaDetallado")[0]);
 
-  var tabla = $('#tblDetalleNomina').DataTable();
-  //console.log('bbb');
+  const refAhorro = $("#txtRefAhorroConfig").val();
+  var tabla = $('#tblGanancias').DataTable();
+
   $.ajax({
-    url: './ajax/EmpleadoAjax.php?op=listNominaDetalle',
+    url: './ajax/AhorrosAjax.php?op=listGanancias',
     type: "POST",
-    data: formData,
-    contentType: false,
-    processData: false,
+    data: { refAhorro },
     dataType: "json",
     success: function (datos) {
-      const conseptos = Array.from(new Set(datos.map(x => capitalizarPalabras(x[2]))));
-      const trTableconsepto = conseptos.map(n => {
-        return `<tr>
-                    <td>
-                        ${n}
-                    </td>
-                    <td>
-                        $${datos.filter(x => capitalizarPalabras(x[2]) === n).map(m => m[1]).reduce((a, b) => parseFloat(a) + parseFloat(b), 0)}
-                    </td>
-                </tr>`
-      })
-      $("#trTableconsepto").html(trTableconsepto.join(''));
-
       tabla.clear().draw();
       for (let i = 0; i < datos.length; i++) {
         const val = datos[i];
-        tabla.row
-          .add([
-            val[0],
-            val[1],
-            capitalizarPalabras(val[2]),
-            `<b>${val[5]} ${val[4]}:</b> ${val[3]}`,
-          ]).draw(false);
+        tabla.row.add([
+          val[0], // Fecha
+          val[1], // Porcentaje
+          val[2], // Ganancia
+          val[3]  // Total Acumulado
+        ]).draw(false);
       }
-      $("#verLoadingNominaDetalle").addClass('hide')
-      $("#verListadoNominaDetlles").removeClass('hide')
+      $("#verLoadingGanancias").addClass('hide');
+      $("#verListadoGanancias").removeClass('hide');
     },
     error: function (e) {
       console.log(e.responseText);
@@ -374,409 +299,68 @@ function listarNominaDetalle() {
   });
 }
 
-function AuthorizacionEmpleado() {
-  $("#verLoadingPermisos").removeClass('hide')
-  $("#verListadoPermisos").addClass('hide')
-  $.post("./ajax/UsuarioAjax.php", function (r) {
-    if (r === '0') {
-      location.reload(true);
-    }
-  });
-  const refEmpleado = $("#txtRefEmpleadoConfig").val();
-  $.ajax({
-    url: './ajax/EmpleadoAjax.php?op=listPermisos',
-    type: "POST",
-    data: { refEmpleado },
-    dataType: "json",
-    success: function (datos) {
-      const misSucursalesDisponiblesHtml = []
-      let autoIncrementPorCadaAuth = 0;
-      const categorias = Array.from(new Set(datos.auth.map(x => x.categoria)));
-      for (let i = 0; i < datos['sucurlales'].length; i++) {
-        const suc = datos['sucurlales'][i];
-
-        const isThisSucursalAuth = datos['authSucursal'].find(x => x.refSucursal === suc.refSucursal)
-        if (!isThisSucursalAuth) {
-          misSucursalesDisponiblesHtml.push(`
-                    <div class="col-12">
-                        <div class="card card-danger card-outline">
-                            <div class="card-header">
-                                <h3 class="card-title">${suc.tipo}: ${suc.codigo}</h3>
-                            </div>
-                            <div class="card-body">
-                                <div class="icheck-success d-inline">
-                                    <input onchange="inicializarPermisosSucursal('checkbox_${suc.codigo}' ,${suc.refSucursal})" type="checkbox" id="checkbox_${suc.codigo}" />
-                                    <label for="checkbox_${suc.codigo}">
-                                        Otorgar Permisos
-                                    </label>
-                                    <p class="m-0">
-                                        Para este empleado poder realizar cambios ovisualisar informacion 
-                                        confidencial de la <b>${suc.tipo}: ${suc.codigo}</b> tiene que tener 
-                                        algunos permisos 
-                                    </p>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    `);
-        } else {
-          const authCategoriasHtml = []
-          for (let iCategoria = 0; iCategoria < categorias.length; iCategoria++) {
-            const categoria = categorias[iCategoria];
-            const auth = datos['auth'].filter(a => a.categoria === categoria);
-            const authHtml = []
-            for (let iAuth = 0; iAuth < auth.length; iAuth++) {
-              const aut = auth[iAuth];
-              const checkbox = datos['authSucursal'].find(x => x.refSucursal === isThisSucursalAuth.refSucursal && x.refAuth === aut.refAuth);
-              authHtml.push(`
-                            <div class="icheck-success d-inline">
-                                <input onchange="otorgarPermisoSucursal('checkbox_${autoIncrementPorCadaAuth}_${aut.refAuth}' ,${aut.refAuth},${isThisSucursalAuth.refAuthSucursal})"
-                                 ${(!checkbox) ? '' : 'checked'} 
-                                 type="checkbox" id="checkbox_${autoIncrementPorCadaAuth}_${aut.refAuth}" />
-                                <label for="checkbox_${autoIncrementPorCadaAuth}_${aut.refAuth}">
-                                    ${aut.nameAccion}
-                                </label>
-                                <p class="m-0">
-                                ${aut.descripcion} 
-                                </p>
-                            </div>
-                        `);
-            }
-
-            authCategoriasHtml.push(`
-                        <div class="col-md-6">
-                            <div class="card card-warning">
-                                <div class="card-header">
-                                    <h3 class="card-title">${categoria}</h3>
-                                </div>
-                                <div class=" bg-warning card-body px-1 py-2 ">
-                                    ${authHtml.join('')}
-                                </div>
-                            </div>
-                        </div>
-                    `);
-          }
-
-          misSucursalesDisponiblesHtml.push(`
-                        <div class="col-12" id="accordion_${suc.codigo}">
-                            <div class="card card-warning card-outline">
-                                <a class="d-block w-100" data-toggle="collapse" href="#collapseFour_${suc.codigo}">
-                                    <div class="card-header">
-                                        <h4 class="card-title w-100">
-                                            ${suc.tipo}: ${suc.codigo}
-                                        </h4>
-                                    </div>
-                                </a>
-                                <div id="collapseFour_${suc.codigo}" class="collapse" data-parent="#accordion_${suc.codigo}">
-                                    <div class="card-body p-0">
-                                        <div class="row">
-                                            ${authCategoriasHtml.join('')}
-                                        </div>
-                                    </div>
-                                    <div class="card-footer">
-                                        <form action="#" method="post">
-                                            <div class="icheck-success d-inline">
-                                                <button onclick="quitarPermisosSucursal('checkbox_${suc.codigo}' ,${suc.refSucursal})" type="button" class="btn btn-outline-danger btn-block btn-sm"><i class="fa fa-book"></i> 
-                                                Quitar Permisos
-                                                </button>
-                                                <p class="m-0">
-                                                    Esta opcion desativa automaticamente
-                                                    <b>${suc.tipo}: ${suc.codigo}</b> para es usuario
-                                                </p>
-                                            </div>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `);
-        }
-        autoIncrementPorCadaAuth++;
-      }
-      $("#verListadoPermisos").html('');
-      $("#verListadoPermisos").html(misSucursalesDisponiblesHtml.join(''));
-      $("#verLoadingPermisos").addClass('hide')
-      $("#verListadoPermisos").removeClass('hide')
-    },
-    error: function (e) {
-      console.log(e.responseText);
-    }
-  });
-}
-
-
-function inicializarPermisosSucursal(ele, refSucursal) {
-  Swal.fire({
-    title: "Iniciar Permisos?",
-    text: "Para iniciar escriba Tipo De Usuario",
-    icon: "info",
-    input: "text",
-    showCancelButton: true,
-    confirmButtonColor: "#3085d6",
-    cancelButtonColor: "#d33",
-    confirmButtonText: "Si, Permitir ahora!",
-    preConfirm: (login) => {
-      if (login.toLowerCase() != '') {
-        return;
-      }
-      Swal.showValidationMessage(`
-                    Imposible continuar : \r Escribe Tipo De Usuario
-                `);
-    },
-  }).then((result) => {
-    if (result.isConfirmed) {
-      $("#verLoadingPermisos").removeClass('hide')
-      $("#verListadoPermisos").addClass('hide')
-      $.post("./ajax/UsuarioAjax.php", function (r) {
-        if (r === '0') {
-          location.reload(true);
-        }
-      });
-      const refEmpleado = $("#txtRefEmpleadoConfig").val();
-      const tipoUser = result.value
-      const ope = $("#" + ele).prop('checked');
-      $.post("./ajax/EmpleadoAjax.php?op=inicializarPermiso", { refSucursal, refEmpleado, tipoUser, ope }, function (r) {
-        if (r.indexOf("ERROR:") !== -1) {
-          Toast.fire({
-            icon: 'error',
-            title: r
-          })
-
-        } else {
-
-          Toast.fire({
-            icon: 'success',
-            title: r
-          })
-          AuthorizacionEmpleado()
-        }
-        $("#verLoadingPermisos").addClass('hide')
-        $("#verListadoPermisos").removeClass('hide')
-      });
-    }
-  });
-}
-
-function quitarPermisosSucursal(ele, refSucursal) {
-  Swal.fire({
-    title: "Qutar Permisos?",
-    text: "Decea quitar estos permisos de uso",
-    icon: "warning",
-    showCancelButton: true,
-    confirmButtonColor: "#3085d6",
-    cancelButtonColor: "#d33",
-    confirmButtonText: "Si, Quitar ahora!",
-
-  }).then((result) => {
-    if (result.isConfirmed) {
-      $("#verLoadingPermisos").removeClass('hide')
-      $("#verListadoPermisos").addClass('hide')
-      $.post("./ajax/UsuarioAjax.php", function (r) {
-        if (r === '0') {
-          location.reload(true);
-        }
-      });
-      const refEmpleado = $("#txtRefEmpleadoConfig").val();
-      const tipoUser = result.value
-      const ope = $("#" + ele).prop('checked');
-      $.post("./ajax/EmpleadoAjax.php?op=quitarAuth", { refSucursal, refEmpleado }, function (r) {
-        if (r.indexOf("ERROR:") !== -1) {
-          Toast.fire({
-            icon: 'error',
-            title: r
-          })
-
-        } else {
-
-          Toast.fire({
-            icon: 'success',
-            title: r
-          })
-          AuthorizacionEmpleado()
-        }
-        $("#verLoadingPermisos").addClass('hide')
-        $("#verListadoPermisos").removeClass('hide')
-      });
-    }
-  });
-}
-
-
-
-function otorgarPermisoSucursal(ele, refAuth, refAuthSucursal) {
-  Swal.fire({
-    title: "Otorgar Permisos?",
-    text: "Si estas de acuerdo hacer click. Si, aceptar ahora!: De lo contrario Cancelar ",
-    icon: "info",
-    showCancelButton: true,
-    confirmButtonColor: "#3085d6",
-    cancelButtonColor: "#d33",
-    confirmButtonText: "Si, aceptar hora!",
-  }).then((result) => {
-    if (result.isConfirmed) {
-      $.post("./ajax/UsuarioAjax.php", function (r) {
-        if (r === '0') {
-          location.reload(true);
-        }
-      });
-      $.post("./ajax/EmpleadoAjax.php?op=otorgarPermiso", { refAuth, refAuthSucursal }, function (r) {
-        if (r.indexOf("ERROR:") !== -1) {
-          Toast.fire({
-            icon: 'error',
-            title: r
-          })
-          $("#" + ele).prop('checked', !$("#" + ele).prop('checked'));
-        } else {
-          Toast.fire({
-            icon: 'success',
-            title: r
-          })
-        }
-      });
-    } else {
-      $("#" + ele).prop('checked', !$("#" + ele).prop('checked'));
-    }
-  });
-
-}
-
-function cargarDataEmpleado(tipo_documento, num_documento, accion) {// funcion que llamamos del archivo ajax/CategoriaAjax.php linea 52
-  if (accion === 'editarUser') {
-    Swal.fire({
-      title: "Editar Usuario?",
-      icon: "info",
-      html: `<br>
-                <label class="labelForNuevoCredito top" for="txtNameUser">
-                    <span class="spanForNuevoCredito badge-success top">Usuario</span>
-                    <input value="" type="text" id="txtNameUser"
-                        class="form-control inputForNuevoCredito inputForEdit" maxlength="12"
-                        autocomplete="new-password" />
-                </label>
-                <br>
-                <label class="labelForNuevoCredito top" for="taxtPassUser">
-                    <span class="spanForNuevoCredito badge-success top">Contraseña</span>
-                    <input value="" type="password" id="taxtPassUser"
-                         class="form-control inputForNuevoCredito inputForEdit" maxlength="12"
-                        autocomplete="new-password" />
-                </label>
-                <br>
-                <label class="labelForNuevoCredito top" for="txtPassRep">
-                    <span class="spanForNuevoCredito badge-success top">Repetir Contraseña</span>
-                    <input value="" type="password" id="txtPassRep"
-                         class="form-control inputForNuevoCredito inputForEdit" maxlength="12"
-                            autocomplete="new-password" />
-                </label>
-            `,
-      showCancelButton: true,
-      confirmButtonColor: "#3085d6",
-      cancelButtonColor: "#d33",
-      confirmButtonText: "Si, editar ahora!",
-      preConfirm: (login) => {
-        const nameuser = document.getElementById("txtNameUser").value
-        const pass = document.getElementById("taxtPassUser").value
-        const passrep = document.getElementById("txtPassRep").value
-        const err = []
-        if (nameuser === '' || pass === '' || passrep === '') err.push('Todos los campos son requeridos!')
-        if (pass != passrep) err.push('Las contraceñas no considen!')
-        if (err.length > 0) {
-          err.map(e => {
-            return Swal.showValidationMessage(e);
-          })
-        }
-        return [
-          nameuser,
-          pass
-        ];
-
-      },
-    }).then((result) => {
-      if (result.isConfirmed) {
-
-        $.post("./ajax/UsuarioAjax.php", function (r) {
-          if (r === '0') {
-            location.reload(true);
-          }
-        });
-
-        $.post("./ajax/EmpleadoAjax.php?op=edit-super-a", {
-          tipo_documento,
-          nameuser: result.value[0],
-          pass: result.value[1]
-        }, function (r) {
-          if (r.indexOf("ERROR:") !== -1) {
-            Toast.fire({
-              icon: 'error',
-              title: r
-            })
-          } else {
-            Toast.fire({
-              icon: 'success',
-              title: r
-            })
-
-            ListadoEmpleado()
-          }
-
-        });
-
-      }
-    });
-    return;
-  }
-
-
-
-
-
+// Función principal para cargar datos del ahorrador (adaptada de cargarDataEmpleado)
+function cargarDataAhorrador(tipo_documento, num_documento, accion) {
   $.post("./ajax/UsuarioAjax.php", function (r) {
     if (r === '0') {
       location.reload(true);
     }
   });
 
-
-  $.getJSON("./ajax/EmpleadoAjax.php?op=buscarPersona", { tipo_documento, num_documento },
+  $.getJSON("./ajax/AhorrosAjax.php?op=buscarPersona", { tipo_documento, num_documento },
     function (data, textStatus) {
       if (textStatus === 'success') {
         if (data === 0) {
           Toast.fire({
             icon: 'error',
             title: 'Error incompleto'
-          })
+          });
         } else {
           $("#modal-xl").modal('hide');
+
           if (accion === 'editar') {
-            $("#btn-submit-empleado").text("ACTUALIZAR");
-            $("#a-btn-despedir-empleado").removeClass("hide");
-            editar(data)
-            VerForm()
+            $("#btn-submit-ahorro").text("ACTUALIZAR AHORRO");
+            editar(data);
+            VerForm();
           } else if (accion === 'perfil') {
-            perfil(data)
-            VerConfiguracion(data.refEmpleado)
-
-            $("#custom-tabs-liquidar-tab").tab('show')
-            $("form#formSearchNominaDetallado").submit()
+            perfil(data);
+            VerConfiguracion(data.refAhorro);
+            $("#custom-tabs-movimientos-tab").tab('show');
+            listarMovimientos();
           } else if (accion === 'nuevo') {
-            $("#btn-submit-empleado").text("REGISTRAR");
-            $("#a-btn-despedir-empleado").addClass("hide");
+            $("#btn-submit-ahorro").text("GUARDAR AHORRO");
+
             if (data === null) {
-              nuevo()
-              VerForm()
+              // No existe la persona - crear todo nuevo
+              nuevo();
+              VerForm();
             } else {
-              if (data.isEmpleado) {
-                if (data.estadoEmpleado === 'inactivo') {
-
-                  alert('El empleado se encuentra despedido. Puede reactivarlo desde la lista de Empleados despedidos')
-                  return
+              if (data.isAhorrador) {
+                // Ya tiene ahorro - mostrar perfil
+                if (data.estadoAhorro === 'inactivo') {
+                  alert('El ahorrador se encuentra inactivo.');
+                  return;
                 }
-                perfil(data)
-                VerConfiguracion(data.refEmpleado)
-                $("#custom-tabs-liquidar-tab").tab('show')
+                perfil(data);
+                VerConfiguracion(data.refAhorro);
+                $("#custom-tabs-movimientos-tab").tab('show');
               } else {
-                editar(data)
-                VerForm()
-              }
+                // Existe persona pero no tiene ahorro
+                let mensaje = "Persona encontrada. ";
+                if (data.tieneUsuario) {
+                  mensaje += "Ya tiene usuario. Se creará solo el ahorro.";
+                } else {
+                  mensaje += "Se creará usuario y ahorro.";
+                }
 
+                Toast.fire({
+                  icon: 'info',
+                  title: mensaje
+                });
+
+                editar(data);
+                VerForm();
+              }
             }
           }
         }
@@ -784,132 +368,95 @@ function cargarDataEmpleado(tipo_documento, num_documento, accion) {// funcion q
         Toast.fire({
           icon: 'error',
           title: 'Error Inesperado'
-        })
+        });
       }
     });
 
+  // Función interna para editar (adaptada de empleados)
   function editar(data) {
-    $("#txtRefPersona").val(data.refPersona)
+    $("#txtRefPersona").val(data.refPersona);
+    $("#txt_Nombre").val(data.nombres);
+    $("#txt_Apellido").val(data.apellidos);
+    $("#txt_Sexo").val(data.sexo);
+    $("#txt_fechaNacimiento").val(data.f_nacimiento);
+    $("#txt_tipo_documentoHidden").val(data.t_documento);
+    $("#txt_tipo_documento").val(data.t_documento);
+    $("#txt_num_DocumentoHidden").val(data.n_documento);
+    $("#txt_num_Documento").val(data.n_documento);
+    $("#txt_Telefono").val(data.telefono);
+    $("#txt_Email").val(data.email);
+    $("#txt_RutaImgCli").val(data.foto);
+    $("#txt_Ocupacion").val(data.ocupacion);
+    $("#txt_Nota_Cliente").val(data.nota);
+    $("#txt_Direccion_Departamento").val(data.departamento);
+    $("#txt_Direccion_Provincia").val(data.ciudad);
+    $("#txt_Direccion_Distrito").val(data.barrio);
+    $("#txt_Direccion_Calle").val(data.calle);
 
-    $("#txt_Nombre").val(data.nombres)
-    $("#txt_Apellido").val(data.apellidos)
-    $("#txt_Sexo").val(data.sexo)
-    $("#txt_fechaNacimiento").val(data.f_nacimiento)
-    $("#txt_tipo_documentoHidden").val(data.t_documento)
-    $("#txt_tipo_documento").val(data.t_documento)
-    $("#txt_num_DocumentoHidden").val(data.n_documento)
-    $("#txt_num_Documento").val(data.n_documento)
-    $("#txt_Telefono").val(data.telefono)
-    $("#txt_Email").val(data.email)
-    $("#txt_RutaImgCli").val(data.foto)
-    $("#txt_Ocupacion").val(data.ocupacion)
-    // $("#").val(data.estado)
-    $("#txt_Nota_Cliente").val(data.nota)
-    // $("#").val(data.e_verificado)
-    $("#txt_Direccion_Departamento").val(data.departamento)
-    $("#txt_Direccion_Provincia").val(data.ciudad)
-    $("#txt_Direccion_Distrito").val(data.barrio)
-    $("#txt_Direccion_Calle").val(data.calle)
+    // Datos específicos del ahorro
+    $("#txtIdAhorro").val(data.refAhorro);
+    $("#txtPorcentaje").val(data.porcentaje || 0);
+    $("#cboPagoUtilidad").val(data.pago_utilidad || '');
+    $("#chkAuthMovimientos").prop('checked', data.auth_movimientos == 1);
+    $("#cboEstado").val(data.estado || 'ACTIVO');
 
-    $("#txt_fechaIngreso").val(data.fecha_inicio)
-    $("#txtRefEmpleado").val(data.refEmpleado)
-    $("#txtApodo").val(data.apodo)
-    $("#txtCargo").val(data.cargo)
-    $("#txtMaxCredito").val(data.dec_max_credito || 0)
-    $("#txtEstadoEmpleado").val(data.estadoEmpleado)
-    $("#txt_Comentario").val(data.comentarios)
-    $("#txtRefUsuario").val(data.refUsuario)
-    $("#txt_Login").val(data.username)
-    $("#txtidPublica").val(data.id)
-
+    // Datos de usuario
+    $("#txtRefUsuario").val(data.refUsuario);
+    $("#txt_Login").val(data.username);
+    $("#txtidPublica").val(data.id);
   }
+
+  // Función interna para perfil (adaptada de empleados)
   function perfil(data) {
-    $("#img_empleado").text(data.foto)
-    $("#txt_name_empleado").text(data.nombres + ' ' + data.apellidos)
-    $("#txt_apodo_empleado").text(data.apodo)
-    $("#txt_sexo_empleado").text(data.sexo)
-    $("#txt_tipo_documento_empleado").text(data.t_documento)
-    $("#txt_num_documento_empleado").text(data.n_documento)
-    $("#editarDocumentoEmpleado").data("editDocument", data.refPersona);
-    $("#txt_tel_empleado").text(data.telefono)
-    // Formatear y mostrar el máximo crédito
-    const maxCredito = parseFloat(data.dec_max_credito || 0);
-    $("#txt_max_credito_empleado").text('$' + maxCredito.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
-    $("#pTextDireccionEmpleado").text(data.departamento + ', ' + data.ciudad + ', ' + data.barrio + ', ' + data.calle);
-    // para editar
-    $("#txt_t_documento_em").val(data.t_documento);
-    $("#txt_cargo_en").val(data.refPersona);
-    $("#txt_n_documento_em").val(data.n_documento);
+    $("#img_ahorrador").attr('src', data.foto || 'dist/img/default-user.png');
+    $("#txt_name_ahorrador").text(data.nombres + ' ' + data.apellidos);
+    $("#txt_apodo_ahorrador").text('Ahorrador');
+    $("#txt_sexo_ahorrador").text(data.sexo);
+    $("#txt_tipo_documento_ahorrador").text(data.t_documento);
+    $("#txt_num_documento_ahorrador").text(data.n_documento);
+    $("#editarDocumentoAhorrador").data("editDocument", data.refPersona);
+    $("#txt_tel_ahorrador").text(data.telefono);
+
+    // Formatear y mostrar el porcentaje
+    const porcentaje = parseFloat(data.porcentaje || 0);
+    $("#txt_porcentaje_ahorrador").text(porcentaje + '%');
+    $("#pTextPorcentajeAhorro").text(porcentaje + '%');
+    $("#pTextTipoPago").text(data.pago_utilidad || 'No definido');
+
+    // Para editar
+    $("#txt_t_documento_ah").val(data.t_documento);
+    $("#txt_n_documento_ah").val(data.n_documento);
+    $("#txt_idglobal_ah").val(data.idglobal);
+    $("#txt_idpersona_ah").val(data.refPersona);
   }
+
+  // Función interna para nuevo (adaptada de empleados)
   function nuevo() {
-    $("#txt_tipo_documento").val(tipo_documento)
-    $("#txt_tipo_documentoHidden").val(tipo_documento)
-    $("#txt_num_DocumentoHidden").val(num_documento)
-    $("#txt_num_Documento").val(num_documento)
-
+    $("#txt_tipo_documento").val(tipo_documento);
+    $("#txt_tipo_documentoHidden").val(tipo_documento);
+    $("#txt_num_DocumentoHidden").val(num_documento);
+    $("#txt_num_Documento").val(num_documento);
+    $("#cboEstado").val('ACTIVO');
+    $("#txtPorcentaje").val(0);
   }
-
 }
 
-
-
-function manejrTabsEmpleadoAsignado() {
-  $("#verLoadingAsignarEmpleados").removeClass('hide')
-  $("#verListadoAsignarEmpleados").addClass('hide')
-  $.post("./ajax/UsuarioAjax.php", function (r) {
-    if (r === '0') {
-      location.reload(true);
-    }
+// Función utilitaria para capitalizar palabras (igual que empleados)
+function capitalizarPalabras(str) {
+  if (!str) return '';
+  return str.replace(/\w\S*/g, function (txt) {
+    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
   });
-  const refEmpleado = $("#txtRefEmpleadoConfig").val();
-  $("#txtrefEmpleadoFormAsignarEmpleadoHidden").val(refEmpleado);
-  $('.duallistbox').bootstrapDualListbox('refresh', true);
-  $.get("./ajax/EmpleadoAjax.php?op=listEmpleadosAsignadosEmpleado", { refEmpleado }, function (r) {
-    $("#cboEmpleadosAsignadosEmpleado").html(r);
-    $("#verLoadingAsignarEmpleados").addClass('hide')
-    $("#verListadoAsignarEmpleados").removeClass('hide')
-    $('.duallistbox').bootstrapDualListbox('refresh');
-
-  })
-
-
-
-
 }
 
-
-function listarNomina3244445() {
-  $("#verLoadingAsignarEmpleados").removeClass('hide')
-  $("#verListadoNomina").addClass('hide')
-  $.post("./ajax/UsuarioAjax.php", function (r) {
-    if (r === '0') {
-      location.reload(true);
-    }
-  });
-  const refEmpleado = $("#txtRefEmpleadoConfig").val();
-  var tabla = $('#tblNomina').DataTable();
-  $.ajax({
-    url: './ajax/EmpleadoAjax.php?op=listNomina',
-    type: "POST",
-    data: { refEmpleado },
-    dataType: "json",
-    success: function (datos) {
-      tabla.clear().draw();
-      for (let i = 0; i < datos.length; i++) {
-        const val = datos[i];
-        tabla.row
-          .add([
-            val[0],
-            val[1],
-            val[2],
-            val[3]
-          ]).draw(false);
-      }
-      $("#verLoadingNomina").addClass('hide')
-      $("#verListadoNomina").removeClass('hide')
-    },
-    error: function (e) {
-      console.log(e.responseText);
+// Función para actualizar perfil del ahorrador
+function actualizarPerfilAhorrador(refAhorro) {
+  $.post("./ajax/AhorrosAjax.php?op=obtenerPerfil", { refAhorro }, function (data) {
+    if (data) {
+      const ahorrador = JSON.parse(data);
+      $("#pTextPorcentajeAhorro").text(ahorrador.porcentaje + '%');
+      $("#pTextTipoPago").text(ahorrador.pago_utilidad || 'No definido');
+      $("#txt_porcentaje_ahorrador").text(ahorrador.porcentaje + '%');
     }
   });
 }
