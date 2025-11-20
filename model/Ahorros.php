@@ -1,7 +1,7 @@
 <?php
 require "Conexion.php";
 
-class Empleado
+class Ahorros
 {
 
 
@@ -26,10 +26,11 @@ class Empleado
       //$estado,
       $login,
       $password,
-      $fechaIngreso,
-      $apodo,
-      $cargo,
-      $maxCredito,
+
+      $porcentaje,
+      $pagoUtilidadModo,
+      $authMovimientos,
+      $estadoAhorro,
       $idglobal
    ) {
       global $conexion;
@@ -87,19 +88,18 @@ class Empleado
          $conexion->query($sql) or throw new Exception('error!');
          $idpersona = $conexion->insert_id;
 
-         $sql = "INSERT INTO `tbl_empleado`(
+         $sql = "INSERT INTO `tbl_ahorros`(
                      idglobal,
-                     idpersona,
-                     str_apodo,
-                     str_cargo,
+                     idpersona,            
+                     dec_porcentaje,
+                     dec_ganancia_acumulada,
+                     str_pago_utilidad,
+                     bit_auth_movimientos,
                      str_estado,
-                     str_comentarios,
-                     date_fecha_inicio,
-                     dec_max_credito,
                      created_at,
                      update_at
              )
-              VALUES ($idglobal, $idpersona, '$apodo', '$cargo', 'activo', '', '$fechaIngreso', $maxCredito, '$dt', '$dt')";
+              VALUES ($idglobal, $idpersona, $porcentaje, 0, '$pagoUtilidadModo', $authMovimientos, '$estadoAhorro', '$dt', '$dt')";
          $conexion->query($sql) or throw new Exception('error!');
 
          $sql = "INSERT INTO `tbl_usuario`(
@@ -109,15 +109,18 @@ class Empleado
           VALUES ($idglobal, $idpersona, '$login', '$password', 'pendiente', 'activo')";
          $conexion->query($sql) or throw new Exception('error!');
       } catch (Exception $e) {
-
          $sw = false;
          $conexion->rollback();
       }
-      $conexion->commit();
+
+      if ($sw) {
+         $conexion->commit();
+      }
+
       if ($conexion != null) {
          $conexion->close();
       }
-      $msg = $sw ? 'Empleado Registrado correctamente.' : 'ERROR: Empleado no ha podido ser registado.';
+      $msg = $sw ? 'Ahorrador Registrado correctamente.' : 'ERROR: Ahorrador no ha podido ser registado.';
       echo $msg;
       return $sw;
    }
@@ -143,11 +146,11 @@ class Empleado
       $idusuario,
       $login,
       $password,
-      $idempleado,
-      $fechaIngreso,
-      $apodo,
-      $cargo,
-      $maxCredito,
+      $idahorro,
+      $porcentaje,
+      $pagoUtilidadModo,
+      $authMovimientos,
+      $estadoAhorro,
       $idglobal
    ) {
       global $conexion;
@@ -202,34 +205,32 @@ class Empleado
 
          $conexion->query($sql) or throw new Exception('error!');
 
-         $sql = "SELECT idempleado FROM tbl_empleado WHERE idglobal=$idglobal AND idpersona=$idpersona";
+         $sql = "SELECT idahorro FROM tbl_ahorros WHERE idglobal=$idglobal AND idpersona=$idpersona";
          $query = $conexion->query($sql);
          $request = $query->fetch_object();
 
-         if (empty($request->idempleado)) {
-            $sql = "INSERT INTO `tbl_empleado`(
+         if (empty($request->idahorro)) {
+            $sql = "INSERT INTO `tbl_ahorros`(
                     idglobal,
                     idpersona,
-                    str_apodo,
-                    str_cargo,
+                    dec_porcentaje,
+                    dec_ganancia_acumulada,
+                    str_pago_utilidad,
+                    bit_auth_movimientos,
                     str_estado,
-                    str_comentarios,
-                    date_fecha_inicio,
-                    dec_max_credito,
                     created_at,
                     update_at
             )
-             VALUES ($idglobal, $idpersona, '$apodo', '$cargo', 'activo', '', '$fechaIngreso', $maxCredito, '$dt', '$dt')";
+             VALUES ($idglobal, $idpersona, $porcentaje, 0, '$pagoUtilidadModo', $authMovimientos, '$estadoAhorro', '$dt', '$dt')";
             $conexion->query($sql) or throw new Exception('error!');
          } else {
-            $sql = "UPDATE `tbl_empleado` SET
-                    str_apodo='$apodo',
-                    str_cargo='$cargo',
-                    str_comentarios='',
-                    date_fecha_inicio='$fechaIngreso',
-                    dec_max_credito=$maxCredito,
+            $sql = "UPDATE `tbl_ahorros` SET
+                    dec_porcentaje=$porcentaje,
+                    str_pago_utilidad='$pagoUtilidadModo',
+                    bit_auth_movimientos=$authMovimientos,
+                    str_estado='$estadoAhorro',
                     update_at='$dt'
-                    WHERE idempleado=$idempleado
+                    WHERE idahorro=$idahorro
             ";
             $conexion->query($sql) or throw new Exception('error!');
          }
@@ -259,16 +260,18 @@ class Empleado
             $conexion->query($sql) or throw new Exception('error!');
          }
       } catch (Exception $e) {
-
          $sw = false;
          $conexion->rollback();
       }
-      $conexion->commit();
-      if ($conexion != null) {
 
+      if ($sw) {
+         $conexion->commit();
+      }
+
+      if ($conexion != null) {
          $conexion->close();
       }
-      $msg = $sw ? 'Empleado Actualizado correctamente.' : 'ERROR: Empleado no ha podido ser Actualizado.';
+      $msg = $sw ? 'Ahorrador Actualizado correctamente.' : 'ERROR: Ahorrador no ha podido ser Actualizado.';
       echo $msg;
       return $sw;
    }
@@ -318,22 +321,24 @@ class Empleado
    public function Listar($idglobal)
    {
       global $conexion;
+
       $sql = "SELECT 
-        e.idempleado AS refEmpleado,
-            e.str_cargo AS cargo,
-            e.dec_max_credito AS dec_max_credito,
-            e.date_fecha_inicio AS fecha_init,
+            a.idahorro AS refAhorro,
             p.idpersona AS refPersona,
-            CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado,
+            CONCAT(p.str_nombres,' ',p.str_apellidos) AS ahorrador,
             p.str_foto AS foto,
             p.str_tipo_documento AS tDocumento,
             p.str_num_documento AS nDocumento,
             p.str_telefono AS tel,
-            e.str_estado as estado
+            a.dec_porcentaje AS porcentaje,
+            a.str_pago_utilidad AS pago_utilidad,
+            a.bit_auth_movimientos AS auth_movimientos,
+            a.str_estado AS estado,
+            a.created_at AS fecha_creacion
 
-         FROM tbl_empleado e INNER JOIN
-            tbl_persona p ON p.idpersona=e.idpersona
-         WHERE e.idglobal=$idglobal AND e.str_estado<>'inactivo' ORDER BY e.idempleado DESC";
+         FROM tbl_ahorros a INNER JOIN
+            tbl_persona p ON p.idpersona=a.idpersona
+         WHERE a.idglobal=$idglobal AND a.str_estado<>'INACTIVO' ORDER BY a.idahorro DESC";
       $query = $conexion->query($sql);
       return $query;
    }
@@ -379,24 +384,18 @@ class Empleado
    }
 
 
-   public function buscarEmpleado($idpersona)
+   public function buscarAhorrador($idpersona)
    {
       global $conexion;
-      $sql = "SELECT 
-            e.idempleado AS refEmpleado,
-            e.str_apodo AS apodo,
-            e.str_cargo AS cargo,
-            e.dec_max_credito AS dec_max_credito,
-            e.str_estado AS estadoEmpleado,
-            e.str_comentarios AS comentarios,
-            e.date_fecha_inicio AS fecha_inicio,
-            e.created_at AS fecha_at,
-            u.idusuario AS refUsuario,
-            u.str_user_name AS username,
-            u.str_password AS id,
-            u.str_terminos_condiciones AS t_condiciones
-         FROM tbl_empleado e INNER JOIN 
-         tbl_usuario u ON u.idpersona=e.idpersona WHERE e.idpersona=$idpersona";
+      $sql = "SELECT idahorro as refAhorro,
+                  dec_porcentaje as porcentaje,
+                  dec_ganancia_acumulada AS gananciaAcumulada,
+                  str_pago_utilidad AS pagoUtilidad,
+                  bit_auth_movimientos AS authMovimientos,
+                  str_estado AS estadoAhorro,
+                  created_at AS fechaCreacion
+               FROM tbl_ahorros
+           WHERE idpersona=$idpersona";
       $query = $conexion->query($sql);
       return $query;
    }
@@ -405,28 +404,35 @@ class Empleado
       global $conexion;
 
       $sql = "SELECT 
-            idpersona AS refPersona,
-            idglobal AS refGlobal,
-            str_nombres AS nombres,
-            str_apellidos AS apellidos,
-            str_sexo AS sexo,
-            str_fecha_nacimiento AS f_nacimiento,
-            str_tipo_documento AS t_documento,
-            str_num_documento AS n_documento,
-            str_telefono AS telefono,
-            str_email AS email,
-            str_foto AS foto,
-            str_ocupacion AS ocupacion,
-            str_estado AS estado,
-            str_nota AS nota,
-            str_email_verificado AS e_verificado,
-            str_direccion_departamento AS departamento,
-            str_direccion_ciudad AS ciudad,
-            str_direccion_barrio AS barrio,
-            str_direccion_calle AS calle,
-            created_at AS fecha_at
-
-         FROM tbl_persona WHERE idglobal=$idglobal AND str_tipo_documento='$tipo_documento' AND str_num_documento='$num_documento'";
+            p.idpersona AS refPersona,
+            p.idglobal AS refGlobal,
+            p.str_nombres AS nombres,
+            p.str_apellidos AS apellidos,
+            p.str_sexo AS sexo,
+            p.str_fecha_nacimiento AS f_nacimiento,
+            p.str_tipo_documento AS t_documento,
+            p.str_num_documento AS n_documento,
+            p.str_telefono AS telefono,
+            p.str_email AS email,
+            p.str_foto AS foto,
+            p.str_ocupacion AS ocupacion,
+            p.str_estado AS estado,
+            p.str_nota AS nota,
+            p.str_email_verificado AS e_verificado,
+            p.str_direccion_departamento AS departamento,
+            p.str_direccion_ciudad AS ciudad,
+            p.str_direccion_barrio AS barrio,
+            p.str_direccion_calle AS calle,
+            p.created_at AS fecha_at,
+            u.idusuario AS refUsuario,
+            u.str_user_name AS username,
+            u.str_password AS id,
+            u.str_terminos_condiciones AS t_condiciones
+         FROM tbl_persona p
+         LEFT JOIN tbl_usuario u ON u.idpersona=p.idpersona 
+         
+         
+         WHERE p.idglobal=$idglobal AND p.str_tipo_documento='$tipo_documento' AND p.str_num_documento='$num_documento'";
       $query = $conexion->query($sql);
 
 

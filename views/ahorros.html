@@ -125,11 +125,7 @@
                 <div class="row">
                   <div class="col-12">
                     <!-- Campos ocultos para auditoría -->
-                    <input id="txtIdAhorro" type="hidden" class="form-control" name="txtIdAhorro" />
-                    <input id="txtCreatedUserId" type="hidden" name="txtCreatedUserId"
-                      value="<?php echo $_SESSION['idusuario']; ?>" />
-                    <input id="txtCreatedEmpleadoId" type="hidden" name="txtCreatedEmpleadoId"
-                      value="<?php echo $_SESSION['idempleado']; ?>" />
+                    <input id="txtRefAhorro" type="hidden" class="form-control" name="txtRefAhorro" />
 
                     <div class="row">
                       <div class="col-md-6">
@@ -164,7 +160,7 @@
                         <div class="form-group has-success">
                           <div class="custom-control custom-checkbox">
                             <input type="checkbox" class="custom-control-input" id="chkAuthMovimientos"
-                              name="chkAuthMovimientos" value="1">
+                              name="chkAuthMovimientos" value="">
                             <label class="custom-control-label" for="chkAuthMovimientos">
                               Autorizar Movimientos
                             </label>

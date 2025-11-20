@@ -11,7 +11,7 @@
  Target Server Version : 101114 (10.11.14-MariaDB-ubu2204)
  File Encoding         : 65001
 
- Date: 19/11/2025 14:25:19
+ Date: 20/11/2025 16:00:16
 */
 
 SET NAMES utf8mb4;
@@ -44,18 +44,18 @@ CREATE TABLE `tbl_ahorros`  (
   `idahorro` int(11) NOT NULL AUTO_INCREMENT,
   `idglobal` int(11) NOT NULL,
   `idpersona` int(11) NOT NULL,
-  `dec_porcentaje` decimal(5, 2) NOT NULL,
+  `dec_porcentaje` decimal(5, 1) NOT NULL,
   `dec_ganancia_acumulada` decimal(10, 2) NOT NULL DEFAULT 0.00,
   `str_pago_utilidad` enum('automatico','manual') CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL DEFAULT 'manual',
   `bit_auth_movimientos` bit(1) NOT NULL DEFAULT b'0',
   `str_estado` varchar(15) CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish2_ci NOT NULL,
   `created_at` datetime NULL DEFAULT NULL,
-  `updated_at` datetime NULL DEFAULT NULL,
+  `update_at` datetime NULL DEFAULT NULL,
   PRIMARY KEY (`idahorro`) USING BTREE,
   INDEX `index_idglobal`(`idglobal` ASC) USING BTREE,
   INDEX `index_idpersona`(`idpersona` ASC) USING BTREE,
   CONSTRAINT `fk_tbl_ahorro_tbl_persona_1` FOREIGN KEY (`idpersona`) REFERENCES `tbl_persona` (`idpersona`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tbl_articulo
@@ -479,7 +479,7 @@ CREATE TABLE `tbl_empleado`  (
   INDEX `index1`(`idglobal` ASC) USING BTREE,
   INDEX `index2`(`idpersona` ASC) USING BTREE,
   CONSTRAINT `fk_tbl_empleado_tbl_persona_1` FOREIGN KEY (`idpersona`) REFERENCES `tbl_persona` (`idpersona`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB AUTO_INCREMENT = 400 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 401 CHARACTER SET = latin1 COLLATE = latin1_swedish_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tbl_empleado_despido
@@ -785,7 +785,7 @@ CREATE TABLE `tbl_persona`  (
   PRIMARY KEY (`idpersona`) USING BTREE,
   INDEX `index`(`str_num_documento` ASC) USING BTREE,
   INDEX `index_idgloba`(`idglobal` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 67524 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish_ci ROW_FORMAT = Compact;
+) ENGINE = InnoDB AUTO_INCREMENT = 67528 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish_ci ROW_FORMAT = Compact;
 
 -- ----------------------------
 -- Table structure for tbl_proveedor
@@ -935,7 +935,7 @@ CREATE TABLE `tbl_usuario`  (
   INDEX `index_pass`(`str_password` ASC) USING BTREE,
   INDEX `index_username`(`str_user_name` ASC) USING BTREE,
   CONSTRAINT `fk_tbl_usuario_tbl_persona_1` FOREIGN KEY (`idpersona`) REFERENCES `tbl_persona` (`idpersona`) ON DELETE NO ACTION ON UPDATE NO ACTION
-) ENGINE = InnoDB AUTO_INCREMENT = 398 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
+) ENGINE = InnoDB AUTO_INCREMENT = 399 CHARACTER SET = utf8mb3 COLLATE = utf8mb3_spanish2_ci ROW_FORMAT = Dynamic;
 
 -- ----------------------------
 -- Table structure for tbl_venta

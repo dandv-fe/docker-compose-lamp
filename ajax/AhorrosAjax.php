@@ -3,9 +3,9 @@
 session_start();
 require_once "../method.php";
 
-require_once "../model/Empleado.php";
+require_once "../model/Ahorros.php";
 
-$objEmpleado = new Empleado();
+$objAhorros = new Ahorros();
 $idglobal = $_SESSION['idglobal'];
 $superadmin = $_SESSION['userEmpresa'];
 
@@ -41,24 +41,18 @@ switch ($_GET["op"]) {
          $password = !$password ? $claveAnterior : md5($password);
       }
 
-      // datos empleado
-      $idempleado = limpiar_cadena($_POST["txtRefEmpleado"]);
-      $fechaIngreso = limpiar_cadena2($_POST["txt_fechaIngreso"]);
-      $apodo = limpiar_cadena($_POST["txtApodo"]);
-      $cargo = limpiar_cadena($_POST["txtCargo"]);
-      $maxCredito = limpiar_cadena($_POST["txtMaxCredito"]) ?: 0; // Valor por defecto 0 si está vacío
-      //$estadoEmpleado = limpiar_cadena($_POST["txtEstadoEmpleado"]);
+      // datos ahorro
+      $idahorro =  limpiar_cadena($_POST["txtRefAhorro"]);
+      $porcentaje = floatval($_POST["txtPorcentaje"]);
+      $pagoUtilidadModo = limpiar_cadena($_POST["cboPagoUtilidad"]);
+      $authMovimientos = isset($_POST["chkAuthMovimientos"]) ? 1 : 0;
 
-      $os = array("Super Administrador", "Semanal", "Quincenal", "Mensual");
-      if (in_array($cargo, $os)) {
-         echo "ERROR: Revisar el Formulario del empleado! cargos de  'Super Administrador' no pude asignar";
-         return;
-      }
+      $estadoAhorro = limpiar_cadena($_POST["cboEstado"]);
 
       if ($imagen_Cli['size'] > 0) {
          //si subio imagen
          $dirEspacioGlobal = "../Files/" . $idglobal . "/";
-         $dirEspacioGlobalSucursal = $dirEspacioGlobal . "empleado" . "/";
+         $dirEspacioGlobalSucursal = $dirEspacioGlobal . "ahorros" . "/";
          $tamanio = 10000; //Tamaño permitido en kb
          $permitidos = array('jpg', 'jpeg', 'png'); //Archivos permitido
 
@@ -78,9 +72,9 @@ switch ($_GET["op"]) {
             }
 
             if (move_uploaded_file($imagen_Cli['tmp_name'], $ruta_carga)) {
-               $ruta_carga = "Files/" . $idglobal . "/" . "empleado/" . $newNombreImg;
+               $ruta_carga = "Files/" . $idglobal . "/" . "ahorros/" . $newNombreImg;
                if (empty($idpersona)) {
-                  $objEmpleado->Registrar(
+                  $objAhorros->Registrar(
                      $nombres,
                      $apellidos,
                      $sexo,
@@ -98,16 +92,16 @@ switch ($_GET["op"]) {
                      $nota,
                      $login,
                      $password,
-                     $fechaIngreso,
-                     $apodo,
-                     $cargo,
-                     $maxCredito,
+                     $porcentaje,
+                     $pagoUtilidadModo,
+                     $authMovimientos,
+                     $estadoAhorro,
                      $idglobal
                   );
                } else {
 
 
-                  $objEmpleado->Modificar(
+                  $objAhorros->Modificar(
                      $idpersona,
                      $nombres,
                      $apellidos,
@@ -127,11 +121,11 @@ switch ($_GET["op"]) {
                      $idusuario,
                      $login,
                      $password,
-                     $idempleado,
-                     $fechaIngreso,
-                     $apodo,
-                     $cargo,
-                     $maxCredito,
+                     $idahorro,
+                     $porcentaje,
+                     $pagoUtilidadModo,
+                     $authMovimientos,
+                     $estadoAhorro,
                      $idglobal
                   );
                }
@@ -146,7 +140,7 @@ switch ($_GET["op"]) {
          if (empty($idpersona)) {
 
 
-            $objEmpleado->Registrar(
+            $objAhorros->Registrar(
                $nombres,
                $apellidos,
                $sexo,
@@ -164,14 +158,14 @@ switch ($_GET["op"]) {
                $nota,
                $login,
                $password,
-               $fechaIngreso,
-               $apodo,
-               $cargo,
-               $maxCredito,
+               $porcentaje,
+               $pagoUtilidadModo,
+               $authMovimientos,
+               $estadoAhorro,
                $idglobal
             );
          } else {
-            $objEmpleado->Modificar(
+            $objAhorros->Modificar(
                $idpersona,
                $nombres,
                $apellidos,
@@ -191,11 +185,11 @@ switch ($_GET["op"]) {
                $idusuario,
                $login,
                $password,
-               $idempleado,
-               $fechaIngreso,
-               $apodo,
-               $cargo,
-               $maxCredito,
+               $idahorro,
+               $porcentaje,
+               $pagoUtilidadModo,
+               $authMovimientos,
+               $estadoAhorro,
                $idglobal
             );
          }
@@ -230,42 +224,33 @@ switch ($_GET["op"]) {
          echo json_encode(0);
          return;
       }
-      $query = $objEmpleado->buscarPersona($idglobal, $tipo_documento, $num_documento);
+      $query = $objAhorros->buscarPersona($idglobal, $tipo_documento, $num_documento);
       $req = $query->fetch_object();
       if (empty($req->refPersona)) {
          echo json_encode($req);
          return;
       }
       $refPersona = $req->refPersona;
-      $req->isEmpleado = false;
-      $req->refEmpleado = '';
-      $req->apodo = '';
-      $req->cargo = '';
-      $req->dec_max_credito = 0;
-      $req->estadoEmpleado = '';
-      $req->comentarios = '';
-      $req->fecha_at = '';
-      $req->fecha_inicio = '';
-      $req->refUsuario = '';
-      $req->username = '';
-      $req->id = '';
-      $req->t_condiciones = '';
-      $query = $objEmpleado->buscarEmpleado($refPersona);
+      $req->isAhorrador = false;
+      $req->refAhorro = null;
+      $req->porcentaje = null;
+      $req->gananciaAcumulada = null;
+      $req->pagoUtilidad = null;
+      $req->authMovimientos = null;
+      $req->estadoAhorro = null;
+      $req->fechaCreacion = null;
+
+      $query = $objAhorros->buscarAhorrador($refPersona);
       $request = $query->fetch_object();
-      if (isset($request->refEmpleado)) {
-         $req->isEmpleado = true;
-         $req->refEmpleado = $request->refEmpleado;
-         $req->apodo = $request->apodo;
-         $req->cargo = $request->cargo;
-         $req->dec_max_credito = $request->dec_max_credito ?: 0;
-         $req->estadoEmpleado = $request->estadoEmpleado;
-         $req->comentarios = $request->comentarios;
-         $req->fecha_inicio = $request->fecha_inicio;
-         $req->fecha_at = $request->fecha_at;
-         $req->refUsuario = $request->refUsuario;
-         $req->username = $request->username;
-         $req->id = $request->id;
-         $req->t_condiciones = $request->t_condiciones;
+      if (isset($request->refAhorro)) {
+         $req->isAhorrador = true;
+         $req->refAhorro = $request->refAhorro;
+         $req->porcentaje = $request->porcentaje;
+         $req->gananciaAcumulada = $request->gananciaAcumulada;
+         $req->pagoUtilidad = $request->pagoUtilidad;
+         $req->authMovimientos = $request->authMovimientos;
+         $req->estadoAhorro = $request->estadoAhorro;
+         $req->fechaCreacion = $request->fechaCreacion;
       }
       echo json_encode($req);
       break;
@@ -273,36 +258,38 @@ switch ($_GET["op"]) {
 
 
    case "list":
-      $query_Tipo = $objEmpleado->Listar($idglobal);
+      $query_Tipo = $objAhorros->Listar($idglobal);
       $data = array();
-      $i = 1;
 
       while ($reg = $query_Tipo->fetch_object()) {
-         $btneditar = $reg->cargo != 'Super Administrador' ?
-            '<button class="btn btn-warning btn-sm" title="Editar" onclick="cargarDataEmpleado(\'' . $reg->tDocumento . '\',\'' . $reg->nDocumento . '\',\'editar\')"><i class="fa-solid fa-user-pen" style="color: #000000;"></i> </button>&nbsp;' :
-            '<button class="btn btn-info btn-sm" title="Editar" onclick="cargarDataEmpleado(' . $reg->refPersona . ',\'' . $reg->nDocumento . '\',\'editarUser\')"><i class="fa-solid fa-user-pen" style="color: #000000;"></i> </button>&nbsp;';
+         // Botón editar ahorrador
+         $btnEditar = '<button class="btn btn-warning btn-sm" title="Editar" onclick="cargarDataAhorrador(\'' . $reg->tDocumento . '\',\'' . $reg->nDocumento . '\',\'editar\')"><i class="fa-solid fa-user-pen" style="color: #000000;"></i></button>&nbsp;';
 
-         // Botón de despido solo para empleados activos
-         $btnDespido = ($reg->estado == 'activo' || $reg->estado == 'despido pendiente') && $reg->cargo != 'Super Administrador' ?
-            '<button class="btn btn-danger btn-sm" title="Registrar Despido" onclick="abrirModalDespido(' . $reg->refEmpleado . ', \'' . addslashes($reg->empleado) . '\', \'' . addslashes($reg->cargo) . '\', \'' . $reg->tDocumento . ' ' . $reg->nDocumento . '\')"><i class="fas fa-user-slash"></i></button>&nbsp;' :
-            '';
+         // Botón ver perfil/configuración
+         $btnPerfil = '<button class="btn btn-info btn-sm" title="Ver Perfil" onclick="cargarDataAhorrador(\'' . $reg->tDocumento . '\',\'' . $reg->nDocumento . '\',\'perfil\')"><i class="fa-solid fa-user-gear" style="color: #000000;"></i></button>&nbsp;';
 
-         $estado = $reg->estado == 'activo' ? '<span class="badge badge-success">Activo</span>' : '<span class="badge badge-danger">' . $reg->estado . '</span>';
+         // Formatear estado
+         $estadoBadge = $reg->estado == 'ACTIVO' ? '<span class="badge badge-success">Activo</span>' : '<span class="badge badge-danger">' . $reg->estado . '</span>';
+
+         // Formatear porcentaje
+         $porcentaje = number_format($reg->porcentaje, 1) . '%';
+
+         // Formatear auth movimientos
+         $authMovimientos = $reg->auth_movimientos == 1 ? '<span class="badge badge-success">Sí</span>' : '<span class="badge badge-secondary">No</span>';
+
+         // Formatear fecha
+         $fechaCreacion = date('d/m/Y', strtotime($reg->fecha_creacion));
 
          $data[] = array(
-            "0" => $i,
-            "1" => $reg->empleado,
-            "2" => '<p>' . $reg->tDocumento . '</p>' . '<p>' . $reg->nDocumento . '</p>',
-            "3" => $reg->fecha_init,
-            "4" => $estado,
-            "5" => $reg->cargo,
-            "6" => $reg->tel,
-            "7" => '<img width=100px height=100px src="./' . $reg->foto . '" />',
-            "8" => $reg->estado == 'activo' ? $btneditar .
-               '<button class="btn btn-default btn-sm" title="Configuracion" onclick="cargarDataEmpleado(\'' . $reg->tDocumento . '\',\'' . $reg->nDocumento . '\',\'perfil\')"><i class="fa-solid fa-user-gear" style="color: #000000;"></i> </button>&nbsp;'
-               : '' . $btnDespido
+            "0" => $reg->ahorrador,
+            "1" => '<p>' . $reg->tDocumento . '</p><p>' . $reg->nDocumento . '</p>',
+            "2" => $porcentaje,
+            "3" => $reg->pago_utilidad ?: 'No definido',
+            "4" => $authMovimientos,
+            "5" => $estadoBadge,
+            "6" => $fechaCreacion,
+            "7" => $btnEditar . $btnPerfil
          );
-         $i++;
       }
       echo json_encode($data);
       break;

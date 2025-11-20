@@ -394,11 +394,11 @@ function cargarDataAhorrador(tipo_documento, num_documento, accion) {
     $("#txt_Direccion_Calle").val(data.calle);
 
     // Datos específicos del ahorro
-    $("#txtIdAhorro").val(data.refAhorro);
+    $("#txtRefAhorro").val(data.refAhorro);
     $("#txtPorcentaje").val(data.porcentaje || 0);
-    $("#cboPagoUtilidad").val(data.pago_utilidad || '');
-    $("#chkAuthMovimientos").prop('checked', data.auth_movimientos == 1);
-    $("#cboEstado").val(data.estado || 'ACTIVO');
+    $("#cboPagoUtilidad").val(data.pagoUtilidad || '');
+    $("#chkAuthMovimientos").prop('checked', data.authMovimientos == 1);
+    $("#cboEstado").val(data.estadoAhorro || 'ACTIVO');
 
     // Datos de usuario
     $("#txtRefUsuario").val(data.refUsuario);
