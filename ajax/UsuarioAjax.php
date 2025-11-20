@@ -80,7 +80,7 @@ switch ($_GET["op"]) {
    case 'IngresarSistemaActividad':
       $idsucursal = limpiar_cadena($_REQUEST['empresa']);
       //$refSession = limpiar_cadena($_REQUEST['refSession']);
-      //$idempleado = $_SESSION['userEmpleado'];
+      //$idempleado = $_SESSION['idempleado'];
 
       //if (empty($_SESSION['userEmpresa'])) {
       //	echo json_encode(array('session'=> $idsucursal));

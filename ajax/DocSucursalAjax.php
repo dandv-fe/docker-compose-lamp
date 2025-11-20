@@ -63,13 +63,10 @@ switch ($_GET["op"]) {
          $i++;
       }
       echo json_encode($data);
-
       break;
    case "delete":
       require_once "../model/DocSucursal.php";
-
       $obj = new DocSucursal();
-
       $idDocSucursal = $_POST["idDocSucursal"];
       if (isset($_SESSION['userEmpresa']) || in_array('eliminar comprobantes', array_column($_SESSION['AUTHS'], 'nombre'))) {
          $hosp = $obj->Eliminar($idDocSucursal);
@@ -81,21 +78,16 @@ switch ($_GET["op"]) {
       } else {
          echo "ERROR: No estas authorizado para esta accion";
       }
-
       break;
 
    case "listTipoDoc":
-
       require_once "../model/DocSucursal.php";
-
       $objDocSucursal = new DocSucursal();
-
-      $query_Categoria = $objDocSucursal->ListarTipoDocumento();
-
+      $tipo = $_GET["tipo"];
+      $query_Categoria = $objDocSucursal->ListarTipoDocumento($tipo);
       echo "<option>--Seleccione Comprobante--</option>";
       while ($reg = $query_Categoria->fetch_object()) {
          echo '<option value="' . $reg->idtipo_documento . '">' . $reg->str_nombre . '</option>';
       }
-
       break;
 }

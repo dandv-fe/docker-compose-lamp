@@ -93,7 +93,7 @@ $sql = "SELECT a.str_nombre FROM tbl_auth_sucursal au
 Usar estas variables según corresponda:
 
 - `$_SESSION['idusuario']`: ID del usuario logueado
-- `$_SESSION['userEmpleado']`: ID del empleado actual
+- `$_SESSION['idempleado']`: ID del empleado actual
 - `$_SESSION['idglobal']`: ID de la empresa
 - `$_SESSION['idsucursal']`: Sucursal activa
 

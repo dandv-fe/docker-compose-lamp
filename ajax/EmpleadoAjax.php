@@ -630,7 +630,7 @@ switch ($_GET["op"]) {
          $fechaReingreso,
          $cargo,
          $observaciones,
-         $_SESSION['userEmpleado']
+         $_SESSION['idempleado']
       );
       echo json_encode($resultado);
       break;

@@ -1,303 +1,296 @@
 <div class="modal fade" id="modal-xl-alertaClente">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h4 class="modal-title">Crear alerta</h4>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title">Crear alerta</h4>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form id="formAlerta">
+        <input type="hidden" name="ftxtHiddenRefAlert" id="ftxtHiddenRefAlert">
+        <input type="hidden" name="ftxtHiddenRefCliente" id="ftxtHiddenRefCliente">
+        <input type="hidden" name="ftxtIcon" id="ftxtIcon">
+        <input type="hidden" name="ftxtColor" id="ftxtColor">
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-6">
+
+              <div class="row">
+                <div class="col">
+                  <label for="txtAsunto">Icon:</label>
+                  <div class="form-group has-success">
+                    <a class="nav-link py-0" data-toggle="dropdown" href="#" style="font-size: 30px;">
+                      <i id="htmlIconSelecionado" class="fas fa-check"></i>
+                    </a>
+                    <div id="iconListopalCombio" class="dropdown-menu dropdown-menu-sm">
+                      <div class="dropdown-divider"></div>
+                      <a href="fa-ban" class="dropdown-item">
+                        <i class="icon fas fa-ban mr-2"></i>
+                        <small></small>
+                      </a>
+                      <div class="dropdown-divider"></div>
+                      <a href="fa-info" class="dropdown-item">
+                        <i class="icon fas fa-info mr-2"></i>
+                        <small></small>
+                      </a>
+                      <div class="dropdown-divider"></div>
+                      <a href="fa-exclamation-triangle" class="dropdown-item">
+                        <i class="icon fas fa-exclamation-triangle mr-2"></i>
+                      </a>
+                      <div class="dropdown-divider"></div>
+                      <a href="fa-check" class="dropdown-item">
+                        <i class="icon fas fa-check mr-2"></i>
+                      </a>
+                      <div class="dropdown-divider"></div>
+                      <a href="fa-bullhorn" class="dropdown-item">
+                        <i class="icon fas fa-bullhorn mr-2"></i>
+                      </a>
+                      <div class="dropdown-divider"></div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col">
+                  <div class="form-group has-success">
+                    <label for="txtAsunto">Color:</label>
+                    <a id="htmlColorSelecionado" class="nav-link" data-toggle="dropdown" href="#"
+                      style="background-color: #00bc8c;">
+                      <i class="far"></i>
+                    </a>
+                    <div id="colorListopalCombio" class="dropdown-menu dropdown-menu-sm">
+                      <div class="dropdown-divider"></div>
+                      <a href="success" class="dropdown-item" style="height: 30px; background-color: #00bc8c;">
+
+                      </a>
+                      <div class="dropdown-divider"></div>
+                      <a href="danger" class="dropdown-item" style="height: 30px; background-color: #dc3545;">
+
+                      </a>
+                      <div class="dropdown-divider"></div>
+                      <a href="info" class="dropdown-item" style="height: 30px; background-color: #17a2b8;">
+
+                      </a>
+                      <div class="dropdown-divider"></div>
+                      <a href="warning" class="dropdown-item" style="height: 30px; background-color: #ffc107;">
+
+                      </a>
+
+                      <div class="dropdown-divider"></div>
+                      <a href="default" class="dropdown-item" style="height: 30px; background-color: #fff;">
+
+                      </a>
+
+                      <div class="dropdown-divider"></div>
+
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
             </div>
-            <form id="formAlerta">
-                <input type="hidden" name="ftxtHiddenRefAlert" id="ftxtHiddenRefAlert">
-                <input type="hidden" name="ftxtHiddenRefCliente" id="ftxtHiddenRefCliente">
-                <input type="hidden" name="ftxtIcon" id="ftxtIcon">
-                <input type="hidden" name="ftxtColor" id="ftxtColor">
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
 
-                            <div class="row">
-                                <div class="col">
-                                    <label for="txtAsunto">Icon:</label>
-                                    <div class="form-group has-success">
-                                        <a class="nav-link py-0" data-toggle="dropdown" href="#"
-                                            style="font-size: 30px;">
-                                            <i id="htmlIconSelecionado" class="fas fa-check"></i>
-                                        </a>
-                                        <div id="iconListopalCombio" class="dropdown-menu dropdown-menu-sm">
-                                            <div class="dropdown-divider"></div>
-                                            <a href="fa-ban" class="dropdown-item">
-                                                <i class="icon fas fa-ban mr-2"></i>
-                                                <small></small>
-                                            </a>
-                                            <div class="dropdown-divider"></div>
-                                            <a href="fa-info" class="dropdown-item">
-                                                <i class="icon fas fa-info mr-2"></i>
-                                                <small></small>
-                                            </a>
-                                            <div class="dropdown-divider"></div>
-                                            <a href="fa-exclamation-triangle" class="dropdown-item">
-                                                <i class="icon fas fa-exclamation-triangle mr-2"></i>
-                                            </a>
-                                            <div class="dropdown-divider"></div>
-                                            <a href="fa-check" class="dropdown-item">
-                                                <i class="icon fas fa-check mr-2"></i>
-                                            </a>
-                                            <div class="dropdown-divider"></div>
-                                            <a href="fa-bullhorn" class="dropdown-item">
-                                                <i class="icon fas fa-bullhorn mr-2"></i>
-                                            </a>
-                                            <div class="dropdown-divider"></div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col">
-                                    <div class="form-group has-success">
-                                        <label for="txtAsunto">Color:</label>
-                                        <a id="htmlColorSelecionado" class="nav-link" data-toggle="dropdown" href="#"
-                                            style="background-color: #00bc8c;">
-                                            <i class="far"></i>
-                                        </a>
-                                        <div id="colorListopalCombio" class="dropdown-menu dropdown-menu-sm">
-                                            <div class="dropdown-divider"></div>
-                                            <a href="success" class="dropdown-item"
-                                                style="height: 30px; background-color: #00bc8c;">
+            <div class="col-md-6">
+              <div class="form-group has-success">
+                <label for="ftxtAsunto">Asunto:</label>
+                <input required id="ftxtAsunto" type="text" maxlength="45" name="ftxtAsunto" placeholder="Asunto"
+                  class="form-control" />
+              </div>
 
-                                            </a>
-                                            <div class="dropdown-divider"></div>
-                                            <a href="danger" class="dropdown-item"
-                                                style="height: 30px; background-color: #dc3545;">
+            </div>
+          </div>
+          <div class="row">
+            <div class="col">
+              <div class="form-group has-success">
+                <label for="ftxtAreaAlerta">Asunto:</label>
+                <input required class="form-control" name="ftxtAreaAlerta" id="ftxtAreaAlerta" maxlength="150" />
+              </div>
 
-                                            </a>
-                                            <div class="dropdown-divider"></div>
-                                            <a href="info" class="dropdown-item"
-                                                style="height: 30px; background-color: #17a2b8;">
+            </div>
+          </div>
 
-                                            </a>
-                                            <div class="dropdown-divider"></div>
-                                            <a href="warning" class="dropdown-item"
-                                                style="height: 30px; background-color: #ffc107;">
+          <div id="colorAlert" class="">
 
-                                            </a>
+            <h5><i id="iconAlert" class="icon fas fa-check"></i> <b id="txtTitleAlert"></b></h5>
+            <p id="txtdeAlert"></p>
 
-                                            <div class="dropdown-divider"></div>
-                                            <a href="default" class="dropdown-item"
-                                                style="height: 30px; background-color: #fff;">
-
-                                            </a>
-
-                                            <div class="dropdown-divider"></div>
-
-
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-
-                        </div>
-
-                        <div class="col-md-6">
-                            <div class="form-group has-success">
-                                <label for="ftxtAsunto">Asunto:</label>
-                                <input required id="ftxtAsunto" type="text" maxlength="45" name="ftxtAsunto"
-                                    placeholder="Asunto" class="form-control" />
-                            </div>
-
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col">
-                            <div class="form-group has-success">
-                                <label for="ftxtAreaAlerta">Asunto:</label>
-                                <input required class="form-control" name="ftxtAreaAlerta" id="ftxtAreaAlerta"
-                                    maxlength="150" />
-                            </div>
-
-                        </div>
-                    </div>
-
-                    <div id="colorAlert" class="">
-
-                        <h5><i id="iconAlert" class="icon fas fa-check"></i> <b id="txtTitleAlert"></b></h5>
-                        <p id="txtdeAlert"></p>
-
-                    </div>
-
-                </div>
-
-                <div class="modal-footer justify-content-between">
-                    <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
-                    <button type="submit" class="btn btn-primary">Guardar</button>
-                </div>
-
-
-            </form>
-
+          </div>
 
         </div>
-        <!-- /.modal-content -->
+
+        <div class="modal-footer justify-content-between">
+          <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+
+
+      </form>
+
+
     </div>
-    <!-- /.modal-dialog -->
+    <!-- /.modal-content -->
+  </div>
+  <!-- /.modal-dialog -->
 </div>
 <!-- /.modal -->
 
 <script type="text/javascript">
-    $(function () {
+  $(function () {
 
-        $('#modal-xl-alertaClente').on('show.bs.modal', function (e) {
+    $('#modal-xl-alertaClente').on('show.bs.modal', function (e) {
 
-            if ($("#ftxtHiddenRefAlert").val() === '') {
-                $("#htmlIconSelecionado").attr('class', 'fas fa-check')
-                $("#colorAlert").attr('class', 'alert alert-success alert-dismissible m-0');
-                $("#htmlColorSelecionado").css('background-color', '#00bc8c')
-                $("#iconAlert").attr('class', 'icon fas fa-check');
-                let id = sessionStorage.getItem('index');
-                $("#ftxtHiddenRefCliente").val(ArrayTarjetas[id].refCliente);
-                $("#ftxtColor").val('success');
-                $("#ftxtIcon").val('fa-check');
-            }
-            //$("#htmlIconSelecionado").attr('class', )
-            // $("#txtdeAlerta").text($("#txtAreaAlerta").val());
-            // $("#txtTitleAlert").text($("#txtAsunto").val());
+      if ($("#ftxtHiddenRefAlert").val() === '') {
+        $("#htmlIconSelecionado").attr('class', 'fas fa-check')
+        $("#colorAlert").attr('class', 'alert alert-success alert-dismissible m-0');
+        $("#htmlColorSelecionado").css('background-color', '#00bc8c')
+        $("#iconAlert").attr('class', 'icon fas fa-check');
+        let id = sessionStorage.getItem('index');
+        $("#ftxtHiddenRefCliente").val(ArrayTarjetas[id].refCliente);
+        $("#ftxtColor").val('success');
+        $("#ftxtIcon").val('fa-check');
+      }
+      //$("#htmlIconSelecionado").attr('class', )
+      // $("#txtdeAlerta").text($("#txtAreaAlerta").val());
+      // $("#txtTitleAlert").text($("#txtAsunto").val());
 
-            setTimeout(numdocumentoFocus, 300)
-        })
-        $('#modal-xl-alertaClente').on('hide.bs.modal', function (e) {
-            $('form#formAlerta').trigger("reset");
-            $("#formAlerta input:hidden").val('')
-            $("#txtdeAlert").text('');
-             $("#txtTitleAlert").text('');
-        })
-        function numdocumentoFocus() {
-            $("#ftxtAsunto").focus();
+      setTimeout(numdocumentoFocus, 300)
+    })
+    $('#modal-xl-alertaClente').on('hide.bs.modal', function (e) {
+      $('form#formAlerta').trigger("reset");
+      $("#formAlerta input:hidden").val('')
+      $("#txtdeAlert").text('');
+      $("#txtTitleAlert").text('');
+    })
+    function numdocumentoFocus() {
+      $("#ftxtAsunto").focus();
+    }
+
+    ComboTipo_Documento();
+    function ComboTipo_Documento() {
+      $.get("./ajax/DocSucursalAjax.php?op=listTipoDoc", { tipo: 'Persona' }, function (r) {
+        $("#cboBusTipo_Documento").html(r);
+
+      })
+    }
+
+    // muestra el cambio del color
+    $("#colorListopalCombio").on('click', 'a.dropdown-item', function (e) {
+      e.preventDefault();
+      let colorclass = $(e.target).attr('href')
+      let color = ''
+      switch (colorclass) {
+        case 'success':
+          color = '#00bc8c'
+          break;
+        case 'danger':
+          color = '#dc3545'
+          break
+        case 'info':
+
+          color = '#17a2b8'
+          break
+        case 'warning':
+          color = '#ffc107'
+          break;
+        default:
+          color = '#fff'
+          break;
+      }
+
+      $("#ftxtColor").val(colorclass);
+      $("#colorAlert").attr('class', 'alert alert-' + colorclass + ' alert-dismissible m-0');
+      $("#htmlColorSelecionado").css('background-color', color)
+    });
+
+    // muestra el cambio del icono
+    $("#iconListopalCombio").on('click', 'a.dropdown-item', function (e) {
+      e.preventDefault();
+      let iconclass = $(e.target).attr('href')
+      if (!iconclass) {
+        iconclass = $(e.target).parent().attr('href')
+      }
+
+      $("#ftxtIcon").val(iconclass);
+      $("#iconAlert").attr('class', 'icon fas ' + iconclass);
+      $("#htmlIconSelecionado").attr('class', 'fas ' + iconclass)
+    });
+
+    // muestra el cambio del titulo
+    $("#ftxtAsunto").on('change', function (e) {
+      $("#txtTitleAlert").text($("#ftxtAsunto").val());
+    });
+
+    $("#ftxtAsunto").keypress(function (e) {
+      $("#ftxtAsunto").trigger('change');
+    });
+    $("#ftxtAsunto").keyup(function (e) {
+      $("#ftxtAsunto").trigger('change');
+    });
+    $("#ftxtAsunto").keydown(function (e) {
+      $("#ftxtAsunto").trigger('change');
+    });
+
+
+    // muestra el cambio del Contenido
+    $("#ftxtAreaAlerta").on('change', function (e) {
+      $("#txtdeAlert").text($("#ftxtAreaAlerta").val());
+    });
+
+    $("#ftxtAreaAlerta").keypress(function (e) {
+      $("#ftxtAreaAlerta").trigger('change');
+    });
+    $("#ftxtAreaAlerta").keyup(function (e) {
+      $("#ftxtAreaAlerta").trigger('change');
+    });
+    $("#ftxtAreaAlerta").keydown(function (e) {
+      $("#ftxtAreaAlerta").trigger('change');
+    });
+
+    $("form#formAlerta").submit(function (e) {
+      e.preventDefault();
+
+      $.post("./ajax/UsuarioAjax.php", function (r) {
+        if (r === '0') {
+          location.reload(true);
         }
+      });
+      var formData = new FormData($("form#formAlerta")[0]);
 
-        ComboTipo_Documento();
-        function ComboTipo_Documento() {
-            $.get("./ajax/SucursalAjax.php?op=listTipoDoc", function (r) {
-                $("#cboBusTipo_Documento").html(r);
+      $.ajax({
 
+        url: "./ajax/ClienteAjax.php?op=SaveOrupdateAlerta",
+        type: "POST",
+        data: formData,
+        contentType: false,
+        processData: false,
+        success: function (datos) {
+
+          if (datos.indexOf("ERROR:") !== -1) {
+            Toast.fire({
+              icon: 'error',
+              title: datos,
+              position: 'top',
             })
+
+          } else {
+
+            $("#formAlerta").trigger('reset')
+            Toast.fire({
+              icon: 'success',
+              title: datos,
+              position: 'top',
+            })
+            cargarDatosEnPanel()
+            $("#modal-xl-alertaClente").modal('hide');
+          }
+
         }
 
-        // muestra el cambio del color
-        $("#colorListopalCombio").on('click', 'a.dropdown-item', function (e) {
-            e.preventDefault();
-            let colorclass = $(e.target).attr('href')
-            let color = ''
-            switch (colorclass) {
-                case 'success':
-                    color = '#00bc8c'
-                    break;
-                case 'danger':
-                    color = '#dc3545'
-                    break
-                case 'info':
-
-                    color = '#17a2b8'
-                    break
-                case 'warning':
-                    color = '#ffc107'
-                    break;
-                default:
-                    color = '#fff'
-                    break;
-            }
-
-            $("#ftxtColor").val(colorclass);
-            $("#colorAlert").attr('class', 'alert alert-' + colorclass + ' alert-dismissible m-0');
-            $("#htmlColorSelecionado").css('background-color', color)
-        });
-
-        // muestra el cambio del icono
-        $("#iconListopalCombio").on('click', 'a.dropdown-item', function (e) {
-            e.preventDefault();
-            let iconclass = $(e.target).attr('href')
-            if (!iconclass) {
-                iconclass = $(e.target).parent().attr('href')
-            }
-
-            $("#ftxtIcon").val(iconclass);
-            $("#iconAlert").attr('class', 'icon fas ' + iconclass);
-            $("#htmlIconSelecionado").attr('class', 'fas ' + iconclass)
-        });
-
-        // muestra el cambio del titulo
-        $("#ftxtAsunto").on('change', function (e) {
-            $("#txtTitleAlert").text($("#ftxtAsunto").val());
-        });
-
-        $("#ftxtAsunto").keypress(function (e) {
-            $("#ftxtAsunto").trigger('change');
-        });
-        $("#ftxtAsunto").keyup(function (e) {
-            $("#ftxtAsunto").trigger('change');
-        });
-        $("#ftxtAsunto").keydown(function (e) {
-            $("#ftxtAsunto").trigger('change');
-        });
-
-
-        // muestra el cambio del Contenido
-        $("#ftxtAreaAlerta").on('change', function (e) {
-            $("#txtdeAlert").text($("#ftxtAreaAlerta").val());
-        });
-
-        $("#ftxtAreaAlerta").keypress(function (e) {
-            $("#ftxtAreaAlerta").trigger('change');
-        });
-        $("#ftxtAreaAlerta").keyup(function (e) {
-            $("#ftxtAreaAlerta").trigger('change');
-        });
-        $("#ftxtAreaAlerta").keydown(function (e) {
-            $("#ftxtAreaAlerta").trigger('change');
-        });
-
-        $("form#formAlerta").submit(function (e) {
-            e.preventDefault();
-
-            $.post("./ajax/UsuarioAjax.php", function (r) {
-                if (r === '0') {
-                    location.reload(true);
-                }
-            });
-            var formData = new FormData($("form#formAlerta")[0]);
-
-            $.ajax({
-
-                url: "./ajax/ClienteAjax.php?op=SaveOrupdateAlerta",
-                type: "POST",
-                data: formData,
-                contentType: false,
-                processData: false,
-                success: function (datos) {
-
-                    if (datos.indexOf("ERROR:") !== -1) {
-                        Toast.fire({
-                            icon: 'error',
-                            title: datos,
-                            position: 'top',
-                        })
-
-                    } else {
-
-                        $("#formAlerta").trigger('reset')
-                        Toast.fire({
-                            icon: 'success',
-                            title: datos,
-                            position: 'top',
-                        })
-                        cargarDatosEnPanel()
-                        $("#modal-xl-alertaClente").modal('hide');
-                    }
-
-                }
-
-            });
-
-        });
-
+      });
 
     });
+
+
+  });
 </script>

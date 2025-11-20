@@ -6,22 +6,22 @@ require_once "../model/CobroDetallado.php";
 
 $objCobroDetallado = new CobroDetallado();
 $idglobal = $_SESSION['idglobal'];
-$createdEmpleadoId = $_SESSION['userEmpleado'];
+$createdEmpleadoId = $_SESSION['idempleado'];
 
 switch ($_GET["op"]) {
 
-    case 'Search':
-        $idsucursal = limpiar_cadena($_POST['cbosucursal']);
-        $desde = limpiar_cadena2($_POST['txtFechaDesde']);
-        $hasta = limpiar_cadena2($_POST['txtFechaHasta']);
+   case 'Search':
+      $idsucursal = limpiar_cadena($_POST['cbosucursal']);
+      $desde = limpiar_cadena2($_POST['txtFechaDesde']);
+      $hasta = limpiar_cadena2($_POST['txtFechaHasta']);
 
-        if (empty($idsucursal) || empty($desde)  || empty($hasta)) {
+      if (empty($idsucursal) || empty($desde)  || empty($hasta)) {
 
-            echo json_encode(array('error' => ''));
-        }
-        $query = $objCobroDetallado->list($idsucursal, $desde, $hasta);
-        while ($res=$query[0]->fetch_object()) {
-            # code...
-        }
-        break;
+         echo json_encode(array('error' => ''));
+      }
+      $query = $objCobroDetallado->list($idsucursal, $desde, $hasta);
+      while ($res = $query[0]->fetch_object()) {
+         # code...
+      }
+      break;
 }

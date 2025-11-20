@@ -30,7 +30,7 @@ public function registrarCliente($datos) {
 Usa nombres que describan claramente el propósito:
 
 ```php
-$empleadoQueRegistra = $_SESSION['userEmpleado'];
+$empleadoQueRegistra = $_SESSION['idempleado'];
 $fechaRegistro = date('Y-m-d H:i:s');
 $maximoCreditoPermitido = 1000000;
 ```

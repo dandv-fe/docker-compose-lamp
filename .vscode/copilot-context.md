@@ -108,7 +108,7 @@ public function metodo($param1, $param2) {
 ## Variables de Sesión Importantes
 
 - `$_SESSION['idusuario']`: ID del usuario logueado
-- `$_SESSION['userEmpleado']`: ID del empleado
+- `$_SESSION['idempleado']`: ID del empleado
 - `$_SESSION['idglobal']`: ID de la empresa/global
 - `$_SESSION['idsucursal']`: ID de sucursal activa
 

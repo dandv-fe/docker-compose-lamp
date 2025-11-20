@@ -144,7 +144,7 @@
       "\\$objusuario = new usuario();",
       "",
       "if (isset(\\$_SESSION[\"idusuario\"])) {",
-      "   if (isset(\\$_SESSION['userEmpleado'])) {",
+      "   if (isset(\\$_SESSION['idempleado'])) {",
       "      \\$userIdEmpresa = \\$_SESSION['userEmpresa'];",
       "      \\$idglobal = \\$_SESSION['idglobal'];",
       "      ",

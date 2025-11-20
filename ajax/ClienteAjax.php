@@ -36,7 +36,7 @@ switch ($_GET["op"]) {
       $estadoCliente = limpiar_cadena($_POST["txtEstadoCliente"]);
       $notaCliente = '';
       $fiador = 0;
-      $created_empleado_id = $_SESSION['userEmpleado'];
+      $created_empleado_id = $_SESSION['idempleado'];
 
 
       if ($imagen_Cli['size'] > 0) {
@@ -320,7 +320,7 @@ switch ($_GET["op"]) {
 
 
    case 'updateDocumentoPersona':
-      $created_empleado_id = $_SESSION['userEmpleado'];
+      $created_empleado_id = $_SESSION['idempleado'];
       $idglobal = $_SESSION['idglobal'];
       $idpersona = limpiar_cadena($_POST['refPersona']);
       $tipo_documento = limpiar_cadena($_POST['cboBusTipo_Documento']);
