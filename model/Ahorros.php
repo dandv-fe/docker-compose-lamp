@@ -356,7 +356,8 @@ class Ahorros
       return $query;
    }
 
-   public function actualizarConfiguracion($idahorro, $porcentaje, $pagoUtilidad, $authMov, $estado) {
+   public function actualizarConfiguracion($idahorro, $porcentaje, $pagoUtilidad, $authMov, $estado)
+   {
       global $conexion;
       $dt = date('Y-m-d H:i:s');
       $sql = "UPDATE tbl_ahorros SET 
@@ -369,7 +370,8 @@ class Ahorros
       return $conexion->query($sql);
    }
 
-   public function listarMovimientos($idglobal, $idahorro) {
+   public function listarMovimientos($idglobal, $idahorro)
+   {
       global $conexion;
       $sql = "SELECT 
                 date_movimiento AS fecha,
@@ -383,7 +385,8 @@ class Ahorros
       return $conexion->query($sql);
    }
 
-   public function listarGanancias($idahorro) {
+   public function listarGanancias($idahorro)
+   {
       global $conexion;
       // Ganancias = movimientos tipo 'ajuste'
       $sql = "SELECT 
@@ -399,7 +402,8 @@ class Ahorros
       return $conexion->query($sql);
    }
 
-   public function obtenerPerfil($idahorro) {
+   public function obtenerPerfil($idahorro)
+   {
       global $conexion;
       $sql = "SELECT 
                 dec_porcentaje AS porcentaje,
@@ -412,11 +416,16 @@ class Ahorros
       $r = $q->fetch_object();
       if (!$r) return null;
       $r->pagoUtilidad = $r->pago_utilidad;
-      if (is_string($r->auth_movimientos)) { $r->auth_movimientos = ord($r->auth_movimientos); } else { $r->auth_movimientos = intval($r->auth_movimientos); }
+      if (is_string($r->auth_movimientos)) {
+         $r->auth_movimientos = ord($r->auth_movimientos);
+      } else {
+         $r->auth_movimientos = intval($r->auth_movimientos);
+      }
       return $r;
    }
 
-   public function registrarMovimiento($idglobal, $idahorro, $idusuario_created, $tipo, $valor, $descripcion, $estado='activo') {
+   public function registrarMovimiento($idglobal, $idahorro, $idusuario_created, $tipo, $valor, $descripcion, $estado = 'activo')
+   {
       // Inserta movimiento; actualización de acumulado se realiza en AhorrosAjax.php
       global $conexion;
       $dt = date('Y-m-d H:i:s');

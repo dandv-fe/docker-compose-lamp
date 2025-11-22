@@ -531,8 +531,8 @@ function actualizarPerfilAhorrador(refAhorro) {
       $("#txtPorcentajeConfig").val(ah.porcentaje);
       $("#cboPagoUtilidadConfig").val(tipoPago === 'No definido' ? '' : (ah.pagoUtilidad || ah.pago_utilidad));
       $("#chkAuthMovimientosConfig")
-         .prop('checked', authMov === 1)
-         .trigger('change'); // asegura indicador
+        .prop('checked', authMov === 1)
+        .trigger('change'); // asegura indicador
       $("#cboEstadoConfig").val(ah.estado || '');
     }
   });
@@ -553,7 +553,7 @@ function parseBit(v) {
 }
 
 // Al cambiar manualmente el checkbox reflejar indicador
-$(document).on('change', '#chkAuthMovimientosConfig', function(){
+$(document).on('change', '#chkAuthMovimientosConfig', function () {
   actualizarIndicadorAuthMov($(this).is(':checked'));
 });
 
