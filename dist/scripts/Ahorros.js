@@ -293,7 +293,7 @@ function listarMovimientos() {
         const monto = parseFloat(val[2]) || 0;
         if (tipo === 'aporte' || tipo === 'ajuste') total += monto;
         else if (tipo === 'retiro') total -= monto;
-        tabla.row.add([ val[0], val[1], val[2], val[3], val[4] ]).draw(false);
+        tabla.row.add([val[0], val[1], val[2], val[3], val[4]]).draw(false);
       }
       $("#txt_saldo_ahorrador").text('$' + total.toFixed(2));
       // actualizar encabezado visible
@@ -552,8 +552,8 @@ function actualizarPerfilAhorrador(refAhorro) {
       }
 
       $("#chkAuthMovimientosConfig")
-         .prop('checked', authMov === 1)
-         .trigger('change'); // asegura indicador
+        .prop('checked', authMov === 1)
+        .trigger('change'); // asegura indicador
       $("#cboEstadoConfig").val(ah.estado || '');
     }
   });
