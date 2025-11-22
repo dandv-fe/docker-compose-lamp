@@ -296,6 +296,8 @@ function listarMovimientos() {
         tabla.row.add([ val[0], val[1], val[2], val[3], val[4] ]).draw(false);
       }
       $("#txt_saldo_ahorrador").text('$' + total.toFixed(2));
+      // actualizar encabezado visible
+      $("#txt_saldo_header").text('$' + total.toFixed(2));
       $("#verLoadingMovimientos").addClass('hide');
       $("#verListadoMovimientos").removeClass('hide');
     },

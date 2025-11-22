@@ -401,7 +401,8 @@ switch ($_GET["op"]) {
 }
 
 // Función utilitaria para normalizar valores BIT/char a 0/1
-function normalize_bit($v) {
+function normalize_bit($v)
+{
    if ($v === null || $v === '') return 0;
    if (is_int($v)) return $v === 1 ? 1 : 0;
    if (is_bool($v)) return $v ? 1 : 0;
