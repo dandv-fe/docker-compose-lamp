@@ -355,4 +355,76 @@ class Ahorros
 
       return $query;
    }
+
+   public function actualizarConfiguracion($idahorro, $porcentaje, $pagoUtilidad, $authMov, $estado) {
+      global $conexion;
+      $dt = date('Y-m-d H:i:s');
+      $sql = "UPDATE tbl_ahorros SET 
+              dec_porcentaje=$porcentaje,
+              str_pago_utilidad='$pagoUtilidad',
+              bit_auth_movimientos=$authMov,
+              str_estado='$estado',
+              update_at='$dt'
+              WHERE idahorro=$idahorro";
+      return $conexion->query($sql);
+   }
+
+   public function listarMovimientos($idglobal, $idahorro) {
+      global $conexion;
+      $sql = "SELECT 
+                date_movimiento AS fecha,
+                str_tipo AS tipo,
+                dec_valor AS monto,
+                str_descripcion AS descripcion,
+                str_estado AS estado
+              FROM tbl_movimientos
+              WHERE idglobal=$idglobal AND idahorro=$idahorro
+              ORDER BY date_movimiento DESC";
+      return $conexion->query($sql);
+   }
+
+   public function listarGanancias($idahorro) {
+      global $conexion;
+      // Ganancias = movimientos tipo 'ajuste'
+      $sql = "SELECT 
+                m.date_movimiento AS fecha,
+                a.dec_porcentaje AS porcentaje,
+                m.dec_valor AS ganancia,
+                (@acum := @acum + m.dec_valor) AS acumulado
+              FROM (SELECT @acum := 0) vars,
+                   tbl_movimientos m
+              INNER JOIN tbl_ahorros a ON a.idahorro = m.idahorro
+              WHERE m.idahorro=$idahorro AND m.str_tipo='ajuste'
+              ORDER BY m.date_movimiento ASC";
+      return $conexion->query($sql);
+   }
+
+   public function obtenerPerfil($idahorro) {
+      global $conexion;
+      $sql = "SELECT 
+                dec_porcentaje AS porcentaje,
+                str_pago_utilidad AS pago_utilidad,
+                bit_auth_movimientos AS auth_movimientos,
+                str_estado AS estado
+              FROM tbl_ahorros
+              WHERE idahorro=$idahorro";
+      $q = $conexion->query($sql);
+      $r = $q->fetch_object();
+      if (!$r) return null;
+      $r->pagoUtilidad = $r->pago_utilidad;
+      if (is_string($r->auth_movimientos)) { $r->auth_movimientos = ord($r->auth_movimientos); } else { $r->auth_movimientos = intval($r->auth_movimientos); }
+      return $r;
+   }
+
+   public function registrarMovimiento($idglobal, $idahorro, $idusuario_created, $tipo, $valor, $descripcion, $estado='activo') {
+      // Inserta movimiento; actualización de acumulado se realiza en AhorrosAjax.php
+      global $conexion;
+      $dt = date('Y-m-d H:i:s');
+      $sql = "INSERT INTO tbl_movimientos(
+                idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+              ) VALUES (
+                $idglobal,$idahorro,$idusuario_created,'$tipo',$valor,'$descripcion',NULL,'$estado','$dt','$dt'
+              )";
+      return $conexion->query($sql);
+   }
 }

@@ -22,6 +22,9 @@ jQuery(document).ready(function () {
       listarMovimientos();
     } else if ($(e.target).attr('id') === 'custom-tabs-ganancias-tab') {
       listarGanancias();
+    } else if ($(e.target).attr('id') === 'custom-tabs-configuracion-tab') {
+      const ref = $("#txtRefAhorroConfig").val();
+      if (ref) { actualizarPerfilAhorrador(ref); }
     }
   });
 
@@ -38,6 +41,46 @@ jQuery(document).ready(function () {
     let tipo_documento = $("#txt_t_documento_ah").val();
     let accion = 'editar';
     cargarDataAhorrador(tipo_documento, num_documento, accion);
+  });
+
+  // Abrir modal nuevo movimiento
+  $("#btnNuevoMovimiento").on('click', function () {
+    const refAhorro = $("#txtRefAhorroConfig").val();
+    if (!refAhorro) {
+      Toast.fire({ icon: 'error', title: 'Primero cargue un perfil.' });
+      return;
+    }
+    $("#formMovimientoAhorro")[0].reset();
+    $("#idahorroMovimiento").val(refAhorro);
+    $("#modalMovimiento").modal('show');
+  });
+
+  // Registrar movimiento
+  $("#formMovimientoAhorro").on('submit', function (e) {
+    e.preventDefault();
+    const fd = new FormData(this);
+    $.ajax({
+      url: "./ajax/AhorrosAjax.php?op=registrarMovimiento",
+      type: "POST",
+      data: fd,
+      contentType: false,
+      processData: false,
+      success: function (r) {
+        let res;
+        try { res = JSON.parse(r); } catch (err) { res = { status: 'error', mensaje: 'Respuesta inválida' }; }
+        if (res.status === 'success') {
+          Toast.fire({ icon: 'success', title: res.mensaje });
+          $("#modalMovimiento").modal('hide');
+          listarMovimientos();
+          actualizarPerfilAhorrador($("#txtRefAhorroConfig").val());
+        } else {
+          Toast.fire({ icon: 'error', title: res.mensaje });
+        }
+      },
+      error: function () {
+        Toast.fire({ icon: 'error', title: 'ERROR: Servidor' });
+      }
+    });
   });
 
   function SaveOrUpdateConfiguracion(e) {
@@ -186,6 +229,7 @@ function VerConfiguracion(ref) {
   $("#VerConfiguracion").show();
   $("#btnNuevoAhorrador").hide();
   $("#VerListado").hide();
+  if (ref) { actualizarPerfilAhorrador(ref); } // cargar configuración inmediata
 }
 
 // Función principal de listado (adaptada de ListadoEmpleado)
@@ -421,7 +465,16 @@ function cargarDataAhorrador(tipo_documento, num_documento, accion) {
     const porcentaje = parseFloat(data.porcentaje || 0);
     $("#txt_porcentaje_ahorrador").text(porcentaje + '%');
     $("#pTextPorcentajeAhorro").text(porcentaje + '%');
-    $("#pTextTipoPago").text(data.pago_utilidad || 'No definido');
+    const tipoPago = data.pagoUtilidad || data.pago_utilidad || 'No definido';
+    $("#pTextTipoPago").text(tipoPago);
+    const puedeMover = (data.authMovimientos == 1 || data.auth_movimientos == 1 || data.isSuperAdmin == 1);
+    if (puedeMover) {
+      $("#btnNuevoMovimiento").show();
+      $("#msgMovNoAuth").addClass('d-none');
+    } else {
+      $("#btnNuevoMovimiento").hide();
+      $("#msgMovNoAuth").removeClass('d-none');
+    }
 
     // Para editar
     $("#txt_t_documento_ah").val(data.t_documento);
@@ -453,10 +506,55 @@ function capitalizarPalabras(str) {
 function actualizarPerfilAhorrador(refAhorro) {
   $.post("./ajax/AhorrosAjax.php?op=obtenerPerfil", { refAhorro }, function (data) {
     if (data) {
-      const ahorrador = JSON.parse(data);
-      $("#pTextPorcentajeAhorro").text(ahorrador.porcentaje + '%');
-      $("#pTextTipoPago").text(ahorrador.pago_utilidad || 'No definido');
-      $("#txt_porcentaje_ahorrador").text(ahorrador.porcentaje + '%');
+      const ah = typeof data === 'string' ? JSON.parse(data) : data;
+      // texto resumen
+      $("#pTextPorcentajeAhorro").text(ah.porcentaje + '%');
+      const tipoPago = ah.pagoUtilidad || ah.pago_utilidad || 'No definido';
+      $("#pTextTipoPago").text(tipoPago);
+      $("#txt_porcentaje_ahorrador").text(ah.porcentaje + '%');
+
+      // normalizar bit
+      const authMov = parseBit(ah.auth_movimientos);
+
+      // habilitar botón movimientos
+      const puedeMover = (authMov === 1 || parseBit(ah.isSuperAdmin) === 1);
+      if (puedeMover) {
+        $("#btnNuevoMovimiento").show();
+        $("#msgMovNoAuth").addClass('d-none');
+      } else {
+        $("#btnNuevoMovimiento").hide();
+        $("#msgMovNoAuth").removeClass('d-none');
+      }
+
+      // poblar formulario configuración
+      $("#txtIdAhorroConfig").val(refAhorro);
+      $("#txtPorcentajeConfig").val(ah.porcentaje);
+      $("#cboPagoUtilidadConfig").val(tipoPago === 'No definido' ? '' : (ah.pagoUtilidad || ah.pago_utilidad));
+      $("#chkAuthMovimientosConfig")
+         .prop('checked', authMov === 1)
+         .trigger('change'); // asegura indicador
+      $("#cboEstadoConfig").val(ah.estado || '');
     }
   });
 }
+
+// Utilidad para normalizar bits (0/1, '0'/'1', caracteres binarios)
+function parseBit(v) {
+  if (v === null || v === undefined) return 0;
+  if (typeof v === 'number') return v === 1 ? 1 : 0;
+  if (typeof v === 'string') {
+    if (v.length === 1 && v.charCodeAt(0) <= 1) {
+      // viene como carácter de bit
+      return v.charCodeAt(0) === 1 ? 1 : 0;
+    }
+    return v === '1' ? 1 : 0;
+  }
+  return 0;
+}
+
+// Al cambiar manualmente el checkbox reflejar indicador
+$(document).on('change', '#chkAuthMovimientosConfig', function(){
+  actualizarIndicadorAuthMov($(this).is(':checked'));
+});
+
+// listGanancias ya consume: [fecha, porcentaje, ganancia, acumulado] de movimientos tipo 'ajuste'
