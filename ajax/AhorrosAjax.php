@@ -233,7 +233,8 @@ switch ($_GET["op"]) {
          $req->porcentaje = $request->porcentaje;
          $req->gananciaAcumulada = $request->gananciaAcumulada;
          $req->pagoUtilidad = $request->pagoUtilidad;
-         $req->authMovimientos = $request->authMovimientos;
+         // normalizar authMovimientos
+         $req->authMovimientos = normalize_bit($request->authMovimientos ?? $request->auth_movimientos ?? 0);
          $req->estadoAhorro = $request->estadoAhorro;
          $req->fechaCreacion = $request->fechaCreacion;
       }
@@ -329,10 +330,8 @@ switch ($_GET["op"]) {
       $refAhorro = limpiar_cadena($_POST['refAhorro']);
       $perfil = $objAhorros->obtenerPerfil($refAhorro);
       if ($perfil) {
-         // normalizar bit (por si llega como carácter binario)
-         $perfil->auth_movimientos = is_string($perfil->auth_movimientos)
-            ? ord($perfil->auth_movimientos)
-            : intval($perfil->auth_movimientos);
+         // garantizar normalización (modelo ya intenta, pero reforzamos)
+         $perfil->auth_movimientos = normalize_bit($perfil->auth_movimientos ?? 0);
          $perfil->isSuperAdmin = !empty($_SESSION['userEmpresa']) ? 1 : 0;
       }
       echo json_encode($perfil);
@@ -399,4 +398,21 @@ switch ($_GET["op"]) {
 
       echo json_encode(['status' => 'success', 'mensaje' => 'Movimiento registrado']);
       break;
+}
+
+// Función utilitaria para normalizar valores BIT/char a 0/1
+function normalize_bit($v) {
+   if ($v === null || $v === '') return 0;
+   if (is_int($v)) return $v === 1 ? 1 : 0;
+   if (is_bool($v)) return $v ? 1 : 0;
+   if (is_string($v)) {
+      // si viene como carácter binario \x00/\x01
+      if (strlen($v) === 1) {
+         $ord = ord($v);
+         if ($ord === 0 || $ord === 1) return $ord;
+      }
+      // si viene como '0' o '1' u otro número en texto
+      return intval($v) === 1 ? 1 : 0;
+   }
+   return 0;
 }

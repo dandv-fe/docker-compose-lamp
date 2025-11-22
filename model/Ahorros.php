@@ -310,8 +310,19 @@ class Ahorros
                   str_pago_utilidad AS pagoUtilidad,
                   bit_auth_movimientos AS authMovimientos,
                   str_estado AS estadoAhorro,
-                  created_at AS fechaCreacion
-               FROM tbl_ahorros
+                  created_at AS fechaCreacion,
+                  (
+                     SELECT IFNULL(SUM(
+                        CASE m.str_tipo
+                           WHEN 'aporte' THEN m.dec_valor
+                           WHEN 'ajuste' THEN m.dec_valor
+                           WHEN 'retiro' THEN -m.dec_valor
+                           ELSE 0 END
+                     ),0)
+                     FROM tbl_movimientos m
+                     WHERE m.idahorro = a.idahorro
+                  ) AS saldoMovimientos
+               FROM tbl_ahorros a
            WHERE idpersona=$idpersona";
       $query = $conexion->query($sql);
       return $query;
@@ -409,17 +420,41 @@ class Ahorros
                 dec_porcentaje AS porcentaje,
                 str_pago_utilidad AS pago_utilidad,
                 bit_auth_movimientos AS auth_movimientos,
-                str_estado AS estado
+                str_estado AS estado,
+                (
+                  SELECT IFNULL(SUM(
+                    CASE m.str_tipo
+                      WHEN 'aporte' THEN m.dec_valor
+                      WHEN 'ajuste' THEN m.dec_valor
+                      WHEN 'retiro' THEN -m.dec_valor
+                      ELSE 0 END
+                  ),0)
+                  FROM tbl_movimientos m
+                  WHERE m.idahorro = $idahorro
+                ) AS saldo_movimientos
               FROM tbl_ahorros
               WHERE idahorro=$idahorro";
       $q = $conexion->query($sql);
       $r = $q->fetch_object();
       if (!$r) return null;
       $r->pagoUtilidad = $r->pago_utilidad;
-      if (is_string($r->auth_movimientos)) {
-         $r->auth_movimientos = ord($r->auth_movimientos);
+      // Normalizar auth_movimientos de forma segura:
+      $val = $r->auth_movimientos;
+      if (is_string($val)) {
+         if (strlen($val) === 1) {
+            $ord = ord($val);
+            // si es verdadero bit binario \x00 o \x01
+            if ($ord === 0 || $ord === 1) {
+               $r->auth_movimientos = $ord;
+            } else {
+               // cadena '0' o '1' o cualquier otro número en texto
+               $r->auth_movimientos = intval($val);
+            }
+         } else {
+            $r->auth_movimientos = intval($val);
+         }
       } else {
-         $r->auth_movimientos = intval($r->auth_movimientos);
+         $r->auth_movimientos = intval($val);
       }
       return $r;
    }

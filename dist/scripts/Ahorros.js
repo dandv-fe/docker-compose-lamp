@@ -285,16 +285,17 @@ function listarMovimientos() {
     dataType: "json",
     success: function (datos) {
       tabla.clear().draw();
+      let total = 0;
       for (let i = 0; i < datos.length; i++) {
         const val = datos[i];
-        tabla.row.add([
-          val[0], // Fecha
-          val[1], // Tipo
-          val[2], // Monto
-          val[3], // Descripción
-          val[4]  // Estado
-        ]).draw(false);
+        // acumular según tipo
+        const tipo = val[1];
+        const monto = parseFloat(val[2]) || 0;
+        if (tipo === 'aporte' || tipo === 'ajuste') total += monto;
+        else if (tipo === 'retiro') total -= monto;
+        tabla.row.add([ val[0], val[1], val[2], val[3], val[4] ]).draw(false);
       }
+      $("#txt_saldo_ahorrador").text('$' + total.toFixed(2));
       $("#verLoadingMovimientos").addClass('hide');
       $("#verListadoMovimientos").removeClass('hide');
     },
@@ -481,6 +482,9 @@ function cargarDataAhorrador(tipo_documento, num_documento, accion) {
     $("#txt_n_documento_ah").val(data.n_documento);
     $("#txt_idglobal_ah").val(data.idglobal);
     $("#txt_idpersona_ah").val(data.refPersona);
+
+    const saldo = data.saldoMovimientos != null ? parseFloat(data.saldoMovimientos) : 0;
+    $("#txt_saldo_ahorrador").text('$' + saldo.toFixed(2));
   }
 
   // Función interna para nuevo (adaptada de empleados)
@@ -512,10 +516,8 @@ function actualizarPerfilAhorrador(refAhorro) {
       const tipoPago = ah.pagoUtilidad || ah.pago_utilidad || 'No definido';
       $("#pTextTipoPago").text(tipoPago);
       $("#txt_porcentaje_ahorrador").text(ah.porcentaje + '%');
-
       // normalizar bit
       const authMov = parseBit(ah.auth_movimientos);
-
       // habilitar botón movimientos
       const puedeMover = (authMov === 1 || parseBit(ah.isSuperAdmin) === 1);
       if (puedeMover) {
@@ -525,14 +527,31 @@ function actualizarPerfilAhorrador(refAhorro) {
         $("#btnNuevoMovimiento").hide();
         $("#msgMovNoAuth").removeClass('d-none');
       }
-
       // poblar formulario configuración
       $("#txtIdAhorroConfig").val(refAhorro);
       $("#txtPorcentajeConfig").val(ah.porcentaje);
-      $("#cboPagoUtilidadConfig").val(tipoPago === 'No definido' ? '' : (ah.pagoUtilidad || ah.pago_utilidad));
+
+      // Normalizar y asignar correctamente el select cboPagoUtilidadConfig
+      const pagoValRaw = ah.pagoUtilidad || ah.pago_utilidad || '';
+      const pagoVal = (typeof pagoValRaw === 'string') ? pagoValRaw.toLowerCase() : '';
+      if (pagoVal === 'automatico' || pagoVal === 'manual') {
+        $("#cboPagoUtilidadConfig").val(pagoVal);
+      } else {
+        $("#cboPagoUtilidadConfig").val('');
+      }
+
+      // Reflect also the main form select if visible (keeps consistency)
+      if ($("#cboPagoUtilidad").length) {
+        if (pagoVal === 'automatico' || pagoVal === 'manual') {
+          $("#cboPagoUtilidad").val(pagoVal);
+        } else {
+          $("#cboPagoUtilidad").val('');
+        }
+      }
+
       $("#chkAuthMovimientosConfig")
-        .prop('checked', authMov === 1)
-        .trigger('change'); // asegura indicador
+         .prop('checked', authMov === 1)
+         .trigger('change'); // asegura indicador
       $("#cboEstadoConfig").val(ah.estado || '');
     }
   });

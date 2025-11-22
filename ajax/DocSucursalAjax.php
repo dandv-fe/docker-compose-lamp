@@ -87,7 +87,7 @@ switch ($_GET["op"]) {
       $query_Categoria = $objDocSucursal->ListarTipoDocumento($tipo);
       echo "<option>--Seleccione Comprobante--</option>";
       while ($reg = $query_Categoria->fetch_object()) {
-         echo '<option value="' . $reg->idtipo_documento . '">' . $reg->str_nombre . '</option>';
+         echo '<option value="' . $reg->str_nombre . '">' . $reg->str_nombre . '</option>';
       }
       break;
 }
