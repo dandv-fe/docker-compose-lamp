@@ -518,6 +518,7 @@ function actualizarPerfilAhorrador(refAhorro) {
       const tipoPago = ah.pagoUtilidad || ah.pago_utilidad || 'No definido';
       $("#pTextTipoPago").text(tipoPago);
       $("#txt_porcentaje_ahorrador").text(ah.porcentaje + '%');
+      $("#cboEstadoConfig").val(ah.estado || 'ACTIVO');
       // normalizar bit
       const authMov = parseBit(ah.auth_movimientos);
       // habilitar botón movimientos
@@ -550,11 +551,12 @@ function actualizarPerfilAhorrador(refAhorro) {
           $("#cboPagoUtilidad").val('');
         }
       }
+      console.log(ah.estado);
 
       $("#chkAuthMovimientosConfig")
         .prop('checked', authMov === 1)
         .trigger('change'); // asegura indicador
-      $("#cboEstadoConfig").val(ah.estado || '');
+
     }
   });
 }
