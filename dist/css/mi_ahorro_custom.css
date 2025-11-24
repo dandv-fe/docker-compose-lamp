@@ -1,0 +1,31 @@
+/* Estilos personalizados para Mi Ahorro */
+.mi-ahorro-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.mi-ahorro-number {
+  font-weight: 700;
+  font-size: 1.2rem
+}
+
+.mi-ahorro-saldo {
+  font-weight: 800;
+  color: #28a745;
+  font-size: 1.4rem
+}
+
+#img_ahorrador {
+  border: 4px solid #fff;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+
+.table-borderless th {
+  width: 180px;
+}
+
+.modal .modal-content {
+  border-radius: 8px;
+}
