@@ -82,6 +82,8 @@ $str_cero = str_split($dias_restantes);
                     )";
               $query_oficina_seleccionada = $conexion->query($sql);
               $oficina_seleccionada = $query_oficina_seleccionada->fetch_object();
+              $_SESSION['idoficina'] = $oficina_seleccionada->idoficina;
+              $idoficina = $_SESSION['idoficina'];
               echo $oficina_seleccionada->str_nombre;?>
 
       </a>
