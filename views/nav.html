@@ -114,6 +114,7 @@ $str_cero = str_split($dias_restantes);
         }else {
           // empleado
           $idoficina=$_SESSION['idoficina'];
+          $idempleado=$_SESSION['idempleado'];
         $sql="SELECT * 
                     FROM tbl_oficina 
                     WHERE idoficina = COALESCE(
@@ -125,6 +126,17 @@ $str_cero = str_split($dias_restantes);
               $_SESSION['idoficina'] = $oficina_seleccionada->idoficina;
               $idoficina = $_SESSION['idoficina'];
              // echo $oficina_seleccionada->str_nombre;
+             $sql_auths= "SELECT a.str_nombre
+              FROM `tbl_auths` auths
+              INNER JOIN tbl_auth a ON a.idauth=auths.idauth
+              INNER JOIN tbl_auth_sucursal a_s ON a_s.idauth_sucursal=auths.idauth_sucursal
+              
+              WHERE a_s.idempleado=$idempleado
+              
+              GROUP BY a.str_nombre";
+              $query_auths = $conexion->query($sql_auths);
+              $result_auths = $query_auths->fetch_all(MYSQLI_ASSOC);
+              $auths = array_column($result_auths, 'str_nombre');
         }
 
       }
@@ -262,7 +274,7 @@ $str_cero = str_split($dias_restantes);
         </li>
 
         <?php    }else{ 
-                if($userSession['usuario']->str_cargo=='Super Administrador'){ ?>
+                if($userSession['usuario']->str_cargo=='Super Administrador' || in_array('despachar', $auths)){ ?>
 
         <li class="nav-item">
           <a href="despachar.php" class="nav-link lia-despachar">
@@ -276,7 +288,7 @@ $str_cero = str_split($dias_restantes);
         <?php    } ?>
 
         <?PHP
-                if($userSession['usuario']->str_cargo== 'Super Administrador'){ ?>
+                if($userSession['usuario']->str_cargo== 'Super Administrador' || in_array('ver recibir', $auths)){ ?>
         <li class="nav-item">
           <a href="recibir.php" class="nav-link lia-recibir">
             <i class="nav-icon fa-solid fa-r"></i>
@@ -464,7 +476,7 @@ $str_cero = str_split($dias_restantes);
 
 
         <?PHP
-        $auths=array();
+        
                 if(  $userSession['usuario']->str_cargo=='Super Administrador' || 
                      in_array('cobro detallado', $auths) ||
                      in_array('kardex valorizado', $auths) || 

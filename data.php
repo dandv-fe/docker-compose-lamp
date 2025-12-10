@@ -54,5 +54,7 @@ if ($_SESSION['idsucursal'] > 0) {
       $_SESSION['AUTHS'][] = ["caregoria" => $reg->categoria, "nombre" => $reg->nombre];
    }
 }
+
+
 include "views/header.html";
 include "views/nav.html";

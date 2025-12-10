@@ -76,10 +76,20 @@
                                     $allSucursal[]= $row;
                                 }
                               }else{
-
+                                $idempleado=$_SESSION['idempleado'];
+                                $sql="SELECT s.idsucursal, s.str_codigo
+                                FROM `tbl_auths` auths
+                                INNER JOIN tbl_auth a ON a.idauth=auths.idauth
+                                INNER JOIN tbl_auth_sucursal a_s ON a_s.idauth_sucursal=auths.idauth_sucursal
+                                INNER JOIN tbl_sucursal s ON s.idsucursal=a_s.idsucursal
+                                
+                                WHERE a_s.idempleado=$idempleado AND a.str_nombre='cobro detallado'";
+                                  $resultado=$conexion->query($sql);
+                                  while ($row = $resultado->fetch_array()) {
+                                  $allSucursal[]= $row;
+                                  }
                               }
                               foreach ($allSucursal as $valor) {
-                                  if(isset($_SESSION['userEmpresa']) || in_array('cobro detallado',$valor[10])){
                                       if($_SESSION['idsucursal']==$valor[0]){?>
                             <option selected value="<?PHP echo $valor[0];?>">
                               <?PHP echo $valor[1];?>
@@ -89,7 +99,7 @@
                               <?PHP echo $valor[1];?>
                             </option>
                             <?PHP }
-                                                        }
+                                                       
                                                     }
                                                     ?>
                           </select>
