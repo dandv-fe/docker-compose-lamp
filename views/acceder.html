@@ -70,17 +70,25 @@
                 <?php  
                 $idempleado = $_SESSION['idempleado'];
                 $idglobal = $_SESSION['userEmpresa'];
+                if($userSession['usuario']->str_cargo === 'Super Administrador' && $userSession['usuario']->str_tipo === 'publica'){
                 $sql = "SELECT
-                str_cargo AS cargo,
-               ( SELECT COUNT( idglobal ) FROM tbl_sucursal WHERE idglobal = $idglobal AND idoficina = $idoficina ) AS actividades,
-               ( SELECT COUNT( idglobal ) FROM tbl_empleado WHERE idempleado <> $idempleado AND idglobal = $idglobal AND idoficina = $idoficina ) AS empleados,
-               ( SELECT COUNT( t.idcliente ) FROM tbl_tarjetas t
-              INNER JOIN tbl_sucursal s ON s.idsucursal = t.idsucursal
-              WHERE t.idglobal = $idglobal
-              AND s.idoficina = $idoficina) AS clientes
-               FROM tbl_empleado WHERE  idempleado = $idempleado";
-            $query = $conexion->query($sql);
-            $fetch = $query->fetch_object();
+                            str_cargo AS cargo,
+                          ( SELECT COUNT( idglobal ) FROM tbl_sucursal WHERE idglobal = $idglobal AND idoficina = $idoficina ) AS actividades,
+                          ( SELECT COUNT( idglobal ) FROM tbl_empleado WHERE idempleado <> $idempleado AND idglobal = $idglobal AND idoficina = $idoficina ) AS empleados,
+                          ( SELECT COUNT( t.idcliente ) FROM tbl_tarjetas t
+                          INNER JOIN tbl_sucursal s ON s.idsucursal = t.idsucursal
+                          WHERE t.idglobal = $idglobal
+                          AND s.idoficina = $idoficina) AS clientes
+                          FROM tbl_empleado WHERE  idempleado = $idempleado";
+                }else{
+                  $sql = "SELECT
+                  str_cargo AS cargo,
+                  (SELECT COUNT( idsucursal ) FROM `tbl_auth_sucursal`
+                  WHERE idempleado=$idempleado) AS actividades
+                    FROM tbl_empleado WHERE idempleado = $idempleado";
+                }
+                        $query = $conexion->query($sql);
+                        $fetch = $query->fetch_object();
 
                         foreach ($fetch as $clave => $valor) { ?>
                 <li class="list-group-item">
@@ -190,7 +198,12 @@
                         </tr>
                       </thead>
                       <tbody>
-                        <?php $sql = "SELECT 
+
+                        <?php 
+                        if ($userSession['usuario']->str_cargo === 'Super Administrador' && $userSession['usuario']->str_tipo === 'publica'){
+
+                       
+                        $sql = "SELECT 
                                 s.idsucursal AS refSucursal,
                                 s.str_tipo AS tipo,
                                 s.str_codigo AS codigo,
@@ -206,6 +219,31 @@
                                 tbl_empleado e ON e.idempleado=s.idempleado INNER JOIN
                                 tbl_persona p ON p.idpersona=e.idpersona
                               where s.str_estado<>'inactiva' and s.idglobal=$idglobal AND s.idoficina = $idoficina order by s.idsucursal desc";
+                              }else{
+                                // empleados
+                                
+                              $sql = "SELECT
+                              s.idsucursal AS refSucursal,
+                              s.str_tipo AS tipo,
+                              s.str_codigo AS codigo,
+                              s.str_cobro_adicional as adicional,
+                              s.str_estado AS estado,
+                              CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado,
+                              p.str_tipo_documento AS t_documento,
+                              p.str_num_documento AS n_documento,
+                              p.str_telefono AS tel,
+                              p.str_foto AS foto,
+                              (SELECT
+                              GROUP_CONCAT(a.str_nombre SEPARATOR ',')
+                              FROM tbl_auths b INNER JOIN tbl_auth a ON a.idauth=b.idauth
+                              WHERE b.idauth_sucursal=au.idauth_sucursal
+                              ) AS nameAuth
+                              FROM `tbl_auth_sucursal` au INNER JOIN
+                              tbl_sucursal s ON s.idsucursal=au.idsucursal INNER JOIN
+                              tbl_empleado e ON e.idempleado=s.idempleado INNER JOIN
+                              tbl_persona p ON p.idpersona=e.idpersona
+                              where au.str_estado<>'inactivo' AND au.idempleado=$idempleado order by au.idsucursal desc";
+                              }
                                 $query = $conexion->query($sql);
                                 
                                 while ($reg = $query->fetch_object()) {

@@ -111,8 +111,24 @@ $str_cero = str_split($dias_restantes);
       </div>
     </li>
     <?php
+        }else {
+          // empleado
+          $idoficina=$_SESSION['idoficina'];
+        $sql="SELECT * 
+                    FROM tbl_oficina 
+                    WHERE idoficina = COALESCE(
+                        (SELECT idoficina FROM tbl_oficina WHERE idoficina = $idoficina),
+                        (SELECT idoficina FROM tbl_oficina ORDER BY idoficina LIMIT 1)
+                    )";
+              $query_oficina_seleccionada = $conexion->query($sql);
+              $oficina_seleccionada = $query_oficina_seleccionada->fetch_object();
+              $_SESSION['idoficina'] = $oficina_seleccionada->idoficina;
+              $idoficina = $_SESSION['idoficina'];
+             // echo $oficina_seleccionada->str_nombre;
         }
+
       }
+
     ?>
   </ul>
 
@@ -448,6 +464,7 @@ $str_cero = str_split($dias_restantes);
 
 
         <?PHP
+        $auths=array();
                 if(  $userSession['usuario']->str_cargo=='Super Administrador' || 
                      in_array('cobro detallado', $auths) ||
                      in_array('kardex valorizado', $auths) || 

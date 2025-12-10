@@ -34,5 +34,25 @@ if (isset($userSession["estadoPago"]->date_corte)) {
 
    $isPagoSistema = $dias_restantes + $dias_extras <=> 0;
 }
+$_SESSION['AUTHS'] = array();
+if ($_SESSION['idsucursal'] > 0) {
+   $idsuc = $_SESSION['idsucursal'];
+   $idempleado = $userSession["usuario"]->idempleado;
+   $sql = "SELECT
+                        a.str_categoria AS categoria,
+                        a.str_nombre AS nombre
+                    FROM
+                        tbl_auths auths
+                        INNER JOIN tbl_auth a ON a.idauth = auths.idauth
+                        INNER JOIN tbl_auth_sucursal aus ON aus.idauth_sucursal = auths.idauth_sucursal 
+                    WHERE
+                        aus.idsucursal = $idsuc
+                        AND aus.idempleado = $idempleado";
+   $query3 = $conexion->query($sql);
+
+   while ($reg = $query3->fetch_object()) {
+      $_SESSION['AUTHS'][] = ["caregoria" => $reg->categoria, "nombre" => $reg->nombre];
+   }
+}
 include "views/header.html";
 include "views/nav.html";
