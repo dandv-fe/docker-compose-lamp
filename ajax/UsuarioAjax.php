@@ -13,6 +13,7 @@ if (empty($_GET["op"])) {
    exit;
 }
 require_once "../model/Usuario.php";
+require_once "../model/Conexion.php";
 
 $objusuario = new usuario();
 
@@ -94,5 +95,35 @@ switch ($_GET["op"]) {
       unset($_SESSION[$refSession]);
       $_SESSION['idsucursal'] = '';
       echo json_encode(1);
+      break;
+
+   case 'marcarEmailVerificado':
+      // Marca el email del usuario actual como verificado (str_email_verificado = '1')
+      if (empty($_SESSION['idusuario']) || empty($_SESSION['idglobal'])) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Sesión inválida']);
+         break;
+      }
+      $idusuario = intval($_SESSION['idusuario']);
+      $idglobal = intval($_SESSION['idglobal']);
+      global $conexion;
+      if (!$conexion) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Sin conexión a BD']);
+         break;
+      }
+      $sql = "SELECT p.idpersona
+              FROM tbl_usuario u INNER JOIN tbl_persona p ON p.idpersona = u.idpersona
+              WHERE u.idusuario = $idusuario AND u.idglobal = $idglobal LIMIT 1";
+      $q = $conexion->query($sql);
+      $r = $q ? $q->fetch_object() : null;
+      if (!$r || empty($r->idpersona)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Persona no encontrada']);
+         break;
+      }
+      $upd = $conexion->query("UPDATE tbl_persona SET str_email_verificado='1' WHERE idpersona=" . intval($r->idpersona));
+      if ($upd) {
+         echo json_encode(['status' => 'success', 'mensaje' => 'Email verificado']);
+      } else {
+         echo json_encode(['status' => 'error', 'mensaje' => 'No se pudo actualizar']);
+      }
       break;
 }

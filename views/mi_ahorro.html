@@ -245,6 +245,8 @@
 <script src="dist/scripts/mi_ahorro_custom.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
 
 <script>
+
+  $(".lia-ahorros-personales").addClass("active");
   // Inicializar tabla y cargar un único ahorro (si existe) a partir de la sesión
   (function () {
     function pct(v) { var n = parseFloat(v) || 0; return n.toFixed(2) + "%"; }
