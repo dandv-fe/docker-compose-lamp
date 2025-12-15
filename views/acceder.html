@@ -83,7 +83,7 @@
                     <span class="badge badge-success">Verificado</span>
                     <?php } else { ?>
                     <span class="badge badge-warning mr-2">No verificado</span>
-                    <button id="btnVerificarEmail" class="btn btn-sm btn-outline-primary">Verificar ahora</button>
+                      <button id="btnEnviarVerificacion" class="btn btn-sm btn-outline-primary">Enviar enlace de verificación</button>
                     <?php } ?>
                   </span>
                 </li>
@@ -659,19 +659,20 @@
 </script>
 
 <script>
-  // Verificar email con un clic (marca verificado en BD)
-  $(document).on('click', '#btnVerificarEmail', function (e) {
+  // Solicitar enlace de verificación por email
+  $(document).on('click', '#btnEnviarVerificacion', function (e) {
     e.preventDefault();
     $.ajax({
-      url: 'ajax/UsuarioAjax.php?op=marcarEmailVerificado',
+      url: 'ajax/UsuarioAjax.php?op=solicitarVerificacionEmail',
       method: 'POST',
       success: function (r) {
         try { r = typeof r === 'string' ? JSON.parse(r) : r; } catch (e) { r = null; }
         if (r && r.status === 'success') {
           Swal.fire({ icon: 'success', title: r.mensaje });
-          setTimeout(function () { location.reload(true); }, 800);
         } else {
-          Swal.fire({ icon: 'error', title: (r && r.mensaje) ? r.mensaje : 'No se pudo verificar' });
+          let msg = (r && r.mensaje) ? r.mensaje : 'No se pudo enviar el enlace';
+          if (r && r.debug_url) { msg += `\nEnlace directo: ${r.debug_url}`; }
+          Swal.fire({ icon: 'error', title: 'Envío fallido', text: msg });
         }
       },
       error: function () {
