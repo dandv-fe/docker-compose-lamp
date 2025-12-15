@@ -73,17 +73,7 @@ $str_cero = str_split($dias_restantes);
       <a class="nav-link font-weight-bold pl-0" data-toggle="dropdown" href="#">
         <?php 
         
-        $idoficina=$_SESSION['idoficina'];
-        $sql="SELECT * 
-                    FROM tbl_oficina 
-                    WHERE idoficina = COALESCE(
-                        (SELECT idoficina FROM tbl_oficina WHERE idoficina = $idoficina),
-                        (SELECT idoficina FROM tbl_oficina ORDER BY idoficina LIMIT 1)
-                    )";
-              $query_oficina_seleccionada = $conexion->query($sql);
-              $oficina_seleccionada = $query_oficina_seleccionada->fetch_object();
-              $_SESSION['idoficina'] = $oficina_seleccionada->idoficina;
-              $idoficina = $_SESSION['idoficina'];
+        
               echo $oficina_seleccionada->str_nombre;?>
 
       </a>
@@ -113,19 +103,8 @@ $str_cero = str_split($dias_restantes);
     <?php
         }else {
           // empleado
-          $idoficina=$_SESSION['idoficina'];
           $idempleado=$_SESSION['idempleado'];
-        $sql="SELECT * 
-                    FROM tbl_oficina 
-                    WHERE idoficina = COALESCE(
-                        (SELECT idoficina FROM tbl_oficina WHERE idoficina = $idoficina),
-                        (SELECT idoficina FROM tbl_oficina ORDER BY idoficina LIMIT 1)
-                    )";
-              $query_oficina_seleccionada = $conexion->query($sql);
-              $oficina_seleccionada = $query_oficina_seleccionada->fetch_object();
-              $_SESSION['idoficina'] = $oficina_seleccionada->idoficina;
-              $idoficina = $_SESSION['idoficina'];
-             // echo $oficina_seleccionada->str_nombre;
+
              $sql_auths= "SELECT a.str_nombre
               FROM `tbl_auths` auths
               INNER JOIN tbl_auth a ON a.idauth=auths.idauth
@@ -157,7 +136,9 @@ $str_cero = str_split($dias_restantes);
 
     <?php } ?>
     <!-- Navbar Search -->
-    <?php include "form/search_persona.html" ?>
+    <?php include "form/search_persona.html"; 
+    if(isset($_SESSION['idempleado']) ){
+    ?>
     <li class="nav-item d-sm-inline-block">
       <a href="#" class="nav-link">
         <?php
@@ -174,6 +155,7 @@ $str_cero = str_split($dias_restantes);
 
       </a>
     </li>
+    <?php } ?>
 
 
     <li class="nav-item">
@@ -274,7 +256,7 @@ $str_cero = str_split($dias_restantes);
         </li>
 
         <?php    }else{ 
-                if($userSession['usuario']->str_cargo=='Super Administrador' || in_array('despachar', $auths)){ ?>
+                if(isset($userSession['usuario']->idempleado) && ($userSession['usuario']->str_cargo=='Super Administrador' || in_array('despachar', $auths))){ ?>
 
         <li class="nav-item">
           <a href="despachar.php" class="nav-link lia-despachar">
@@ -288,7 +270,7 @@ $str_cero = str_split($dias_restantes);
         <?php    } ?>
 
         <?PHP
-                if($userSession['usuario']->str_cargo== 'Super Administrador' || in_array('ver recibir', $auths)){ ?>
+                if(isset($userSession['usuario']->idempleado) && ($userSession['usuario']->str_cargo== 'Super Administrador' || in_array('ver recibir', $auths))){ ?>
         <li class="nav-item">
           <a href="recibir.php" class="nav-link lia-recibir">
             <i class="nav-icon fa-solid fa-r"></i>
@@ -298,7 +280,9 @@ $str_cero = str_split($dias_restantes);
             </p>
           </a>
         </li>
-        <?php    } ?>
+        <?php    } 
+        if (isset($userSession['usuario']->idempleado) && $userSession['usuario']->bit_ahorradores==1){
+        ?>
 
 
         <li class="nav-item">
@@ -307,6 +291,7 @@ $str_cero = str_split($dias_restantes);
             <p>Ahorros</p>
           </a>
         </li>
+        <?php } ?>
 
 
         <!--<li id="li-estadisticas" class="nav-item">
@@ -377,12 +362,14 @@ $str_cero = str_split($dias_restantes);
                 <p>Empleados Despedidos</p>
               </a>
             </li>
+            <?PHP if($userSession['usuario']->bit_ahorradores==1){ ?>
             <li class="nav-item">
               <a href="ahorros.php" class="nav-link lia-ahorradores">
                 <i class="far fa-circle nav-icon"></i>
                 <p>Ahorradores</p>
               </a>
             </li>
+            <?PHP } ?>
             <!--<li class="nav-item">
                             <a href="TipoDocumento.php" class="nav-link lia-tipoDocumento">
                                 <i class="far fa-circle nav-icon"></i>
@@ -477,10 +464,10 @@ $str_cero = str_split($dias_restantes);
 
         <?PHP
         
-                if(  $userSession['usuario']->str_cargo=='Super Administrador' || 
+                if(isset($userSession['usuario']->idempleado) && (  $userSession['usuario']->str_cargo=='Super Administrador' || 
                      in_array('cobro detallado', $auths) ||
                      in_array('kardex valorizado', $auths) || 
-                     in_array('egresos', $auths)
+                     in_array('egresos', $auths))
                 ){ ?>
         <li id="li-consultaCobros" class="nav-item">
           <a id="lia-consultaCobros" href="#" class="nav-link">

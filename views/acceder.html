@@ -69,7 +69,7 @@
               <ul class="list-group list-group-unbordered mb-3">
                 <?php  
                 $idempleado = $_SESSION['idempleado'];
-                $idglobal = $_SESSION['userEmpresa'];
+                $userIdEmpresa=$_SESSION['userEmpresa'];
                 if($userSession['usuario']->str_cargo === 'Super Administrador' && $userSession['usuario']->str_tipo === 'publica'){
                 $sql = "SELECT
                             str_cargo AS cargo,
@@ -80,6 +80,32 @@
                           WHERE t.idglobal = $idglobal
                           AND s.idoficina = $idoficina) AS clientes
                           FROM tbl_empleado WHERE  idempleado = $idempleado";
+                }else if($userSession['usuario']->str_cargo === 'Super Administrador' && $userSession['usuario']->str_tipo === 'servicio'){
+                  $sql = "SELECT
+                  str_cargo AS cargo,
+                  ( SELECT COUNT( idglobal ) FROM tbl_global WHERE idglobal <> $userIdEmpresa AND empresaid = $userIdEmpresa ) AS
+                    empresas,
+                    ( SELECT COUNT(s.idsucursal) FROM `tbl_global` g INNER JOIN
+                    tbl_sucursal s ON s.idglobal=g.idglobal
+                    WHERE g.empresaid=$userIdEmpresa AND
+                    g.idglobal<>$userIdEmpresa ) AS actividades,
+                      ( SELECT COUNT(e.idempleado)
+                      FROM `tbl_global` g INNER JOIN
+                      tbl_empleado e ON e.idglobal=g.idglobal
+                      WHERE g.empresaid=$userIdEmpresa AND
+                      g.idglobal<>$userIdEmpresa) AS empleados,
+                        ( SELECT COUNT(e.idcliente)
+                        FROM `tbl_global` g INNER JOIN
+                        tbl_clientes e ON e.idglobal=g.idglobal
+                        WHERE g.empresaid=$userIdEmpresa AND
+                        g.idglobal<>$userIdEmpresa) AS clientes
+                  
+                          FROM tbl_empleado WHERE idempleado = $idempleado AND str_estado<>'inactivo' ";
+                            
+                  
+                            
+                }else if($userSession['usuario']->str_cargo === 'Super Administrador' && $userSession['usuario']->str_tipo === 'servicio'){
+
                 }else{
                   $sql = "SELECT
                   str_cargo AS cargo,
@@ -147,18 +173,28 @@
                       </thead>
                       <tbody>
                         <?php 
-                          
-                          
+
                         
-                          foreach ($allSucursal as $valor) {?>
+                        $sql = "SELECT refGlobal,
+                          razonSocial,
+                          estadoEmpresa,
+                          logo,
+                          superadmin,
+                          foto,
+                          telefono
+                          FROM `view_empresas_publica` 
+                          WHERE refEmpresa=$userIdEmpresa ORDER BY fecha_atEmpresa DESC";
+                          $query = $conexion->query($sql);
+                          while ($reg = $query->fetch_object()) { ?>
+
                         <tr>
 
                           <td>
                             <div class="user-block ">
-                              <img class="img-circle img-bordered-sm" src="<?PHP echo $valor[2];?>" alt="empleado">
+                              <img class="img-circle img-bordered-sm" src="<?PHP echo $reg->logo;?>" alt="empleado">
                               <span class="username">
-                                <a class="" href="#<?PHP echo $valor[0];?>">
-                                  <?PHP echo $valor[1];?>
+                                <a class="" href="#<?PHP echo $reg->refGlobal;?>">
+                                  <?PHP echo $reg->razonSocial;?>
                                 </a>
 
                               </span>
@@ -166,14 +202,14 @@
                           </td>
                           <td>
                             <div class="user-block">
-                              <img class="img-circle img-bordered-sm" src="<?PHP echo $valor[6];?>" alt="empleado">
+                              <img class="img-circle img-bordered-sm" src="<?PHP echo $reg->foto;?>" alt="empleado">
                               <span class="username">
                                 <a href="#">
-                                  <?PHP echo $valor[4];?>
+                                  <?PHP echo $reg->superadmin;?>
                                 </a>
                               </span>
                               <span class="description"> <b>Tel.: </b> <a class="lead text-lg" href="#">
-                                  <?PHP echo $valor[5];?>
+                                  <?PHP echo $reg->telefono;?>
                                 </a></span>
                             </div>
                           </td>

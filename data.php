@@ -14,6 +14,8 @@ global $conexion;
 
 
 $userSession = $objusuario->viewUsuarioSession($_SESSION["idusuario"]);
+//si solo es ahorrador
+
 // is empresa Superadmin || si es superadmin o no valor 0 o idglobal de la empresa
 $_SESSION['userEmpresa'] = $userSession['usuario']->str_cargo === 'Super Administrador' ? $userSession['usuario']->idglobal : null;
 $_SESSION['idempleado'] = $userSession["usuario"]->idempleado;
@@ -35,6 +37,20 @@ if (isset($userSession["estadoPago"]->date_corte)) {
    $isPagoSistema = $dias_restantes + $dias_extras <=> 0;
 }
 $_SESSION['AUTHS'] = array();
+
+if ($userSession['usuario']->str_tipo === 'publica') {
+   $sql = "SELECT * 
+                    FROM tbl_oficina 
+                    WHERE idoficina = COALESCE(
+                        (SELECT idoficina FROM tbl_oficina WHERE idoficina = $idoficina),
+                        (SELECT idoficina FROM tbl_oficina WHERE idglobal = $idglobal ORDER BY idoficina LIMIT 1)
+                    )";
+   $query_oficina_seleccionada = $conexion->query($sql);
+   $oficina_seleccionada = $query_oficina_seleccionada->fetch_object();
+   $_SESSION['idoficina'] = $oficina_seleccionada->idoficina;
+   $idoficina = $_SESSION['idoficina'];
+}
+
 if ($_SESSION['idsucursal'] > 0) {
    $idsuc = $_SESSION['idsucursal'];
    $idempleado = $userSession["usuario"]->idempleado;
