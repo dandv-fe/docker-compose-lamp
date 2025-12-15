@@ -68,6 +68,10 @@ function _send_verification_email($toEmail, $verifyUrl)
    if (class_exists('PHPMailer\\PHPMailer\\PHPMailer')) {
       try {
          $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+         $smtpDebug = getenv('SMTP_DEBUG');
+         if ($smtpDebug === '1' || strtolower((string)$smtpDebug) === 'true') {
+            $mail->SMTPDebug = 2; // salida verbose
+         }
          // Preferir config por archivo, luego env vars
          $driver     = $MAIL_CONFIG['driver']   ?? null;
          $smtpHost   = $MAIL_CONFIG['host']     ?? (getenv('SMTP_HOST') ?: '');
@@ -106,7 +110,9 @@ function _send_verification_email($toEmail, $verifyUrl)
          $mail->send();
          return true;
       } catch (Exception $e) {
-         // Fallback a mail()
+         // Si falla PHPMailer, devolver error con detalle para diagnóstico
+         // No exponemos credenciales; solo el mensaje del transporte.
+         $GLOBALS['__MAIL_LAST_ERROR'] = $e->getMessage();
       }
    }
 
@@ -115,7 +121,11 @@ function _send_verification_email($toEmail, $verifyUrl)
    $headers[] = 'Content-type: text/html; charset=UTF-8';
    $headers[] = 'From: No Reply <no-reply@' . $host . '>';
    $headers[] = 'X-Mailer: PHP/' . phpversion();
-   return @mail($toEmail, $subject, $html, implode("\r\n", $headers));
+   $ok = @mail($toEmail, $subject, $html, implode("\r\n", $headers));
+   if (!$ok) {
+      $GLOBALS['__MAIL_LAST_ERROR'] = isset($GLOBALS['__MAIL_LAST_ERROR']) ? $GLOBALS['__MAIL_LAST_ERROR'] : 'mail() fallo al enviar';
+   }
+   return $ok;
 }
 
 if (empty($_GET["op"])) {
@@ -246,7 +256,8 @@ switch ($_GET["op"]) {
       if ($ok) {
          echo json_encode(['status' => 'success', 'mensaje' => 'Enlace enviado. Revisa tu correo.']);
       } else {
-         echo json_encode(['status' => 'error', 'mensaje' => 'No se pudo enviar el correo', 'debug_url' => $verifyUrl]);
+         $err = isset($GLOBALS['__MAIL_LAST_ERROR']) ? $GLOBALS['__MAIL_LAST_ERROR'] : null;
+         echo json_encode(['status' => 'error', 'mensaje' => 'No se pudo enviar el correo', 'debug_url' => $verifyUrl, 'error' => $err]);
       }
       break;
 
