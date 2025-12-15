@@ -89,17 +89,16 @@ class Ahorros
          $idpersona = $conexion->insert_id;
 
          $sql = "INSERT INTO `tbl_ahorros`(
-                     idglobal,
-                     idpersona,            
-                     dec_porcentaje,
-                     dec_ganancia_acumulada,
-                     str_pago_utilidad,
-                     bit_auth_movimientos,
-                     str_estado,
-                     created_at,
-                     update_at
-             )
-              VALUES ($idglobal, $idpersona, $porcentaje, 0, '$pagoUtilidadModo', $authMovimientos, '$estadoAhorro', '$dt', '$dt')";
+                 idglobal,
+                 idpersona,            
+                 dec_porcentaje,
+                 str_pago_utilidad,
+                 bit_auth_movimientos,
+                 str_estado,
+                 created_at,
+                 update_at
+              )
+               VALUES ($idglobal, $idpersona, $porcentaje, '$pagoUtilidadModo', $authMovimientos, '$estadoAhorro', '$dt', '$dt')";
          $conexion->query($sql) or throw new Exception('error!');
 
          $sql = "INSERT INTO `tbl_usuario`(
@@ -211,17 +210,16 @@ class Ahorros
 
          if (empty($request->idahorro)) {
             $sql = "INSERT INTO `tbl_ahorros`(
-                    idglobal,
-                    idpersona,
-                    dec_porcentaje,
-                    dec_ganancia_acumulada,
-                    str_pago_utilidad,
-                    bit_auth_movimientos,
-                    str_estado,
-                    created_at,
-                    update_at
-            )
-             VALUES ($idglobal, $idpersona, $porcentaje, 0, '$pagoUtilidadModo', $authMovimientos, '$estadoAhorro', '$dt', '$dt')";
+                   idglobal,
+                   idpersona,
+                   dec_porcentaje,
+                   str_pago_utilidad,
+                   bit_auth_movimientos,
+                   str_estado,
+                   created_at,
+                   update_at
+                )
+                 VALUES ($idglobal, $idpersona, $porcentaje, '$pagoUtilidadModo', $authMovimientos, '$estadoAhorro', '$dt', '$dt')";
             $conexion->query($sql) or throw new Exception('error!');
          } else {
             $sql = "UPDATE `tbl_ahorros` SET
@@ -306,7 +304,6 @@ class Ahorros
       global $conexion;
       $sql = "SELECT idahorro as refAhorro,
                   dec_porcentaje as porcentaje,
-                  dec_ganancia_acumulada AS gananciaAcumulada,
                   str_pago_utilidad AS pagoUtilidad,
                   bit_auth_movimientos AS authMovimientos,
                   str_estado AS estadoAhorro,

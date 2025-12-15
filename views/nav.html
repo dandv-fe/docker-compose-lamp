@@ -362,7 +362,7 @@ $str_cero = str_split($dias_restantes);
                 <p>Empleados Despedidos</p>
               </a>
             </li>
-            <?PHP if($userSession['usuario']->bit_ahorradores==1){ ?>
+            <?PHP if(isset($userSession['usuario']->idahorro)){ ?>
             <li class="nav-item">
               <a href="ahorros.php" class="nav-link lia-ahorradores">
                 <i class="far fa-circle nav-icon"></i>

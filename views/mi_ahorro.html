@@ -16,7 +16,37 @@
   <section class="content">
     <div class="container-fluid">
 
+      <!-- Mis Ahorros: listado + crear -->
       <div class="row">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h3 class="card-title mb-0">Mis Ahorros</h3>
+              <?php $canCreateAhorro = isset($userSession["usuario"]) && !empty($userSession["usuario"]->str_email_verificado) && $userSession["usuario"]->str_email_verificado !== '0'; ?>
+              <button id="btnNuevoAhorro" class="btn btn-primary btn-sm" <?php echo $canCreateAhorro ? ''
+                : 'disabled title="Verifique su email para crear"' ; ?>>Nuevo Ahorro</button>
+            </div>
+            <div class="card-body p-0">
+              <table id="tblMisAhorros" class="table table-striped table-bordered mb-0" style="width:100%">
+                <thead>
+                  <tr>
+                    <th>Número</th>
+                    <th>Porcentaje</th>
+                    <th>Tipo Pago</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                    <th>Opciones</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel de detalle (oculto hasta seleccionar) -->
+      <div id="panelDetalleAhorro" class="row d-none">
         <div class="col-12">
           <div class="card">
             <div class="card-body">
@@ -200,9 +230,8 @@
   };
 </script>
 
-<!-- Incluir CSS y JS personalizados -->
+<!-- Incluir CSS personalizado -->
 <link rel="stylesheet" href="dist/css/mi_ahorro_custom.css" />
-<script src="dist/scripts/mi_ahorro_custom.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
 
 <!-- DataTables (si no están ya cargados por layout) -->
 <link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css" />
@@ -212,6 +241,62 @@
 <script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
 <script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
 
+<!-- JS personalizado (después de DataTables) -->
+<script src="dist/scripts/mi_ahorro_custom.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+
+<script>
+  // Inicializar tabla y cargar un único ahorro (si existe) a partir de la sesión
+  (function () {
+    function pct(v) { var n = parseFloat(v) || 0; return n.toFixed(2) + "%"; }
+    function fmtDate(v) { return v || ''; }
+    var tipo = window.MI_AHORRO_SESSION && window.MI_AHORRO_SESSION.tipo || '';
+    var num = window.MI_AHORRO_SESSION && window.MI_AHORRO_SESSION.num || '';
+    if (!$.fn.DataTable) return;
+    var tabla = $('#tblMisAhorros').DataTable({ responsive: true, lengthChange: false, autoWidth: false });
+    if (num) {
+      $.getJSON('./ajax/AhorrosAjax.php?op=buscarPersona', { tipo_documento: tipo, num_documento: num }, function (data) {
+        if (data && data.isAhorrador) {
+          var btn = '<button class="btn btn-info btn-sm" id="btnVerDetalle" data-ref="' + (data.refAhorro || '') + '">Ver detalle</button>';
+          tabla.clear();
+          tabla.row.add([
+            data.n_documento || '',
+            pct(data.porcentaje || 0),
+            (data.pagoUtilidad || '-'),
+            (data.estadoAhorro || '-'),
+            fmtDate(data.fechaCreacion),
+            btn
+          ]).draw(false);
+        } else {
+          tabla.clear().draw();
+        }
+      });
+    }
+
+    // Ver detalle: muestra el panel y delega en el JS principal a llenar info/movimientos
+    $(document).on('click', '#btnVerDetalle', function () {
+      var ref = $(this).data('ref');
+      if (!ref) return;
+      $('#txtRefAhorroConfig').val(ref);
+      $('#panelDetalleAhorro').removeClass('d-none');
+      if (window.MiAhorro && typeof window.MiAhorro.verDetalle === 'function') {
+        window.MiAhorro.verDetalle(ref);
+      }
+    });
+
+    // Crear ahorro: frontend solo valida verificación; backend debe validar también
+    $('#btnNuevoAhorro').on('click', function () {
+      var habil = !$(this).is(':disabled');
+      if (!habil) {
+        Swal.fire({ icon: 'warning', title: 'Email no verificado', text: 'Verifique su email para crear un ahorro.' });
+        return;
+      }
+      // Redirigir a gestión de ahorros general o abrir flujo que tengas definido
+      // Aquí lo redirijo a la vista de ahorros para que el admin complete el proceso
+      window.location.href = 'ahorros.php';
+    });
+  })();
+</script>
+
 <style>
   #txt_num_cuenta {
     font-weight: 700
@@ -219,5 +304,10 @@
 
   #txt_saldo_header {
     font-weight: 800
+  }
+
+  #tblMisAhorros td,
+  #tblMisAhorros th {
+    vertical-align: middle;
   }
 </style>

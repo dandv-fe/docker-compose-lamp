@@ -31,6 +31,11 @@ switch ($_GET["op"]) {
       $direccion_barrio = limpiar_cadena($_POST["txt_Direccion_Distrito"]);
       $direccion_calle = limpiar_cadena2($_POST["txt_Direccion_Calle"]);
       $nota = '';
+      // email requerido
+      if (empty($email)) {
+         echo "ERROR: El email es requerido";
+         return;
+      }
       // datos usuario txt_fechaIngreso
       $idusuario = limpiar_cadena($_POST["txtRefUsuario"]);
       $login = limpiar_cadena($_POST["txt_Login"]);
@@ -219,7 +224,6 @@ switch ($_GET["op"]) {
       $req->isAhorrador = false;
       $req->refAhorro = null;
       $req->porcentaje = null;
-      $req->gananciaAcumulada = null;
       $req->pagoUtilidad = null;
       $req->authMovimientos = null;
       $req->estadoAhorro = null;
@@ -231,7 +235,6 @@ switch ($_GET["op"]) {
          $req->isAhorrador = true;
          $req->refAhorro = $request->refAhorro;
          $req->porcentaje = $request->porcentaje;
-         $req->gananciaAcumulada = $request->gananciaAcumulada;
          $req->pagoUtilidad = $request->pagoUtilidad;
          // normalizar authMovimientos
          $req->authMovimientos = normalize_bit($request->authMovimientos ?? $request->auth_movimientos ?? 0);
@@ -348,9 +351,9 @@ switch ($_GET["op"]) {
          break;
       }
 
-      $sql = "SELECT bit_auth_movimientos AS auth, dec_ganancia_acumulada AS acum
-              FROM tbl_ahorros
-              WHERE idahorro=$idahorro AND idglobal=$idglobal";
+      $sql = "SELECT bit_auth_movimientos AS auth
+               FROM tbl_ahorros
+               WHERE idahorro=$idahorro AND idglobal=$idglobal";
       global $conexion;
       $q = $conexion->query($sql);
       $info = $q ? $q->fetch_object() : null;
@@ -382,19 +385,10 @@ switch ($_GET["op"]) {
          break;
       }
 
-      $acumActual = floatval($info->acum);
-      if ($tipo === 'aporte') {
-         $acumNuevo = $acumActual + $valor;
-      } elseif ($tipo === 'retiro') {
-         $acumNuevo = max($acumActual - $valor, 0);
-      } elseif ($tipo === 'ajuste') {
-         $acumNuevo = $valor;
-      } else {
-         $acumNuevo = $acumActual;
-      }
-
+      // Ya no se actualiza 'dec_ganancia_acumulada'; saldo se calcula desde movimientos.
+      // Actualizamos 'update_at' para reflejar cambios recientes.
       $dt = date('Y-m-d H:i:s');
-      $conexion->query("UPDATE tbl_ahorros SET dec_ganancia_acumulada=$acumNuevo, update_at='$dt' WHERE idahorro=$idahorro");
+      $conexion->query("UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro=$idahorro");
 
       echo json_encode(['status' => 'success', 'mensaje' => 'Movimiento registrado']);
       break;
