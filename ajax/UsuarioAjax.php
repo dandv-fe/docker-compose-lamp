@@ -52,9 +52,10 @@ function _get_persona_by_usuario($conexion, $idusuario, $idglobal)
    return $q ? $q->fetch_object() : null;
 }
 
-function _send_verification_email($toEmail, $verifyUrl, $name)
+function _send_verification_email($toEmail, $verifyUrl)
 {
    global $MAIL_CONFIG;
+   $name = "Sistema Webgoez";
    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
    $subject = 'Verificación de correo';
    $html = "<html><body style='font-family:Arial,sans-serif'>" .
@@ -254,13 +255,9 @@ switch ($_GET["op"]) {
       $token = bin2hex(random_bytes(32));
       $token_hash = hash('sha256', $token);
       $ip = $_SERVER['REMOTE_ADDR'] ?? null;
-      require_once "../info_sistema.php";
-      $infoSistemaCuentas = infoSistemaCuentas();
-      $name = $infoSistemaCuentas['name'] ?? 'Sistema';
       $conexion->query("INSERT INTO tbl_email_verificacion (idpersona, token_hash, created_at, expires_at, ip) VALUES (" . intval($persona->idpersona) . ", '" . $conexion->real_escape_string($token_hash) . "', NOW(), DATE_ADD(NOW(), INTERVAL 24 HOUR), " . ($ip ? ("'" . $conexion->real_escape_string($ip) . "'") : 'NULL') . ")");
       $verifyUrl = _get_base_url() . "/UsuarioAjax.php?op=verificarEmail&t=" . urlencode($token);
-      print_r($name);
-      $ok = _send_verification_email($persona->str_email, $verifyUrl, $name);
+      $ok = _send_verification_email($persona->str_email, $verifyUrl);
       if ($ok) {
          echo json_encode(['status' => 'success', 'mensaje' => 'Enlace enviado. Revisa tu correo.']);
       } else {
