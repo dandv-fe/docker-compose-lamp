@@ -20,6 +20,10 @@ if (file_exists($__cfg_mail)) {
    }
 }
 
+// Cargar nombre del sistema desde info_sistema.php
+require_once "../info_sistema.php";
+$infoSistemaCuentas = infoSistemaCuentas();
+
 // Helpers verificación por enlace
 function _get_base_url()
 {
@@ -55,7 +59,8 @@ function _get_persona_by_usuario($conexion, $idusuario, $idglobal)
 function _send_verification_email($toEmail, $verifyUrl)
 {
    global $MAIL_CONFIG;
-   $name = "Sistema Webgoez";
+   global $infoSistemaCuentas;
+   $name = isset($infoSistemaCuentas['name']) ? $infoSistemaCuentas['name'] : 'Sistema';
    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
    $subject = 'Verificación de correo';
    $html = "<html><body style='font-family:Arial,sans-serif'>" .
