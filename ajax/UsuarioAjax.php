@@ -52,14 +52,14 @@ function _get_persona_by_usuario($conexion, $idusuario, $idglobal)
    return $q ? $q->fetch_object() : null;
 }
 
-function _send_verification_email($toEmail, $verifyUrl)
+function _send_verification_email($toEmail, $verifyUrl, $name)
 {
    global $MAIL_CONFIG;
    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
    $subject = 'Verificación de correo';
    $html = "<html><body style='font-family:Arial,sans-serif'>" .
       "<div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;'>" .
-      "<h1 style='color: white; margin: 0; font-size: 32px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);'>WebGoez</h1>" .
+      "<h1 style='color: white; margin: 0; font-size: 32px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);'>" . $name . "</h1>" .
       "</div>" .
       "<div style='padding: 30px; background: #f8f9fa;'>" .
       "<h2>Confirma tu correo</h2>" .
@@ -256,7 +256,7 @@ switch ($_GET["op"]) {
       $ip = $_SERVER['REMOTE_ADDR'] ?? null;
       $conexion->query("INSERT INTO tbl_email_verificacion (idpersona, token_hash, created_at, expires_at, ip) VALUES (" . intval($persona->idpersona) . ", '" . $conexion->real_escape_string($token_hash) . "', NOW(), DATE_ADD(NOW(), INTERVAL 24 HOUR), " . ($ip ? ("'" . $conexion->real_escape_string($ip) . "'") : 'NULL') . ")");
       $verifyUrl = _get_base_url() . "/UsuarioAjax.php?op=verificarEmail&t=" . urlencode($token);
-      $ok = _send_verification_email($persona->str_email, $verifyUrl);
+      $ok = _send_verification_email($persona->str_email, $verifyUrl, $name = "werewrwr");
       if ($ok) {
          echo json_encode(['status' => 'success', 'mensaje' => 'Enlace enviado. Revisa tu correo.']);
       } else {
