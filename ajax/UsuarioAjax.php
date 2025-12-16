@@ -254,7 +254,7 @@ switch ($_GET["op"]) {
       $token = bin2hex(random_bytes(32));
       $token_hash = hash('sha256', $token);
       $ip = $_SERVER['REMOTE_ADDR'] ?? null;
-      require_once "info_sistema.php";
+      require_once "../info_sistema.php";
       $infoSistemaCuentas = infoSistemaCuentas();
       $name = $infoSistemaCuentas['name'] ?? 'Sistema';
       $conexion->query("INSERT INTO tbl_email_verificacion (idpersona, token_hash, created_at, expires_at, ip) VALUES (" . intval($persona->idpersona) . ", '" . $conexion->real_escape_string($token_hash) . "', NOW(), DATE_ADD(NOW(), INTERVAL 24 HOUR), " . ($ip ? ("'" . $conexion->real_escape_string($ip) . "'") : 'NULL') . ")");
