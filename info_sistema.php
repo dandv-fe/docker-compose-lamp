@@ -3,8 +3,8 @@
 function infoSistemaCuentas()
 {
 
-  return array(
-    "name" => 'Sistema',
-    "version" => 6.1
-  );
+   return array(
+      "name" => 'Sistema WebGoez',
+      "version" => 6.1
+   );
 }
