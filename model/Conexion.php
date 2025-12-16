@@ -6,7 +6,6 @@ $USER = 'root';
 $PASS = $_ENV['MYSQL_ROOT_PASSWORD'];
 $DB = 'websdnco_db_webgoez';*/
 
-
 $HOST = 'localhost';
 $USER = 'websdnco_user_webgoez';
 $PASS = 'CHANGE_ME_EXAMPLE';
