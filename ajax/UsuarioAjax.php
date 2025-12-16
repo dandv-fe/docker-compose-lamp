@@ -58,6 +58,10 @@ function _send_verification_email($toEmail, $verifyUrl)
    $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
    $subject = 'Verificación de correo';
    $html = "<html><body style='font-family:Arial,sans-serif'>" .
+      "<div style='background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;'>" .
+      "<h1 style='color: white; margin: 0; font-size: 32px; text-shadow: 2px 2px 4px rgba(0,0,0,0.3);'>WebGoez</h1>" .
+      "</div>" .
+      "<div style='padding: 30px; background: #f8f9fa;'>" .
       "<h2>Confirma tu correo</h2>" .
       "<p>Haz clic en el siguiente enlace para verificar tu correo:</p>" .
       "<p><a href='" . htmlspecialchars($verifyUrl, ENT_QUOTES, 'UTF-8') . "' target='_blank'>Verificar correo</a></p>" .
