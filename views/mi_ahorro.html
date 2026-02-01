@@ -292,9 +292,33 @@
         Swal.fire({ icon: 'warning', title: 'Email no verificado', text: 'Verifique su email para crear un ahorro.' });
         return;
       }
-      // Redirigir a gestión de ahorros general o abrir flujo que tengas definido
-      // Aquí lo redirijo a la vista de ahorros para que el admin complete el proceso
-      window.location.href = 'ahorros.php';
+      // validar si es super admin
+      if ("<?php echo $_SESSION['userEmpresa']; ?>") {
+        alert(bandera + ' dd')
+        // consulta ajax verifica si tiene cuenta frprincipal 
+
+
+      } else {
+        alert(bandera)
+      }
+      // abrir un formulario typo modal para crar una cuenta de ahorrador
+      /*
+        idahorro varchar
+        idglobal automatico en la secin iniciada
+        idpersona automatico en la secin iniciada
+        dec_porcentaje  
+        str_name si lo crea la empresa super usuario automatico ahorro de empresa 
+        id_cuenta  automarico 
+        str_tipo enum('principal','ahorro','corriente')
+        str_pago_utilidad enum('automatico','manual')
+        bit_auth_movimientos bit 1,0
+        str_estado 
+        created_at
+        update_at
+      */
+
+
+
     });
   })();
 </script>

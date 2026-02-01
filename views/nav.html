@@ -12,13 +12,13 @@
 <?php 
 $str_cero = str_split($dias_restantes);
 
-    if($dias_restantes+$dias_extras < $dias_extras && $decicion!=-1){?>
+    if($dias_restantes+$dias_extras < $dias_extras && $isPagoSistema!=-1){?>
 <script>
   $(document).Toasts('create', {
     class: '<?PHP echo $dias_restantes==-5? "bg-danger": "bg-warning";?>',
     title: 'Administración Informa',
     subtitle: '<?PHP echo $dias_restantes+$dias_extras . " Dais Restantes";?>',
-    body: `<h6>Pago oportuno: <?php echo $estado_pago->date_corte; ?> </h6>
+    body: `<h6>Pago oportuno: <?php echo $userSession["estadoPago"]->date_corte; ?> </h6>
           <p style=" font-weight: bold;font-size: 1rem;">
               Le estamos recordando el pago de su servicio, por favor consignar y enviar el comprobante 
               evite suspensión </p> 
@@ -37,7 +37,7 @@ $str_cero = str_split($dias_restantes);
          <h3>Administración </h3>
         <h6>Cordial Saludo </h6>
        <p style=" font-weight: bold;font-size: 1rem;">Pago oportuno:  
-        <h2><?php echo $estado_pago->date_corte; if($str_cero[0]=="-"){ echo "</br>"."ES HOY";} ?></h2>
+        <h2><?php echo $userSession["estadoPago"]->date_corte; if($str_cero[0]=="-"){ echo "</br>"."ES HOY";} ?></h2>
         
         </p>
        
