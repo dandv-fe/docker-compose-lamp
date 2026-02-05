@@ -200,7 +200,78 @@ switch ($_GET["op"]) {
          }
       }
       break;
+   case 'tprincipal':
+      // Crear cuenta de ahorro principal automáticamente (solo Super Admin)
+      $tipo_documento = limpiar_cadena($_REQUEST['tipo_documento'] ?? '');
+      $num_documento = limpiar_cadena($_REQUEST['num_documento'] ?? '');
 
+      if (empty($idglobal) || empty($superadmin)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Permisos insuficientes']);
+         break;
+      }
+
+      if (!$tipo_documento || !$num_documento) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Faltan datos de documento']);
+         break;
+      }
+
+      // Buscar persona por documento
+      $qPer = $objAhorros->buscarPersona($idglobal, $tipo_documento, $num_documento);
+      $per = $qPer ? $qPer->fetch_object() : null;
+      if (!$per || empty($per->refPersona)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Persona no encontrada']);
+         break;
+      }
+      $idpersona = intval($per->refPersona);
+      $telefono = $per->telefono;
+
+      // Verificar si ya tiene ahorro
+      global $conexion;
+      $sqlExist = "SELECT idahorro FROM tbl_ahorros WHERE idglobal=$idglobal AND idpersona=$idpersona";
+      $qExist = $conexion->query($sqlExist);
+      $rExist = $qExist ? $qExist->fetch_object() : null;
+      if ($rExist && !empty($rExist->idahorro)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Ya existe una cuenta de ahorro para esta persona']);
+         break;
+      }
+
+      // Valores por defecto (se pueden sobreescribir vía request)
+      $porcentaje = floatval($_REQUEST['porcentaje'] ?? 0);
+      $name = 'Cuenta Principal';
+      $idCuenta = $telefono;
+      $tipo = 'principal';
+      $pagoUtilidad = limpiar_cadena($_REQUEST['pago_utilidad'] ?? 'automatico');
+      $authMov = intval($_REQUEST['auth_movimientos'] ?? 0);
+      $estado = limpiar_cadena($_REQUEST['estado'] ?? 'ACTIVO');
+      $dt = date('Y-m-d H:i:s');
+
+      $sqlIns = "INSERT INTO tbl_ahorros (
+                   idglobal,idpersona,dec_porcentaje,
+                   str_name,
+                   id_cuenta,
+                   str_tipo,
+                   str_pago_utilidad,
+                   bit_auth_movimientos,
+                   str_estado,
+                   created_at,
+                   update_at
+                 ) VALUES (
+                   $idglobal,$idpersona,$porcentaje,
+                   '$name',
+                   '$idCuenta',
+                   '$tipo',
+                   '$pagoUtilidad',
+                   $authMov,'$estado','$dt','$dt'
+                 )";
+      $ok = $conexion->query($sqlIns);
+      if (!$ok) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'No se pudo crear la cuenta principal']);
+         break;
+      }
+
+      $idahorro = $conexion->insert_id;
+      echo json_encode(['status' => 'success', 'idahorro' => $idahorro, 'mensaje' => 'Cuenta principal creada']);
+      break;
 
 
    case 'buscarPersona':

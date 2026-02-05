@@ -83,7 +83,7 @@
                   <!-- Descripción: datos personales + tbl_ahorro -->
                   <div class="row">
                     <div class="col-md-4 text-center">
-                      <img id="img_ahorrador" src="dist/img/default-user.png" class="img-fluid rounded-circle mb-2"
+                      <img id="img_ahorrador" src="" class="img-fluid rounded-circle mb-2"
                         style="width:120px;height:120px;object-fit:cover;" />
                       <h5 id="txt_name_ahorrador">-</h5>
                       <p id="txt_apodo_ahorrador" class="text-muted">Ahorrador</p>
@@ -246,7 +246,9 @@
 
 <script>
 
-  $(".lia-ahorros-personales").addClass("active");
+  $("#li-ahorros").addClass("menu-open");
+  $(".lia-ahorros").addClass("active");
+  $(".lia-mi-ahorro").addClass("active");
   // Inicializar tabla y cargar un único ahorro (si existe) a partir de la sesión
   (function () {
     function pct(v) { var n = parseFloat(v) || 0; return n.toFixed(2) + "%"; }
@@ -294,12 +296,62 @@
       }
       // validar si es super admin
       if ("<?php echo $_SESSION['userEmpresa']; ?>") {
-        alert(bandera + ' dd')
-        // consulta ajax verifica si tiene cuenta frprincipal 
-
-
+        if (tabla.rows().count() === 0) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Crear cuenta principal',
+            text: 'Se creará una cuenta de ahorro principal para su empresa. ¿Desea continuar?',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, crear',
+            cancelButtonText: 'Cancelar'
+          }).then(function (result) {
+            if (!result.isConfirmed) return;
+            Swal.fire({ title: 'Creando...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+            $.ajax({
+              url: './ajax/AhorrosAjax.php?op=tprincipal',
+              method: 'POST',
+              dataType: 'json',
+              data: {
+                tipo_documento: (window.MI_AHORRO_SESSION && window.MI_AHORRO_SESSION.tipo) || '',
+                num_documento: (window.MI_AHORRO_SESSION && window.MI_AHORRO_SESSION.num) || '',
+                porcentaje: 0,
+                pago_utilidad: 'manual',
+                auth_movimientos: 1,
+                estado: 'ACTIVO'
+              }
+            }).done(function (resp) {
+              if (resp && resp.status === 'success') {
+                Swal.fire({ icon: 'success', title: 'Cuenta creada', text: resp.mensaje || 'Cuenta principal creada.' });
+                // Refrescar listado de ahorros del usuario
+                var tipo = window.MI_AHORRO_SESSION && window.MI_AHORRO_SESSION.tipo || '';
+                var num = window.MI_AHORRO_SESSION && window.MI_AHORRO_SESSION.num || '';
+                $.getJSON('./ajax/AhorrosAjax.php?op=buscarPersona', { tipo_documento: tipo, num_documento: num }, function (data) {
+                  if (data && data.isAhorrador) {
+                    var btn = '<button class="btn btn-info btn-sm" id="btnVerDetalle" data-ref="' + (data.refAhorro || '') + '">Ver detalle</button>';
+                    tabla.clear();
+                    tabla.row.add([
+                      data.n_documento || '',
+                      (parseFloat(data.porcentaje || 0).toFixed(2) + '%'),
+                      (data.pagoUtilidad || '-'),
+                      (data.estadoAhorro || '-'),
+                      (data.fechaCreacion || ''),
+                      btn
+                    ]).draw(false);
+                  }
+                });
+              } else {
+                var msg = (resp && resp.mensaje) ? resp.mensaje : 'No se pudo crear la cuenta.';
+                Swal.fire({ icon: 'error', title: 'Error', text: msg });
+              }
+            }).fail(function () {
+              Swal.fire({ icon: 'error', title: 'Error', text: 'Error de comunicación con el servidor.' });
+            });
+          });
+        } else {
+          Swal.fire({ icon: 'info', title: 'Ya existe un ahorro', text: 'El usuario ya tiene una cuenta de ahorro registrada.' });
+        }
       } else {
-        alert(bandera)
+        Swal.fire({ icon: 'info', title: 'Permisos requeridos', text: 'Solo el Super Admin puede crear la cuenta principal automáticamente.' });
       }
       // abrir un formulario typo modal para crar una cuenta de ahorrador
       /*

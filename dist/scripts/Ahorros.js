@@ -455,7 +455,7 @@ function cargarDataAhorrador(tipo_documento, num_documento, accion) {
 
   // Función interna para perfil (adaptada de empleados)
   function perfil(data) {
-    $("#img_ahorrador").attr('src', data.foto || 'dist/img/default-user.png');
+    $("#img_ahorrador").attr('src', data.foto || '');
     $("#txt_name_ahorrador").text(data.nombres + ' ' + data.apellidos);
     $("#txt_apodo_ahorrador").text('Ahorrador');
     $("#txt_sexo_ahorrador").text(data.sexo);

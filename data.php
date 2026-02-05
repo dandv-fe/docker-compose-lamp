@@ -17,6 +17,7 @@ $userSession = $objusuario->viewUsuarioSession($_SESSION["idusuario"]);
 //si solo es ahorrador
 
 // is empresa Superadmin || si es superadmin o no valor 0 o idglobal de la empresa
+$_SESSION['idpersona'] = $userSession['usuario']->idpersona;
 $_SESSION['userEmpresa'] = $userSession['usuario']->str_cargo === 'Super Administrador' ? $userSession['usuario']->idglobal : null;
 $_SESSION['idempleado'] = $userSession["usuario"]->idempleado;
 $idglobal = $userSession['usuario']->idglobal;

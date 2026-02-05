@@ -280,11 +280,34 @@ $str_cero = str_split($dias_restantes);
             </p>
           </a>
         </li>
-        <?php    } 
-        if (isset($userSession['usuario']->idempleado) && $userSession['usuario']->bit_ahorradores==1){
+        <?php    } ?>
+
+        <?php
+        if (isset($_SESSION['userEmpresa']) && $userSession['usuario']->bit_ahorradores==1){
         ?>
+        <li class="nav-item">
+          <a href="cuentaPrincipal.php" class="nav-link lia-cuenta-principal">
+            <i class="fa-brands fa-affiliatetheme nav-icon"></i>
+            <p>Cuenta Principal</p>
+          </a>
+        </li>
+        <?php } ?>
+
+        <?php
+                if (false){
+                ?>
+        <li class="nav-item">
+          <a href="corresponsales.php" class="nav-link lia-corresponsales">
+            <i class="fa-solid fa-kiwi-bird nav-icon"></i>
+            <p>Corresponsales</p>
+          </a>
+        </li>
+        <?php } ?>
 
 
+        <?php
+        if (false){
+        ?>
         <li class="nav-item">
           <a href="mi_ahorro.php" class="nav-link lia-ahorros-personales">
             <i class="fa-solid fa-piggy-bank nav-icon"></i>
@@ -292,6 +315,48 @@ $str_cero = str_split($dias_restantes);
           </a>
         </li>
         <?php } ?>
+
+        <?PHP
+        if( isset($userSession['usuario']->idempleado) && $userSession['usuario']->str_cargo== 'Super Administrador'){ ?>
+        <li id="li-ahorros" class="nav-item">
+
+          <a href="#" class="nav-link lia-ahorros">
+            <i class="nav-icon fa-solid fa-piggy-bank"></i>
+            <p>
+              Ahorro
+              <i class="right fas fa-angle-left"></i>
+            </p>
+          </a>
+
+          <ul class="nav nav-treeview">
+            <li class="nav-item">
+              <a href="corresponsales.php" class="nav-link lia-corresponsales">
+                <i class="far fa-circle nav-icon"></i>
+                <p>Corresponsales</p>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="ahorradores.php" class="nav-link lia-ahorradores">
+                <i class="far fa-circle nav-icon"></i>
+                <p>Ahorradores</p>
+              </a>
+            </li>
+
+            <li class="nav-item">
+              <a href="mi_ahorro.php" class="nav-link lia-mi-ahorro">
+                <i class="far fa-circle nav-icon"></i>
+                <p>Ahorros</p>
+              </a>
+            </li>
+          </ul>
+        </li>
+
+        <?php    } ?>
+
+
+
+
+
 
 
         <!--<li id="li-estadisticas" class="nav-item">

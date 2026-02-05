@@ -1,0 +1,174 @@
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+
+
+  <section class="content">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-12">
+          <div class="callout callout-info hide">
+            <h5><i class="fas fa-info"></i> Note:</h5>
+            This page has been enhanced for printing. Click the print button at the bottom of the invoice to test.
+          </div>
+
+
+          <!-- Main content -->
+          <div class="invoice p-3 mb-3">
+            <!-- title row -->
+            <div class="row">
+              <div class="col-12">
+                <h4>
+                  <i class="fas fa-globe"></i> AdminLTE, Inc.
+                  <small class="float-right">Date: 2/10/2014</small>
+                </h4>
+              </div>
+              <!-- /.col -->
+            </div>
+            <!-- info row -->
+            <div class="row invoice-info">
+              <div class="col-sm-6 invoice-col">
+
+                <address>
+                  <strong>numero de cuenta</strong><br>
+                  795 Folsom Ave, Suite 600<br>
+
+                </address>
+              </div>
+              <!-- /.col -->
+              <div class="col-sm-6 invoice-col">
+
+                <address>
+                  <strong>saldo disponible</strong><br>
+                  600<br>
+
+                </address>
+              </div>
+            </div>
+            <!-- /.row -->
+
+            <!-- Nav tabs -->
+            <ul class="nav nav-tabs" role="tablist">
+              <li class="nav-item">
+                <a class="nav-link active" id="detalle-tab" data-toggle="tab" href="#detalle" role="tab">Suscripción</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" id="movimientos-tab" data-toggle="tab" href="#movimientos"
+                  role="tab">Movimientos</a>
+              </li>
+            </ul>
+
+            <!-- Tab content -->
+            <div class="tab-content">
+              <div class="tab-pane fade show active" id="detalle" role="tabpanel">
+                <!-- Suscripción content goes here -->
+                <div class="row">
+                  <!-- accepted payments column -->
+                  <div class="col-6">
+                    </br>
+                    <p class="lead">Información:</p>
+
+                    <p class="text-muted well well-sm shadow-none" style="margin-top: 10px;">
+                      El saldo de Corresponsales Ahorradores y Ahorros no esta disponible
+                    </p>
+                  </div>
+                  <!-- /.col -->
+                  <div class="col-6">
+                    <p class="lead">Cantidad</p>
+
+                    <div class="table-responsive">
+                      <table class="table">
+                        <tr>
+                          <th style="width:50%">Corresponsales </th>
+                          <td>$250.30</td>
+                        </tr>
+                        <tr>
+                          <th>Ahorradores</th>
+                          <td>$10.34</td>
+                        </tr>
+                        <tr>
+                          <th>Mi ahorros</th>
+                          <td>$5.80</td>
+                        </tr>
+                        <tr>
+                          <th>Saldo disponible</th>
+                          <td>$5.80</td>
+                        </tr>
+                        <tr>
+                          <th>Total:</th>
+                          <td>$265.24</td>
+                        </tr>
+                      </table>
+                    </div>
+                  </div>
+                  <!-- /.col -->
+                </div>
+                <!-- /.row -->
+              </div>
+              <div class="tab-pane fade" id="movimientos" role="tabpanel">
+                <!-- Movimientos content goes here -->
+                <!-- Table row -->
+                <div class="row">
+                  <div class="col-12 table-responsive">
+                    <table class="table table-striped">
+                      <thead>
+                        <tr>
+                          <th>Qty</th>
+                          <th>Product</th>
+                          <th>Serial #</th>
+                          <th>Description</th>
+                          <th>Subtotal</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr>
+                          <td>1</td>
+                          <td>Call of Duty</td>
+                          <td>455-981-221</td>
+                          <td>El snort testosterone trophy driving gloves handsome</td>
+                          <td>$64.50</td>
+                        </tr>
+                        <tr>
+                          <td>1</td>
+                          <td>Need for Speed IV</td>
+                          <td>247-925-726</td>
+                          <td>Wes Anderson umami biodiesel</td>
+                          <td>$50.00</td>
+                        </tr>
+                        <tr>
+                          <td>1</td>
+                          <td>Monsters DVD</td>
+                          <td>735-845-642</td>
+                          <td>Terry Richardson helvetica tousled street art master</td>
+                          <td>$10.70</td>
+                        </tr>
+                        <tr>
+                          <td>1</td>
+                          <td>Grown Ups Blue Ray</td>
+                          <td>422-568-642</td>
+                          <td>Tousled lomo letterpress</td>
+                          <td>$25.99</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <!-- /.col -->
+                </div>
+                <!-- /.row -->
+              </div>
+            </div>
+          </div>
+          <!-- /.invoice -->
+        </div><!-- /.col -->
+      </div><!-- /.row -->
+    </div><!-- /.container-fluid -->
+  </section>
+  <!-- /.content -->
+</div>
+
+<!-- JS personalizado (después de DataTables) -->
+<script src="dist/scripts/main_account.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+
+
+<script>
+  $(".lia-cuenta-principal").addClass("active");
+</script>
