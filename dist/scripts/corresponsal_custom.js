@@ -28,13 +28,17 @@
 
 
   function init() {
+    $("#auth_movimientos").change(function (e) {
+      e.preventDefault();
+      $("#bit_auth_movimientos").val(e.target.checked ? 'true' : 'false');
+    });
     $("#btnNuevoCorresponsal").click(function (e) {
       e.preventDefault();
       Corresponsal.verFormulario();
     });
     $("form#formCorresponsal").submit(function (e) {
       e.preventDefault();
-      saveOrUpdate('sdfsd')
+      saveOrUpdate();
     });
     listarCorresponsales();
   }
@@ -61,7 +65,43 @@
   };
 
   $(document).ready(init);
-  function saveOrUpdate(params) {
+  function saveOrUpdate() {
+    var form = $("#formCorresponsal")[0];
+    var formData = new FormData(form);
+    $.ajax({
+      url: "./ajax/Corres_Ajax.php?op=SaveOrUpdate",
+      type: "POST",
+      data: formData,
+      contentType: false,
+      processData: false,
+      success: function (resp) {
+        var msg = resp;
+        var isError = false;
+        try {
+          var data = typeof resp === 'string' ? JSON.parse(resp) : resp;
+          if (data && data.status) {
+            isError = data.status !== 'success';
+            msg = data.mensaje || data.msg || resp;
+          }
+        } catch (e) {
+          isError = typeof resp === 'string' && resp.indexOf('ERROR:') !== -1;
+        }
 
+        if (isError) {
+          Swal.fire({ icon: 'error', title: 'Error', text: msg || 'No se pudo guardar.' });
+          return;
+        }
+
+        Swal.fire({ icon: 'success', title: 'Correcto', text: msg || 'Guardado correctamente.' });
+        $("#formCorresponsal")[0].reset();
+        $("#idahorro").val('');
+        Corresponsal.verListado();
+        //listarCorresponsales();
+      },
+      error: function (e) {
+        console.error('Error AJAX corresponsal', e.responseText || e);
+        Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo guardar el corresponsal.' });
+      }
+    });
   }
 })(jQuery);
