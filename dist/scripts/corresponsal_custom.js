@@ -44,14 +44,51 @@
   }
   function listarCorresponsales() {
     // Aquí iría la lógica para listar los corresponsales
-    alert('Funcionalidad de listar corresponsales en desarrollo.');
+    const tabla = $("#example1").DataTable()
+    $.ajax({
+      url: './ajax/Corres_Ajax.php?op=listCorresponsales',
+      type: "POST",
+      data: {},
+      dataType: "json",
+      success: function (datos) {
+        console.log(datos);
+
+        tabla.clear().draw();
+        for (let i = 0; i < datos.length; i++) {
+          const val = datos[i];
+          tabla.row
+            .add([
+              capitalizarPalabras(val['str_name']),
+              val['id_cuenta'],
+              'saldo disponible',
+              val['str_estado'],
+              '',
+              'botones'
+            ]).draw(false);
+        }
+      },
+      error: function (e) {
+        console.log(e.responseText);
+      }
+    });
+  }
+
+
+  function cargarEmpleados() {
+    $.get("./ajax/Corres_Ajax.php?op=listEmpleados", function (html) {
+      $("#str_empleado").html(html);
+    }).fail(function () {
+      $("#str_empleado").html('<option value="">No se pudo cargar</option>');
+    });
   }
 
   // Exponer funciones útiles
   window.Corresponsal = {
     init: init,
     listar: listarCorresponsales,
+    cargarEmpleados: cargarEmpleados,
     verFormulario: function () {
+      cargarEmpleados();
       $('#verFormulario').removeClass('hide');
       $('#verLista').addClass('hide');
       $('#btnNuevoCorresponsal').addClass('hide');
@@ -60,7 +97,7 @@
       $('#verFormulario').addClass('hide');
       $('#verLista').removeClass('hide');
       $('#btnNuevoCorresponsal').removeClass('hide');
-    }
+    },
 
   };
 

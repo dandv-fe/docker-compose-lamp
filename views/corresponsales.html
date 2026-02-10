@@ -32,6 +32,7 @@
                 <input type="hidden" id="idahorro" name="idahorro">
                 <div class="row">
                   <div class="col-md-3">
+
                     <div class="form-group">
                       <label for="dec_porcentaje">Porcentaje</label>
                       <input type="number" step="0.01" class="form-control" id="dec_porcentaje" name="dec_porcentaje"
@@ -70,6 +71,8 @@
                     </div>
                   </div>
 
+
+
                   <div class="col-md-4 d-flex align-items-center">
                     <div class="form-group mb-0">
                       <div class="custom-control custom-checkbox">
@@ -78,6 +81,15 @@
                           name="auth_movimientos">
                         <label class="custom-control-label" for="auth_movimientos">Autorizar Movimientos</label>
                       </div>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label for="str_empleado">Empleado</label>
+                      <select class="form-control" id="str_empleado" name="str_empleado">
+                        <option value="">Seleccione empleado</option>
+
+                      </select>
                     </div>
                   </div>
                 </div>
@@ -110,35 +122,24 @@
               <table id="example1" class="table table-bordered table-striped">
                 <thead>
                   <tr>
-                    <th>Número</th>
-                    <th>Porcentaje</th>
-                    <th>Tipo Pago</th>
+                    <th>Nombre</th>
+                    <th>Numero</th>
+                    <th>Saldo disponible</th>
                     <th>Estado</th>
                     <th>Fecha</th>
                     <th>Opciones</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr>
-                    <td>Trident</td>
-                    <td>Internet
-                      Explorer 4.0
-                    </td>
-                    <td>Win 95+</td>
-                    <td> 4</td>
-                    <td>X</td>
-                    <td>X</td>
 
-
-                  </tr>
 
 
                 </tbody>
                 <tfoot>
                   <tr>
-                    <th>Número</th>
-                    <th>Porcentaje</th>
-                    <th>Tipo Pago</th>
+                    <th>Nombre</th>
+                    <th>Numero</th>
+                    <th>Saldo Disponible</th>
                     <th>Estado</th>
                     <th>Fecha</th>
                     <th>Opciones</th>
@@ -184,15 +185,11 @@
   $(".lia-ahorros").addClass("active");
   $(".lia-corresponsales").addClass("active");
 
-  $(function () {
-    $("#example1").DataTable({
-      "responsive": true, "lengthChange": false, "autoWidth": false,
-      "buttons": ["csv", "excel", "pdf", "print"]
-    }).buttons().container().appendTo('#example1_wrapper .col-md-6:eq(0)');
+
+  $("#example1").DataTable({
+    "responsive": true, "lengthChange": false, "autoWidth": false,
+    "buttons": ["csv", "excel", "pdf", "print"]
+  }).buttons().container().appendTo('#example1_wrapper .col-md-6:eq(0)');
 
 
-
-
-
-  });
 </script>

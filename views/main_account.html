@@ -17,10 +17,24 @@
             <!-- title row -->
             <div class="row">
               <div class="col-12">
+
                 <h4>
                   <i class="fas fa-globe"></i> AdminLTE, Inc.
                   <small class="float-right">Date: 2/10/2014</small>
                 </h4>
+                <div id="back-to-top" class="btn " style="z-index: 99999999; right: 100px;">
+
+                  <button type="button" class="btn btn-info btn-flat dropdown-toggle dropdown-icon"
+                    data-toggle="dropdown">
+                    <span class="sr-only">Toggle Dropdown</span>
+                  </button>
+                  <div class="dropdown-menu" role="menu">
+                    <a class="dropdown-item" href="#">Envio</a>
+                    <a class="dropdown-item" href="#">Retiro</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="#">Aporte</a>
+                  </div>
+                </div>
               </div>
               <!-- /.col -->
             </div>
@@ -30,7 +44,7 @@
 
                 <address>
                   <strong>numero de cuenta</strong><br>
-                  795 Folsom Ave, Suite 600<br>
+                  <mark id="txt_num_cuenta"></mark><br>
 
                 </address>
               </div>
@@ -39,12 +53,13 @@
 
                 <address>
                   <strong>saldo disponible</strong><br>
-                  600<br>
-
+                  <mark id="txt_saldo_header"></mark><br>
                 </address>
               </div>
             </div>
             <!-- /.row -->
+
+
 
             <!-- Nav tabs -->
             <ul class="nav nav-tabs" role="tablist">
@@ -165,6 +180,17 @@
   <!-- /.content -->
 </div>
 
+
+<!--<div class="btn-group">
+ 
+  <div class="dropdown-menu" role="menu">
+    <a class="dropdown-item" href="#">Action</a>
+    <a class="dropdown-item" href="#">Another action</a>
+    <a class="dropdown-item" href="#">Something else here</a>
+    <div class="dropdown-divider"></div>
+    <a class="dropdown-item" href="#">Separated link</a>
+  </div>
+</div>-->
 <!-- JS personalizado (después de DataTables) -->
 <script src="dist/scripts/main_account.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
 

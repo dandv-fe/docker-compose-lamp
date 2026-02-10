@@ -9,7 +9,7 @@
 
   function renderProfile(data) {
     if (!data) return;
-    $('#txt_num_cuenta').text(data.n_documento || '');
+    $('#txt_num_cuenta').text(data.id_cuenta || '');
     $('#txt_name_ahorrador').text((data.nombres || '') + ' ' + (data.apellidos || ''));
     $('#txt_tipo_documento_ahorrador').text(data.t_documento || '');
     $('#txt_num_documento_ahorrador').text(data.n_documento || '');
@@ -145,8 +145,9 @@
       .done(function (data) {
 
         if (data?.id_cuenta) {
+          console.log('Cuenta principal encontrada:', data);
+          renderProfile(data);
 
-          console.log(data);
         } else {
           Swal.fire({
             icon: 'warning',

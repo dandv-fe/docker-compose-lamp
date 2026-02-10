@@ -43,15 +43,28 @@ switch ($_GET['op']) {
 
       //
       break;
-   case 'goAccount':
-      if (empty($superadmin)) {
-         echo json_encode('no encontrado');
-         break;
+   case 'listEmpleados':
+      $query = $objCorresponsal->cboListEmpleado($idglobal);
+      echo '<option value="">--Seleccione--</option>';
+      while ($reg = $query->fetch_object()) {
+         echo '<option value="' . $reg->ref . '">' . $reg->empleado . '</option>';
       }
-      $query = $objCorresponsal->goAccount($idglobal, $idpersona);
-      echo json_encode($query->fetch_object());
       break;
-   default:
-      # code...
+   case 'listCorresponsales':
+      $query = $objCorresponsal->listCorresponsales($idglobal);
+      $data = [];
+      while ($reg = $query->fetch_object()) {
+         $data[] = [
+            "idahorro" => $reg->idahorro,
+            "str_name" => $reg->str_name,
+            "id_cuenta" => $reg->id_cuenta,
+            "dec_porcentaje" => $reg->dec_porcentaje,
+            "str_tipo" => $reg->str_tipo,
+            "str_pago_utilidad" => $reg->str_pago_utilidad,
+            "bit_auth_movimientos" => $reg->bit_auth_movimientos,
+            "str_estado" => $reg->str_estado
+         ];
+      }
+      echo json_encode($data);
       break;
 }

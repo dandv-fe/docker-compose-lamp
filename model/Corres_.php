@@ -65,11 +65,31 @@ class Corresponsal
       $msg = $sw ? ['status' => 'success', 'idahorro' => $idahorro, 'mensaje' => 'Cuenta correctamente creada'] : ['status' => 'error', 'mensaje' => 'ERROR: Cuenta Corresponsal no ha podido ser creada.'];
       echo json_encode($msg);
    }
-   public function goAccount($idglobal, $idpersona)
+   public function cboListEmpleado($idglobal)
    {
       global $conexion;
-      $sql = "SELECT * FROM `tbl_ahorros` 
-      WHERE idglobal=$idglobal AND idpersona=$idpersona AND str_tipo='principal'";
+      $sql = "SELECT 
+            e.idpersona AS ref,
+            CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado
+         FROM tbl_empleado e INNER JOIN
+            tbl_persona p ON p.idpersona=e.idpersona
+         WHERE e.idglobal=$idglobal AND e.str_estado<>'inactivo' ORDER BY e.idempleado DESC";
+      $query = $conexion->query($sql);
+      return $query;
+   }
+   public function listCorresponsales($idglobal)
+   {
+      global $conexion;
+      $sql = "SELECT 
+            idahorro,
+            str_name,
+            dec_porcentaje,
+            id_cuenta,
+            str_tipo,
+            str_pago_utilidad,
+            bit_auth_movimientos,
+            str_estado
+         FROM tbl_ahorros WHERE idglobal=$idglobal AND str_tipo='corresponsal' ORDER BY idahorro DESC";
       $query = $conexion->query($sql);
       return $query;
    }
