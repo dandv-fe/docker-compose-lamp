@@ -64,6 +64,18 @@ class MainAccount
       $query = $conexion->query($sql);
       return $query;
    }
+   public function registrarMovimientoRA($idglobal, $idahorro, $idusuario_created, $tipo, $valor, $descripcion, $estado = 'activo')
+   {
+      // Inserta movimiento; actualización de acumulado se realiza en AhorrosAjax.php
+      global $conexion;
+      $dt = date('Y-m-d H:i:s');
+      $sql = "INSERT INTO tbl_movimientos(
+                idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+              ) VALUES (
+                $idglobal,$idahorro,$idusuario_created,'$tipo',$valor,'$descripcion',NULL,'$estado','$dt','$dt'
+              )";
+      return $conexion->query($sql);
+   }
 }
 /*
 1

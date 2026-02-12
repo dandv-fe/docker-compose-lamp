@@ -20,6 +20,7 @@
     $('#txt_fecha_creacion_ahorrador').text(data.fechaCreacion || data.fecha_at || '-');
     var saldo = parseFloat(data.saldoMovimientos || data.saldo_movimientos || 0) || 0;
     $('#txt_saldo_header').text(formatMoney(saldo));
+    if (data.idahorro) { $('#idahorro').val(data.idahorro); }
     // guardar refAhorro si viene
     if (data.refAhorro) { $('#txtRefAhorroConfig').val(data.refAhorro); }
     if (data.foto) { $('#img_ahorrador').attr('src', data.foto); }
@@ -137,6 +138,54 @@
     });*/
   }
 
+  function bindRAForm() {
+    $(document).on('click', '[data-target="#modal-aporte"][data-tipo]', function () {
+      var tipo = ($(this).data('tipo') || 'aporte').toString().toLowerCase();
+      $('#str_tipo').val(tipo);
+      var title = (tipo === 'retiro') ? 'Registrar retiro' : 'Registrar aporte';
+      $('#modal-aporte-title').text(title);
+    });
+
+    $('#form-aporte').on('submit', function (e) {
+      e.preventDefault();
+
+      var idahorro = $('#idahorro').val();
+      var tipo = $('#str_tipo').val();
+      var valor = $('#dec_valor').val();
+      var descripcion = $('#str_descripcion').val();
+
+      var $btn = $('#form-aporte button[type="submit"]');
+      $btn.prop('disabled', true);
+
+      $.ajax({
+        url: './ajax/MainAccountAjax.php?op=registrarMovimientosRA',
+        method: 'POST',
+        dataType: 'json',
+        data: {
+          idahorroMovimiento: idahorro,
+          cboTipoMovimiento: tipo,
+          txtValorMovimiento: valor,
+          txtDescripcionMovimiento: descripcion
+        }
+      }).done(function (resp) {
+        if (resp && resp.status === 'success') {
+          Swal.fire({ icon: 'success', title: resp.mensaje || 'Aporte registrado' });
+          $('#modal-aporte').modal('hide');
+          $('#form-aporte')[0].reset();
+          goAccount();
+        } else {
+          var msg = (resp && resp.mensaje) ? resp.mensaje : 'No se pudo registrar el aporte';
+          Swal.fire({ icon: 'error', title: msg });
+        }
+      }).fail(function (e) {
+        console.error('Error AJAX aporte', e.responseText || e);
+        Swal.fire({ icon: 'error', title: 'Error de comunicación con el servidor' });
+      }).always(function () {
+        $btn.prop('disabled', false);
+      });
+    });
+  }
+
   function goAccount() {
     // $.post("./ajax/MainAccountAjax.php?op=goAccount", function (account) {
     // console.log(account);
@@ -185,8 +234,8 @@
   }
 
   function init() {
-
-    goAccount()
+    bindRAForm();
+    goAccount();
   }
 
   // Exponer funciones útiles

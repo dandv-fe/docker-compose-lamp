@@ -21,7 +21,8 @@ class Corresponsal
       $idahorro = null;
       try {
          // Verificar si ya tiene ahorro
-         $sqlExist = "SELECT idahorro FROM tbl_ahorros WHERE idglobal=$idglobal AND idpersona=$idpersona AND str_tipo='$str_tipo'";
+         $sqlExist = "SELECT idahorro FROM tbl_ahorros 
+          WHERE idglobal=$idglobal AND idpersona=$idpersona AND str_tipo='$str_tipo'";
          $qExist = $conexion->query($sqlExist);
          $rExist = $qExist ? $qExist->fetch_object() : null;
          if ($rExist && !empty($rExist->idahorro)) {
@@ -29,7 +30,7 @@ class Corresponsal
             return false;
          }
 
-         $idCuenta = '15'; // Asignar el valor adecuado para idCuenta
+         $idCuenta = '16'; // Asignar el valor adecuado para idCuenta
 
          $sqlIns = "INSERT INTO tbl_ahorros (
                    idglobal,idpersona,dec_porcentaje,

@@ -30,9 +30,11 @@
                   </button>
                   <div class="dropdown-menu" role="menu">
                     <a class="dropdown-item" href="#">Envio</a>
-                    <a class="dropdown-item" href="#">Retiro</a>
+                    <a class="dropdown-item" href="#" data-toggle="modal" data-target="#modal-aporte"
+                      data-tipo="retiro">Retiro</a>
                     <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="#">Aporte</a>
+                    <a class="dropdown-item" href="#" data-toggle="modal" data-target="#modal-aporte"
+                      data-tipo="aporte">Aporte</a>
                   </div>
                 </div>
               </div>
@@ -178,6 +180,42 @@
     </div><!-- /.container-fluid -->
   </section>
   <!-- /.content -->
+</div>
+
+<!-- Modal Aporte -->
+<div class="modal fade" id="modal-aporte" tabindex="-1" role="dialog" aria-labelledby="modal-aporte-title"
+  aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-aporte-title">Registrar aporte</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form id="form-aporte" autocomplete="off">
+        <div class="modal-body">
+          <input type="hidden" id="idahorro" name="idahorro">
+          <input type="hidden" id="str_tipo" name="str_tipo" value="aporte">
+
+          <div class="form-group">
+            <label for="dec_valor">Valor</label>
+            <input type="number" class="form-control" id="dec_valor" name="dec_valor" step="0.01" min="0" required>
+          </div>
+
+          <div class="form-group">
+            <label for="str_descripcion">Descripción</label>
+            <textarea class="form-control" id="str_descripcion" name="str_descripcion" rows="3" maxlength="255"
+              required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar aporte</button>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 

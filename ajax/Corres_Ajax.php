@@ -10,6 +10,7 @@ $idpersona = $_SESSION['idpersona'];
 switch ($_GET['op']) {
    case 'SaveOrUpdate':
       $idahorro = limpiar_cadena2($_POST['idahorro']);
+      $idpersona = limpiar_cadena2($_POST['str_empleado']);
       $dec_porcentaje  = floatval($_POST['dec_porcentaje']);
       $str_name = limpiar_cadena($_POST['str_name']);
 
