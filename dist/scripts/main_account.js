@@ -234,13 +234,55 @@
   }
 
   function init() {
+    verCuenta();
     bindRAForm();
     goAccount();
+
+    $("#aEnviarVer").click(function (e) {
+      e.preventDefault();
+      verFormEnviar();
+    });
+
+    // Prevenir envío del formulario por defecto
+    $("#stepperForm").submit(function (e) {
+      e.preventDefault();
+      return false;
+    });
+
+    // Solo enviar desde el botón finalizar
+    $(document).on('click', '#btnFinalizar, [data-action="finalizar"]', function (e) {
+      e.preventDefault();
+      Swal.fire({
+        icon: 'info',
+        title: 'Funcionalidad no disponible',
+        text: 'La funcionalidad de envío no está implementada en esta versión.'
+      });
+    });
+
+    $(".btnCancelarEnvio").click(function (e) {
+      e.preventDefault();
+      // resetear formulario
+      $('#stepperForm')[0].reset();
+      stepper.reset();
+      verCuenta();
+    });
+  }
+
+  function verCuenta() {
+    $('#verCuentaPrincipal').removeClass('hide');
+    $("#verFormEnviar").addClass('hide');
+  };
+
+  function verFormEnviar() {
+    $('#verFormEnviar').removeClass('hide');
+    $("#verCuentaPrincipal").addClass('hide');
   }
 
   // Exponer funciones útiles
   window.Account = {
     init: init,
+    verFormEnviar: verFormEnviar,
+    verCuenta: verCuenta,
 
   };
 

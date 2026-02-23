@@ -1,3 +1,6 @@
+<!-- BS Stepper -->
+<link rel="stylesheet" href="plugins/bs-stepper/css/bs-stepper.min.css">
+
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper">
 
@@ -13,7 +16,7 @@
 
 
           <!-- Main content -->
-          <div class="invoice p-3 mb-3">
+          <div id="verCuentaPrincipal" class="invoice p-3 mb-3">
             <!-- title row -->
             <div class="row">
               <div class="col-12">
@@ -29,7 +32,7 @@
                     <span class="sr-only">Toggle Dropdown</span>
                   </button>
                   <div class="dropdown-menu" role="menu">
-                    <a class="dropdown-item" href="#">Envio</a>
+                    <a id="aEnviarVer" class="dropdown-item" href="#">Envio</a>
                     <a class="dropdown-item" href="#" data-toggle="modal" data-target="#modal-aporte"
                       data-tipo="retiro">Retiro</a>
                     <div class="dropdown-divider"></div>
@@ -175,12 +178,105 @@
             </div>
           </div>
           <!-- /.invoice -->
+          <!-- /.Formulario para el envio -->
+          <div id="verFormEnviar" class="card card-default">
+            <div class="card-header">
+              <h3 class="card-title">Enviar</h3>
+            </div>
+            <div class="card-body p-0">
+              <div class="bs-stepper">
+                <div class="bs-stepper-header flex-wrap" role="tablist">
+                  <div class="step" data-target="#step-1">
+                    <button type="button" class="step-trigger" role="tab" aria-controls="step-1" id="step-1-trigger">
+                      <span class="bs-stepper-circle">1</span>
+                      <span class="bs-stepper-label">Buscar cuenta</span>
+                    </button>
+                  </div>
+                  <div class="line"></div>
+                  <div class="step" data-target="#step-2">
+                    <button type="button" class="step-trigger" role="tab" aria-controls="step-2" id="step-2-trigger">
+                      <span class="bs-stepper-circle">2</span>
+                      <span class="bs-stepper-label">Monto a enviar</span>
+                    </button>
+                  </div>
+                  <div class="line"></div>
+                  <div class="step" data-target="#step-3">
+                    <button type="button" class="step-trigger" role="tab" aria-controls="step-3" id="step-3-trigger">
+                      <span class="bs-stepper-circle">3</span>
+                      <span class="bs-stepper-label">Confirmación</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="bs-stepper-content p-2 p-md-4">
+                  <form id="stepperForm" action="#" method="post">
+                    <div id="step-1" class="content" role="tabpanel" aria-labelledby="step-1-trigger">
+
+                      <div class="form-group">
+                        <label for="id_cuenta">Número de cuenta</label>
+                        <input type="text" class="form-control" id="id_cuenta" name="id_cuenta"
+                          placeholder="Número de cuenta">
+                      </div>
+                      <button type="button" class="btn btn-secondary btnCancelarEnvio">Cancelar</button>
+                      <button type="button" class="btn btn-primary" onclick="stepper.next()">Siguiente</button>
+                    </div>
+
+                    <div id="step-2" class="content" role="tabpanel" aria-labelledby="step-2-trigger">
+
+
+                      <div class="form-group">
+                        <label for="monto">Monto a enviar</label>
+                        <input type="number" class="form-control" id="monto" name="monto" placeholder="Monto a enviar"
+                          step="0.01" min="0">
+                      </div>
+                      <button type="button" class="btn btn-secondary btnCancelarEnvio">Cancelar</button>
+
+                      <button type="button" class="btn btn-default" onclick="stepper.previous()">Anterior</button>
+                      <button type="button" class="btn btn-primary" onclick="stepper.next()">Siguiente</button>
+                    </div>
+
+                    <div id="step-3" class="content" role="tabpanel" aria-labelledby="step-3-trigger">
+                      <p class="mb-4">Verifica la información y finaliza el formulario.</p>
+
+                      <div class="form-group">
+                        <label class="d-block">Nombre del destinatario</label>
+                        <p class="form-control-plaintext text-break" id="nombre_destinatario">-</p>
+                      </div>
+
+                      <div class="form-group">
+                        <label class="d-block">Número de cuenta destino</label>
+                        <p class="form-control-plaintext text-break" id="cuenta_destino">-</p>
+                      </div>
+
+                      <div class="form-group">
+                        <label class="d-block">Monto a enviar</label>
+                        <p class="form-control-plaintext text-break" id="monto_confirmacion">-</p>
+                      </div>
+                      <div class="form-group">
+                        <label class="d-block">Número cuenta origen</label>
+                        <p class="form-control-plaintext text-break" id="cuenta_origen">-</p>
+                      </div>
+
+                      <div class="d-flex flex-column flex-sm-row gap-2">
+                        <button type="button" class="btn btn-secondary btnCancelarEnvio mr-2">Cancelar</button>
+
+                        <button type="button" class="btn btn-default mb-2 mb-sm-0 mr-sm-2"
+                          onclick="stepper.previous()">Anterior</button>
+                        <button type="button" class="btn btn-success" id="btnFinalizar">Finalizar</button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
         </div><!-- /.col -->
-      </div><!-- /.row -->
-    </div><!-- /.container-fluid -->
-  </section>
-  <!-- /.content -->
-</div>
+      </div><!-- /.row --></div><!-- /.container-fluid -->
+      </section>
+      <!-- /.content -->
+      </div>
 
 <!-- Modal Aporte -->
 <div class="modal fade" id="modal-aporte" tabindex="-1" role="dialog" aria-labelledby="modal-aporte-title"
@@ -232,7 +328,110 @@
 <!-- JS personalizado (después de DataTables) -->
 <script src="dist/scripts/main_account.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
 
+<!-- Estilos responsive para stepper -->
+<style>
+  @media (max-width: 576px) {
+    .bs-stepper-header {
+      padding: 0.5rem;
+    }
 
+    .step-trigger {
+      padding: 0.25rem !important;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .bs-stepper-circle {
+      width: 2rem;
+      height: 2rem;
+      line-height: 2rem;
+      font-size: 0.875rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .bs-stepper-label {
+      font-size: 0.65rem;
+      text-align: center;
+      line-height: 1.1;
+      max-width: 60px;
+      display: block;
+    }
+
+    .line {
+      min-width: 0.5rem;
+      flex-grow: 0;
+    }
+
+    .form-control-plaintext {
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+  }
+
+  @media (min-width: 577px) {
+    .step-trigger {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .bs-stepper-label {
+      margin-left: 0.5rem;
+    }
+  }
+</style>
+
+<!-- BS-Stepper -->
+<script src="plugins/bs-stepper/js/bs-stepper.min.js"></script>
 <script>
   $(".lia-cuenta-principal").addClass("active");
+  var stepper
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var stepperElement = document.querySelector('.bs-stepper')
+    var formElement = document.querySelector('#stepperForm')
+
+    stepper = new Stepper(stepperElement)
+
+    var nextGuards = {
+      1: function () { return true },
+      2: function () { return true }
+    }
+
+    window.stepperControls = {
+      setNextGuard: function (stepNumber, guardFn) {
+        if (typeof guardFn === 'function') {
+          nextGuards[stepNumber] = guardFn
+        }
+      },
+      getNextGuard: function (stepNumber) {
+        return nextGuards[stepNumber]
+      },
+      next: function () {
+        alert("hola")
+        stepper.next()
+      },
+      previous: function () {
+        stepper.previous()
+      }
+    }
+
+    document.querySelectorAll('[data-stepper-next]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var currentStep = parseInt(button.getAttribute('data-stepper-next'), 10)
+        var guard = nextGuards[currentStep]
+
+        if (!guard || guard(formElement) !== false) {
+          stepper.next()
+        }
+      })
+    })
+
+    document.querySelectorAll('[data-stepper-prev]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        stepper.previous()
+      })
+    })
+  })
 </script>
