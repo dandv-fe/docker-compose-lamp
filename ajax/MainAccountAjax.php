@@ -41,6 +41,15 @@ switch ($_GET['op']) {
          'apellidos' => $req->apellidos
       ]);
       break;
+   case 'resumenSaldos':
+      if (empty($idglobal) || empty($idpersona)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Sesión no válida']);
+         break;
+      }
+
+      $resumen = $objMainAccount->obtenerResumenSaldos($idglobal, $idpersona);
+      echo json_encode($resumen);
+      break;
    case 'tprincipal':
       if (empty($idglobal) || empty($superadmin)) {
          echo json_encode(['status' => 'error', 'mensaje' => 'Permisos insuficientes']);

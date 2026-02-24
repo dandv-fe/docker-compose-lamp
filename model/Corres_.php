@@ -30,7 +30,7 @@ class Corresponsal
             return false;
          }
 
-         $idCuenta = '16'; // Asignar el valor adecuado para idCuenta
+         $idCuenta = '17'; // Asignar el valor adecuado para idCuenta
 
          $sqlIns = "INSERT INTO tbl_ahorros (
                    idglobal,idpersona,dec_porcentaje,

@@ -91,6 +91,53 @@ class MainAccount
                LIMIT 1";
       return $conexion->query($sql);
    }
+
+   public function obtenerResumenSaldos($idglobal, $idpersona)
+   {
+      global $conexion;
+
+      $sql = "SELECT
+                 IFNULL(SUM(CASE WHEN LOWER(a.str_tipo) = 'corresponsal' THEN s.saldo ELSE 0 END), 0) AS corresponsales,
+                 IFNULL(SUM(CASE WHEN LOWER(IFNULL(a.str_tipo, 'ahorro')) IN ('ahorro', 'ahorrador') THEN s.saldo ELSE 0 END), 0) AS ahorradores,
+                 IFNULL(SUM(CASE WHEN LOWER(a.str_tipo) = 'principal' AND a.idpersona = $idpersona THEN s.saldo ELSE 0 END), 0) AS mi_ahorros
+              FROM tbl_ahorros a
+              LEFT JOIN (
+                 SELECT
+                    m.idahorro,
+                    IFNULL(SUM(
+                       CASE m.str_tipo
+                          WHEN 'aporte' THEN m.dec_valor
+                          WHEN 'ajuste' THEN m.dec_valor
+                          WHEN 'retiro' THEN m.dec_valor
+                          ELSE 0
+                       END
+                    ), 0) AS saldo
+                 FROM tbl_movimientos m
+                 WHERE m.idglobal = $idglobal
+                  AND UPPER(m.str_estado) <> 'INACTIVO'
+                 GROUP BY m.idahorro
+              ) s ON s.idahorro = a.idahorro
+              WHERE a.idglobal = $idglobal
+               AND UPPER(a.str_estado) <> 'INACTIVO'";
+
+      $query = $conexion->query($sql);
+      $row = $query ? $query->fetch_object() : null;
+
+      $corresponsales = floatval($row->corresponsales ?? 0);
+      $ahorradores = floatval($row->ahorradores ?? 0);
+      $miAhorros = floatval($row->mi_ahorros ?? 0);
+      $saldoDisponible = $miAhorros;
+      $total = $corresponsales + $ahorradores + $miAhorros;
+
+      return [
+         'status' => 'success',
+         'corresponsales' => $corresponsales,
+         'ahorradores' => $ahorradores,
+         'mi_ahorros' => $miAhorros,
+         'saldo_disponible' => $saldoDisponible,
+         'total' => $total
+      ];
+   }
    public function registrarMovimientoRA($idglobal, $idahorro, $idusuario_created, $tipo, $valor, $descripcion, $estado = 'activo')
    {
       // Inserta movimiento; actualización de acumulado se realiza en AhorrosAjax.php

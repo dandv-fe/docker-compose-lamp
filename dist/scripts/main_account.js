@@ -26,6 +26,37 @@
     if (data.foto) { $('#img_ahorrador').attr('src', data.foto); }
   }
 
+  function renderResumenSaldos(data) {
+    var corresponsales = parseFloat(data && data.corresponsales) || 0;
+    var ahorradores = parseFloat(data && data.ahorradores) || 0;
+    var miAhorros = parseFloat(data && data.mi_ahorros) || 0;
+    var saldoDisponible = parseFloat(data && data.saldo_disponible);
+    var total = parseFloat(data && data.total);
+
+    if (isNaN(saldoDisponible)) saldoDisponible = miAhorros;
+    if (isNaN(total)) total = corresponsales + ahorradores + miAhorros;
+
+    $('#tbl_corresponsales').text(formatMoney(corresponsales));
+    $('#tbl_ahorradores').text(formatMoney(ahorradores));
+    $('#tbl_mi_ahorros').text(formatMoney(miAhorros));
+    $('#tbl_saldo_disponible').text(formatMoney(saldoDisponible));
+    $('#tbl_total').text(formatMoney(total));
+  }
+
+  function loadResumenSaldos() {
+    $.getJSON('./ajax/MainAccountAjax.php?op=resumenSaldos')
+      .done(function (resp) {
+        if (resp && resp.status === 'success') {
+          renderResumenSaldos(resp);
+          return;
+        }
+        renderResumenSaldos(null);
+      })
+      .fail(function () {
+        renderResumenSaldos(null);
+      });
+  }
+
   function loadMovements(refAhorro) {
     if (!refAhorro) return;
     var table = $('#tblMovimientos').DataTable();
@@ -173,6 +204,7 @@
           $('#modal-aporte').modal('hide');
           $('#form-aporte')[0].reset();
           goAccount();
+          loadResumenSaldos();
         } else {
           var msg = (resp && resp.mensaje) ? resp.mensaje : 'No se pudo registrar el aporte';
           Swal.fire({ icon: 'error', title: msg });
@@ -196,6 +228,7 @@
         if (data?.id_cuenta) {
           console.log('Cuenta principal encontrada:', data);
           renderProfile(data);
+          loadResumenSaldos();
 
         } else {
           Swal.fire({
@@ -237,6 +270,7 @@
     verCuenta();
     bindRAForm();
     goAccount();
+    loadResumenSaldos();
 
     $("#aEnviarVer").click(function (e) {
       e.preventDefault();
@@ -303,6 +337,7 @@
 
           verCuenta();
           goAccount();
+          loadResumenSaldos();
         } else {
           Swal.fire({
             icon: 'error',
