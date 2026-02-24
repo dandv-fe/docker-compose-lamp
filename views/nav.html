@@ -283,7 +283,7 @@ $str_cero = str_split($dias_restantes);
         <?php    } ?>
 
         <?php
-        if (isset($_SESSION['userEmpresa']) && $userSession['usuario']->bit_ahorradores==1){
+        if ($userSession['usuario']->str_cargo== 'Super Administrador' && $userSession['usuario']->bit_ahorradores==1 && $userSession['usuario']->str_email_verificado==1) {
         ?>
         <li class="nav-item">
           <a href="cuentaPrincipal.php" class="nav-link lia-cuenta-principal">
@@ -317,7 +317,7 @@ $str_cero = str_split($dias_restantes);
         <?php } ?>
 
         <?PHP
-        if( isset($userSession['usuario']->idempleado) && $userSession['usuario']->str_cargo== 'Super Administrador'){ ?>
+        if($userSession['usuario']->str_cargo== 'Super Administrador' && $userSession['usuario']->bit_ahorradores==1 && $userSession['usuario']->str_email_verificado==1){ ?>
         <li id="li-ahorros" class="nav-item">
 
           <a href="#" class="nav-link lia-ahorros">

@@ -18,7 +18,7 @@
     $('#pTextTipoPago').text(data.pagoUtilidad || data.pago_utilidad || '-');
     $('#txt_estado_ahorrador').text(data.estadoAhorro || data.estado || '-');
     $('#txt_fecha_creacion_ahorrador').text(data.fechaCreacion || data.fecha_at || '-');
-    var saldo = parseFloat(data.saldoMovimientos || data.saldo_movimientos || 0) || 0;
+    var saldo = parseFloat(data.saldo || 0) || 0;
     $('#txt_saldo_header').text(formatMoney(saldo));
     if (data.idahorro) { $('#idahorro').val(data.idahorro); }
     // guardar refAhorro si viene

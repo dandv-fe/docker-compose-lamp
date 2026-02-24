@@ -59,8 +59,18 @@ class MainAccount
    public function goAccount($idglobal, $idpersona)
    {
       global $conexion;
-      $sql = "SELECT * FROM `tbl_ahorros` 
-      WHERE idglobal=$idglobal AND idpersona=$idpersona AND str_tipo='principal'";
+      $sql = "SELECT *,
+               (SELECT IFNULL(SUM(
+                  CASE m.str_tipo
+                     WHEN 'aporte' THEN m.dec_valor
+                     WHEN 'ajuste' THEN m.dec_valor
+                     WHEN 'retiro' THEN m.dec_valor
+                     ELSE 0 END
+               ),0) FROM tbl_movimientos m WHERE m.idglobal=$idglobal AND m.idahorro=a.idahorro AND UPPER(m.str_estado) <> 'INACTIVO') AS saldo 
+      FROM `tbl_ahorros` a
+      WHERE a.idglobal=$idglobal 
+      AND a.idpersona=$idpersona 
+      AND a.str_tipo='principal'";
       $query = $conexion->query($sql);
       return $query;
    }
@@ -149,7 +159,7 @@ class MainAccount
                         CASE m.str_tipo
                            WHEN 'aporte' THEN m.dec_valor
                            WHEN 'ajuste' THEN m.dec_valor
-                           WHEN 'retiro' THEN -m.dec_valor
+                           WHEN 'retiro' THEN m.dec_valor
                            ELSE 0 END
                      ),0) AS saldo
                      FROM tbl_movimientos m
@@ -170,7 +180,7 @@ class MainAccount
          $sqlRetiro = "INSERT INTO tbl_movimientos(
                         idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                      ) VALUES (
-                        $idglobal,$idahorroOrigen,$idusuarioCreated,'retiro',$montoSql,'$descRetiro',NULL,'activo','$dt','$dt'
+                        $idglobal,$idahorroOrigen,$idusuarioCreated,'retiro',-$montoSql,'$descRetiro',NULL,'activo','$dt','$dt'
                      )";
          $conexion->query($sqlRetiro) or throw new Exception('No se pudo registrar el retiro en cuenta origen');
 
