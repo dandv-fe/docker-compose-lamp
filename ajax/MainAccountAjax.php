@@ -16,6 +16,31 @@ switch ($_GET['op']) {
       $query = $objMainAccount->goAccount($idglobal, $idpersona);
       echo json_encode($query->fetch_object());
       break;
+   case 'buscarCuentaDestino':
+      $id_cuenta = limpiar_cadena($_REQUEST['id_cuenta'] ?? '');
+
+      if (empty($idglobal) || empty($id_cuenta)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Número de cuenta inválido']);
+         break;
+      }
+
+      $query = $objMainAccount->buscarCuentaDestino($idglobal, $id_cuenta);
+      $req = $query ? $query->fetch_object() : null;
+
+      if (empty($req) || empty($req->nombres) || empty($req->apellidos)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'La cuenta no existe']);
+         break;
+      }
+
+      echo json_encode([
+         'status' => 'success',
+         'idahorro' => $req->idahorro,
+         'idpersona' => $req->idpersona,
+         'id_cuenta' => $req->id_cuenta,
+         'nombres' => $req->nombres,
+         'apellidos' => $req->apellidos
+      ]);
+      break;
    case 'tprincipal':
       if (empty($idglobal) || empty($superadmin)) {
          echo json_encode(['status' => 'error', 'mensaje' => 'Permisos insuficientes']);

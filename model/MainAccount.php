@@ -64,6 +64,23 @@ class MainAccount
       $query = $conexion->query($sql);
       return $query;
    }
+   public function buscarCuentaDestino($idglobal, $id_cuenta)
+   {
+      global $conexion;
+      $sql = "SELECT
+                  a.idahorro,
+                  a.idpersona,
+                  a.id_cuenta,
+                  p.str_nombres AS nombres,
+                  p.str_apellidos AS apellidos
+               FROM tbl_ahorros a
+               INNER JOIN tbl_persona p ON p.idpersona = a.idpersona
+               WHERE a.idglobal=$idglobal
+                 AND a.id_cuenta='$id_cuenta'
+                 AND UPPER(a.str_estado) <> 'INACTIVO'
+               LIMIT 1";
+      return $conexion->query($sql);
+   }
    public function registrarMovimientoRA($idglobal, $idahorro, $idusuario_created, $tipo, $valor, $descripcion, $estado = 'activo')
    {
       // Inserta movimiento; actualización de acumulado se realiza en AhorrosAjax.php

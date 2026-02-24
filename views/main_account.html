@@ -218,7 +218,7 @@
                           placeholder="Número de cuenta">
                       </div>
                       <button type="button" class="btn btn-secondary btnCancelarEnvio">Cancelar</button>
-                      <button type="button" class="btn btn-primary" onclick="stepper.next()">Siguiente</button>
+                      <button type="button" class="btn btn-primary" data-stepper-next="1">Siguiente</button>
                     </div>
 
                     <div id="step-2" class="content" role="tabpanel" aria-labelledby="step-2-trigger">
@@ -231,8 +231,8 @@
                       </div>
                       <button type="button" class="btn btn-secondary btnCancelarEnvio">Cancelar</button>
 
-                      <button type="button" class="btn btn-default" onclick="stepper.previous()">Anterior</button>
-                      <button type="button" class="btn btn-primary" onclick="stepper.next()">Siguiente</button>
+                      <button type="button" class="btn btn-default" data-stepper-prev>Anterior</button>
+                      <button type="button" class="btn btn-primary" data-stepper-next="2">Siguiente</button>
                     </div>
 
                     <div id="step-3" class="content" role="tabpanel" aria-labelledby="step-3-trigger">
@@ -261,7 +261,7 @@
                         <button type="button" class="btn btn-secondary btnCancelarEnvio mr-2">Cancelar</button>
 
                         <button type="button" class="btn btn-default mb-2 mb-sm-0 mr-sm-2"
-                          onclick="stepper.previous()">Anterior</button>
+                          data-stepper-prev>Anterior</button>
                         <button type="button" class="btn btn-success" id="btnFinalizar">Finalizar</button>
                       </div>
                     </div>
@@ -273,10 +273,11 @@
 
 
         </div><!-- /.col -->
-      </div><!-- /.row --></div><!-- /.container-fluid -->
-      </section>
-      <!-- /.content -->
-      </div>
+      </div><!-- /.row -->
+    </div><!-- /.container-fluid -->
+  </section>
+  <!-- /.content -->
+</div>
 
 <!-- Modal Aporte -->
 <div class="modal fade" id="modal-aporte" tabindex="-1" role="dialog" aria-labelledby="modal-aporte-title"
@@ -395,8 +396,89 @@
     stepper = new Stepper(stepperElement)
 
     var nextGuards = {
-      1: function () { return true },
-      2: function () { return true }
+      1: function () {
+        var cuenta = ($('#id_cuenta').val() || '').trim()
+        var cuentaOrigen = ($('#txt_num_cuenta').text() || '').trim()
+        if (!cuenta) {
+          Swal.fire({ icon: 'warning', title: 'Ingrese el número de cuenta' })
+          $('#id_cuenta').focus()
+          return false
+        }
+
+        if (cuentaOrigen && cuenta === cuentaOrigen) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Cuenta inválida',
+            text: 'La cuenta destino no puede ser la misma cuenta origen.'
+          })
+          $('#id_cuenta').focus()
+          return false
+        }
+
+        var $btnNext = $('[data-stepper-next="1"]')
+        $btnNext.prop('disabled', true)
+
+        $.getJSON('./ajax/MainAccountAjax.php?op=buscarCuentaDestino', { id_cuenta: cuenta })
+          .done(function (resp) {
+            if (resp && resp.status === 'success' && resp.nombres && resp.apellidos) {
+              if (cuentaOrigen && (resp.id_cuenta || cuenta) === cuentaOrigen) {
+                Swal.fire({
+                  icon: 'warning',
+                  title: 'Cuenta inválida',
+                  text: 'La cuenta destino no puede ser la misma cuenta origen.'
+                })
+                return
+              }
+
+              var nombreCompleto = (resp.nombres + ' ' + resp.apellidos).trim()
+              var cuentaOrigenMostrar = cuentaOrigen || '-'
+
+              $('#nombre_destinatario').text(nombreCompleto)
+              $('#cuenta_destino').text(resp.id_cuenta || cuenta)
+              $('#cuenta_origen').text(cuentaOrigenMostrar)
+              stepper.next()
+              return
+            }
+
+            Swal.fire({
+              icon: 'warning',
+              title: 'Cuenta no encontrada',
+              text: (resp && resp.mensaje) ? resp.mensaje : 'No existe una cuenta válida para continuar.'
+            })
+          })
+          .fail(function () {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error de consulta',
+              text: 'No fue posible validar la cuenta en este momento.'
+            })
+          })
+          .always(function () {
+            $btnNext.prop('disabled', false)
+          })
+
+        return false
+      },
+      2: function () {
+        var monto = parseFloat($('#monto').val() || 0)
+        if (!monto || monto <= 0) {
+          Swal.fire({ icon: 'warning', title: 'Ingrese un monto válido' })
+          $('#monto').focus()
+          return false
+        }
+
+        var nombre = ($('#nombre_destinatario').text() || '').trim()
+        if (!nombre || nombre === '-') {
+          Swal.fire({ icon: 'warning', title: 'Primero valide la cuenta destino' })
+          return false
+        }
+
+        $('#monto_confirmacion').text('$' + monto.toFixed(2))
+        if (!($('#cuenta_origen').text() || '').trim() || $('#cuenta_origen').text().trim() === '-') {
+          $('#cuenta_origen').text(($('#txt_num_cuenta').text() || '').trim() || '-')
+        }
+        return true
+      }
     }
 
     window.stepperControls = {
@@ -409,7 +491,6 @@
         return nextGuards[stepNumber]
       },
       next: function () {
-        alert("hola")
         stepper.next()
       },
       previous: function () {
