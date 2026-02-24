@@ -21,6 +21,64 @@
     return String(v).replace('T', ' ').substring(0, 19);
   }
 
+  function renderMovimientosDetalle(movimientos) {
+    var $tbody = $('#tbodyMovimientosCorresponsal');
+    if (!$tbody.length) return;
+
+    if (!movimientos || !movimientos.length) {
+      $tbody.html('<tr><td colspan="5" class="text-center text-muted">Sin movimientos</td></tr>');
+      return;
+    }
+
+    var html = movimientos.map(function (m) {
+      var valor = parseFloat(m.dec_valor) || 0;
+      var valorHtml = valor < 0
+        ? '<span class="text-danger font-weight-bold">' + formatMoney(valor) + '</span>'
+        : formatMoney(valor);
+
+      return '<tr>' +
+        '<td>' + escapeHtml(formatDateTime(m.date_movimiento)) + '</td>' +
+        '<td>' + escapeHtml(m.str_tipo || '-') + '</td>' +
+        '<td>' + valorHtml + '</td>' +
+        '<td>' + escapeHtml(m.str_descripcion || '-') + '</td>' +
+        '<td>' + escapeHtml(m.str_estado || '-') + '</td>' +
+        '</tr>';
+    }).join('');
+
+    $tbody.html(html);
+  }
+
+  function cargarMovimientosDetalle(idahorro) {
+    $.getJSON('./ajax/Corres_Ajax.php?op=listMovimientos', { idahorro: idahorro })
+      .done(function (resp) {
+        if (resp && resp.status === 'success' && Array.isArray(resp.data)) {
+          renderMovimientosDetalle(resp.data);
+          return;
+        }
+        renderMovimientosDetalle([]);
+      })
+      .fail(function () {
+        renderMovimientosDetalle([]);
+      });
+  }
+
+  function verDetalle(row) {
+    var nombre = capitalizarPalabras((row.str_nombres || '') + ' ' + (row.str_apellidos || '')) || '-';
+    $('#det_nombre').text(nombre);
+    $('#det_descripcion').text(row.str_name || '-');
+    $('#det_numero').text(row.id_cuenta || '-');
+    $('#det_saldo').text(formatMoney(row.saldo_real));
+    $('#det_estado').text(row.str_estado || '-');
+    $('#det_fecha').text(formatDateTime(row.created_at));
+
+    cargarMovimientosDetalle(row.idahorro || 0);
+
+    $('#verFormulario').addClass('hide');
+    $('#verLista').addClass('hide');
+    $('#btnNuevoCorresponsal').addClass('hide');
+    $('#verDetalle').removeClass('hide');
+  }
+
   function capitalizarPalabras(texto) {
     return String(texto || '')
       .toLowerCase()
@@ -102,21 +160,7 @@
         $('#example1').off('click', '.btn-ver-corresponsal').on('click', '.btn-ver-corresponsal', function () {
           var idx = parseInt($(this).data('idx'), 10);
           var row = datos[idx] || {};
-          var nombre = capitalizarPalabras((row.str_nombres || '') + ' ' + (row.str_apellidos || '')) || '-';
-
-          Swal.fire({
-            icon: 'info',
-            title: 'Detalle corresponsal',
-            html:
-              '<div class="text-left">' +
-              '<p class="mb-1"><strong>Nombre:</strong> ' + escapeHtml(nombre) + '</p>' +
-              '<p class="mb-1"><strong>Descripción:</strong> ' + escapeHtml(row.str_name || '-') + '</p>' +
-              '<p class="mb-1"><strong>Número:</strong> ' + escapeHtml(row.id_cuenta || '-') + '</p>' +
-              '<p class="mb-1"><strong>Saldo:</strong> ' + formatMoney(row.saldo_real) + '</p>' +
-              '<p class="mb-1"><strong>Estado:</strong> ' + escapeHtml(row.str_estado || '-') + '</p>' +
-              '<p class="mb-0"><strong>Fecha:</strong> ' + escapeHtml(formatDateTime(row.created_at)) + '</p>' +
-              '</div>'
-          });
+          verDetalle(row);
         });
 
         $('#example1').off('click', '.btn-editar-corresponsal').on('click', '.btn-editar-corresponsal', function () {
@@ -165,11 +209,13 @@
       cargarEmpleados();
       $('#verFormulario').removeClass('hide');
       $('#verLista').addClass('hide');
+      $('#verDetalle').addClass('hide');
       $('#btnNuevoCorresponsal').addClass('hide');
     },
     verListado: function () {
       $('#verFormulario').addClass('hide');
       $('#verLista').removeClass('hide');
+      $('#verDetalle').addClass('hide');
       $('#btnNuevoCorresponsal').removeClass('hide');
     },
 

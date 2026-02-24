@@ -151,6 +151,47 @@
             </div>
             <!-- /.card-body -->
           </div>
+          <div id="verDetalle" class="card hide">
+            <div class="card-header d-flex align-items-center justify-content-between flex-wrap">
+              <h3 class="card-title mb-0">Detalle corresponsal</h3>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="Corresponsal.verListado()">
+                <i class="fas fa-arrow-left"></i> Volver
+              </button>
+            </div>
+            <div class="card-body">
+              <div class="row mb-3">
+                <div class="col-md-8">
+                  <p class="mb-1"><strong>Nombre:</strong> <span id="det_nombre">-</span></p>
+                  <p class="mb-1"><strong>Descripción:</strong> <span id="det_descripcion">-</span></p>
+                  <p class="mb-1"><strong>Número:</strong> <span id="det_numero">-</span></p>
+                </div>
+                <div class="col-md-4 text-md-right">
+                  <p class="mb-1"><strong>Saldo:</strong> <span id="det_saldo">$0.00</span></p>
+                  <p class="mb-1"><strong>Estado:</strong> <span id="det_estado">-</span></p>
+                  <p class="mb-1"><strong>Fecha:</strong> <span id="det_fecha">-</span></p>
+                </div>
+              </div>
+
+              <div class="table-responsive">
+                <table class="table table-bordered table-striped">
+                  <thead>
+                    <tr>
+                      <th>Fecha movimiento</th>
+                      <th>Tipo</th>
+                      <th>Valor</th>
+                      <th>Descripción</th>
+                      <th>Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbodyMovimientosCorresponsal">
+                    <tr>
+                      <td colspan="5" class="text-center text-muted">Sin movimientos</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
           <!-- /.card -->
         </div>
         <!-- /.col -->

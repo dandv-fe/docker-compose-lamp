@@ -198,6 +198,23 @@ class Corresponsal
 
       return $conexion->query($sql);
    }
+
+   public function listarMovimientos($idglobal, $idahorro)
+   {
+      global $conexion;
+      $sql = "SELECT
+                idmovimiento,
+                date_movimiento,
+                str_tipo,
+                dec_valor,
+                str_descripcion,
+                str_estado
+              FROM tbl_movimientos
+              WHERE idglobal=$idglobal
+                AND idahorro=$idahorro
+              ORDER BY date_movimiento DESC, idmovimiento DESC";
+      return $conexion->query($sql);
+   }
 }
 /*
 1

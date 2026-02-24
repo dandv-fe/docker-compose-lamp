@@ -115,4 +115,26 @@ switch ($_GET['op']) {
       }
       echo json_encode($data);
       break;
+   case 'listMovimientos':
+      $idahorro = intval($_REQUEST['idahorro'] ?? 0);
+      if ($idahorro <= 0) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Ahorro inválido']);
+         break;
+      }
+
+      $query = $objCorresponsal->listarMovimientos($idglobal, $idahorro);
+      $data = [];
+      while ($reg = $query->fetch_object()) {
+         $data[] = [
+            'idmovimiento' => $reg->idmovimiento,
+            'date_movimiento' => $reg->date_movimiento,
+            'str_tipo' => $reg->str_tipo,
+            'dec_valor' => $reg->dec_valor,
+            'str_descripcion' => $reg->str_descripcion,
+            'str_estado' => $reg->str_estado
+         ];
+      }
+
+      echo json_encode(['status' => 'success', 'data' => $data]);
+      break;
 }
