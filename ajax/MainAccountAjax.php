@@ -101,4 +101,30 @@ switch ($_GET['op']) {
 
       echo json_encode(['status' => 'success', 'mensaje' => 'Movimiento registrado']);
       break;
+
+   case 'finalizarEnvioPrincipal':
+      $idahorroOrigen = intval($_POST['idahorroOrigen'] ?? 0);
+      $idahorroDestino = intval($_POST['idahorroDestino'] ?? 0);
+      $monto = floatval($_POST['monto'] ?? 0);
+
+      if (empty($idglobal) || empty($_SESSION['idusuario'])) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Sesión no válida']);
+         break;
+      }
+
+      if ($idahorroOrigen <= 0 || $idahorroDestino <= 0 || $monto <= 0) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Datos incompletos para finalizar el envío']);
+         break;
+      }
+
+      $resultado = $objMainAccount->finalizarEnvioPrincipal(
+         $idglobal,
+         $idahorroOrigen,
+         $idahorroDestino,
+         intval($_SESSION['idusuario']),
+         $monto
+      );
+
+      echo json_encode($resultado);
+      break;
 }

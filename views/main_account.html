@@ -417,6 +417,7 @@
 
         var $btnNext = $('[data-stepper-next="1"]')
         $btnNext.prop('disabled', true)
+        $('#stepperForm').removeData('idahorroDestino')
 
         $.getJSON('./ajax/MainAccountAjax.php?op=buscarCuentaDestino', { id_cuenta: cuenta })
           .done(function (resp) {
@@ -436,6 +437,7 @@
               $('#nombre_destinatario').text(nombreCompleto)
               $('#cuenta_destino').text(resp.id_cuenta || cuenta)
               $('#cuenta_origen').text(cuentaOrigenMostrar)
+              $('#stepperForm').data('idahorroDestino', parseInt(resp.idahorro || 0, 10))
               stepper.next()
               return
             }

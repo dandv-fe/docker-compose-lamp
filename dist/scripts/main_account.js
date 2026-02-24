@@ -252,10 +252,72 @@
     // Solo enviar desde el botón finalizar
     $(document).on('click', '#btnFinalizar, [data-action="finalizar"]', function (e) {
       e.preventDefault();
-      Swal.fire({
-        icon: 'info',
-        title: 'Funcionalidad no disponible',
-        text: 'La funcionalidad de envío no está implementada en esta versión.'
+
+      var idahorroOrigen = parseInt($('#idahorro').val() || 0, 10);
+      var idahorroDestino = parseInt($('#stepperForm').data('idahorroDestino') || 0, 10);
+      var monto = parseFloat($('#monto').val() || 0);
+
+      if (!idahorroOrigen || !idahorroDestino || !monto || monto <= 0) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Datos incompletos',
+          text: 'Valide cuenta destino y monto antes de finalizar.'
+        });
+        return;
+      }
+
+      if (idahorroOrigen === idahorroDestino) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'Cuenta inválida',
+          text: 'La cuenta destino no puede ser la misma cuenta origen.'
+        });
+        return;
+      }
+
+      var $btnFinalizar = $('#btnFinalizar');
+      $btnFinalizar.prop('disabled', true);
+
+      $.ajax({
+        url: './ajax/MainAccountAjax.php?op=finalizarEnvioPrincipal',
+        method: 'POST',
+        dataType: 'json',
+        data: {
+          idahorroOrigen: idahorroOrigen,
+          idahorroDestino: idahorroDestino,
+          monto: monto
+        }
+      }).done(function (resp) {
+        if (resp && resp.status === 'success') {
+          Swal.fire({
+            icon: 'success',
+            title: 'Transferencia realizada',
+            text: resp.mensaje || 'El envío fue registrado correctamente.'
+          });
+
+          $('#stepperForm')[0].reset();
+          $('#stepperForm').removeData('idahorroDestino');
+          if (typeof stepper !== 'undefined' && stepper) {
+            stepper.reset();
+          }
+
+          verCuenta();
+          goAccount();
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'No fue posible finalizar',
+            text: (resp && resp.mensaje) ? resp.mensaje : 'No se pudo registrar la transferencia.'
+          });
+        }
+      }).fail(function () {
+        Swal.fire({
+          icon: 'error',
+          title: 'Error de comunicación',
+          text: 'No se pudo contactar el servidor.'
+        });
+      }).always(function () {
+        $btnFinalizar.prop('disabled', false);
       });
     });
 
@@ -263,6 +325,7 @@
       e.preventDefault();
       // resetear formulario
       $('#stepperForm')[0].reset();
+      $('#stepperForm').removeData('idahorroDestino');
       stepper.reset();
       verCuenta();
     });
