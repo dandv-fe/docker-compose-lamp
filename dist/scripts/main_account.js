@@ -9,6 +9,8 @@
 
   function renderProfile(data) {
     if (!data) return;
+    $('#txt_account_name').text((data.str_name || '').trim() || 'Cuenta Principal');
+    $('#txt_account_created').text('Creación: ' + ((data.created_at || '').trim() || '-'));
     $('#txt_num_cuenta').text(data.id_cuenta || '');
     $('#txt_name_ahorrador').text((data.nombres || '') + ' ' + (data.apellidos || ''));
     $('#txt_tipo_documento_ahorrador').text(data.t_documento || '');
@@ -54,6 +56,68 @@
       })
       .fail(function () {
         renderResumenSaldos(null);
+      });
+  }
+
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function renderMovimientosPrincipal(rows) {
+    var $tbody = $('#tbodyMovimientosPrincipal');
+    if (!$tbody.length) return;
+
+    if (!rows || !rows.length) {
+      $tbody.html('<tr><td colspan="5" class="text-center text-muted">Sin movimientos</td></tr>');
+      return;
+    }
+
+    var html = rows.map(function (r) {
+      var valor = parseFloat(r.dec_valor) || 0;
+      var valorHtml = valor < 0
+        ? '<span class="text-danger font-weight-bold">' + formatMoney(valor) + '</span>'
+        : formatMoney(valor);
+
+      return '<tr ' +
+        'data-idmovimiento="' + escapeHtml(r.idmovimiento) + '" ' +
+        'data-idglobal="' + escapeHtml(r.idglobal) + '" ' +
+        'data-idahorro="' + escapeHtml(r.idahorro) + '" ' +
+        'data-idusuario-created="' + escapeHtml(r.idusuario_created) + '" ' +
+        'data-int-codigo="' + escapeHtml(r.int_codigo || '') + '" ' +
+        'data-update-at="' + escapeHtml(r.update_at || '') + '">' +
+        '<td>' + escapeHtml(r.date_movimiento) + '</td>' +
+        '<td>' + escapeHtml(r.str_tipo) + '</td>' +
+        '<td>' + valorHtml + '</td>' +
+        '<td>' + escapeHtml(r.str_descripcion) + '</td>' +
+        '<td>' + escapeHtml(r.str_estado) + '</td>' +
+        '</tr>';
+    }).join('');
+
+    $tbody.html(html);
+  }
+
+  function loadMovimientosPrincipal(idahorro) {
+    var ahorro = parseInt(idahorro || 0, 10);
+    if (!ahorro) {
+      renderMovimientosPrincipal([]);
+      return;
+    }
+
+    $.getJSON('./ajax/MainAccountAjax.php?op=listMovimientos', { idahorro: ahorro })
+      .done(function (resp) {
+        if (resp && resp.status === 'success' && Array.isArray(resp.data)) {
+          renderMovimientosPrincipal(resp.data);
+          return;
+        }
+        renderMovimientosPrincipal([]);
+      })
+      .fail(function () {
+        renderMovimientosPrincipal([]);
       });
   }
 
@@ -205,6 +269,7 @@
           $('#form-aporte')[0].reset();
           goAccount();
           loadResumenSaldos();
+          loadMovimientosPrincipal($('#idahorro').val());
         } else {
           var msg = (resp && resp.mensaje) ? resp.mensaje : 'No se pudo registrar el aporte';
           Swal.fire({ icon: 'error', title: msg });
@@ -229,6 +294,7 @@
           console.log('Cuenta principal encontrada:', data);
           renderProfile(data);
           loadResumenSaldos();
+          loadMovimientosPrincipal(data.idahorro || $('#idahorro').val());
 
         } else {
           Swal.fire({
@@ -338,6 +404,7 @@
           verCuenta();
           goAccount();
           loadResumenSaldos();
+          loadMovimientosPrincipal($('#idahorro').val());
         } else {
           Swal.fire({
             icon: 'error',

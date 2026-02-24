@@ -138,6 +138,31 @@ class MainAccount
          'total' => $total
       ];
    }
+
+   public function listarMovimientosPorAhorro($idglobal, $idahorro)
+   {
+      global $conexion;
+
+      $sql = "SELECT
+                  idmovimiento,
+                  idglobal,
+                  idahorro,
+                  idusuario_created,
+                  date_movimiento,
+                  str_tipo,
+                  dec_valor,
+                  str_descripcion,
+                  int_codigo,
+                  str_estado,
+                  created_at,
+                  update_at
+              FROM tbl_movimientos
+              WHERE idglobal=$idglobal
+                AND idahorro=$idahorro
+              ORDER BY date_movimiento DESC, idmovimiento DESC";
+
+      return $conexion->query($sql);
+   }
    public function registrarMovimientoRA($idglobal, $idahorro, $idusuario_created, $tipo, $valor, $descripcion, $estado = 'activo')
    {
       // Inserta movimiento; actualización de acumulado se realiza en AhorrosAjax.php

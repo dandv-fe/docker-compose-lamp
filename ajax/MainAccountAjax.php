@@ -50,6 +50,25 @@ switch ($_GET['op']) {
       $resumen = $objMainAccount->obtenerResumenSaldos($idglobal, $idpersona);
       echo json_encode($resumen);
       break;
+   case 'listMovimientos':
+      $idahorro = intval($_REQUEST['idahorro'] ?? 0);
+
+      if (empty($idglobal) || $idahorro <= 0) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Parámetros inválidos']);
+         break;
+      }
+
+      $query = $objMainAccount->listarMovimientosPorAhorro($idglobal, $idahorro);
+      $data = [];
+
+      if ($query) {
+         while ($row = $query->fetch_assoc()) {
+            $data[] = $row;
+         }
+      }
+
+      echo json_encode(['status' => 'success', 'data' => $data]);
+      break;
    case 'tprincipal':
       if (empty($idglobal) || empty($superadmin)) {
          echo json_encode(['status' => 'error', 'mensaje' => 'Permisos insuficientes']);
