@@ -7,6 +7,27 @@
     return '$' + n.toFixed(2);
   }
 
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  function formatDateTime(v) {
+    if (!v) return '-';
+    return String(v).replace('T', ' ').substring(0, 19);
+  }
+
+  function capitalizarPalabras(texto) {
+    return String(texto || '')
+      .toLowerCase()
+      .replace(/\b\w/g, function (letra) { return letra.toUpperCase(); })
+      .trim();
+  }
+
   function renderProfile(data) {
     if (!data) return;
     $('#txt_num_cuenta').text(data.n_documento || '');
@@ -56,16 +77,65 @@
         tabla.clear().draw();
         for (let i = 0; i < datos.length; i++) {
           const val = datos[i];
+          var nombrePersona = capitalizarPalabras((val['str_nombres'] || '') + ' ' + (val['str_apellidos'] || '')) || 'Sin Nombre';
+          var foto = (val['str_foto'] || '').trim();
+          var fotoHtml = foto
+            ? '<img src="' + escapeHtml(foto) + '" class="img-circle mr-2" style="width:32px;height:32px;object-fit:cover;" alt="foto">'
+            : '<span class="avatar bg-secondary text-white rounded-circle d-inline-flex align-items-center justify-content-center mr-2" style="width:32px;height:32px;">' +
+            escapeHtml(nombrePersona.charAt(0).toUpperCase()) + '</span>';
+
+          var btnVer = '<button type="button" class="btn btn-info btn-sm mr-1 btn-ver-corresponsal" data-idx="' + i + '"><i class="fas fa-eye"></i></button>';
+          var btnEditar = '<button type="button" class="btn btn-warning btn-sm btn-editar-corresponsal" data-idx="' + i + '"><i class="fas fa-edit"></i></button>';
+
           tabla.row
             .add([
-              capitalizarPalabras(val['str_name']),
+              '<div class="d-flex align-items-center">' + fotoHtml + '<span>' + escapeHtml(nombrePersona) + '</span></div>',
+              escapeHtml(val['str_name']),
               val['id_cuenta'],
-              'saldo disponible',
-              val['str_estado'],
-              '',
-              'botones'
+              formatMoney(val['saldo_real']),
+              escapeHtml(val['str_estado']),
+              formatDateTime(val['created_at']),
+              btnVer + btnEditar
             ]).draw(false);
         }
+
+        $('#example1').off('click', '.btn-ver-corresponsal').on('click', '.btn-ver-corresponsal', function () {
+          var idx = parseInt($(this).data('idx'), 10);
+          var row = datos[idx] || {};
+          var nombre = capitalizarPalabras((row.str_nombres || '') + ' ' + (row.str_apellidos || '')) || '-';
+
+          Swal.fire({
+            icon: 'info',
+            title: 'Detalle corresponsal',
+            html:
+              '<div class="text-left">' +
+              '<p class="mb-1"><strong>Nombre:</strong> ' + escapeHtml(nombre) + '</p>' +
+              '<p class="mb-1"><strong>Descripción:</strong> ' + escapeHtml(row.str_name || '-') + '</p>' +
+              '<p class="mb-1"><strong>Número:</strong> ' + escapeHtml(row.id_cuenta || '-') + '</p>' +
+              '<p class="mb-1"><strong>Saldo:</strong> ' + formatMoney(row.saldo_real) + '</p>' +
+              '<p class="mb-1"><strong>Estado:</strong> ' + escapeHtml(row.str_estado || '-') + '</p>' +
+              '<p class="mb-0"><strong>Fecha:</strong> ' + escapeHtml(formatDateTime(row.created_at)) + '</p>' +
+              '</div>'
+          });
+        });
+
+        $('#example1').off('click', '.btn-editar-corresponsal').on('click', '.btn-editar-corresponsal', function () {
+          var idx = parseInt($(this).data('idx'), 10);
+          var row = datos[idx] || {};
+
+          $('#idahorro').val(row.idahorro || '');
+          $('#dec_porcentaje').val(row.dec_porcentaje || '');
+          $('#str_name').val(row.str_name || '');
+          $('#str_pago_utilidad').val(row.str_pago_utilidad || 'manual');
+          $('#str_estado').val(row.str_estado || 'activo');
+
+          var auth = (row.bit_auth_movimientos == 1 || row.bit_auth_movimientos === '1');
+          $('#auth_movimientos').prop('checked', auth);
+          $('#bit_auth_movimientos').val(auth ? 'true' : 'false');
+
+          Corresponsal.verFormulario();
+          cargarEmpleados(row.idpersona || '');
+        });
       },
       error: function (e) {
         console.log(e.responseText);
@@ -74,9 +144,13 @@
   }
 
 
-  function cargarEmpleados() {
-    $.get("./ajax/Corres_Ajax.php?op=listEmpleados", function (html) {
+  function cargarEmpleados(selectedId) {
+    var idahorroActual = parseInt($('#idahorro').val() || 0, 10) || 0;
+    $.get("./ajax/Corres_Ajax.php?op=listEmpleados", { idahorro: idahorroActual }, function (html) {
       $("#str_empleado").html(html);
+      if (selectedId) {
+        $("#str_empleado").val(String(selectedId));
+      }
     }).fail(function () {
       $("#str_empleado").html('<option value="">No se pudo cargar</option>');
     });
@@ -133,7 +207,7 @@
         $("#formCorresponsal")[0].reset();
         $("#idahorro").val('');
         Corresponsal.verListado();
-        //listarCorresponsales();
+        listarCorresponsales();
       },
       error: function (e) {
         console.error('Error AJAX corresponsal', e.responseText || e);
