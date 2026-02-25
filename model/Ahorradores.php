@@ -279,28 +279,32 @@ class Ahorradores
       global $conexion;
 
       $sql = "SELECT 
-            a.idahorro AS refAhorro,
             p.idpersona AS refPersona,
             CONCAT(p.str_nombres,' ',p.str_apellidos) AS ahorrador,
-            p.str_foto AS foto,
+         p.str_foto AS foto,
             p.str_tipo_documento AS tDocumento,
             p.str_num_documento AS nDocumento,
             p.str_telefono AS tel,
-            a.dec_porcentaje AS porcentaje,
-            a.str_pago_utilidad AS pago_utilidad,
-            a.bit_auth_movimientos AS auth_movimientos,
-            a.str_estado AS estado,
-            a.created_at AS fecha_creacion
-
-         FROM (
-            SELECT MAX(idahorro) AS idahorro
-            FROM tbl_ahorros
-            WHERE idglobal=$idglobal AND str_estado<>'INACTIVO'
-            GROUP BY idpersona
-         ) ult
-         INNER JOIN tbl_ahorros a ON a.idahorro=ult.idahorro
-         INNER JOIN tbl_persona p ON p.idpersona=a.idpersona
-         ORDER BY a.created_at";
+            p.str_email AS email,
+            CONCAT(
+               COALESCE(p.str_direccion_departamento,''),
+               IF(p.str_direccion_departamento IS NOT NULL AND p.str_direccion_departamento<>'', ', ', ''),
+               COALESCE(p.str_direccion_ciudad,''),
+               IF(p.str_direccion_ciudad IS NOT NULL AND p.str_direccion_ciudad<>'', ', ', ''),
+               COALESCE(p.str_direccion_barrio,''),
+               IF(p.str_direccion_barrio IS NOT NULL AND p.str_direccion_barrio<>'', ', ', ''),
+               COALESCE(p.str_direccion_calle,'')
+            ) AS direccion,
+            p.created_at AS fecha_creacion
+         FROM tbl_persona p
+         WHERE p.idglobal=$idglobal
+           AND EXISTS (
+              SELECT 1
+              FROM tbl_ahorros a
+              WHERE a.idpersona=p.idpersona
+                AND a.idglobal=$idglobal
+           )
+         ORDER BY p.created_at DESC";
       $query = $conexion->query($sql);
       return $query;
    }

@@ -329,27 +329,97 @@ switch ($_GET["op"]) {
          // Botón ver perfil/configuración
          $btnPerfil = '<button class="btn btn-info btn-sm" title="Ver Perfil" onclick="cargarDataAhorrador(\'' . $reg->tDocumento . '\',\'' . $reg->nDocumento . '\',\'perfil\')"><i class="fa-solid fa-user-gear" style="color: #000000;"></i></button>&nbsp;';
 
-         // Formatear estado
-         $estadoBadge = $reg->estado == 'ACTIVO' ? '<span class="badge badge-success">Activo</span>' : '<span class="badge badge-danger">' . $reg->estado . '</span>';
-
-         // Formatear porcentaje
-         $porcentaje = number_format($reg->porcentaje, 1) . '%';
-
-         // Formatear auth movimientos
-         $authMovimientos = $reg->auth_movimientos == 1 ? '<span class="badge badge-success">Sí</span>' : '<span class="badge badge-secondary">No</span>';
-
          // Formatear fecha
          $fechaCreacion = date('d/m/Y', strtotime($reg->fecha_creacion));
 
+         $direccion = trim($reg->direccion);
+         if ($direccion === '' || $direccion === ', , ,') {
+            $direccion = 'No definida';
+         }
+
+         $nombrePlano = trim((string)$reg->ahorrador);
+         $nombrePartes = preg_split('/\s+/', $nombrePlano);
+         $inicialesNombre = '';
+         foreach ($nombrePartes as $parteNombre) {
+            if ($parteNombre !== '') {
+               $inicialesNombre .= mb_strtoupper(mb_substr($parteNombre, 0, 1, 'UTF-8'), 'UTF-8');
+            }
+         }
+         $inicialesNombre = mb_substr($inicialesNombre, 0, 3, 'UTF-8');
+         if ($inicialesNombre === '') {
+            $inicialesNombre = 'N/A';
+         }
+
+         $tipoDocumentoPlano = trim((string)$reg->tDocumento);
+         $tipoDocumentoNormalizado = mb_strtolower($tipoDocumentoPlano, 'UTF-8');
+         $tipoDocumentoPartes = preg_split('/\s+/', $tipoDocumentoNormalizado);
+         $conectores = ['de', 'del', 'la', 'las', 'el', 'los', 'y', 'e'];
+         $palabrasSignificativas = [];
+
+         $mapaTipos = [
+            'cedula de ciudadania' => 'CC',
+            'cédula de ciudadanía' => 'CC',
+            'tarjeta de identidad' => 'TI',
+            'cedula de extranjeria' => 'CE',
+            'cédula de extranjería' => 'CE',
+            'pasaporte' => 'PA',
+            'registro civil' => 'RC',
+            'permiso especial de permanencia' => 'PEP',
+            'permiso por proteccion temporal' => 'PPT',
+            'permiso por protección temporal' => 'PPT'
+         ];
+
+         if (isset($mapaTipos[$tipoDocumentoNormalizado])) {
+            $tipoDocumentoIniciales = $mapaTipos[$tipoDocumentoNormalizado];
+         } else {
+
+            foreach ($tipoDocumentoPartes as $parteTipo) {
+               $parteTipo = trim($parteTipo);
+               if ($parteTipo !== '' && !in_array($parteTipo, $conectores, true)) {
+                  $palabrasSignificativas[] = $parteTipo;
+               }
+            }
+
+            if (count($palabrasSignificativas) >= 2) {
+               $primera = mb_substr($palabrasSignificativas[0], 0, 1, 'UTF-8');
+               $ultima = mb_substr($palabrasSignificativas[count($palabrasSignificativas) - 1], 0, 1, 'UTF-8');
+               $tipoDocumentoIniciales = mb_strtoupper($primera . $ultima, 'UTF-8');
+            } elseif (count($palabrasSignificativas) === 1) {
+               $unica = mb_substr($palabrasSignificativas[0], 0, 1, 'UTF-8');
+               $tipoDocumentoIniciales = mb_strtoupper($unica . $unica, 'UTF-8');
+            } else {
+               $tipoDocumentoIniciales = 'DO';
+            }
+         }
+
+         $nombreEsc = htmlspecialchars($nombrePlano, ENT_QUOTES, 'UTF-8');
+         $numeroDocumentoEsc = htmlspecialchars((string)$reg->nDocumento, ENT_QUOTES, 'UTF-8');
+         $fotoEsc = htmlspecialchars((string)$reg->foto, ENT_QUOTES, 'UTF-8');
+
+         if (!empty($reg->foto)) {
+            $avatarHtml = '<img src="' . $fotoEsc . '" alt="Foto" class="rounded-circle mr-2" style="width:32px;height:32px;object-fit:cover;">';
+         } else {
+            $avatarHtml = '<span class="avatar bg-secondary text-white rounded-circle d-inline-flex align-items-center justify-content-center mr-2" style="width:32px;height:32px;">' . mb_substr($inicialesNombre, 0, 1, 'UTF-8') . '</span>';
+         }
+
+         $nombreHtml = '<div class="d-flex align-items-center">' .
+            $avatarHtml .
+            '<span>' . $nombreEsc . '</span>' .
+            '</div>';
+
+         $documentoHtml = '<div class="d-flex align-items-center">' .
+            '<span class="mr-2 font-weight-bold">' . $tipoDocumentoIniciales . '</span>' .
+            '<span>' . $numeroDocumentoEsc . '</span>' .
+            '</div>';
+
          $data[] = array(
-            "0" => $reg->ahorrador,
-            "1" => '<p>' . $reg->tDocumento . '</p><p>' . $reg->nDocumento . '</p>',
-            "2" => $porcentaje,
-            "3" => $reg->pago_utilidad ?: 'No definido',
-            "4" => $authMovimientos,
-            "5" => $estadoBadge,
-            "6" => $fechaCreacion,
-            "7" => $btnEditar . $btnPerfil
+            "0" => $nombreHtml,
+            "1" => $documentoHtml,
+            "2" => $reg->tel ?: 'No definido',
+            "3" => $reg->email ?: 'No definido',
+            "4" => $direccion,
+            "5" => $fechaCreacion,
+            "6" => $btnEditar . $btnPerfil
          );
       }
       echo json_encode($data);

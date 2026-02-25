@@ -247,14 +247,13 @@ function ListadoAhorradores() {
       for (let i = 0; i < datos.length; i++) {
         const val = datos[i];
         tabla.row.add([
-          capitalizarPalabras(val[0]), // Nombre
+          val[0], // Nombre (con foto/inicial)
           val[1], // Documento
-          val[2], // Porcentaje
-          val[3], // Tipo Pago
-          val[4], // Auth Movimientos
-          val[5], // Estado
-          val[6], // Fecha Creación
-          val[7]  // Opciones
+          val[2], // Teléfono
+          val[3], // Email
+          val[4], // Dirección
+          val[5], // Fecha Creación
+          val[6]  // Opciones
         ]).draw(false);
       }
     },
