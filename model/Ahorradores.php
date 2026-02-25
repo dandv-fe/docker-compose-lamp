@@ -1,7 +1,7 @@
 <?php
 require "Conexion.php";
 
-class Ahorros
+class Ahorradores
 {
 
 
@@ -292,9 +292,15 @@ class Ahorros
             a.str_estado AS estado,
             a.created_at AS fecha_creacion
 
-         FROM tbl_ahorros a INNER JOIN
-            tbl_persona p ON p.idpersona=a.idpersona
-         WHERE a.idglobal=$idglobal AND a.str_estado<>'INACTIVO' ORDER BY a.idahorro DESC";
+         FROM (
+            SELECT MAX(idahorro) AS idahorro
+            FROM tbl_ahorros
+            WHERE idglobal=$idglobal AND str_estado<>'INACTIVO'
+            GROUP BY idpersona
+         ) ult
+         INNER JOIN tbl_ahorros a ON a.idahorro=ult.idahorro
+         INNER JOIN tbl_persona p ON p.idpersona=a.idpersona
+         ORDER BY a.created_at";
       $query = $conexion->query($sql);
       return $query;
    }
