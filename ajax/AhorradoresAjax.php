@@ -467,6 +467,30 @@ switch ($_GET["op"]) {
       echo json_encode($data);
       break;
 
+   case 'listMovimientosPersona':
+      $refPersona = limpiar_cadena($_POST['refPersona'] ?? '');
+      if (empty($refPersona)) {
+         echo json_encode([]);
+         break;
+      }
+
+      $query = $objAhorradores->listarMovimientosPersona($idglobal, $refPersona);
+      $data = [];
+      while ($r = $query->fetch_object()) {
+         $fecha = !empty($r->fecha) ? date('d/m/Y H:i', strtotime($r->fecha)) : '-';
+         $monto = '$' . number_format(floatval($r->monto ?? 0), 2, '.', ',');
+         $data[] = [
+            $fecha,
+            $r->cuenta,
+            $r->tipo,
+            $monto,
+            $r->descripcion,
+            $r->estado
+         ];
+      }
+      echo json_encode($data);
+      break;
+
    case 'listAhorrosPersona':
       $refPersona = limpiar_cadena($_POST['refPersona'] ?? '');
       if (empty($refPersona)) {
@@ -488,7 +512,9 @@ switch ($_GET["op"]) {
             $auth,
             $r->estado,
             $fecha,
-            '-'
+            '-',
+            intval($r->idahorro ?? 0),
+            number_format(floatval($r->saldo_disponible ?? 0), 2, '.', '')
          ];
       }
       echo json_encode($data);

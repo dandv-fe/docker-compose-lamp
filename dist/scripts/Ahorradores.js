@@ -22,6 +22,10 @@ jQuery(document).ready(function () {
       const refPersona = $("#txt_idpersona_ah").val();
       listarAhorrosPersona(refPersona);
 
+    } else if ($(e.target).attr('id') === 'custom-tabs-movimientos-tab') {
+      const refPersona = $("#txt_idpersona_ah").val();
+      listarMovimientosPersona(refPersona);
+
     } else if ($(e.target).attr('id') === 'custom-tabs-configuracion-tab') {
       const ref = $("#txtRefAhorroConfig").val();
       // console.log(ref);
@@ -210,6 +214,7 @@ function ListadoAhorradores() {
     data: {},
     dataType: "json",
     success: function (datos) {
+      console.log('listAhorrosPersona -> registros:', Array.isArray(datos) ? datos.length : 'no-array', datos);
       tabla.clear().draw();
       for (let i = 0; i < datos.length; i++) {
         const val = datos[i];
@@ -270,6 +275,143 @@ function listarGanancias() {
   });
 }
 
+let exploradorAhorrosData = [];
+let exploradorAhorroIndex = -1;
+
+function limpiarHtmlTexto(valor) {
+  return $('<div>').html(valor == null ? '' : String(valor)).text().trim();
+}
+
+function formatearMoneda(valor) {
+  const numero = parseFloat(valor);
+  const seguro = Number.isFinite(numero) ? numero : 0;
+  return '$' + seguro.toFixed(2);
+}
+
+function renderExploradorAhorros(datos) {
+  const $track = $("#ahorroSlideTrack");
+  const $ficha = $("#ahorroFicha");
+  const $listaMovs = $("#fichaMovimientosLista");
+
+  if (!$track.length) return;
+
+  $track.empty();
+  $listaMovs.empty();
+  exploradorAhorrosData = [];
+  exploradorAhorroIndex = -1;
+
+  const items = Array.isArray(datos) ? datos : [];
+  if (!items.length) {
+    $ficha.addClass('d-none');
+    $track.append($('<div>').addClass('text-muted small px-1').text('Sin cuentas disponibles.'));
+    return;
+  }
+
+  items.forEach(function (val, index) {
+    const info = {
+      nombre: limpiarHtmlTexto(val[0]),
+      cuenta: limpiarHtmlTexto(val[1]),
+      tipo: limpiarHtmlTexto(val[2]),
+      pago: limpiarHtmlTexto(val[3]),
+      estado: limpiarHtmlTexto(val[5]),
+      idAhorro: parseInt(val[8], 10) || 0,
+      saldo: parseFloat(val[9]) || 0
+    };
+
+    exploradorAhorrosData.push(info);
+
+    const $card = $('<button type="button">')
+      .addClass('ahorro-slide-card btn btn-light text-left')
+      .attr('data-index', index);
+
+    $card.append($('<div>').addClass('font-weight-bold text-truncate').text(info.nombre || ('Cuenta #' + (index + 1))));
+    $card.append($('<small>').addClass('text-muted d-block').text('N° ' + (info.cuenta || '-')));
+    $card.append($('<small>').addClass('text-success d-block').text(formatearMoneda(info.saldo)));
+    $track.append($card);
+  });
+
+  $ficha.removeClass('d-none');
+  seleccionarAhorroSlide(0);
+}
+
+function seleccionarAhorroSlide(index) {
+  if (index < 0 || index >= exploradorAhorrosData.length) return;
+
+  exploradorAhorroIndex = index;
+  const info = exploradorAhorrosData[index];
+
+  $("#ahorroSlideTrack .ahorro-slide-card").removeClass('active');
+  const $card = $("#ahorroSlideTrack .ahorro-slide-card[data-index='" + index + "']").addClass('active');
+
+  if ($card.length && $card[0].scrollIntoView) {
+    $card[0].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  }
+
+  $("#fichaNombreAhorro").text(info.nombre || '-');
+  $("#fichaCuentaAhorro").text(info.cuenta || '-');
+  $("#fichaSaldoAhorro").text(formatearMoneda(info.saldo));
+  $("#fichaTipoAhorro").text(info.tipo || '-');
+  $("#fichaEstadoAhorro").text(info.estado || '-');
+
+  $("#fichaMovimientosLista").empty();
+  $("#fichaMovimientosInfo").text('Últimos movimientos de la cuenta seleccionada.');
+
+  if ($("#ficha-tab-movimientos").hasClass('active')) {
+    cargarMovimientosFicha(info.idAhorro);
+  }
+}
+
+function cargarMovimientosFicha(idAhorro) {
+  const $lista = $("#fichaMovimientosLista");
+  const $info = $("#fichaMovimientosInfo");
+
+  $lista.empty();
+
+  if (!idAhorro) {
+    $info.text('La cuenta no tiene identificador para consultar movimientos.');
+    return;
+  }
+
+  $info.text('Cargando movimientos...');
+
+  $.ajax({
+    url: './ajax/AhorradoresAjax.php?op=listMovimientos',
+    type: 'POST',
+    data: { refAhorro: idAhorro },
+    dataType: 'json',
+    success: function (datos) {
+      $lista.empty();
+      const items = Array.isArray(datos) ? datos.slice(0, 5) : [];
+
+      if (!items.length) {
+        $info.text('Sin movimientos registrados para esta cuenta.');
+        return;
+      }
+
+      $info.text('Mostrando los últimos movimientos.');
+
+      items.forEach(function (mov) {
+        const fecha = limpiarHtmlTexto(mov[0]);
+        const tipo = limpiarHtmlTexto(mov[1]);
+        const monto = formatearMoneda(mov[2]);
+        const descripcion = limpiarHtmlTexto(mov[3]);
+
+        const $li = $('<li>').addClass('list-group-item py-2');
+        $li.append($('<div>').addClass('d-flex justify-content-between').append(
+          $('<strong>').text(tipo || '-'),
+          $('<span>').addClass('text-success').text(monto)
+        ));
+        $li.append($('<small>').addClass('text-muted d-block').text(fecha || '-'));
+        $li.append($('<small>').text(descripcion || 'Sin descripción'));
+        $lista.append($li);
+      });
+    },
+    error: function () {
+      $info.text('No fue posible cargar movimientos en este momento.');
+    }
+  });
+}
+
 function listarAhorrosPersona(refPersona) {
   $("#verLoadingProductos").removeClass('hide');
   $("#verListadoAhorros").addClass('hide');
@@ -277,6 +419,7 @@ function listarAhorrosPersona(refPersona) {
   const tabla = $('#tblAhorros').DataTable();
   if (!refPersona) {
     tabla.clear().draw();
+    renderExploradorAhorros([]);
     $("#verLoadingProductos").addClass('hide');
     $("#verListadoAhorros").removeClass('hide');
     return;
@@ -291,28 +434,95 @@ function listarAhorrosPersona(refPersona) {
       tabla.clear().draw();
       for (let i = 0; i < datos.length; i++) {
         const val = datos[i];
+        const saldoColumna = '$' + (parseFloat(val[9]) || 0).toFixed(2);
         tabla.row.add([
           val[0],
           val[1],
           val[2],
-          val[3],
+          saldoColumna,
           val[4],
           val[5],
           val[6],
           val[7]
         ]).draw(false);
       }
+      renderExploradorAhorros(datos);
       $("#verLoadingProductos").addClass('hide');
       $("#verListadoAhorros").removeClass('hide');
     },
     error: function (e) {
       console.log(e.responseText);
       tabla.clear().draw();
+      renderExploradorAhorros([]);
       $("#verLoadingProductos").addClass('hide');
       $("#verListadoAhorros").removeClass('hide');
     }
   });
 }
+
+function listarMovimientosPersona(refPersona) {
+  $("#verLoadingMovimientos").removeClass('hide');
+  $("#verListadoMovimientos").addClass('hide');
+
+  const tabla = $('#tblMovimientos').DataTable();
+  if (!refPersona) {
+    tabla.clear().draw();
+    $("#verLoadingMovimientos").addClass('hide');
+    $("#verListadoMovimientos").removeClass('hide');
+    return;
+  }
+
+  $.ajax({
+    url: './ajax/AhorradoresAjax.php?op=listMovimientosPersona',
+    type: 'POST',
+    data: { refPersona },
+    dataType: 'json',
+    success: function (datos) {
+      tabla.clear().draw();
+      for (let i = 0; i < datos.length; i++) {
+        const val = datos[i];
+        tabla.row.add([
+          val[0],
+          val[1],
+          val[2],
+          val[3],
+          val[4],
+          val[5]
+        ]).draw(false);
+      }
+      $("#verLoadingMovimientos").addClass('hide');
+      $("#verListadoMovimientos").removeClass('hide');
+    },
+    error: function (e) {
+      console.log(e.responseText);
+      tabla.clear().draw();
+      $("#verLoadingMovimientos").addClass('hide');
+      $("#verListadoMovimientos").removeClass('hide');
+    }
+  });
+}
+
+$(document).on('click', '#ahorroSlideTrack .ahorro-slide-card', function () {
+  const index = parseInt($(this).attr('data-index'), 10);
+  seleccionarAhorroSlide(index);
+});
+
+$(document).on('click', '#btnAhorroPrev', function () {
+  if (!exploradorAhorrosData.length) return;
+  const nuevo = exploradorAhorroIndex <= 0 ? exploradorAhorrosData.length - 1 : exploradorAhorroIndex - 1;
+  seleccionarAhorroSlide(nuevo);
+});
+
+$(document).on('click', '#btnAhorroNext', function () {
+  if (!exploradorAhorrosData.length) return;
+  const nuevo = exploradorAhorroIndex >= exploradorAhorrosData.length - 1 ? 0 : exploradorAhorroIndex + 1;
+  seleccionarAhorroSlide(nuevo);
+});
+
+$(document).on('shown.bs.tab', '#ficha-tab-movimientos', function () {
+  if (exploradorAhorroIndex < 0 || !exploradorAhorrosData.length) return;
+  cargarMovimientosFicha(exploradorAhorrosData[exploradorAhorroIndex].idAhorro);
+});
 
 // Función principal para cargar datos del ahorrador (adaptada de cargarDataEmpleado)
 function cargarDataAhorrador(tipo_documento, num_documento, accion) {

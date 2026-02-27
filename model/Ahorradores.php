@@ -417,6 +417,25 @@ class Ahorradores
       return $conexion->query($sql);
    }
 
+   public function listarMovimientosPersona($idglobal, $idpersona)
+   {
+      global $conexion;
+      $sql = "SELECT
+                m.date_movimiento AS fecha,
+                IFNULL(NULLIF(TRIM(a.id_cuenta), ''), CONCAT('Ahorro #', a.idahorro)) AS cuenta,
+                m.str_tipo AS tipo,
+                m.dec_valor AS monto,
+                m.str_descripcion AS descripcion,
+                m.str_estado AS estado
+              FROM tbl_movimientos m
+              INNER JOIN tbl_ahorros a ON a.idahorro = m.idahorro
+              WHERE m.idglobal=$idglobal
+                AND a.idglobal=$idglobal
+                AND a.idpersona=$idpersona
+              ORDER BY m.date_movimiento DESC";
+      return $conexion->query($sql);
+   }
+
    public function listarAhorrosPersona($idglobal, $idpersona)
    {
       global $conexion;
@@ -428,9 +447,20 @@ class Ahorradores
                 bit_auth_movimientos AS auth_movimientos,
                 IFNULL(NULLIF(TRIM(str_estado), ''), '-') AS estado,
                 created_at AS fecha_creacion,
-                idahorro
-              FROM tbl_ahorros
-              WHERE idglobal=$idglobal AND idpersona=$idpersona
+                        idahorro,
+                        (
+                           SELECT IFNULL(SUM(
+                              CASE m.str_tipo
+                                 WHEN 'aporte' THEN m.dec_valor
+                                 WHEN 'ajuste' THEN m.dec_valor
+                                 WHEN 'retiro' THEN -m.dec_valor
+                                 ELSE 0 END
+                           ),0)
+                           FROM tbl_movimientos m
+                           WHERE m.idahorro = a.idahorro
+                        ) AS saldo_disponible
+              FROM tbl_ahorros a
+                     WHERE idglobal=$idglobal AND idpersona=$idpersona
               ORDER BY created_at DESC";
       return $conexion->query($sql);
    }
