@@ -32,6 +32,23 @@ switch ($_GET['op']) {
          break;
       }
 
+      if (!$objCorresponsal->empleadoConEmailVerificado($idglobal, intval($idpersona))) {
+         echo json_encode([
+            'status' => 'error',
+            'mensaje' => 'El empleado seleccionado debe tener email y estar verificado.'
+         ]);
+         break;
+      }
+
+      $idCuentaCorriente = $objCorresponsal->asegurarCuentaCorriente($idglobal, intval($idpersona));
+      if (intval($idCuentaCorriente) <= 0) {
+         echo json_encode([
+            'status' => 'error',
+            'mensaje' => 'No se pudo crear o validar la cuenta corriente del empleado.'
+         ]);
+         break;
+      }
+
       if ($objCorresponsal->esSuperAdministrador($idglobal, intval($idpersona))) {
          echo json_encode([
             'status' => 'error',

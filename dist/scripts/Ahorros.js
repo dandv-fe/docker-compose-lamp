@@ -575,6 +575,21 @@ function parseBit(v) {
   return 0;
 }
 
+function actualizarIndicadorAuthMov(autorizado) {
+  const $btn = $("#btnNuevoMovimiento");
+  const $msg = $("#msgMovNoAuth");
+
+  if (!$btn.length && !$msg.length) return;
+
+  if (autorizado) {
+    $btn.show();
+    $msg.addClass('d-none');
+  } else {
+    $btn.hide();
+    $msg.removeClass('d-none');
+  }
+}
+
 // Al cambiar manualmente el checkbox reflejar indicador
 $(document).on('change', '#chkAuthMovimientosConfig', function () {
   actualizarIndicadorAuthMov($(this).is(':checked'));

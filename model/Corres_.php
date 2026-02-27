@@ -30,7 +30,8 @@ class Corresponsal
             return false;
          }
 
-         $idCuenta = '18'; // Asignar el valor adecuado para idCuenta
+         $idCuenta = uniqidReal(); // Asignar el valor adecuado para idCuenta
+
 
          $sqlIns = "INSERT INTO tbl_ahorros (
                    idglobal,idpersona,dec_porcentaje,
@@ -49,8 +50,32 @@ class Corresponsal
                  )";
          $conexion->query($sqlIns) or throw new Exception('error!');
          $idahorro = $conexion->insert_id;
+         $this->asegurarCuentaCorriente($idglobal, $idpersona);
+         // Buscar el id_cuenta del ahorro principal de la empresa
+         $qr_idCuentaPrincipal = "SELECT a.id_cuenta, 
+         (SELECT IFNULL(COUNT(1),0)
+            FROM tbl_ahorros b
+            WHERE b.idglobal=a.idglobal
+              AND b.idpersona=a.idpersona
+              AND b.id_cuenta LIKE CONCAT(a.id_cuenta,'-%')) AS cantidad 
+         FROM tbl_ahorros a
+          WHERE a.idglobal=$idglobal AND 
+          
+          a.str_tipo='principal' LIMIT 1";
+         $q_idCuentaPrincipal = $conexion->query($qr_idCuentaPrincipal);
+         $r_idCuentaPrincipal = $q_idCuentaPrincipal ? $q_idCuentaPrincipal->fetch_object() : null;
+
+         if (empty($r_idCuentaPrincipal) || empty($r_idCuentaPrincipal->id_cuenta)) {
+            throw new Exception('No se encontró cuenta corriente principal');
+         }
+
+         $can = intval($r_idCuentaPrincipal->cantidad) + 1;
+         $canFormateado = str_pad((string)$can, 2, '0', STR_PAD_LEFT);
+         print_r($canFormateado);
+         $qr_upd = "UPDATE tbl_ahorros SET id_cuenta=CONCAT(REPLACE('$r_idCuentaPrincipal->id_cuenta','-00',''), '-', '$canFormateado') WHERE idahorro=$idahorro";
+         $conexion->query($qr_upd);
       } catch (Exception $e) {
-         //print_r($e);
+         print_r($e);
          $sw = false;
          $conexion->rollback();
       }
@@ -92,6 +117,8 @@ class Corresponsal
             tbl_persona p ON p.idpersona=e.idpersona
          WHERE e.idglobal=$idglobal
            AND e.str_estado<>'inactivo'
+           AND TRIM(IFNULL(p.str_email, '')) <> ''
+           AND CAST(IFNULL(p.str_email_verificado, '0') AS UNSIGNED) = 1
            AND UPPER(TRIM(IFNULL(e.str_cargo, ''))) <> 'SUPER ADMINISTRADOR'
          ORDER BY e.idempleado DESC";
       $query = $conexion->query($sql);
@@ -133,6 +160,89 @@ class Corresponsal
       $reg = $query ? $query->fetch_object() : null;
       return !empty($reg);
    }
+
+   public function empleadoConEmailVerificado($idglobal, $idpersona)
+   {
+      global $conexion;
+      $sql = "SELECT e.idempleado
+              FROM tbl_empleado e
+              INNER JOIN tbl_persona p ON p.idpersona = e.idpersona
+              WHERE e.idglobal=$idglobal
+                AND e.idpersona=$idpersona
+                AND e.str_estado<>'inactivo'
+                AND TRIM(IFNULL(p.str_email, '')) <> ''
+                AND CAST(IFNULL(p.str_email_verificado, '0') AS UNSIGNED) = 1
+              LIMIT 1";
+      $query = $conexion->query($sql);
+      $reg = $query ? $query->fetch_object() : null;
+      return !empty($reg);
+   }
+
+   public function asegurarCuentaCorriente($idglobal, $idpersona)
+   {
+      global $conexion;
+      $idglobal = intval($idglobal);
+      $idpersona = intval($idpersona);
+
+      $sqlExist = "SELECT idahorro
+                   FROM tbl_ahorros
+                   WHERE idglobal=$idglobal
+                     AND idpersona=$idpersona
+                     AND str_tipo='corriente'
+                   LIMIT 1";
+      $qExist = $conexion->query($sqlExist);
+      $rExist = $qExist ? $qExist->fetch_object() : null;
+      if (!empty($rExist->idahorro)) {
+         return intval($rExist->idahorro);
+      }
+
+      $dt = date('Y-m-d H:i:s');
+      $idcuentatemp = uniqidReal();
+      $sqlIns = "INSERT INTO tbl_ahorros (
+                    idglobal,
+                    idpersona,
+                    dec_porcentaje,
+                    str_name,
+                    id_cuenta,
+                    str_tipo,
+                    str_pago_utilidad,
+                    bit_auth_movimientos,
+                    str_estado,
+                    created_at,
+                    update_at
+                 ) VALUES (
+                    $idglobal,
+                    $idpersona,
+                    0.1,
+                    'Cuenta Principal',
+                     '$idcuentatemp',
+                    'corriente',
+                    'manual',
+                    1,
+                    'autorizada',
+                    '$dt',
+                    '$dt'
+                 )";
+
+      $ok = $conexion->query($sqlIns);
+
+      if (!$ok) {
+         return 0;
+      }
+
+      $idahorroNuevo = intval($conexion->insert_id);
+      if ($idahorroNuevo <= 0) {
+         return 0;
+      }
+
+      $sqlUpdCuenta = "UPDATE tbl_ahorros
+                       SET id_cuenta=CONCAT('$idahorroNuevo', '-00'), update_at='$dt'
+                       WHERE idahorro=$idahorroNuevo";
+      $conexion->query($sqlUpdCuenta);
+
+      return $idahorroNuevo;
+   }
+
    public function listCorresponsales($idglobal)
    {
       global $conexion;

@@ -299,6 +299,9 @@ switch ($_GET["op"]) {
       $req->authMovimientos = null;
       $req->estadoAhorro = null;
       $req->fechaCreacion = null;
+      $req->saldoMovimientos = 0;
+      $req->saldoCorresponsal = 0;
+      $req->saldosTipos = [];
 
       $query = $objAhorradores->buscarAhorrador($refPersona);
       $request = $query->fetch_object();
@@ -311,6 +314,15 @@ switch ($_GET["op"]) {
          $req->authMovimientos = normalize_bit($request->authMovimientos ?? $request->auth_movimientos ?? 0);
          $req->estadoAhorro = $request->estadoAhorro;
          $req->fechaCreacion = $request->fechaCreacion;
+         $req->saldoMovimientos = floatval($request->saldoMovimientos ?? 0);
+         $req->saldoCorresponsal = floatval($request->saldoCorresponsal ?? 0);
+      }
+      $querySaldos = $objAhorradores->obtenerSaldosPorTipo($idglobal, $refPersona);
+      while ($saldoTipo = $querySaldos->fetch_object()) {
+         $req->saldosTipos[] = [
+            'tipo' => $saldoTipo->tipo,
+            'saldo' => floatval($saldoTipo->saldo ?? 0)
+         ];
       }
       $req->isSuperAdmin = !empty($_SESSION['userEmpresa']) ? 1 : 0;
       echo json_encode($req);
@@ -455,6 +467,33 @@ switch ($_GET["op"]) {
       echo json_encode($data);
       break;
 
+   case 'listAhorrosPersona':
+      $refPersona = limpiar_cadena($_POST['refPersona'] ?? '');
+      if (empty($refPersona)) {
+         echo json_encode([]);
+         break;
+      }
+
+      $query = $objAhorradores->listarAhorrosPersona($idglobal, $refPersona);
+      $data = [];
+      while ($r = $query->fetch_object()) {
+         $auth = normalize_bit($r->auth_movimientos ?? 0) === 1 ? 'Sí' : 'No';
+         $fecha = !empty($r->fecha_creacion) ? date('d/m/Y H:i', strtotime($r->fecha_creacion)) : '-';
+
+         $data[] = [
+            $r->nombre,
+            $r->numero,
+            $r->tipo,
+            $r->pago_utilidad,
+            $auth,
+            $r->estado,
+            $fecha,
+            '-'
+         ];
+      }
+      echo json_encode($data);
+      break;
+
    case 'listGanancias':
       $refAhorro = limpiar_cadena($_POST['refAhorro']);
       $query = $objAhorradores->listarGanancias($refAhorro);
@@ -476,6 +515,18 @@ switch ($_GET["op"]) {
       if ($perfil) {
          // garantizar normalización (modelo ya intenta, pero reforzamos)
          $perfil->auth_movimientos = normalize_bit($perfil->auth_movimientos ?? 0);
+         $perfil->saldosTipos = [];
+         $idPersonaPerfil = intval($perfil->idpersona ?? 0);
+         $idGlobalPerfil = intval($perfil->idglobal ?? $idglobal);
+         if ($idPersonaPerfil > 0 && $idGlobalPerfil > 0) {
+            $querySaldos = $objAhorradores->obtenerSaldosPorTipo($idGlobalPerfil, $idPersonaPerfil);
+            while ($saldoTipo = $querySaldos->fetch_object()) {
+               $perfil->saldosTipos[] = [
+                  'tipo' => $saldoTipo->tipo,
+                  'saldo' => floatval($saldoTipo->saldo ?? 0)
+               ];
+            }
+         }
          $perfil->isSuperAdmin = !empty($_SESSION['userEmpresa']) ? 1 : 0;
       }
       echo json_encode($perfil);

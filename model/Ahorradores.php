@@ -323,12 +323,26 @@ class Ahorradores
                         CASE m.str_tipo
                            WHEN 'aporte' THEN m.dec_valor
                            WHEN 'ajuste' THEN m.dec_valor
-                           WHEN 'retiro' THEN -m.dec_valor
+                           WHEN 'retiro' THEN m.dec_valor
                            ELSE 0 END
                      ),0)
                      FROM tbl_movimientos m
                      WHERE m.idahorro = a.idahorro
-                  ) AS saldoMovimientos
+                  ) AS saldoMovimientos,
+                  (
+                     SELECT IFNULL(SUM(
+                        CASE mc.str_tipo
+                           WHEN 'aporte' THEN mc.dec_valor
+                           WHEN 'ajuste' THEN mc.dec_valor
+                           WHEN 'retiro' THEN mc.dec_valor
+                           ELSE 0 END
+                     ),0)
+                     FROM tbl_movimientos mc
+                     INNER JOIN tbl_ahorros ac ON ac.idahorro = mc.idahorro
+                     WHERE ac.idpersona = a.idpersona
+                       AND ac.idglobal = a.idglobal
+                       AND LOWER(IFNULL(ac.str_tipo, '')) = 'corresponsal'
+                  ) AS saldoCorresponsal
                FROM tbl_ahorros a
            WHERE idpersona=$idpersona";
       $query = $conexion->query($sql);
@@ -403,6 +417,24 @@ class Ahorradores
       return $conexion->query($sql);
    }
 
+   public function listarAhorrosPersona($idglobal, $idpersona)
+   {
+      global $conexion;
+      $sql = "SELECT
+                IFNULL(NULLIF(TRIM(str_name), ''), CONCAT('Ahorro #', idahorro)) AS nombre,
+                IFNULL(NULLIF(TRIM(id_cuenta), ''), '-') AS numero,
+                IFNULL(NULLIF(TRIM(str_tipo), ''), '-') AS tipo,
+                IFNULL(NULLIF(TRIM(str_pago_utilidad), ''), '-') AS pago_utilidad,
+                bit_auth_movimientos AS auth_movimientos,
+                IFNULL(NULLIF(TRIM(str_estado), ''), '-') AS estado,
+                created_at AS fecha_creacion,
+                idahorro
+              FROM tbl_ahorros
+              WHERE idglobal=$idglobal AND idpersona=$idpersona
+              ORDER BY created_at DESC";
+      return $conexion->query($sql);
+   }
+
    public function listarGanancias($idahorro)
    {
       global $conexion;
@@ -420,31 +452,70 @@ class Ahorradores
       return $conexion->query($sql);
    }
 
+   public function obtenerSaldosPorTipo($idglobal, $idpersona)
+   {
+      global $conexion;
+      $sql = "SELECT
+                        IFNULL(NULLIF(TRIM(a.str_tipo), ''), 'corriente') AS tipo,
+                        IFNULL(SUM(
+                           CASE m.str_tipo
+                              WHEN 'aporte' THEN m.dec_valor
+                              WHEN 'ajuste' THEN m.dec_valor
+                              WHEN 'retiro' THEN m.dec_valor
+                              ELSE 0
+                           END
+                        ), 0) AS saldo
+                     FROM tbl_ahorros a
+                     LEFT JOIN tbl_movimientos m ON m.idahorro = a.idahorro
+                     WHERE a.idglobal = $idglobal
+                        AND a.idpersona = $idpersona
+                     GROUP BY IFNULL(NULLIF(TRIM(a.str_tipo), ''), 'corriente')
+                     ORDER BY IFNULL(NULLIF(TRIM(a.str_tipo), ''), 'corriente') ASC";
+      return $conexion->query($sql);
+   }
+
    public function obtenerPerfil($idahorro)
    {
       global $conexion;
       $sql = "SELECT 
-                dec_porcentaje AS porcentaje,
-                str_pago_utilidad AS pago_utilidad,
-                bit_auth_movimientos AS auth_movimientos,
-                str_estado AS estado,
+                                    a.idpersona AS idpersona,
+                                    a.idglobal AS idglobal,
+                        a.dec_porcentaje AS porcentaje,
+                        a.str_pago_utilidad AS pago_utilidad,
+                        a.bit_auth_movimientos AS auth_movimientos,
+                        a.str_estado AS estado,
                 (
                   SELECT IFNULL(SUM(
                     CASE m.str_tipo
                       WHEN 'aporte' THEN m.dec_valor
                       WHEN 'ajuste' THEN m.dec_valor
-                      WHEN 'retiro' THEN -m.dec_valor
+                      WHEN 'retiro' THEN m.dec_valor
                       ELSE 0 END
                   ),0)
                   FROM tbl_movimientos m
-                  WHERE m.idahorro = $idahorro
-                ) AS saldo_movimientos
-              FROM tbl_ahorros
-              WHERE idahorro=$idahorro";
+                           WHERE m.idahorro = a.idahorro
+                        ) AS saldo_movimientos,
+                        (
+                           SELECT IFNULL(SUM(
+                              CASE mc.str_tipo
+                                 WHEN 'aporte' THEN mc.dec_valor
+                                 WHEN 'ajuste' THEN mc.dec_valor
+                                 WHEN 'retiro' THEN mc.dec_valor
+                                 ELSE 0 END
+                           ),0)
+                           FROM tbl_movimientos mc
+                           INNER JOIN tbl_ahorros ac ON ac.idahorro = mc.idahorro
+                           WHERE ac.idpersona = a.idpersona
+                              AND ac.idglobal = a.idglobal
+                              AND LOWER(IFNULL(ac.str_tipo, '')) = 'corresponsal'
+                        ) AS saldo_corresponsal
+                     FROM tbl_ahorros a
+                     WHERE a.idahorro=$idahorro";
       $q = $conexion->query($sql);
       $r = $q->fetch_object();
       if (!$r) return null;
       $r->pagoUtilidad = $r->pago_utilidad;
+      $r->saldoCorresponsal = isset($r->saldo_corresponsal) ? floatval($r->saldo_corresponsal) : 0;
       // Normalizar auth_movimientos de forma segura:
       $val = $r->auth_movimientos;
       if (is_string($val)) {

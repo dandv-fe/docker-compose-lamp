@@ -17,7 +17,7 @@ switch ($_GET['op']) {
       echo json_encode($query->fetch_object());
       break;
    case 'buscarCuentaDestino':
-      $id_cuenta = limpiar_cadena($_REQUEST['id_cuenta'] ?? '');
+      $id_cuenta = limpiar_cadena2($_REQUEST['id_cuenta'] ?? '');
 
       if (empty($idglobal) || empty($id_cuenta)) {
          echo json_encode(['status' => 'error', 'mensaje' => 'Número de cuenta inválido']);

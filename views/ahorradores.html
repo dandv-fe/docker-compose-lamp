@@ -259,34 +259,28 @@
                     </div>
 
                     <h3 id="txt_name_ahorrador" class="profile-username text-center"></h3>
-
-                    <p id="txt_apodo_ahorrador" class="text-muted text-center mb-1">Ahorrador</p>
-
+                    <strong class="d-flex align-items-center justify-content-center mb-1">
+                      <i class="fas fa-venus-mars mr-1"></i>
+                      <span id="txt_sexo_ahorrador" class="text-muted"></span>
+                    </strong>
                     <ul class="list-group list-group-unbordered mb-3">
-                      <li class="list-group-item">
-                        <b>Sexo</b>
-                        <a id="txt_sexo_ahorrador" class="float-right"></a>
-                      </li>
-                      <li class="list-group-item">
-                        <b id="txt_tipo_documento_ahorrador"></b>
-                        <a id="txt_num_documento_ahorrador" class="float-right"></a>
-                        <!-- Profile Image -->
-                        <div class="clearfix"></div>
-                        <i id="editarDocumentoAhorrador" class="fa-solid fa-pen-to-square pr-1 float-right"
+
+                      <li class="list-group-item d-flex align-items-center flex-nowrap py-2">
+                        <i id="editarDocumentoAhorrador" class="fa-solid fa-pen-to-square mr-2"
                           data-editDocument=""></i>
+                        <span id="txt_tipo_documento_ahorrador" class="badge badge-light mr-2"></span>
+                        <span id="txt_num_documento_ahorrador" class="font-weight-bold text-truncate"></span>
                       </li>
-                      <li class="list-group-item">
-                        <b>Tel</b>
-                        <a id="txt_tel_ahorrador" class="float-right"></a>
-                      </li>
-                      <li class="list-group-item">
-                        <b>Porcentaje Ahorro</b>
-                        <a id="txt_porcentaje_ahorrador" class="float-right">0%</a>
-                      </li>
-                      <li class="list-group-item">
-                        <b>Saldo Disponible</b>
+
+
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <b>Saldo Total</b>
                         <a id="txt_saldo_ahorrador" class="float-right">$0.00</a>
                       </li>
+
+                      <li id="saldos_tipos_ahorrador" class="p-0 border-0"></li>
+
+
                     </ul>
 
 
@@ -298,7 +292,7 @@
                 <!-- About Me Box -->
                 <div class="card card-primary">
                   <div class="card-header p-1">
-                    <h3 class="card-title">Información de Ahorro</h3>
+                    <h3 class="card-title">Información</h3>
                     <div class="card-tools">
                       <form id="formAhorroEditar">
                         <input type="hidden" id="txt_idglobal_ah">
@@ -313,15 +307,22 @@
                   <!-- /.card-header -->
                   <div class="card-body">
 
-                    <strong><i class="fas fa-percentage mr-1"></i>
-                      Porcentaje de Ahorro</strong>
+                    <strong><i class="fas fa-phone mr-1"></i>
+                      Teléfono</strong>
 
-                    <p id="pTextPorcentajeAhorro" class="text-muted">0%</p>
+                    <p id="txt_tel_ahorrador" class="text-muted">No definido</p>
 
-                    <strong><i class="fas fa-money-bill-wave mr-1"></i>
-                      Tipo de Pago</strong>
+                    <strong><i class="fas fa-envelope mr-1"></i>
+                      Email</strong>
 
-                    <p id="pTextTipoPago" class="text-muted">No definido</p>
+                    <p id="txt_email_ahorrador" class="text-muted">No definido</p>
+
+                    <strong><i class="fas fa-map-marker-alt mr-1"></i>
+                      Dirección</strong>
+
+                    <ul id="txt_direccion_ahorrador" class="text-muted mb-2 pl-3">
+                      <li>No definido</li>
+                    </ul>
 
                   </div>
                   <!-- /.card-body -->
@@ -334,15 +335,10 @@
                   <div class="card-header p-0 pt-1">
                     <ul class="nav nav-tabs" id="custom-tabs-five-tab" role="tablist">
                       <li class="nav-item">
-                        <a class="nav-link active" id="custom-tabs-movimientos-tab" data-toggle="pill"
-                          href="#custom-tabs-movimientos" role="tab" aria-controls="custom-tabs-movimientos"
-                          aria-selected="true">Movimientos
+                        <a class="nav-link active" id="custom-tabs-productos-tab" data-toggle="pill"
+                          href="#custom-tabs-productos" role="tab" aria-controls="custom-tabs-productos"
+                          aria-selected="true">Productos
                         </a>
-                      </li>
-                      <li class="nav-item">
-                        <a class="nav-link" id="custom-tabs-ganancias-tab" data-toggle="pill"
-                          href="#custom-tabs-ganancias" role="tab" aria-controls="custom-tabs-ganancias"
-                          aria-selected="false">Ganancias</a>
                       </li>
 
                       <li class="nav-item">
@@ -355,11 +351,11 @@
                   </div>
                   <div class="card-body p-0">
                     <div class="tab-content" id="custom-tabs-five-tabContent">
-                      <!--ver movimientos de ahorro-->
-                      <div class="tab-pane fade show active" id="custom-tabs-movimientos" role="tabpanel"
-                        aria-labelledby="custom-tabs-movimientos-tab">
+                      <!--ver ahorros-->
+                      <div class="tab-pane fade show active" id="custom-tabs-productos" role="tabpanel"
+                        aria-labelledby="custom-tabs-productos-tab">
 
-                        <div id="verLoadingMovimientos" class="overlay-wrapper">
+                        <div id="verLoadingProductos" class="overlay-wrapper">
                           <div class="overlay dark">
                             <i class="fas fa-3x fa-sync-alt fa-spin"></i>
                             <div class="text-bold pt-2">Cargando...</div>
@@ -367,19 +363,16 @@
                           Espere
                         </div>
 
-                        <div id="verListadoMovimientos" class="card hide">
+                        <div id="verListadoAhorros" class="card hide">
 
-                          <!-- Header mejorado: saldo destacado + porcentaje + botón -->
+                          <!-- Header mejorado: saldo destacado + porcentaje + botón 
                           <div class="card-header d-flex align-items-center justify-content-center flex-column">
                             <div class="text-center mb-2">
                               <small class="text-muted d-block">Saldo Disponible</small>
                               <h4 id="txt_saldo_header" class="mb-0 text-success font-weight-bold">$0.00</h4>
                               <small id="txt_saldo_update" class="text-muted small">última actualización: --</small>
                             </div>
-                            <div class="text-center mb-2">
-                              <small class="text-muted d-block">Porcentaje</small>
-                              <h5 id="pTextPorcentajeAhorro_small" class="mb-0">0%</h5>
-                            </div>
+
                             <div class="text-center">
                               <button id="btnNuevoMovimiento" class="btn btn-success" data-toggle="tooltip"
                                 data-placement="top" title="Registrar un nuevo aporte / retiro / ajuste">
@@ -388,28 +381,35 @@
                               <div><span id="msgMovNoAuth" class="text-muted small d-none mt-2">Movimientos no
                                   autorizados.</span></div>
                             </div>
-                          </div>
+                          </div>-->
 
                           <!-- /.card-header -->
                           <div class="card-body p-0">
-                            <table id="tblMovimientos" class="table table-bordered table-striped">
+                            <table id="tblAhorros" class="table table-bordered table-striped">
                               <thead>
                                 <tr>
-                                  <th>Fecha</th>
+
+                                  <th>Nombre</th>
+                                  <th>Numero</th>
                                   <th>Tipo</th>
-                                  <th>Monto</th>
-                                  <th>Descripción</th>
+                                  <th>Pago Utilidad</th>
+                                  <th>Autorización Movimientos</th>
                                   <th>Estado</th>
+                                  <th>Fecha Creación</th>
+                                  <th>Opciones</th>
                                 </tr>
                               </thead>
                               <tbody></tbody>
                               <tfoot>
                                 <tr>
-                                  <th>Fecha</th>
+                                  <th>Nombre</th>
+                                  <th>Numero</th>
                                   <th>Tipo</th>
-                                  <th>Monto</th>
-                                  <th>Descripción</th>
+                                  <th>Pago Utilidad</th>
+                                  <th>Autorización Movimientos</th>
                                   <th>Estado</th>
+                                  <th>Fecha Creación</th>
+                                  <th>Opciones</th>
                                 </tr>
                               </tfoot>
                             </table>
@@ -669,6 +669,18 @@
 
   $(function () { })
 
+  $("#tblAhorros")
+    .DataTable({
+      sort: false,
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#tblAhorros_wrapper .col-md-6:eq(0)");
+
 
 
 
@@ -706,6 +718,11 @@
   }
 
   #txt_saldo_ahorrador {
+    font-weight: 700;
+    color: #28a745;
+  }
+
+  .txt-saldo-tipo-ahorrador {
     font-weight: 700;
     color: #28a745;
   }
@@ -757,5 +774,10 @@
       width: 90px;
       height: 90px;
     }
+  }
+
+  #VerConfiguracion .card.card-primary .card-body .text-muted,
+  #txt_sexo_ahorrador.text-muted {
+    color: #5f6770 !important;
   }
 </style>

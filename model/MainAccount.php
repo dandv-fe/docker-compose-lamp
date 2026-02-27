@@ -21,8 +21,7 @@ class MainAccount
             return false;
          }
 
-         $idCuenta = '6'; // Asignar el valor adecuado para idCuenta
-
+         $idCuenta = uniqidReal(); // Asignar el valor adecuado para idCuenta
          $sqlIns = "INSERT INTO tbl_ahorros (
                    idglobal,idpersona,dec_porcentaje,
                    str_name,
@@ -40,6 +39,8 @@ class MainAccount
                  )";
          $conexion->query($sqlIns) or throw new Exception('error!');
          $idahorro = $conexion->insert_id;
+         $qr_upd = "UPDATE tbl_ahorros SET id_cuenta=CONCAT('$idahorro', '-00') WHERE idahorro=$idahorro";
+         $conexion->query($qr_upd);
       } catch (Exception $e) {
          $sw = false;
          $conexion->rollback();
