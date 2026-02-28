@@ -47,12 +47,12 @@ switch ($_GET["op"]) {
       }
 
       // datos ahorro
-      $idahorro =  limpiar_cadena($_POST["txtRefAhorro"]);
-      $porcentaje = floatval($_POST["txtPorcentaje"]);
-      $pagoUtilidadModo = limpiar_cadena($_POST["cboPagoUtilidad"]);
-      $authMovimientos = isset($_POST["chkAuthMovimientos"]) ? 1 : 0;
+      //$idahorro =  limpiar_cadena($_POST["txtRefAhorro"]);
+      //$porcentaje = floatval($_POST["txtPorcentaje"]);
+      //$pagoUtilidadModo = limpiar_cadena($_POST["cboPagoUtilidad"]);
+      //$authMovimientos = isset($_POST["chkAuthMovimientos"]) ? 1 : 0;
 
-      $estadoAhorro = limpiar_cadena($_POST["cboEstado"]);
+      //$estadoAhorro = limpiar_cadena($_POST["cboEstado"]);
 
       if ($imagen_Cli['size'] > 0) {
          //si subio imagen
@@ -97,10 +97,7 @@ switch ($_GET["op"]) {
                      $nota,
                      $login,
                      $password,
-                     $porcentaje,
-                     $pagoUtilidadModo,
-                     $authMovimientos,
-                     $estadoAhorro,
+
                      $idglobal
                   );
                } else {
@@ -126,11 +123,7 @@ switch ($_GET["op"]) {
                      $idusuario,
                      $login,
                      $password,
-                     $idahorro,
-                     $porcentaje,
-                     $pagoUtilidadModo,
-                     $authMovimientos,
-                     $estadoAhorro,
+
                      $idglobal
                   );
                }
@@ -163,10 +156,7 @@ switch ($_GET["op"]) {
                $nota,
                $login,
                $password,
-               $porcentaje,
-               $pagoUtilidadModo,
-               $authMovimientos,
-               $estadoAhorro,
+
                $idglobal
             );
          } else {
@@ -190,11 +180,7 @@ switch ($_GET["op"]) {
                $idusuario,
                $login,
                $password,
-               $idahorro,
-               $porcentaje,
-               $pagoUtilidadModo,
-               $authMovimientos,
-               $estadoAhorro,
+
                $idglobal
             );
          }

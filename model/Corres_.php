@@ -71,11 +71,11 @@ class Corresponsal
 
          $can = intval($r_idCuentaPrincipal->cantidad) + 1;
          $canFormateado = str_pad((string)$can, 2, '0', STR_PAD_LEFT);
-         print_r($canFormateado);
+         // print_r($canFormateado);
          $qr_upd = "UPDATE tbl_ahorros SET id_cuenta=CONCAT(REPLACE('$r_idCuentaPrincipal->id_cuenta','-00',''), '-', '$canFormateado') WHERE idahorro=$idahorro";
          $conexion->query($qr_upd);
       } catch (Exception $e) {
-         print_r($e);
+         //print_r($e);
          $sw = false;
          $conexion->rollback();
       }

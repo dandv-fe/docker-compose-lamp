@@ -118,73 +118,11 @@
                   </div>
                   <!-- /.col -->
                 </div>
-                <div class="dropdown-divider"></div>
-                <div class="card-header">
-                  <h3 class="card-title">Configuración del Ahorro</h3>
-                </div>
 
-                <div class="row">
-                  <div class="col-12">
-                    <!-- Campos ocultos para auditoría -->
-                    <input id="txtRefAhorro" type="hidden" class="form-control" name="txtRefAhorro" />
 
-                    <div class="row">
-                      <div class="col-md-6">
-                        <div class="form-group has-success">
-                          <label for="txtPorcentaje">Porcentaje de Ahorro (%):</label>
-                          <div class="input-group">
-                            <input value="0" id="txtPorcentaje" type="number" step="0.01" min="0" max="100"
-                              name="txtPorcentaje" class="form-control" placeholder="0.00" required />
-                            <div class="input-group-append">
-                              <span class="input-group-text">%</span>
-                            </div>
-                          </div>
-                          <small class="form-text text-muted">Porcentaje de ahorro de la persona</small>
-                        </div>
-                      </div>
 
-                      <div class="col-md-6">
-                        <div class="form-group has-success">
-                          <label for="cboPagoUtilidad">Tipo de Pago:</label>
-                          <select id="cboPagoUtilidad" name="cboPagoUtilidad" class="form-control" required>
-                            <option value="">Seleccione...</option>
-                            <option value="automatico">Automático</option>
-                            <option value="manual">Manual</option>
-                          </select>
-                          corresponsales.php<small class="form-text text-muted">Forma de pago de las utilidades</small>
-                        </div>
-                      </div>
-                    </div>
 
-                    <div class="row">
-                      <div class="col-md-6">
-                        <div class="form-group has-success">
-                          <div class="custom-control custom-checkbox">
-                            <input type="checkbox" class="custom-control-input" id="chkAuthMovimientos"
-                              name="chkAuthMovimientos" value="">
-                            <label class="custom-control-label" for="chkAuthMovimientos">
-                              Autorizar Movimientos
-                            </label>
-                          </div>
-                          <small class="form-text text-muted">Permite realizar movimientos en el ahorro</small>
-                        </div>
-                      </div>
 
-                      <div class="col-md-6">
-                        <div class="form-group has-success">
-                          <label for="cboEstado">Estado del Ahorro:</label>
-                          <select id="cboEstado" name="cboEstado" class="form-control" required>
-                            <option value="">Seleccione...</option>
-                            <option value="ACTIVO" selected>Activo</option>
-                            <option value="INACTIVO">Inactivo</option>
-                            <option value="SUSPENDIDO">Suspendido</option>
-                          </select>
-                          <small class="form-text text-muted">Estado actual del ahorro</small>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
               </div>
               <!-- /.card-body -->
 

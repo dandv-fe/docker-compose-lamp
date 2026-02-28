@@ -27,10 +27,7 @@ class Ahorradores
       $login,
       $password,
 
-      $porcentaje,
-      $pagoUtilidadModo,
-      $authMovimientos,
-      $estadoAhorro,
+
       $idglobal
    ) {
       global $conexion;
@@ -88,25 +85,30 @@ class Ahorradores
          $conexion->query($sql) or throw new Exception('error!');
          $idpersona = $conexion->insert_id;
 
-         $sql = "INSERT INTO `tbl_ahorros`(
-                 idglobal,
-                 idpersona,            
-                 dec_porcentaje,
-                 str_pago_utilidad,
-                 bit_auth_movimientos,
-                 str_estado,
-                 created_at,
-                 update_at
-              )
-               VALUES ($idglobal, $idpersona, $porcentaje, '$pagoUtilidadModo', $authMovimientos, '$estadoAhorro', '$dt', '$dt')";
-         $conexion->query($sql) or throw new Exception('error!');
+         $idCuenta = uniqidReal(); // Asignar el valor adecuado para idCuenta
 
-         $sql = "INSERT INTO `tbl_usuario`(
-                idglobal,idpersona,str_user_name,
-                str_password,str_terminos_condiciones,str_estado
-          )
-          VALUES ($idglobal, $idpersona, '$login', '$password', 'pendiente', 'activo')";
-         $conexion->query($sql) or throw new Exception('error!');
+
+         $sqlIns = "INSERT INTO tbl_ahorros (
+                   idglobal,idpersona,dec_porcentaje,
+                   str_name,
+                   id_cuenta,
+                   str_tipo,
+                   str_pago_utilidad,
+                   bit_auth_movimientos, str_estado, created_at, update_at
+                 ) VALUES (
+                   $idglobal,$idpersona,0.00,
+                   'Cuenta Principal',
+                   '$idCuenta',
+                   'corriente',
+                   'manual',
+                  1,'activo','$dt','$dt'
+                 )";
+         $conexion->query($sqlIns) or throw new Exception('error!');
+         $idahorro = $conexion->insert_id;
+
+         // Generar número de cuenta concatenando el ID del ahorro con un contador
+         $qr_upd = "UPDATE tbl_ahorros SET id_cuenta=CONCAT('$idahorro', '-', '00') WHERE idahorro=$idahorro";
+         $conexion->query($qr_upd) or throw new Exception('error!');
       } catch (Exception $e) {
          $sw = false;
          $conexion->rollback();
@@ -145,11 +147,7 @@ class Ahorradores
       $idusuario,
       $login,
       $password,
-      $idahorro,
-      $porcentaje,
-      $pagoUtilidadModo,
-      $authMovimientos,
-      $estadoAhorro,
+
       $idglobal
    ) {
       global $conexion;
@@ -204,34 +202,7 @@ class Ahorradores
 
          $conexion->query($sql) or throw new Exception('error!');
 
-         $sql = "SELECT idahorro FROM tbl_ahorros WHERE idglobal=$idglobal AND idpersona=$idpersona";
-         $query = $conexion->query($sql);
-         $request = $query->fetch_object();
 
-         if (empty($request->idahorro)) {
-            $sql = "INSERT INTO `tbl_ahorros`(
-                   idglobal,
-                   idpersona,
-                   dec_porcentaje,
-                   str_pago_utilidad,
-                   bit_auth_movimientos,
-                   str_estado,
-                   created_at,
-                   update_at
-                )
-                 VALUES ($idglobal, $idpersona, $porcentaje, '$pagoUtilidadModo', $authMovimientos, '$estadoAhorro', '$dt', '$dt')";
-            $conexion->query($sql) or throw new Exception('error!');
-         } else {
-            $sql = "UPDATE `tbl_ahorros` SET
-                    dec_porcentaje=$porcentaje,
-                    str_pago_utilidad='$pagoUtilidadModo',
-                    bit_auth_movimientos=$authMovimientos,
-                    str_estado='$estadoAhorro',
-                    update_at='$dt'
-                    WHERE idahorro=$idahorro
-            ";
-            $conexion->query($sql) or throw new Exception('error!');
-         }
 
          $sql = "SELECT idusuario FROM tbl_usuario WHERE idglobal=$idglobal AND idpersona=$idpersona";
          $query = $conexion->query($sql);
@@ -256,6 +227,38 @@ class Ahorradores
                         WHERE idusuario=$idusuario
                   ";
             $conexion->query($sql) or throw new Exception('error!');
+         }
+
+         // Verificar si el ahorrador tiene un ahorro principal, si no, crear uno
+         $sql = "SELECT idahorro FROM tbl_ahorros WHERE  idpersona=$idpersona AND str_tipo='corriente' LIMIT 1";
+         $query = $conexion->query($sql);
+         $request = $query->fetch_object();
+
+         if (empty($request->idahorro)) {
+            $idCuenta = uniqidReal(); // Asignar el valor adecuado para idCuenta
+
+
+            $sqlIns = "INSERT INTO tbl_ahorros (
+                   idglobal,idpersona,dec_porcentaje,
+                   str_name,
+                   id_cuenta,
+                   str_tipo,
+                   str_pago_utilidad,
+                   bit_auth_movimientos, str_estado, created_at, update_at
+                 ) VALUES (
+                   $idglobal,$idpersona,0.00,
+                   'Cuenta Principal',
+                   '$idCuenta',
+                   'corriente',
+                   'manual',
+                  1,'activo','$dt','$dt'
+                 )";
+            $conexion->query($sqlIns) or throw new Exception('error!');
+            $idahorro = $conexion->insert_id;
+
+            // Generar número de cuenta concatenando el ID del ahorro con un contador
+            $qr_upd = "UPDATE tbl_ahorros SET id_cuenta=CONCAT('$idahorro', '-', '00') WHERE idahorro=$idahorro";
+            $conexion->query($qr_upd) or throw new Exception('error!');
          }
       } catch (Exception $e) {
          $sw = false;
