@@ -32,17 +32,17 @@
     var corresponsales = parseFloat(data && data.corresponsales) || 0;
     var ahorradores = parseFloat(data && data.ahorradores) || 0;
     var miAhorros = parseFloat(data && data.mi_ahorros) || 0;
-    var saldoDisponible = parseFloat(data && data.saldo_disponible);
-    var total = parseFloat(data && data.total);
+    var subtotal = parseFloat(data && data.subtotal);
+    var saldo_disponible = parseFloat(data && data.saldo_disponible);
 
-    if (isNaN(saldoDisponible)) saldoDisponible = miAhorros;
-    if (isNaN(total)) total = corresponsales + ahorradores + miAhorros;
+    if (isNaN(subtotal)) subtotal = corresponsales + ahorradores + miAhorros;
 
     $('#tbl_corresponsales').text(formatMoney(corresponsales));
     $('#tbl_ahorradores').text(formatMoney(ahorradores));
     $('#tbl_mi_ahorros').text(formatMoney(miAhorros));
-    $('#tbl_saldo_disponible').text(formatMoney(saldoDisponible));
-    $('#tbl_total').text(formatMoney(total));
+    $('#tbl_subtotal').text(formatMoney(subtotal));
+    $('#tbl_saldo_disponible').text(formatMoney(saldo_disponible));
+    $('#tbl_total').text(formatMoney(saldo_disponible + subtotal));
   }
 
   function loadResumenSaldos() {
