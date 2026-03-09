@@ -57,7 +57,7 @@ class Corresponsal
             FROM tbl_ahorros b
             WHERE b.idglobal=a.idglobal
               AND b.idpersona=a.idpersona
-              AND b.id_cuenta LIKE CONCAT(a.id_cuenta,'-%')) AS cantidad 
+              AND b.id_cuenta LIKE CONCAT(a.id_cuenta,'%')) AS cantidad 
          FROM tbl_ahorros a
           WHERE a.idglobal=$idglobal AND 
           
@@ -75,7 +75,7 @@ class Corresponsal
          $qr_upd = "UPDATE tbl_ahorros SET id_cuenta=CONCAT(REPLACE('$r_idCuentaPrincipal->id_cuenta','-00',''), '-', '$canFormateado') WHERE idahorro=$idahorro";
          $conexion->query($qr_upd);
       } catch (Exception $e) {
-         //print_r($e);
+         print_r($e);
          $sw = false;
          $conexion->rollback();
       }

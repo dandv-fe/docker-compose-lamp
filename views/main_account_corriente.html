@@ -1,0 +1,499 @@
+<!-- BS Stepper -->
+<link rel="stylesheet" href="plugins/bs-stepper/css/bs-stepper.min.css">
+
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+
+
+  <section class="content">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-12">
+          <div class="callout callout-info hide">
+            <h5><i class="fas fa-info"></i> Note:</h5>
+            This page has been enhanced for printing. Click the print button at the bottom of the invoice to test.
+          </div>
+
+
+          <!-- Main content -->
+          <div id="verCuentaPrincipal" class="invoice p-3 mb-3">
+            <!-- title row -->
+            <div class="row">
+              <div class="col-12">
+
+                <h4>
+                  <i class="fas fa-globe"></i> <span id="txt_account_name">Cuenta Principal</span>
+                  <small class="float-right" id="txt_account_created">Creación: -</small>
+                </h4>
+                <div id="back-to-top" class="btn " style="z-index: 99999999; right: 100px;">
+
+                  <button type="button" class="btn btn-info btn-flat dropdown-toggle dropdown-icon"
+                    data-toggle="dropdown">
+                    <span class="sr-only">Toggle Dropdown</span>
+                  </button>
+                  <div class="dropdown-menu" role="menu">
+                    <a id="aEnviarVer" class="dropdown-item" href="#">Envio</a>
+                    <a class="dropdown-item" href="#" data-toggle="modal" data-target="#modal-aporte"
+                      data-tipo="retiro">Retiro</a>
+                    <div class="dropdown-divider"></div>
+                    <a class="dropdown-item" href="#" data-toggle="modal" data-target="#modal-aporte"
+                      data-tipo="aporte">Aporte</a>
+                  </div>
+                </div>
+              </div>
+              <!-- /.col -->
+            </div>
+            <!-- info row -->
+            <div class="row invoice-info">
+              <div class="col-sm-6 invoice-col">
+
+                <address>
+                  <strong>numero de cuenta</strong><br>
+                  <mark id="txt_num_cuenta"></mark><br>
+
+                </address>
+              </div>
+              <!-- /.col -->
+              <div class="col-sm-6 invoice-col">
+
+                <address>
+                  <strong>saldo disponible</strong><br>
+                  <mark id="txt_saldo_header"></mark><br>
+                </address>
+              </div>
+            </div>
+            <!-- /.row -->
+
+
+
+            <!-- Nav tabs -->
+            <ul class="nav nav-tabs" role="tablist">
+              <li class="nav-item">
+                <a class="nav-link active" id="detalle-tab" data-toggle="tab" href="#detalle" role="tab">Suscripción</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link" id="movimientos-tab" data-toggle="tab" href="#movimientos"
+                  role="tab">Movimientos</a>
+              </li>
+            </ul>
+
+            <!-- Tab content -->
+            <div class="tab-content">
+              <div class="tab-pane fade show active" id="detalle" role="tabpanel">
+                <!-- Suscripción content goes here -->
+                <div class="row">
+                  <!-- accepted payments column -->
+                  <div class="col-6">
+                    </br>
+                    <p class="lead">Información:</p>
+
+                    <p class="text-muted well well-sm shadow-none" style="margin-top: 10px;">
+                      El saldo de Corresponsales Ahorradores y Ahorros no esta disponible
+                    </p>
+                  </div>
+                  <!-- /.col -->
+                  <div class="col-6">
+                    <p class="lead">Cantidad</p>
+
+                    <div class="table-responsive">
+                      <table class="table">
+                        <tr>
+                          <th style="width:50%">Corresponsal </th>
+                          <td id="tbl_corresponsales">$0.00</td>
+                        </tr>
+                        <tr>
+                          <th>Ahorradores</th>
+                          <td id="tbl_ahorradores">$0.00</td>
+                        </tr>
+                        <tr>
+                          <th>Mi ahorros</th>
+                          <td id="tbl_mi_ahorros">$0.00</td>
+                        </tr>
+                        <tr>
+                          <th>SubTotal:</th>
+                          <td id="tbl_subtotal">$0.00</td>
+                        </tr>
+                        <tr>
+                          <th>Saldo Disponible:</th>
+                          <td id="tbl_saldo_disponible">$0.00</td>
+                        </tr>
+                        <tr>
+                          <th>Total:</th>
+                          <td id="tbl_total">$0.00</td>
+                        </tr>
+                      </table>
+                    </div>
+                  </div>
+                  <!-- /.col -->
+                </div>
+                <!-- /.row -->
+              </div>
+              <div class="tab-pane fade" id="movimientos" role="tabpanel">
+                <!-- Movimientos content goes here -->
+                <!-- Table row -->
+                <div class="row">
+                  <div class="col-12 table-responsive">
+                    <table id="tblMovimientosPrincipal" class="table table-striped">
+                      <thead>
+                        <tr>
+                          <th>Fecha movimiento</th>
+                          <th>Tipo</th>
+                          <th>Valor</th>
+                          <th>Descripción</th>
+                          <th>Estado</th>
+                        </tr>
+                      </thead>
+                      <tbody id="tbodyMovimientosPrincipal">
+                        <tr>
+                          <td colspan="5" class="text-center text-muted">Sin movimientos</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <!-- /.col -->
+                </div>
+                <!-- /.row -->
+              </div>
+            </div>
+          </div>
+          <!-- /.invoice -->
+          <!-- /.Formulario para el envio -->
+          <div id="verFormEnviar" class="card card-default">
+            <div class="card-header">
+              <h3 class="card-title">Enviar</h3>
+            </div>
+            <div class="card-body p-0">
+              <div class="bs-stepper">
+                <div class="bs-stepper-header flex-wrap" role="tablist">
+                  <div class="step" data-target="#step-1">
+                    <button type="button" class="step-trigger" role="tab" aria-controls="step-1" id="step-1-trigger">
+                      <span class="bs-stepper-circle">1</span>
+                      <span class="bs-stepper-label">Buscar cuenta</span>
+                    </button>
+                  </div>
+                  <div class="line"></div>
+                  <div class="step" data-target="#step-2">
+                    <button type="button" class="step-trigger" role="tab" aria-controls="step-2" id="step-2-trigger">
+                      <span class="bs-stepper-circle">2</span>
+                      <span class="bs-stepper-label">Monto a enviar</span>
+                    </button>
+                  </div>
+                  <div class="line"></div>
+                  <div class="step" data-target="#step-3">
+                    <button type="button" class="step-trigger" role="tab" aria-controls="step-3" id="step-3-trigger">
+                      <span class="bs-stepper-circle">3</span>
+                      <span class="bs-stepper-label">Confirmación</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div class="bs-stepper-content p-2 p-md-4">
+                  <form id="stepperForm" action="#" method="post">
+                    <div id="step-1" class="content" role="tabpanel" aria-labelledby="step-1-trigger">
+
+                      <div class="form-group">
+                        <label for="id_cuenta">Número de cuenta</label>
+                        <input type="text" class="form-control" id="id_cuenta" name="id_cuenta"
+                          placeholder="Número de cuenta">
+                      </div>
+                      <button type="button" class="btn btn-secondary btnCancelarEnvio">Cancelar</button>
+                      <button type="button" class="btn btn-primary" data-stepper-next="1">Siguiente</button>
+                    </div>
+
+                    <div id="step-2" class="content" role="tabpanel" aria-labelledby="step-2-trigger">
+
+
+                      <div class="form-group">
+                        <label for="monto">Monto a enviar</label>
+                        <input type="number" class="form-control" id="monto" name="monto" placeholder="Monto a enviar"
+                          step="0.01" min="0">
+                      </div>
+                      <button type="button" class="btn btn-secondary btnCancelarEnvio">Cancelar</button>
+
+                      <button type="button" class="btn btn-default" data-stepper-prev>Anterior</button>
+                      <button type="button" class="btn btn-primary" data-stepper-next="2">Siguiente</button>
+                    </div>
+
+                    <div id="step-3" class="content" role="tabpanel" aria-labelledby="step-3-trigger">
+                      <p class="mb-4">Verifica la información y finaliza el formulario.</p>
+
+                      <div class="form-group">
+                        <label class="d-block">Nombre del destinatario</label>
+                        <p class="form-control-plaintext text-break" id="nombre_destinatario">-</p>
+                      </div>
+
+                      <div class="form-group">
+                        <label class="d-block">Número de cuenta destino</label>
+                        <p class="form-control-plaintext text-break" id="cuenta_destino">-</p>
+                      </div>
+
+                      <div class="form-group">
+                        <label class="d-block">Monto a enviar</label>
+                        <p class="form-control-plaintext text-break" id="monto_confirmacion">-</p>
+                      </div>
+                      <div class="form-group">
+                        <label class="d-block">Número cuenta origen</label>
+                        <p class="form-control-plaintext text-break" id="cuenta_origen">-</p>
+                      </div>
+
+                      <div class="d-flex flex-column flex-sm-row gap-2">
+                        <button type="button" class="btn btn-secondary btnCancelarEnvio mr-2">Cancelar</button>
+
+                        <button type="button" class="btn btn-default mb-2 mb-sm-0 mr-sm-2"
+                          data-stepper-prev>Anterior</button>
+                        <button type="button" class="btn btn-success" id="btnFinalizar">Finalizar</button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+        </div><!-- /.col -->
+      </div><!-- /.row -->
+    </div><!-- /.container-fluid -->
+  </section>
+  <!-- /.content -->
+</div>
+
+<!-- Modal Aporte -->
+<div class="modal fade" id="modal-aporte" tabindex="-1" role="dialog" aria-labelledby="modal-aporte-title"
+  aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modal-aporte-title">Registrar aporte</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form id="form-aporte" autocomplete="off">
+        <div class="modal-body">
+          <input type="hidden" id="idahorro" name="idahorro">
+          <input type="hidden" id="str_tipo" name="str_tipo" value="aporte">
+
+          <div class="form-group">
+            <label for="dec_valor">Valor</label>
+            <input type="number" class="form-control" id="dec_valor" name="dec_valor" step="0.01" min="0" required>
+          </div>
+
+          <div class="form-group">
+            <label for="str_descripcion">Descripción</label>
+            <textarea class="form-control" id="str_descripcion" name="str_descripcion" rows="3" maxlength="255"
+              required></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar aporte</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+
+<!--<div class="btn-group">
+ 
+  <div class="dropdown-menu" role="menu">
+    <a class="dropdown-item" href="#">Action</a>
+    <a class="dropdown-item" href="#">Another action</a>
+    <a class="dropdown-item" href="#">Something else here</a>
+    <div class="dropdown-divider"></div>
+    <a class="dropdown-item" href="#">Separated link</a>
+  </div>
+</div>-->
+<!-- JS personalizado (después de DataTables) -->
+<script src="dist/scripts/main_account_corriente.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+
+<!-- Estilos responsive para stepper -->
+<style>
+  @media (max-width: 576px) {
+    .bs-stepper-header {
+      padding: 0.5rem;
+    }
+
+    .step-trigger {
+      padding: 0.25rem !important;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .bs-stepper-circle {
+      width: 2rem;
+      height: 2rem;
+      line-height: 2rem;
+      font-size: 0.875rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .bs-stepper-label {
+      font-size: 0.65rem;
+      text-align: center;
+      line-height: 1.1;
+      max-width: 60px;
+      display: block;
+    }
+
+    .line {
+      min-width: 0.5rem;
+      flex-grow: 0;
+    }
+
+    .form-control-plaintext {
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+  }
+
+  @media (min-width: 577px) {
+    .step-trigger {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+    }
+
+    .bs-stepper-label {
+      margin-left: 0.5rem;
+    }
+  }
+</style>
+
+<!-- BS-Stepper -->
+<script src="plugins/bs-stepper/js/bs-stepper.min.js"></script>
+<script>
+  $(".lia-cuenta-principal").addClass("active");
+  var stepper
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var stepperElement = document.querySelector('.bs-stepper')
+    var formElement = document.querySelector('#stepperForm')
+
+    stepper = new Stepper(stepperElement)
+
+    var nextGuards = {
+      1: function () {
+        var cuenta = ($('#id_cuenta').val() || '').trim()
+        var cuentaOrigen = ($('#txt_num_cuenta').text() || '').trim()
+        if (!cuenta) {
+          Swal.fire({ icon: 'warning', title: 'Ingrese el número de cuenta' })
+          $('#id_cuenta').focus()
+          return false
+        }
+
+        if (cuentaOrigen && cuenta === cuentaOrigen) {
+          Swal.fire({
+            icon: 'warning',
+            title: 'Cuenta inválida',
+            text: 'La cuenta destino no puede ser la misma cuenta origen.'
+          })
+          $('#id_cuenta').focus()
+          return false
+        }
+
+        var $btnNext = $('[data-stepper-next="1"]')
+        $btnNext.prop('disabled', true)
+        $('#stepperForm').removeData('idahorroDestino')
+
+        $.getJSON('./ajax/MainAccountAjax.php?op=buscarCuentaDestino', { id_cuenta: cuenta })
+          .done(function (resp) {
+            if (resp && resp.status === 'success' && resp.nombres && resp.apellidos) {
+              if (cuentaOrigen && (resp.id_cuenta || cuenta) === cuentaOrigen) {
+                Swal.fire({
+                  icon: 'warning',
+                  title: 'Cuenta inválida',
+                  text: 'La cuenta destino no puede ser la misma cuenta origen.'
+                })
+                return
+              }
+
+              var nombreCompleto = (resp.nombres + ' ' + resp.apellidos).trim()
+              var cuentaOrigenMostrar = cuentaOrigen || '-'
+
+              $('#nombre_destinatario').text(nombreCompleto)
+              $('#cuenta_destino').text(resp.id_cuenta || cuenta)
+              $('#cuenta_origen').text(cuentaOrigenMostrar)
+              $('#stepperForm').data('idahorroDestino', parseInt(resp.idahorro || 0, 10))
+              stepper.next()
+              return
+            }
+
+            Swal.fire({
+              icon: 'warning',
+              title: 'Cuenta no encontrada',
+              text: (resp && resp.mensaje) ? resp.mensaje : 'No existe una cuenta válida para continuar.'
+            })
+          })
+          .fail(function () {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error de consulta',
+              text: 'No fue posible validar la cuenta en este momento.'
+            })
+          })
+          .always(function () {
+            $btnNext.prop('disabled', false)
+          })
+
+        return false
+      },
+      2: function () {
+        var monto = parseFloat($('#monto').val() || 0)
+        if (!monto || monto <= 0) {
+          Swal.fire({ icon: 'warning', title: 'Ingrese un monto válido' })
+          $('#monto').focus()
+          return false
+        }
+
+        var nombre = ($('#nombre_destinatario').text() || '').trim()
+        if (!nombre || nombre === '-') {
+          Swal.fire({ icon: 'warning', title: 'Primero valide la cuenta destino' })
+          return false
+        }
+
+        $('#monto_confirmacion').text('$' + monto.toFixed(2))
+        if (!($('#cuenta_origen').text() || '').trim() || $('#cuenta_origen').text().trim() === '-') {
+          $('#cuenta_origen').text(($('#txt_num_cuenta').text() || '').trim() || '-')
+        }
+        return true
+      }
+    }
+
+    window.stepperControls = {
+      setNextGuard: function (stepNumber, guardFn) {
+        if (typeof guardFn === 'function') {
+          nextGuards[stepNumber] = guardFn
+        }
+      },
+      getNextGuard: function (stepNumber) {
+        return nextGuards[stepNumber]
+      },
+      next: function () {
+        stepper.next()
+      },
+      previous: function () {
+        stepper.previous()
+      }
+    }
+
+    document.querySelectorAll('[data-stepper-next]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        var currentStep = parseInt(button.getAttribute('data-stepper-next'), 10)
+        var guard = nextGuards[currentStep]
+
+        if (!guard || guard(formElement) !== false) {
+          stepper.next()
+        }
+      })
+    })
+
+    document.querySelectorAll('[data-stepper-prev]').forEach(function (button) {
+      button.addEventListener('click', function () {
+        stepper.previous()
+      })
+    })
+  })
+</script>
