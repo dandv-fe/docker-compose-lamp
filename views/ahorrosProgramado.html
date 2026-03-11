@@ -1,0 +1,242 @@
+<!-- DataTables -->
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+  <!-- Content Header (Page header) -->
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1>Ahorros Programado ⚡</h1>
+          <small class="text-muted">Red de apoyo y gestión 🤝</small>
+        </div>
+
+      </div>
+    </div><!-- /.container-fluid -->
+  </section>
+
+  <!-- Main content -->
+  <section class="content">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-12">
+
+          <div id="verFormulario" class="card card-warning elevation-2 hide">
+            <div class="card-header bg-gradient-warning d-flex align-items-center justify-content-between flex-wrap">
+              <h3 class="card-title mb-0"><i class="fas fa-user-friends mr-1"></i> Registrar Ahorro Programado</h3>
+              <small>Vincula y administra tu equipo de apoyo</small>
+            </div>
+            <form id="formCorresponsal">
+              <div class="card-body">
+                <input type="hidden" id="idahorro" name="idahorro">
+                <div class="row">
+                  <div class="col-md-3">
+
+                    <div class="form-group">
+                      <label for="dec_porcentaje">Porcentaje</label>
+                      <input type="number" step="0.01" class="form-control" id="dec_porcentaje" name="dec_porcentaje"
+                        placeholder="Ej: 2.5" required>
+                    </div>
+                  </div>
+
+                  <div class="col-md-5">
+                    <div class="form-group">
+                      <label for="str_name">Nombre</label>
+                      <input type="text" class="form-control" id="str_name" name="str_name" placeholder="Ingrese nombre"
+                        required>
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label for="str_pago_utilidad">Tipo de Pago</label>
+                      <select name="str_pago_utilidad" id="str_pago_utilidad" class="form-control" required>
+                        <option value="">Seleccione tipo de pago</option>
+                        <option value="no aplica">No aplica</option>
+                        <option value="manual">Manual</option>
+
+                      </select>
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label for="str_estado">Estado</label>
+                      <select class="form-control" id="str_estado" name="str_estado" required>
+                        <option value="">Seleccione estado</option>
+                        <option value="activo">Activo</option>
+                        <option value="inactivo">Inactivo</option>
+                      </select>
+                    </div>
+                  </div>
+
+
+
+                  <div class="col-md-4 d-flex align-items-center">
+                    <div class="form-group mb-0">
+                      <div class="custom-control custom-checkbox">
+                        <input type="hidden" id="bit_auth_movimientos" name="bit_auth_movimientos" value="false">
+                        <input type="checkbox" class="custom-control-input" id="auth_movimientos"
+                          name="auth_movimientos">
+                        <label class="custom-control-label" for="auth_movimientos">Autorizar Movimientos</label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-group">
+                      <label for="str_empleado">Empleado</label>
+                      <select class="form-control" id="str_empleado" name="str_empleado">
+                        <option value="">Seleccione empleado</option>
+
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="card-footer d-flex justify-content-end">
+                <button onclick="Corresponsal.verListado()" type="reset" class="btn btn-outline-secondary mr-2">
+                  <i class="fas fa-times"></i> Cancelar
+                </button>
+                <button type="submit" class="btn btn-warning btn-lg elevation-1">
+                  <i class="fas fa-save"></i> Guardar corresponsal
+                </button>
+              </div>
+            </form>
+          </div>
+
+
+
+          <button id="btnNuevoAhorroProgramado" class="btn btn-warning btn-lg mb-3 elevation-2" data-toggle="modal"
+            data-target="#modal-xl">
+            <i class="fa fa-user-plus"></i> Nuevo Ahorro Programado
+          </button>
+
+
+          <div id="verLista" class="card card-info elevation-2">
+            <div class="card-header bg-gradient-warning text-white d-flex align-items-center justify-content-between">
+              <h3 class="card-title"><i class="fas fa-network-wired mr-1"></i> Directorio de Ahorros Programados</h3>
+              <span class="badge badge-light">Equipo conectado</span>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body">
+              <table id="example1" class="table table-bordered table-striped table-hover">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Descripcion</th>
+                    <th>Numero</th>
+                    <th>Saldo disponible</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                    <th>Opciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+
+
+
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Descripcion</th>
+                    <th>Numero</th>
+                    <th>Saldo Disponible</th>
+                    <th>Estado</th>
+                    <th>Fecha</th>
+                    <th>Opciones</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <!-- /.card-body -->
+          </div>
+          <div id="verDetalle" class="card card-info elevation-2 hide">
+            <div
+              class="card-header bg-gradient-info text-white d-flex align-items-center justify-content-between flex-wrap">
+              <h3 class="card-title mb-0"><i class="fas fa-id-card mr-1"></i> Perfil del Corresponsal</h3>
+              <button type="button" class="btn btn-light btn-sm" onclick="Corresponsal.verListado()">
+                <i class="fas fa-arrow-left"></i> Volver
+              </button>
+            </div>
+            <div class="card-body">
+              <div class="row mb-3">
+                <div class="col-md-8">
+                  <p class="mb-1"><strong>Nombre:</strong> <span id="det_nombre">-</span></p>
+                  <p class="mb-1"><strong>Descripción:</strong> <span id="det_descripcion">-</span></p>
+                  <p class="mb-1"><strong>Número:</strong> <span id="det_numero">-</span></p>
+                </div>
+                <div class="col-md-4 text-md-right">
+                  <p class="mb-1"><strong>Saldo:</strong> <span id="det_saldo">$0.00</span></p>
+                  <p class="mb-1"><strong>Estado:</strong> <span id="det_estado">-</span></p>
+                  <p class="mb-1"><strong>Fecha:</strong> <span id="det_fecha">-</span></p>
+                </div>
+              </div>
+
+              <div class="table-responsive">
+                <table class="table table-bordered table-striped table-hover">
+                  <thead>
+                    <tr>
+                      <th>Fecha movimiento</th>
+                      <th>Tipo</th>
+                      <th>Valor</th>
+                      <th>Descripción</th>
+                      <th>Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbodyMovimientosCorresponsal">
+                    <tr>
+                      <td colspan="5" class="text-center text-muted">Sin movimientos</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <!-- /.card -->
+        </div>
+        <!-- /.col -->
+      </div>
+      <!-- /.row -->
+    </div>
+    <!-- /.container-fluid -->
+  </section>
+  <!-- /.content -->
+</div>
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.colVis.min.js"></script>
+
+
+<!-- JS personalizado (después de DataTables) -->
+<script src="dist/scripts/ahorrosProgramado.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+
+
+
+<script>
+  $("#li-ahorros").addClass("menu-open");
+  $(".lia-ahorros").addClass("active");
+  $(".lia-ahorros-programado").addClass("active");
+
+
+  $("#example1").DataTable({
+    "responsive": true, "lengthChange": false, "autoWidth": false,
+    "buttons": ["csv", "excel", "pdf", "print"]
+  }).buttons().container().appendTo('#example1_wrapper .col-md-6:eq(0)');
+
+
+</script>

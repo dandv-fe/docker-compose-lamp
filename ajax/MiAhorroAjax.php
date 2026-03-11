@@ -32,10 +32,10 @@ switch ($_GET['op']) {
          break;
       }
 
-      if (!$objMiAhorro->empleadoConEmailVerificado($idglobal, intval($idpersona))) {
+      if (!$objMiAhorro->empleadoConEmailVerificado(intval($idpersona))) {
          echo json_encode([
             'status' => 'error',
-            'mensaje' => 'El empleado seleccionado debe tener email y estar verificado.'
+            'mensaje' => 'Debe tener email y estar verificado.'
          ]);
          break;
       }
@@ -119,7 +119,7 @@ switch ($_GET['op']) {
       }
       break;
    case 'listMisAhorros':
-      $query = $objMiAhorro->listMisAhorros($idglobal);
+      $query = $objMiAhorro->listMisAhorros($idpersona);
       $data = [];
       while ($reg = $query->fetch_object()) {
          $data[] = [

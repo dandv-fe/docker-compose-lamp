@@ -170,15 +170,14 @@ class MiAhorro
       return $cantidadActual >= $cantidadAprobada;
    }
 
-   public function empleadoConEmailVerificado($idglobal, $idpersona)
+   public function empleadoConEmailVerificado($idpersona)
    {
       global $conexion;
-      $sql = "SELECT e.idempleado
-              FROM tbl_empleado e
-              INNER JOIN tbl_persona p ON p.idpersona = e.idpersona
-              WHERE e.idglobal=$idglobal
-                AND e.idpersona=$idpersona
-                AND e.str_estado<>'inactivo'
+      $sql = "SELECT p.idpersona
+              FROM tbl_persona p
+             
+              WHERE p.idpersona=$idpersona
+                AND p.str_estado<>'inactivo'
                 AND TRIM(IFNULL(p.str_email, '')) <> ''
                 AND CAST(IFNULL(p.str_email_verificado, '0') AS UNSIGNED) = 1
               LIMIT 1";
@@ -252,7 +251,7 @@ class MiAhorro
       return $idahorroNuevo;
    }
 
-   public function listMisAhorros($idglobal)
+   public function listMisAhorros($idpersona)
    {
       global $conexion;
       $sql = "SELECT 
@@ -278,13 +277,13 @@ class MiAhorro
                      ELSE 0 END
                ),0)
                FROM tbl_movimientos m
-               WHERE m.idglobal=$idglobal
+               WHERE m.idahorro=a.idahorro
                  AND m.idahorro=a.idahorro
                  AND UPPER(m.str_estado) <> 'INACTIVO'
             ) AS saldo_real
          FROM tbl_ahorros a
          LEFT JOIN tbl_persona p ON p.idpersona = a.idpersona
-         WHERE a.idglobal=$idglobal AND a.str_tipo='ahorro'
+         WHERE a.idpersona=$idpersona AND a.str_tipo='ahorro'
          ORDER BY a.idahorro DESC";
       $query = $conexion->query($sql);
       return $query;

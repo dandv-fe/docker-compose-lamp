@@ -235,9 +235,10 @@
 
   function bindRAForm() {
     $(document).on('click', '[data-target="#modal-aporte"][data-tipo]', function () {
-      var tipo = ($(this).data('tipo') || 'aporte').toString().toLowerCase();
+      var tipo = ($(this).data('tipo') || 'retiro').toString().toLowerCase();
+      if (tipo !== 'retiro') tipo = 'retiro';
       $('#str_tipo').val(tipo);
-      var title = (tipo === 'retiro') ? 'Registrar retiro' : 'Registrar aporte';
+      var title = 'Registrar retiro';
       $('#modal-aporte-title').text(title);
     });
 
@@ -264,14 +265,30 @@
         }
       }).done(function (resp) {
         if (resp && resp.status === 'success') {
-          Swal.fire({ icon: 'success', title: resp.mensaje || 'Aporte registrado' });
+          var codigo = (resp.codigo_temporal || '').toString();
+          var venceEn = resp.vence_en || '';
+          var htmlMsg = '';
+          if (codigo) {
+            htmlMsg += '<div><strong>Código temporal:</strong> ' + escapeHtml(codigo) + '</div>';
+          }
+          if (venceEn) {
+            htmlMsg += '<div><strong>Vence:</strong> ' + escapeHtml(venceEn) + '</div>';
+          }
+
+          Swal.fire({
+            icon: 'success',
+            title: resp.mensaje || 'Retiro temporal generado',
+            html: htmlMsg || undefined,
+            text: htmlMsg ? undefined : 'Se generó un código temporal de retiro.'
+          });
           $('#modal-aporte').modal('hide');
           $('#form-aporte')[0].reset();
+          $('#str_tipo').val('retiro');
           goAccount();
           loadResumenSaldos();
           loadMovimientosPrincipal($('#idahorro').val());
         } else {
-          var msg = (resp && resp.mensaje) ? resp.mensaje : 'No se pudo registrar el aporte';
+          var msg = (resp && resp.mensaje) ? resp.mensaje : 'No se pudo registrar el retiro';
           Swal.fire({ icon: 'error', title: msg });
         }
       }).fail(function (e) {

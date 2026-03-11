@@ -35,9 +35,6 @@
                     <a id="aEnviarVer" class="dropdown-item" href="#">Envio</a>
                     <a class="dropdown-item" href="#" data-toggle="modal" data-target="#modal-aporte"
                       data-tipo="retiro">Retiro</a>
-                    <div class="dropdown-divider"></div>
-                    <a class="dropdown-item" href="#" data-toggle="modal" data-target="#modal-aporte"
-                      data-tipo="aporte">Aporte</a>
                   </div>
                 </div>
               </div>
@@ -264,7 +261,7 @@
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title" id="modal-aporte-title">Registrar aporte</h5>
+        <h5 class="modal-title" id="modal-aporte-title">Generar retiro temporal</h5>
         <button type="button" class="close" data-dismiss="modal" aria-label="Close">
           <span aria-hidden="true">&times;</span>
         </button>
@@ -272,7 +269,7 @@
       <form id="form-aporte" autocomplete="off">
         <div class="modal-body">
           <input type="hidden" id="idahorro" name="idahorro">
-          <input type="hidden" id="str_tipo" name="str_tipo" value="aporte">
+          <input type="hidden" id="str_tipo" name="str_tipo" value="retiro">
 
           <div class="form-group">
             <label for="dec_valor">Valor</label>
@@ -283,11 +280,12 @@
             <label for="str_descripcion">Descripción</label>
             <textarea class="form-control" id="str_descripcion" name="str_descripcion" rows="3" maxlength="255"
               required></textarea>
+            <small class="form-text text-muted">Se generará un código temporal con vigencia de 30 minutos.</small>
           </div>
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
-          <button type="submit" class="btn btn-primary">Guardar aporte</button>
+          <button type="submit" class="btn btn-primary">Generar código</button>
         </div>
       </form>
     </div>

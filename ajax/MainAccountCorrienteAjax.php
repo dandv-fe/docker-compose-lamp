@@ -3,6 +3,101 @@ session_start();
 require_once "../method.php";
 require_once "../model/MainAccountCorriente.php";
 
+// Autoload de Composer (PHPMailer) si existe
+$__autoload = __DIR__ . '/../vendor/autoload.php';
+if (file_exists($__autoload)) {
+   require_once $__autoload;
+}
+
+// Cargar configuración SMTP si existe
+$MAIL_CONFIG = [];
+$__cfg_mail = __DIR__ . '/../config/mail.php';
+if (file_exists($__cfg_mail)) {
+   $tmpCfg = include $__cfg_mail;
+   if (is_array($tmpCfg)) {
+      $MAIL_CONFIG = $tmpCfg;
+   }
+}
+
+function _send_retiro_code_email($toEmail, $codigo, $venceEn, $monto, $idCuenta)
+{
+   global $MAIL_CONFIG;
+   $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+   $subject = 'Código temporal de retiro';
+   $montoFmt = '$' . number_format(floatval($monto), 2, '.', ',');
+
+   $html = "<html><body style='font-family:Arial,sans-serif'>" .
+      "<h2>Código temporal de retiro</h2>" .
+      "<p>Se ha generado un retiro temporal para la cuenta <strong>" . htmlspecialchars((string)$idCuenta, ENT_QUOTES, 'UTF-8') . "</strong>.</p>" .
+      "<p><strong>Código:</strong> " . htmlspecialchars((string)$codigo, ENT_QUOTES, 'UTF-8') . "</p>" .
+      "<p><strong>Monto:</strong> " . htmlspecialchars($montoFmt, ENT_QUOTES, 'UTF-8') . "</p>" .
+      "<p><strong>Vence:</strong> " . htmlspecialchars((string)$venceEn, ENT_QUOTES, 'UTF-8') . "</p>" .
+      "<p>Este código caduca en 30 minutos.</p>" .
+      "</body></html>";
+
+   $text = "Código temporal de retiro\n" .
+      "Cuenta: " . $idCuenta . "\n" .
+      "Código: " . $codigo . "\n" .
+      "Monto: " . $montoFmt . "\n" .
+      "Vence: " . $venceEn . "\n" .
+      "Este código caduca en 30 minutos.";
+
+   if (class_exists('PHPMailer\\PHPMailer\\PHPMailer')) {
+      try {
+         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+
+         $driver     = $MAIL_CONFIG['driver']   ?? null;
+         $smtpHost   = $MAIL_CONFIG['host']     ?? (getenv('SMTP_HOST') ?: '');
+         $smtpUser   = $MAIL_CONFIG['username'] ?? (getenv('SMTP_USER') ?: '');
+         $smtpPass   = $MAIL_CONFIG['password'] ?? (getenv('SMTP_PASS') ?: '');
+         $smtpPort   = (string)($MAIL_CONFIG['port'] ?? (getenv('SMTP_PORT') ?: '587'));
+         $smtpSecure = $MAIL_CONFIG['secure']   ?? (getenv('SMTP_SECURE') ?: 'tls');
+         $smtpAuth   = $MAIL_CONFIG['auth']     ?? getenv('SMTP_AUTH');
+         $smtpAuth   = is_bool($smtpAuth) ? $smtpAuth : !(($smtpAuth === '0') || (strtolower((string)$smtpAuth) === 'false'));
+
+         if ($driver === 'smtp' || !empty($smtpHost)) {
+            $mail->isSMTP();
+            $mail->Host = $smtpHost;
+            $mail->SMTPAuth = $smtpAuth;
+            if ($smtpAuth) {
+               $mail->Username = $smtpUser;
+               $mail->Password = $smtpPass;
+            }
+            $mail->Port = (int)$smtpPort;
+            if ($smtpSecure === 'ssl' || $smtpSecure === 'tls') {
+               $mail->SMTPSecure = $smtpSecure;
+            }
+         } else {
+            $mail->isMail();
+         }
+
+         $fromEmail = $MAIL_CONFIG['from']      ?? (getenv('SMTP_FROM') ?: ('no-reply@' . $host));
+         $fromName  = $MAIL_CONFIG['from_name'] ?? (getenv('SMTP_FROM_NAME') ?: 'No Reply');
+
+         $mail->setFrom($fromEmail, $fromName);
+         $mail->addAddress($toEmail);
+         $mail->Subject = $subject;
+         $mail->isHTML(true);
+         $mail->Body = $html;
+         $mail->AltBody = $text;
+         $mail->CharSet = 'UTF-8';
+         $mail->send();
+
+         return true;
+      } catch (Exception $e) {
+         return false;
+      }
+   }
+
+   $headers = [];
+   $headers[] = 'MIME-Version: 1.0';
+   $headers[] = 'Content-type: text/html; charset=UTF-8';
+   $headers[] = 'From: No Reply <no-reply@' . $host . '>';
+   $headers[] = 'X-Mailer: PHP/' . phpversion();
+
+   return @mail($toEmail, $subject, $html, implode("\r\n", $headers));
+}
+
 $objMainAccountCorrieneete = new MainAccountCorriente();
 $idglobal = $_SESSION['idglobal'];
 $superadmin = $_SESSION['userEmpresa'];
@@ -94,36 +189,59 @@ switch ($_GET['op']) {
          break;
       }
 
-      // Normalizar BIT(1)
-      $authFlag = $info->auth;
-      if (is_string($authFlag)) {
-         $authFlag = ord($authFlag); // "\x01" => 1, "\x00" => 0
+      // Normalizar BIT(1) y valores string/numéricos
+      $authRaw = $info->auth;
+      if (is_string($authRaw)) {
+         if ($authRaw === "\x01") {
+            $authFlag = 1;
+         } elseif ($authRaw === "\x00" || $authRaw === '') {
+            $authFlag = 0;
+         } else {
+            $authFlag = intval(trim($authRaw));
+         }
       } else {
-         $authFlag = intval($authFlag);
+         $authFlag = intval($authRaw);
       }
 
-      $esSuperAdmin = !empty($_SESSION['userEmpresa']);
-      if ($authFlag !== 1 && !$esSuperAdmin) {
+      if ($authFlag !== 1) {
          echo json_encode([
             'status' => 'error',
             'mensaje' => 'Movimientos no autorizados. Active "Autorizar Movimientos" en Configuración.'
          ]);
          break;
       }
-      $valor = $tipo === 'retiro' ? -$valor : $valor;
 
-      $ok = $objMainAccountCorrieneete->registrarMovimientoRA($idglobal, $idahorro, $_SESSION['idusuario'], $tipo, $valor, $descripcion);
-      if (!$ok) {
-         echo json_encode(['status' => 'error', 'mensaje' => 'No se pudo registrar el movimiento']);
+      $tipo = strtolower(trim($tipo));
+      if ($tipo !== 'retiro') {
+         echo json_encode(['status' => 'error', 'mensaje' => 'En esta cuenta solo aplica retiro.']);
          break;
       }
 
-      // Ya no se actualiza 'dec_ganancia_acumulada'; saldo se calcula desde movimientos.
-      // Actualizamos 'update_at' para reflejar cambios recientes.
-      $dt = date('Y-m-d H:i:s');
-      $conexion->query("UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro=$idahorro");
+      $resultado = $objMainAccountCorrieneete->registrarRetiroTemporal(
+         $idglobal,
+         intval($idahorro),
+         intval($_SESSION['idusuario']),
+         $valor,
+         $descripcion
+      );
 
-      echo json_encode(['status' => 'success', 'mensaje' => 'Movimiento registrado']);
+      if (($resultado['status'] ?? 'error') === 'success') {
+         $email = trim((string)($resultado['email'] ?? ''));
+         $codigo = (string)($resultado['codigo_temporal'] ?? '');
+         $venceEn = (string)($resultado['vence_en'] ?? '');
+         $montoRetiro = floatval($resultado['monto'] ?? 0);
+         $idCuenta = (string)($resultado['id_cuenta'] ?? '');
+
+         if ($email === '' || $codigo === '' || !_send_retiro_code_email($email, $codigo, $venceEn, $montoRetiro, $idCuenta)) {
+            echo json_encode([
+               'status' => 'error',
+               'mensaje' => 'Se generó el código, pero no se pudo enviar al email. Verifique la configuración SMTP.'
+            ]);
+            break;
+         }
+      }
+
+      echo json_encode($resultado);
       break;
 
    case 'finalizarEnvioPrincipal':

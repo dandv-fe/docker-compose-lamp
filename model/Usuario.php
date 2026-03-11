@@ -215,7 +215,10 @@ class usuario
       $oficinas = array();
       // obtener datos del usuario
       $sql = "SELECT 
-            *
+            *,
+            (SELECT idahorro FROM tbl_ahorros WHERE idpersona=view_usuario_session.idpersona AND str_tipo='corriente' OR 
+            idpersona=view_usuario_session.idpersona AND str_tipo='principal' LIMIT 1) AS idahorro,
+            (SELECT idahorro FROM tbl_ahorros WHERE idpersona=view_usuario_session.idpersona AND str_tipo='corresponsal' LIMIT 1) AS idahorro_corresponsal
             FROM view_usuario_session
             WHERE idusuario=$idusuario ";
       $query = $conexion->query($sql);

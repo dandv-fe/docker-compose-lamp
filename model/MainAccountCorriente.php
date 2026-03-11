@@ -4,6 +4,31 @@ require "Conexion.php";
 class MainAccountCorriente
 {
    public function __construct() {}
+
+   private function generarCodigoRetiro($idglobal)
+   {
+      global $conexion;
+      $idglobal = intval($idglobal);
+      $maxIntentos = 20;
+      $limiteVigencia = date('Y-m-d H:i:s', strtotime('-30 minutes'));
+
+      for ($i = 0; $i < $maxIntentos; $i++) {
+         $codigo = random_int(100000, 999999);
+         $sql = "SELECT idmovimiento
+                 FROM tbl_movimientos
+                 WHERE idglobal=$idglobal
+                   AND int_codigo=$codigo
+                            AND COALESCE(created_at, date_movimiento) >= '$limiteVigencia'
+                 LIMIT 1";
+         $q = $conexion->query($sql);
+         $existe = $q ? $q->fetch_object() : null;
+         if (!$existe) {
+            return $codigo;
+         }
+      }
+
+      return 0;
+   }
    public function registrar($idglobal, $idpersona)
    {
       global $conexion;
@@ -179,6 +204,109 @@ class MainAccountCorriente
       return $conexion->query($sql);
    }
 
+   public function registrarRetiroTemporal($idglobal, $idahorro, $idusuarioCreated, $valor, $descripcion)
+   {
+      global $conexion;
+
+      $idglobal = intval($idglobal);
+      $idahorro = intval($idahorro);
+      $idusuarioCreated = intval($idusuarioCreated);
+      $valor = floatval($valor);
+      $descripcion = trim((string)$descripcion);
+
+      if ($idglobal <= 0 || $idahorro <= 0 || $idusuarioCreated <= 0 || $valor <= 0 || $descripcion === '') {
+         return ['status' => 'error', 'mensaje' => 'Datos inválidos para generar el retiro'];
+      }
+
+      $sw = true;
+      $conexion->autocommit(false);
+      $dt = date('Y-m-d H:i:s');
+
+      try {
+         $sqlCuenta = "SELECT a.idahorro, a.id_cuenta, a.str_estado,
+                                           p.str_email,
+                                           CAST(IFNULL(p.str_email_verificado, '0') AS UNSIGNED) AS email_verificado
+                      FROM tbl_ahorros
+                                 a
+                                 INNER JOIN tbl_persona p ON p.idpersona = a.idpersona
+                                 WHERE a.idglobal=$idglobal
+                                    AND a.idahorro=$idahorro
+                                    AND a.str_tipo='corriente'
+                      LIMIT 1";
+         $qCuenta = $conexion->query($sqlCuenta);
+         $cuenta = $qCuenta ? $qCuenta->fetch_object() : null;
+
+         if (!$cuenta) {
+            throw new Exception('Cuenta corriente no encontrada');
+         }
+
+         if (strtoupper($cuenta->str_estado) === 'INACTIVO') {
+            throw new Exception('La cuenta está inactiva');
+         }
+
+         $email = trim((string)($cuenta->str_email ?? ''));
+         $emailVerificado = intval($cuenta->email_verificado ?? 0);
+         if ($email === '' || $emailVerificado !== 1) {
+            throw new Exception('Debe tener email verificado para generar el retiro temporal');
+         }
+
+         $sqlSaldo = "SELECT IFNULL(SUM(
+                        CASE m.str_tipo
+                           WHEN 'aporte' THEN m.dec_valor
+                           WHEN 'ajuste' THEN m.dec_valor
+                           WHEN 'retiro' THEN m.dec_valor
+                           ELSE 0 END
+                     ),0) AS saldo
+                     FROM tbl_movimientos m
+                     WHERE m.idglobal=$idglobal
+                       AND m.idahorro=$idahorro
+                       AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'";
+         $qSaldo = $conexion->query($sqlSaldo);
+         $saldo = $qSaldo ? floatval(($qSaldo->fetch_object()->saldo ?? 0)) : 0;
+
+         if ($saldo < $valor) {
+            throw new Exception('Saldo insuficiente para generar el retiro');
+         }
+
+         $codigo = $this->generarCodigoRetiro($idglobal);
+         if ($codigo <= 0) {
+            throw new Exception('No fue posible generar un código temporal');
+         }
+
+         $valorSql = number_format($valor, 2, '.', '');
+         $fechaExpira = date('Y-m-d H:i:s', strtotime('+30 minutes'));
+         $descSegura = mysqli_real_escape_string($conexion, $descripcion . ' | Código temporal: ' . $codigo . ' | Expira: ' . $fechaExpira);
+
+         $sqlRetiro = "INSERT INTO tbl_movimientos(
+                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                      ) VALUES (
+                        $idglobal,$idahorro,$idusuarioCreated,'retiro',-$valorSql,'$descSegura',$codigo,'pendiente','$dt','$dt'
+                      )";
+         $conexion->query($sqlRetiro) or throw new Exception('No se pudo generar el retiro temporal');
+
+         $sqlUpd = "UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro=$idahorro";
+         $conexion->query($sqlUpd) or throw new Exception('No se pudo actualizar la cuenta');
+      } catch (Exception $e) {
+         $sw = false;
+         $conexion->rollback();
+         return ['status' => 'error', 'mensaje' => $e->getMessage()];
+      }
+
+      if ($sw) {
+         $conexion->commit();
+      }
+
+      return [
+         'status' => 'success',
+         'mensaje' => 'Retiro temporal generado correctamente',
+         'codigo_temporal' => (string)$codigo,
+         'vence_en' => $fechaExpira,
+         'monto' => floatval($valor),
+         'email' => $email,
+         'id_cuenta' => (string)$cuenta->id_cuenta
+      ];
+   }
+
    public function finalizarEnvioPrincipal($idglobal, $idahorroOrigen, $idahorroDestino, $idusuarioCreated, $monto)
    {
       global $conexion;
@@ -198,7 +326,7 @@ class MainAccountCorriente
       try {
          $sqlOrigen = "SELECT idahorro, id_cuenta, str_tipo, str_estado
                        FROM tbl_ahorros
-                       WHERE idglobal=$idglobal AND idahorro=$idahorroOrigen
+                       WHERE idahorro=$idahorroOrigen
                        LIMIT 1";
          $qOrigen = $conexion->query($sqlOrigen);
          $origen = $qOrigen ? $qOrigen->fetch_object() : null;
@@ -207,7 +335,7 @@ class MainAccountCorriente
             throw new Exception('Cuenta origen no encontrada');
          }
 
-         if (strtolower($origen->str_tipo) !== 'principal') {
+         if (strtolower($origen->str_tipo) !== 'corriente') {
             throw new Exception('La cuenta origen no es una cuenta principal válida');
          }
 

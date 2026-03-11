@@ -51,31 +51,48 @@ class Corresponsal
          $conexion->query($sqlIns) or throw new Exception('error!');
          $idahorro = $conexion->insert_id;
          $this->asegurarCuentaCorriente($idglobal, $idpersona);
-         // Buscar el id_cuenta del ahorro principal de la empresa
-         $qr_idCuentaPrincipal = "SELECT a.id_cuenta, 
-         (SELECT IFNULL(COUNT(1),0)
-            FROM tbl_ahorros b
-            WHERE b.idglobal=a.idglobal
-              AND b.idpersona=a.idpersona
-              AND b.id_cuenta LIKE CONCAT(a.id_cuenta,'%')) AS cantidad 
-         FROM tbl_ahorros a
-          WHERE a.idglobal=$idglobal AND 
-          
-          a.str_tipo='principal' LIMIT 1";
-         $q_idCuentaPrincipal = $conexion->query($qr_idCuentaPrincipal);
-         $r_idCuentaPrincipal = $q_idCuentaPrincipal ? $q_idCuentaPrincipal->fetch_object() : null;
+         // Buscar el id_cuenta principal y el último consecutivo usado por prefijo
+         $maxIntentos = 5;
+         $actualizado = false;
 
-         if (empty($r_idCuentaPrincipal) || empty($r_idCuentaPrincipal->id_cuenta)) {
-            throw new Exception('No se encontró cuenta corriente principal');
+         for ($intento = 1; $intento <= $maxIntentos; $intento++) {
+            $qr_idCuentaPrincipal = "SELECT a.id_cuenta,
+            (SELECT IFNULL(MAX(CAST(SUBSTRING_INDEX(b.id_cuenta,'-',-1) AS UNSIGNED)),0)
+               FROM tbl_ahorros b
+               WHERE b.idglobal=a.idglobal
+                 AND b.id_cuenta LIKE CONCAT(REPLACE(a.id_cuenta,'-00',''), '-%')
+                 AND b.id_cuenta<>a.id_cuenta) AS ultimo_consecutivo
+            FROM tbl_ahorros a
+             WHERE a.idglobal=$idglobal
+               AND a.str_tipo='principal'
+             LIMIT 1";
+            $q_idCuentaPrincipal = $conexion->query($qr_idCuentaPrincipal);
+            $r_idCuentaPrincipal = $q_idCuentaPrincipal ? $q_idCuentaPrincipal->fetch_object() : null;
+
+            if (empty($r_idCuentaPrincipal) || empty($r_idCuentaPrincipal->id_cuenta)) {
+               throw new Exception('No se encontró cuenta corriente principal');
+            }
+
+            $can = intval($r_idCuentaPrincipal->ultimo_consecutivo) + 1;
+            $canFormateado = str_pad((string)$can, 2, '0', STR_PAD_LEFT);
+            $qr_upd = "UPDATE tbl_ahorros SET id_cuenta=CONCAT(REPLACE('$r_idCuentaPrincipal->id_cuenta','-00',''), '-', '$canFormateado') WHERE idahorro=$idahorro";
+
+            try {
+               $conexion->query($qr_upd);
+               $actualizado = true;
+               break;
+            } catch (mysqli_sql_exception $e) {
+               if (intval($e->getCode()) !== 1062 || $intento >= $maxIntentos) {
+                  throw $e;
+               }
+            }
          }
 
-         $can = intval($r_idCuentaPrincipal->cantidad) + 1;
-         $canFormateado = str_pad((string)$can, 2, '0', STR_PAD_LEFT);
-         // print_r($canFormateado);
-         $qr_upd = "UPDATE tbl_ahorros SET id_cuenta=CONCAT(REPLACE('$r_idCuentaPrincipal->id_cuenta','-00',''), '-', '$canFormateado') WHERE idahorro=$idahorro";
-         $conexion->query($qr_upd);
+         if (!$actualizado) {
+            throw new Exception('No fue posible asignar un número de cuenta único');
+         }
       } catch (Exception $e) {
-         print_r($e);
+         //print_r($e);
          $sw = false;
          $conexion->rollback();
       }
