@@ -12,9 +12,9 @@ switch ($_GET['op']) {
       $idahorro = limpiar_cadena2($_POST['idahorro']);
       $idpersona = limpiar_cadena2($_POST['str_empleado']);
       $dec_porcentaje  = floatval($_POST['dec_porcentaje']);
-      $str_name = limpiar_cadena($_POST['str_name']);
+      $str_name = 'Ahorro Programado';
 
-      $str_tipo = 'corresponsal'; // enum('principal','ahorro','fondo_emergencia','inversion','corresponsal
+      $str_tipo = 'ahorro'; // enum('principal','ahorro','fondo_emergencia','inversion','corresponsal
       $str_pago_utilidad = limpiar_cadena($_POST['str_pago_utilidad']); // enum('manual','automatico')
       $str_pago_utilidad = strtolower(trim($str_pago_utilidad));
       if ($str_pago_utilidad === 'no aplica' || $str_pago_utilidad === 'no_aplica' || $str_pago_utilidad === '') {
@@ -57,10 +57,11 @@ switch ($_GET['op']) {
          break;
       }
 
-      if ($objAhorrosProgramado->tieneCorresponsalAsignado($idglobal, intval($idpersona), intval($idahorro))) {
+
+      if ($objAhorrosProgramado->existeAhorroProgramadoPorPersona($idglobal, intval($idpersona), intval($idahorro))) {
          echo json_encode([
             'status' => 'error',
-            'mensaje' => 'El empleado seleccionado ya tiene un corresponsal a cargo y no puede tener otro.'
+            'mensaje' => 'El empleado seleccionado ya tiene un Ahorro Programado registrado.'
          ]);
          break;
       }
@@ -110,7 +111,7 @@ switch ($_GET['op']) {
       }
       break;
    case 'listCorresponsales':
-      $query = $objAhorrosProgramado->listCorresponsales($idglobal);
+      $query = $objAhorrosProgramado->listCorresponsales($idpersona);
       $data = [];
       while ($reg = $query->fetch_object()) {
          $data[] = [
@@ -154,4 +155,82 @@ switch ($_GET['op']) {
 
       echo json_encode(['status' => 'success', 'data' => $data]);
       break;
+   case 'registrarMovimiento':
+      $idahorro = intval($_POST['idahorro'] ?? 0);
+      $tipo = strtolower(trim(limpiar_cadena($_POST['tipo'] ?? '')));
+      $valor = floatval($_POST['valor'] ?? 0);
+      $descripcion = limpiar_cadena2($_POST['descripcion'] ?? '');
+
+      if ($idahorro <= 0 || $valor <= 0 || empty($descripcion)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Datos incompletos']);
+         break;
+      }
+
+      if (!in_array($tipo, ['aporte', 'retiro'], true)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Tipo de movimiento inválido']);
+         break;
+      }
+
+      global $conexion;
+      $sql = "SELECT bit_auth_movimientos AS auth
+                FROM tbl_ahorros
+                WHERE idahorro=$idahorro
+                  AND idglobal=$idglobal
+                  AND str_name='Ahorro Programado'
+                LIMIT 1";
+      $query = $conexion->query($sql);
+      $info = $query ? $query->fetch_object() : null;
+      if (!$info) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Ahorro programado no encontrado']);
+         break;
+      }
+
+      $authFlag = normalize_bit($info->auth ?? 0);
+      $esSuperAdmin = !empty($_SESSION['userEmpresa']);
+      if ($authFlag !== 1 && !$esSuperAdmin) {
+         echo json_encode([
+            'status' => 'error',
+            'mensaje' => 'Movimientos no autorizados. Active "Autorizar Movimientos" en la configuración.'
+         ]);
+         break;
+      }
+
+      if ($tipo === 'retiro') {
+         $resultado = $objAhorrosProgramado->transferirHaciaPrincipalActual(
+            $idglobal,
+            intval($_SESSION['idpersona'] ?? 0),
+            $idahorro,
+            intval($_SESSION['idusuario'] ?? 0),
+            $valor,
+            $descripcion
+         );
+         echo json_encode($resultado);
+         break;
+      }
+
+      $resultado = $objAhorrosProgramado->transferirDesdePrincipalActual(
+         $idglobal,
+         intval($_SESSION['idpersona'] ?? 0),
+         $idahorro,
+         intval($_SESSION['idusuario'] ?? 0),
+         $valor,
+         $descripcion
+      );
+      echo json_encode($resultado);
+      break;
+}
+
+function normalize_bit($value)
+{
+   if ($value === null || $value === '') return 0;
+   if (is_int($value)) return $value === 1 ? 1 : 0;
+   if (is_bool($value)) return $value ? 1 : 0;
+   if (is_string($value)) {
+      if (strlen($value) === 1) {
+         $ord = ord($value);
+         if ($ord === 0 || $ord === 1) return $ord;
+      }
+      return intval($value) === 1 ? 1 : 0;
+   }
+   return 0;
 }

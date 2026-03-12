@@ -154,4 +154,43 @@ switch ($_GET['op']) {
 
       echo json_encode(['status' => 'success', 'data' => $data]);
       break;
+   case 'registrarMovimiento':
+      $idahorro = intval($_POST['idahorro'] ?? 0);
+      $tipo = strtolower(trim(limpiar_cadena($_POST['tipo'] ?? '')));
+      $valor = floatval($_POST['valor'] ?? 0);
+      $descripcion = limpiar_cadena2($_POST['descripcion'] ?? '');
+
+      if ($idahorro <= 0 || $valor <= 0 || empty($descripcion)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Datos incompletos']);
+         break;
+      }
+
+      if (!in_array($tipo, ['aporte', 'retiro'], true)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Tipo de movimiento inválido']);
+         break;
+      }
+
+      if ($tipo === 'retiro') {
+         $resultado = $objCorresponsal->transferirHaciaPrincipalActual(
+            $idglobal,
+            intval($_SESSION['idpersona'] ?? 0),
+            $idahorro,
+            intval($_SESSION['idusuario'] ?? 0),
+            $valor,
+            $descripcion
+         );
+         echo json_encode($resultado);
+         break;
+      }
+
+      $resultado = $objCorresponsal->transferirDesdePrincipalActual(
+         $idglobal,
+         intval($_SESSION['idpersona'] ?? 0),
+         $idahorro,
+         intval($_SESSION['idusuario'] ?? 0),
+         $valor,
+         $descripcion
+      );
+      echo json_encode($resultado);
+      break;
 }

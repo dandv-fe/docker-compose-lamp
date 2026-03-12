@@ -19,14 +19,15 @@ class AhorrosProgramado
       $conexion->autocommit(false);
       $dt = date('Y-m-d H:i:s');
       $idahorro = null;
+      $str_name = 'Ahorro Programado';
       try {
          // Verificar si ya tiene ahorro
          $sqlExist = "SELECT idahorro FROM tbl_ahorros 
-          WHERE idglobal=$idglobal AND idpersona=$idpersona AND str_tipo='$str_tipo'";
+          WHERE idglobal=$idglobal AND idpersona=$idpersona AND str_tipo='$str_tipo' AND str_name='$str_name' LIMIT 1";
          $qExist = $conexion->query($sqlExist);
          $rExist = $qExist ? $qExist->fetch_object() : null;
          if ($rExist && !empty($rExist->idahorro)) {
-            echo json_encode(['status' => 'error', 'mensaje' => 'El empleado seleccionado ya tiene un corresponsal a cargo']);
+            echo json_encode(['status' => 'error', 'mensaje' => 'El empleado seleccionado ya tiene un Ahorro Programado']);
             return false;
          }
 
@@ -63,8 +64,8 @@ class AhorrosProgramado
                  AND b.id_cuenta LIKE CONCAT(REPLACE(a.id_cuenta,'-00',''), '-%')
                  AND b.id_cuenta<>a.id_cuenta) AS ultimo_consecutivo
             FROM tbl_ahorros a
-             WHERE a.idglobal=$idglobal
-               AND a.str_tipo='principal'
+             WHERE a.idpersona=$idpersona
+               AND a.str_tipo='corriente'
              LIMIT 1";
             $q_idCuentaPrincipal = $conexion->query($qr_idCuentaPrincipal);
             $r_idCuentaPrincipal = $q_idCuentaPrincipal ? $q_idCuentaPrincipal->fetch_object() : null;
@@ -127,7 +128,8 @@ class AhorrosProgramado
                FROM tbl_ahorros a
                WHERE a.idglobal=e.idglobal
                  AND a.idpersona=e.idpersona
-                 AND a.str_tipo='corresponsal'
+                 AND a.str_tipo='ahorro'
+                 AND a.str_name='Ahorro Programado'
                  $filtroExcluir
             ) AS ocupado
          FROM tbl_empleado e INNER JOIN
@@ -156,27 +158,6 @@ class AhorrosProgramado
       return !empty($reg);
    }
 
-   public function tieneCorresponsalAsignado($idglobal, $idpersona, $idahorroExcluir = 0)
-   {
-      global $conexion;
-      $idahorroExcluir = intval($idahorroExcluir);
-
-      $sql = "SELECT idahorro
-              FROM tbl_ahorros
-              WHERE idglobal=$idglobal
-                AND idpersona=$idpersona
-                AND str_tipo='corresponsal'";
-
-      if ($idahorroExcluir > 0) {
-         $sql .= " AND idahorro<>$idahorroExcluir";
-      }
-
-      $sql .= " LIMIT 1";
-
-      $query = $conexion->query($sql);
-      $reg = $query ? $query->fetch_object() : null;
-      return !empty($reg);
-   }
 
    public function empleadoConEmailVerificado($idglobal, $idpersona)
    {
@@ -260,7 +241,7 @@ class AhorrosProgramado
       return $idahorroNuevo;
    }
 
-   public function listCorresponsales($idglobal)
+   public function listCorresponsales($idpersona)
    {
       global $conexion;
       $sql = "SELECT 
@@ -286,13 +267,13 @@ class AhorrosProgramado
                      ELSE 0 END
                ),0)
                FROM tbl_movimientos m
-               WHERE m.idglobal=$idglobal
-                 AND m.idahorro=a.idahorro
+               WHERE m.idahorro=a.idahorro
                  AND UPPER(m.str_estado) <> 'INACTIVO'
             ) AS saldo_real
          FROM tbl_ahorros a
          LEFT JOIN tbl_persona p ON p.idpersona = a.idpersona
-         WHERE a.idglobal=$idglobal AND a.str_tipo='corresponsal'
+         WHERE  a.str_tipo='ahorro'
+           AND a.str_name='Ahorro Programado'
          ORDER BY a.idahorro DESC";
       $query = $conexion->query($sql);
       return $query;
@@ -310,6 +291,7 @@ class AhorrosProgramado
    ) {
       global $conexion;
       $dt = date('Y-m-d H:i:s');
+      $str_name = 'Ahorro Programado';
 
       $sql = "UPDATE tbl_ahorros SET
                idpersona=$idpersona,
@@ -321,9 +303,33 @@ class AhorrosProgramado
                update_at='$dt'
               WHERE idglobal=$idglobal
                 AND idahorro=$idahorro
-                AND str_tipo='corresponsal'";
+                AND str_tipo='ahorro'";
 
       return $conexion->query($sql);
+   }
+
+   public function existeAhorroProgramadoPorPersona($idglobal, $idpersona, $idahorroExcluir = 0)
+   {
+      global $conexion;
+      $idglobal = intval($idglobal);
+      $idpersona = intval($idpersona);
+      $idahorroExcluir = intval($idahorroExcluir);
+
+      $sql = "SELECT idahorro
+              FROM tbl_ahorros
+              WHERE idglobal=$idglobal
+                AND idpersona=$idpersona
+                AND str_name='Ahorro Programado'";
+
+      if ($idahorroExcluir > 0) {
+         $sql .= " AND idahorro<>$idahorroExcluir";
+      }
+
+      $sql .= " LIMIT 1";
+
+      $query = $conexion->query($sql);
+      $reg = $query ? $query->fetch_object() : null;
+      return !empty($reg);
    }
 
    public function listarMovimientos($idglobal, $idahorro)
@@ -341,6 +347,256 @@ class AhorrosProgramado
                 AND idahorro=$idahorro
               ORDER BY date_movimiento DESC, idmovimiento DESC";
       return $conexion->query($sql);
+   }
+
+   public function obtenerSaldoDisponible($idglobal, $idahorro)
+   {
+      global $conexion;
+      $sql = "SELECT IFNULL(SUM(
+                  CASE str_tipo
+                     WHEN 'aporte' THEN dec_valor
+                     WHEN 'ajuste' THEN dec_valor
+                     WHEN 'retiro' THEN dec_valor
+                     ELSE 0 END
+               ), 0) AS saldo
+              FROM tbl_movimientos
+              WHERE idglobal=$idglobal
+                AND idahorro=$idahorro
+                AND UPPER(str_estado) <> 'INACTIVO'";
+      $query = $conexion->query($sql);
+      $reg = $query ? $query->fetch_object() : null;
+      return $reg ? floatval($reg->saldo ?? 0) : 0;
+   }
+
+   public function registrarMovimiento($idglobal, $idahorro, $idusuarioCreated, $tipo, $valor, $descripcion, $estado = 'activo')
+   {
+      global $conexion;
+      $dt = date('Y-m-d H:i:s');
+      $valor = floatval($valor);
+      if ($tipo === 'retiro' && $valor > 0) {
+         $valor = -$valor;
+      }
+      if ($tipo !== 'retiro' && $valor < 0) {
+         $valor = abs($valor);
+      }
+
+      $descripcion = mysqli_real_escape_string($conexion, $descripcion);
+      $valorSql = number_format($valor, 2, '.', '');
+
+      $sql = "INSERT INTO tbl_movimientos(
+                idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+              ) VALUES (
+                $idglobal,$idahorro,$idusuarioCreated,'$tipo',$valorSql,'$descripcion',NULL,'$estado','$dt','$dt'
+              )";
+
+      $ok = $conexion->query($sql);
+      if ($ok) {
+         $conexion->query("UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro=$idahorro AND idglobal=$idglobal");
+      }
+
+      return $ok;
+   }
+
+   public function transferirDesdePrincipalActual($idglobal, $idpersonaActual, $idahorroDestino, $idusuarioCreated, $monto, $descripcion = '')
+   {
+      global $conexion;
+
+      $idglobal = intval($idglobal);
+      $idpersonaActual = intval($idpersonaActual);
+      $idahorroDestino = intval($idahorroDestino);
+      $idusuarioCreated = intval($idusuarioCreated);
+      $monto = floatval($monto);
+
+      if ($idglobal <= 0 || $idpersonaActual <= 0 || $idahorroDestino <= 0 || $idusuarioCreated <= 0 || $monto <= 0) {
+         return ['status' => 'error', 'mensaje' => 'Parámetros inválidos'];
+      }
+
+      $sw = true;
+      $conexion->autocommit(false);
+      $dt = date('Y-m-d H:i:s');
+
+      try {
+         $sqlOrigen = "SELECT idahorro, id_cuenta, str_tipo, str_estado
+                       FROM tbl_ahorros
+                       WHERE idglobal=$idglobal
+                         AND idpersona=$idpersonaActual
+                         AND str_tipo='principal'
+                       LIMIT 1";
+         $qOrigen = $conexion->query($sqlOrigen);
+         $origen = $qOrigen ? $qOrigen->fetch_object() : null;
+
+         if (!$origen) {
+            throw new Exception('No se encontró la cuenta principal actual');
+         }
+
+         if (strtoupper($origen->str_estado) === 'INACTIVO') {
+            throw new Exception('La cuenta principal actual está inactiva');
+         }
+
+         if (intval($origen->idahorro) === $idahorroDestino) {
+            throw new Exception('La cuenta destino no puede ser la misma cuenta principal');
+         }
+
+         $sqlDestino = "SELECT idahorro, id_cuenta, str_estado
+                        FROM tbl_ahorros
+                        WHERE idglobal=$idglobal
+                          AND idahorro=$idahorroDestino
+                          AND str_name='Ahorro Programado'
+                        LIMIT 1";
+         $qDestino = $conexion->query($sqlDestino);
+         $destino = $qDestino ? $qDestino->fetch_object() : null;
+
+         if (!$destino) {
+            throw new Exception('Cuenta destino no encontrada');
+         }
+
+         if (strtoupper($destino->str_estado) === 'INACTIVO') {
+            throw new Exception('La cuenta destino está inactiva');
+         }
+
+         $saldoOrigen = $this->obtenerSaldoDisponible($idglobal, intval($origen->idahorro));
+         if ($saldoOrigen < $monto) {
+            throw new Exception('Saldo insuficiente en la cuenta principal');
+         }
+
+         $montoSql = number_format($monto, 2, '.', '');
+         $descripcion = trim((string)$descripcion);
+         $extra = $descripcion !== '' ? ' - ' . $descripcion : '';
+         $descRetiro = mysqli_real_escape_string($conexion, "Transferencia enviada a cuenta {$destino->id_cuenta}{$extra}");
+         $descAporte = mysqli_real_escape_string($conexion, "Transferencia recibida desde cuenta {$origen->id_cuenta}{$extra}");
+
+         $sqlRetiro = "INSERT INTO tbl_movimientos(
+                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                     ) VALUES (
+                        $idglobal,{$origen->idahorro},$idusuarioCreated,'retiro',-$montoSql,'$descRetiro',NULL,'activo','$dt','$dt'
+                     )";
+         $conexion->query($sqlRetiro) or throw new Exception('No se pudo registrar el retiro en cuenta principal');
+
+         $sqlAporte = "INSERT INTO tbl_movimientos(
+                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                     ) VALUES (
+                        $idglobal,$idahorroDestino,$idusuarioCreated,'aporte',$montoSql,'$descAporte',NULL,'activo','$dt','$dt'
+                     )";
+         $conexion->query($sqlAporte) or throw new Exception('No se pudo registrar el aporte en ahorro programado');
+
+         $sqlUpd = "UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro IN ({$origen->idahorro}, $idahorroDestino)";
+         $conexion->query($sqlUpd) or throw new Exception('No se pudo actualizar la fecha de las cuentas');
+      } catch (Exception $e) {
+         $sw = false;
+         $conexion->rollback();
+         return ['status' => 'error', 'mensaje' => $e->getMessage()];
+      }
+
+      if ($sw) {
+         $conexion->commit();
+      }
+
+      return [
+         'status' => 'success',
+         'mensaje' => 'Recarga realizada desde la cuenta principal',
+         'monto' => $monto
+      ];
+   }
+
+   public function transferirHaciaPrincipalActual($idglobal, $idpersonaActual, $idahorroOrigen, $idusuarioCreated, $monto, $descripcion = '')
+   {
+      global $conexion;
+
+      $idglobal = intval($idglobal);
+      $idpersonaActual = intval($idpersonaActual);
+      $idahorroOrigen = intval($idahorroOrigen);
+      $idusuarioCreated = intval($idusuarioCreated);
+      $monto = floatval($monto);
+
+      if ($idglobal <= 0 || $idpersonaActual <= 0 || $idahorroOrigen <= 0 || $idusuarioCreated <= 0 || $monto <= 0) {
+         return ['status' => 'error', 'mensaje' => 'Parámetros inválidos'];
+      }
+
+      $sw = true;
+      $conexion->autocommit(false);
+      $dt = date('Y-m-d H:i:s');
+
+      try {
+         $sqlOrigen = "SELECT idahorro, id_cuenta, str_estado
+                       FROM tbl_ahorros
+                       WHERE idglobal=$idglobal
+                         AND idahorro=$idahorroOrigen
+                         AND str_name='Ahorro Programado'
+                       LIMIT 1";
+         $qOrigen = $conexion->query($sqlOrigen);
+         $origen = $qOrigen ? $qOrigen->fetch_object() : null;
+
+         if (!$origen) {
+            throw new Exception('No se encontró el ahorro programado origen');
+         }
+
+         if (strtoupper($origen->str_estado) === 'INACTIVO') {
+            throw new Exception('El ahorro programado origen está inactivo');
+         }
+
+         $sqlDestino = "SELECT idahorro, id_cuenta, str_estado
+                        FROM tbl_ahorros
+                        WHERE idglobal=$idglobal
+                          AND idpersona=$idpersonaActual
+                          AND str_tipo='principal'
+                        LIMIT 1";
+         $qDestino = $conexion->query($sqlDestino);
+         $destino = $qDestino ? $qDestino->fetch_object() : null;
+
+         if (!$destino) {
+            throw new Exception('No se encontró la cuenta principal actual');
+         }
+
+         if (strtoupper($destino->str_estado) === 'INACTIVO') {
+            throw new Exception('La cuenta principal actual está inactiva');
+         }
+
+         if (intval($origen->idahorro) === intval($destino->idahorro)) {
+            throw new Exception('La cuenta destino no puede ser la misma cuenta origen');
+         }
+
+         $saldoOrigen = $this->obtenerSaldoDisponible($idglobal, intval($origen->idahorro));
+         if ($saldoOrigen < $monto) {
+            throw new Exception('Saldo insuficiente para realizar el retiro');
+         }
+
+         $montoSql = number_format($monto, 2, '.', '');
+         $descripcion = trim((string)$descripcion);
+         $extra = $descripcion !== '' ? ' - ' . $descripcion : '';
+         $descRetiro = mysqli_real_escape_string($conexion, "Transferencia enviada a cuenta {$destino->id_cuenta}{$extra}");
+         $descAporte = mysqli_real_escape_string($conexion, "Transferencia recibida desde cuenta {$origen->id_cuenta}{$extra}");
+
+         $sqlRetiro = "INSERT INTO tbl_movimientos(
+                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                     ) VALUES (
+                        $idglobal,{$origen->idahorro},$idusuarioCreated,'retiro',-$montoSql,'$descRetiro',NULL,'activo','$dt','$dt'
+                     )";
+         $conexion->query($sqlRetiro) or throw new Exception('No se pudo registrar el retiro en ahorro programado');
+
+         $sqlAporte = "INSERT INTO tbl_movimientos(
+                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                     ) VALUES (
+                        $idglobal,{$destino->idahorro},$idusuarioCreated,'aporte',$montoSql,'$descAporte',NULL,'activo','$dt','$dt'
+                     )";
+         $conexion->query($sqlAporte) or throw new Exception('No se pudo registrar el aporte en cuenta principal');
+
+         $sqlUpd = "UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro IN ({$origen->idahorro}, {$destino->idahorro})";
+         $conexion->query($sqlUpd) or throw new Exception('No se pudo actualizar la fecha de las cuentas');
+      } catch (Exception $e) {
+         $sw = false;
+         $conexion->rollback();
+         return ['status' => 'error', 'mensaje' => $e->getMessage()];
+      }
+
+      if ($sw) {
+         $conexion->commit();
+      }
+
+      return [
+         'status' => 'success',
+         'mensaje' => 'Retiro enviado a la cuenta principal',
+         'monto' => $monto
+      ];
    }
 }
 /*

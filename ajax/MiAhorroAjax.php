@@ -10,22 +10,12 @@ $idpersona = $_SESSION['idpersona'];
 switch ($_GET['op']) {
    case 'SaveOrUpdate':
       $idahorro = limpiar_cadena2($_POST['idahorro']);
-      #$idpersona = limpiar_cadena2($_POST['str_empleado']);
-      $dec_porcentaje  = floatval($_POST['dec_porcentaje']);
       $str_name = limpiar_cadena($_POST['str_name']);
 
-      $str_tipo = 'ahorro'; // enum('principal','ahorro','fondo_emergencia','inversion','corresponsal
-      $str_pago_utilidad = limpiar_cadena($_POST['str_pago_utilidad']); // enum('manual','automatico')
-      $str_pago_utilidad = strtolower(trim($str_pago_utilidad));
-      if ($str_pago_utilidad === 'no aplica' || $str_pago_utilidad === 'no_aplica' || $str_pago_utilidad === '') {
-         $str_pago_utilidad = 'manual';
+      if (empty($str_name)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Debe ingresar un nombre para el ahorro']);
+         break;
       }
-      if (!in_array($str_pago_utilidad, ['manual', 'automatico'], true)) {
-         $str_pago_utilidad = 'manual';
-      }
-      $bit_auth_movimientos = limpiar_cadena($_POST['bit_auth_movimientos']); // tinyint(1)
-      $bit_auth_movimientos = ($bit_auth_movimientos === 'true' || $bit_auth_movimientos === '1') ? 1 : 0;
-      $str_estado = limpiar_cadena($_POST['str_estado']); // enum('activo','inactivo')
 
       if (empty($idpersona)) {
          echo json_encode(['status' => 'error', 'mensaje' => 'Debe seleccionar un empleado']);
@@ -57,7 +47,7 @@ switch ($_GET['op']) {
       if (empty($idahorro) && $objMiAhorro->tieneCuentasAhorros($idpersona, 3)) {
          echo json_encode([
             'status' => 'error',
-            'mensaje' => 'El empleado ya superó la cantidad de registros permitida.'
+            'mensaje' => 'El empleado ya superó la cantidad de ahorros permitida.'
          ]);
          break;
       }
@@ -77,32 +67,20 @@ switch ($_GET['op']) {
          $objMiAhorro->registrar(
             $idglobal,
             $idpersona,
-            $dec_porcentaje,
             $str_name,
-            $str_tipo,
-            $str_pago_utilidad,
-            $bit_auth_movimientos,
-            $str_estado,
             $superadmin
          );
       } else {
          # editar
-         $ok = $objMiAhorro->actualizar(
+         $respuesta = $objMiAhorro->actualizar(
             $idglobal,
             intval($idahorro),
             intval($idpersona),
-            $dec_porcentaje,
             $str_name,
-            $str_pago_utilidad,
-            $bit_auth_movimientos,
-            $str_estado,
             $superadmin
          );
 
-         echo json_encode([
-            'status' => $ok ? 'success' : 'error',
-            'mensaje' => $ok ? 'Corresponsal actualizado correctamente' : 'No se pudo actualizar el corresponsal'
-         ]);
+         echo json_encode($respuesta);
       }
 
       //
@@ -162,5 +140,44 @@ switch ($_GET['op']) {
       }
 
       echo json_encode(['status' => 'success', 'data' => $data]);
+      break;
+   case 'registrarMovimiento':
+      $idahorro = intval($_POST['idahorro'] ?? 0);
+      $tipo = strtolower(trim(limpiar_cadena($_POST['tipo'] ?? '')));
+      $valor = floatval($_POST['valor'] ?? 0);
+      $descripcion = limpiar_cadena2($_POST['descripcion'] ?? '');
+
+      if ($idahorro <= 0 || $valor <= 0 || empty($descripcion)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Datos incompletos']);
+         break;
+      }
+
+      if (!in_array($tipo, ['aporte', 'retiro'], true)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Tipo de movimiento inválido']);
+         break;
+      }
+
+      if ($tipo === 'retiro') {
+         $resultado = $objMiAhorro->transferirHaciaCuentaBaseActual(
+            $idglobal,
+            intval($_SESSION['idpersona'] ?? 0),
+            $idahorro,
+            intval($_SESSION['idusuario'] ?? 0),
+            $valor,
+            $descripcion
+         );
+         echo json_encode($resultado);
+         break;
+      }
+
+      $resultado = $objMiAhorro->transferirDesdeCuentaBaseActual(
+         $idglobal,
+         intval($_SESSION['idpersona'] ?? 0),
+         $idahorro,
+         intval($_SESSION['idusuario'] ?? 0),
+         $valor,
+         $descripcion
+      );
+      echo json_encode($resultado);
       break;
 }

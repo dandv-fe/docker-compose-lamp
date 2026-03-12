@@ -500,7 +500,9 @@ switch ($_GET["op"]) {
             $fecha,
             '-',
             intval($r->idahorro ?? 0),
-            number_format(floatval($r->saldo_disponible ?? 0), 2, '.', '')
+            number_format(floatval($r->saldo_disponible ?? 0), 2, '.', ''),
+            number_format(floatval($r->dec_porcentaje ?? 0), 4, '.', ''),
+            normalize_bit($r->auth_movimientos ?? 0)
          ];
       }
       echo json_encode($data);

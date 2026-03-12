@@ -342,6 +342,227 @@ class Corresponsal
               ORDER BY date_movimiento DESC, idmovimiento DESC";
       return $conexion->query($sql);
    }
+
+   public function obtenerSaldoDisponible($idglobal, $idahorro)
+   {
+      global $conexion;
+      $sql = "SELECT IFNULL(SUM(
+                  CASE str_tipo
+                     WHEN 'aporte' THEN dec_valor
+                     WHEN 'ajuste' THEN dec_valor
+                     WHEN 'retiro' THEN dec_valor
+                     ELSE 0 END
+               ), 0) AS saldo
+              FROM tbl_movimientos
+              WHERE idglobal=$idglobal
+                AND idahorro=$idahorro
+                AND UPPER(str_estado) <> 'INACTIVO'";
+      $query = $conexion->query($sql);
+      $reg = $query ? $query->fetch_object() : null;
+      return $reg ? floatval($reg->saldo ?? 0) : 0;
+   }
+
+   private function obtenerCuentaPrincipalActual($idglobal, $idpersonaActual)
+   {
+      global $conexion;
+      $idglobal = intval($idglobal);
+      $idpersonaActual = intval($idpersonaActual);
+
+      $sql = "SELECT idahorro, id_cuenta, str_estado
+              FROM tbl_ahorros
+              WHERE idglobal=$idglobal
+                AND idpersona=$idpersonaActual
+                AND str_tipo='principal'
+              LIMIT 1";
+      $query = $conexion->query($sql);
+      return $query ? $query->fetch_object() : null;
+   }
+
+   public function transferirDesdePrincipalActual($idglobal, $idpersonaActual, $idahorroDestino, $idusuarioCreated, $monto, $descripcion = '')
+   {
+      global $conexion;
+
+      $idglobal = intval($idglobal);
+      $idpersonaActual = intval($idpersonaActual);
+      $idahorroDestino = intval($idahorroDestino);
+      $idusuarioCreated = intval($idusuarioCreated);
+      $monto = floatval($monto);
+
+      if ($idglobal <= 0 || $idpersonaActual <= 0 || $idahorroDestino <= 0 || $idusuarioCreated <= 0 || $monto <= 0) {
+         return ['status' => 'error', 'mensaje' => 'Parámetros inválidos'];
+      }
+
+      $sw = true;
+      $conexion->autocommit(false);
+      $dt = date('Y-m-d H:i:s');
+
+      try {
+         $origen = $this->obtenerCuentaPrincipalActual($idglobal, $idpersonaActual);
+         if (!$origen) {
+            throw new Exception('No se encontró la cuenta principal actual');
+         }
+
+         if (strtoupper($origen->str_estado) === 'INACTIVO') {
+            throw new Exception('La cuenta principal actual está inactiva');
+         }
+
+         if (intval($origen->idahorro) === $idahorroDestino) {
+            throw new Exception('La cuenta destino no puede ser la misma cuenta principal');
+         }
+
+         $sqlDestino = "SELECT idahorro, id_cuenta, str_estado
+                        FROM tbl_ahorros
+                        WHERE idglobal=$idglobal
+                          AND idahorro=$idahorroDestino
+                          AND str_tipo='corresponsal'
+                        LIMIT 1";
+         $qDestino = $conexion->query($sqlDestino);
+         $destino = $qDestino ? $qDestino->fetch_object() : null;
+
+         if (!$destino) {
+            throw new Exception('Cuenta destino no encontrada');
+         }
+
+         if (strtoupper($destino->str_estado) === 'INACTIVO') {
+            throw new Exception('La cuenta destino está inactiva');
+         }
+
+         $saldoOrigen = $this->obtenerSaldoDisponible($idglobal, intval($origen->idahorro));
+         if ($saldoOrigen < $monto) {
+            throw new Exception('Saldo insuficiente en la cuenta principal');
+         }
+
+         $montoSql = number_format($monto, 2, '.', '');
+         $descripcion = trim((string)$descripcion);
+         $extra = $descripcion !== '' ? ' - ' . $descripcion : '';
+         $descRetiro = mysqli_real_escape_string($conexion, "Transferencia enviada a cuenta {$destino->id_cuenta}{$extra}");
+         $descAporte = mysqli_real_escape_string($conexion, "Transferencia recibida desde cuenta {$origen->id_cuenta}{$extra}");
+
+         $sqlRetiro = "INSERT INTO tbl_movimientos(
+                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                     ) VALUES (
+                        $idglobal,{$origen->idahorro},$idusuarioCreated,'retiro',-$montoSql,'$descRetiro',NULL,'activo','$dt','$dt'
+                     )";
+         $conexion->query($sqlRetiro) or throw new Exception('No se pudo registrar el retiro en cuenta principal');
+
+         $sqlAporte = "INSERT INTO tbl_movimientos(
+                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                     ) VALUES (
+                        $idglobal,$idahorroDestino,$idusuarioCreated,'aporte',$montoSql,'$descAporte',NULL,'activo','$dt','$dt'
+                     )";
+         $conexion->query($sqlAporte) or throw new Exception('No se pudo registrar la recarga del corresponsal');
+
+         $sqlUpd = "UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro IN ({$origen->idahorro}, $idahorroDestino)";
+         $conexion->query($sqlUpd) or throw new Exception('No se pudo actualizar la fecha de las cuentas');
+      } catch (Exception $e) {
+         $sw = false;
+         $conexion->rollback();
+         return ['status' => 'error', 'mensaje' => $e->getMessage()];
+      }
+
+      if ($sw) {
+         $conexion->commit();
+      }
+
+      return [
+         'status' => 'success',
+         'mensaje' => 'Recarga realizada desde la cuenta principal',
+         'monto' => $monto
+      ];
+   }
+
+   public function transferirHaciaPrincipalActual($idglobal, $idpersonaActual, $idahorroOrigen, $idusuarioCreated, $monto, $descripcion = '')
+   {
+      global $conexion;
+
+      $idglobal = intval($idglobal);
+      $idpersonaActual = intval($idpersonaActual);
+      $idahorroOrigen = intval($idahorroOrigen);
+      $idusuarioCreated = intval($idusuarioCreated);
+      $monto = floatval($monto);
+
+      if ($idglobal <= 0 || $idpersonaActual <= 0 || $idahorroOrigen <= 0 || $idusuarioCreated <= 0 || $monto <= 0) {
+         return ['status' => 'error', 'mensaje' => 'Parámetros inválidos'];
+      }
+
+      $sw = true;
+      $conexion->autocommit(false);
+      $dt = date('Y-m-d H:i:s');
+
+      try {
+         $sqlOrigen = "SELECT idahorro, id_cuenta, str_estado
+                       FROM tbl_ahorros
+                       WHERE idglobal=$idglobal
+                         AND idahorro=$idahorroOrigen
+                         AND str_tipo='corresponsal'
+                       LIMIT 1";
+         $qOrigen = $conexion->query($sqlOrigen);
+         $origen = $qOrigen ? $qOrigen->fetch_object() : null;
+
+         if (!$origen) {
+            throw new Exception('No se encontró la cuenta corresponsal origen');
+         }
+
+         if (strtoupper($origen->str_estado) === 'INACTIVO') {
+            throw new Exception('La cuenta corresponsal origen está inactiva');
+         }
+
+         $destino = $this->obtenerCuentaPrincipalActual($idglobal, $idpersonaActual);
+         if (!$destino) {
+            throw new Exception('No se encontró la cuenta principal actual');
+         }
+
+         if (strtoupper($destino->str_estado) === 'INACTIVO') {
+            throw new Exception('La cuenta principal actual está inactiva');
+         }
+
+         if (intval($origen->idahorro) === intval($destino->idahorro)) {
+            throw new Exception('La cuenta destino no puede ser la misma cuenta origen');
+         }
+
+         $saldoOrigen = $this->obtenerSaldoDisponible($idglobal, intval($origen->idahorro));
+         if ($saldoOrigen < $monto) {
+            throw new Exception('Saldo insuficiente para realizar el retiro');
+         }
+
+         $montoSql = number_format($monto, 2, '.', '');
+         $descripcion = trim((string)$descripcion);
+         $extra = $descripcion !== '' ? ' - ' . $descripcion : '';
+         $descRetiro = mysqli_real_escape_string($conexion, "Transferencia enviada a cuenta {$destino->id_cuenta}{$extra}");
+         $descAporte = mysqli_real_escape_string($conexion, "Transferencia recibida desde cuenta {$origen->id_cuenta}{$extra}");
+
+         $sqlRetiro = "INSERT INTO tbl_movimientos(
+                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                     ) VALUES (
+                        $idglobal,{$origen->idahorro},$idusuarioCreated,'retiro',-$montoSql,'$descRetiro',NULL,'activo','$dt','$dt'
+                     )";
+         $conexion->query($sqlRetiro) or throw new Exception('No se pudo registrar el retiro del corresponsal');
+
+         $sqlAporte = "INSERT INTO tbl_movimientos(
+                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                     ) VALUES (
+                        $idglobal,{$destino->idahorro},$idusuarioCreated,'aporte',$montoSql,'$descAporte',NULL,'activo','$dt','$dt'
+                     )";
+         $conexion->query($sqlAporte) or throw new Exception('No se pudo registrar el aporte en cuenta principal');
+
+         $sqlUpd = "UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro IN ({$origen->idahorro}, {$destino->idahorro})";
+         $conexion->query($sqlUpd) or throw new Exception('No se pudo actualizar la fecha de las cuentas');
+      } catch (Exception $e) {
+         $sw = false;
+         $conexion->rollback();
+         return ['status' => 'error', 'mensaje' => $e->getMessage()];
+      }
+
+      if ($sw) {
+         $conexion->commit();
+      }
+
+      return [
+         'status' => 'success',
+         'mensaje' => 'Retiro enviado a la cuenta principal',
+         'monto' => $monto
+      ];
+   }
 }
 /*
 1

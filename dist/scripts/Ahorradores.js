@@ -1,3 +1,5 @@
+var ahorrosTablaData = [];
+
 jQuery(document).ready(function () {
   $("#editarDocumentoAhorrador").click(function (e) {
     $("#titleModalBuscarPersona").text("Editar Documento");
@@ -87,6 +89,43 @@ jQuery(document).ready(function () {
       }
     });
   }
+
+  // Click en botón editar ahorro (abre modal)
+  $(document).on('click', '#tblAhorros .btn-editar-ahorro-config', function () {
+    var idx = parseInt($(this).data('idx'), 10);
+    var val = ahorrosTablaData[idx] || [];
+    $('#editAhorroId').val(val[8] || '');
+    $('#editPorcentaje').val(parseFloat(val[10]) || 0);
+    $('#editPagoUtilidad').val((val[3] || '').toLowerCase());
+    $('#editEstado').val((val[5] || '').toUpperCase());
+    $('#editAuthMovimientos').prop('checked', parseInt(val[11], 10) === 1);
+    $('#modalEditarAhorroConfig').modal('show');
+  });
+
+  // Submit del formulario de edición de ahorro (modal)
+  $(document).on('submit', '#formEditarAhorroConfig', function (e) {
+    e.preventDefault();
+    var formData = new FormData(this);
+    $.ajax({
+      url: './ajax/AhorradoresAjax.php?op=SaveOrUpdateConfiguracion',
+      type: 'POST',
+      data: formData,
+      contentType: false,
+      processData: false,
+      success: function (resp) {
+        if (typeof resp === 'string' && resp.indexOf('ERROR:') !== -1) {
+          Toast.fire({ icon: 'error', title: resp });
+          return;
+        }
+        Toast.fire({ icon: 'success', title: resp || 'Configuración actualizada.' });
+        $('#modalEditarAhorroConfig').modal('hide');
+        listarAhorrosPersona($("#txt_idpersona_ah").val());
+      },
+      error: function () {
+        Toast.fire({ icon: 'error', title: 'No se pudo actualizar la configuración.' });
+      }
+    });
+  });
 
   // Submit del formulario de búsqueda de persona
   $("form#formBuscarPersona").submit(buscarPersona);
@@ -431,10 +470,12 @@ function listarAhorrosPersona(refPersona) {
     data: { refPersona },
     dataType: "json",
     success: function (datos) {
+      ahorrosTablaData = datos;
       tabla.clear().draw();
       for (let i = 0; i < datos.length; i++) {
         const val = datos[i];
         const saldoColumna = '$' + (parseFloat(val[9]) || 0).toFixed(2);
+        var btnEditar = '<button type="button" class="btn btn-warning btn-sm btn-editar-ahorro-config" data-idx="' + i + '"><i class="fas fa-edit"></i></button>';
         tabla.row.add([
           val[0],
           val[1],
@@ -443,7 +484,7 @@ function listarAhorrosPersona(refPersona) {
           val[4],
           val[5],
           val[6],
-          val[7]
+          btnEditar
         ]).draw(false);
       }
       renderExploradorAhorros(datos);

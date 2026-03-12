@@ -33,56 +33,11 @@
               <div class="card-body">
                 <input type="hidden" id="idahorro" name="idahorro">
                 <div class="row">
-                  <div class="col-md-3">
-
-                    <div class="form-group">
-                      <label for="dec_porcentaje">Porcentaje</label>
-                      <input type="number" step="0.01" class="form-control" id="dec_porcentaje" name="dec_porcentaje"
-                        placeholder="Ej: 2.5" required>
-                    </div>
-                  </div>
-
-                  <div class="col-md-5">
+                  <div class="col-md-12">
                     <div class="form-group">
                       <label for="str_name">Nombre</label>
                       <input type="text" class="form-control" id="str_name" name="str_name" placeholder="Ingrese nombre"
                         required>
-                    </div>
-                  </div>
-
-                  <div class="col-md-4">
-                    <div class="form-group">
-                      <label for="str_pago_utilidad">Tipo de Pago</label>
-                      <select name="str_pago_utilidad" id="str_pago_utilidad" class="form-control" required>
-                        <option value="">Seleccione tipo de pago</option>
-                        <option value="no aplica">No aplica</option>
-                        <option value="manual">Manual</option>
-
-                      </select>
-                    </div>
-                  </div>
-
-                  <div class="col-md-4">
-                    <div class="form-group">
-                      <label for="str_estado">Estado</label>
-                      <select class="form-control" id="str_estado" name="str_estado" required>
-                        <option value="">Seleccione estado</option>
-                        <option value="activo">Activo</option>
-                        <option value="inactivo">Inactivo</option>
-                      </select>
-                    </div>
-                  </div>
-
-
-
-                  <div class="col-md-4 d-flex align-items-center">
-                    <div class="form-group mb-0">
-                      <div class="custom-control custom-checkbox">
-                        <input type="hidden" id="bit_auth_movimientos" name="bit_auth_movimientos" value="false">
-                        <input type="checkbox" class="custom-control-input" id="auth_movimientos"
-                          name="auth_movimientos">
-                        <label class="custom-control-label" for="auth_movimientos">Autorizar Movimientos</label>
-                      </div>
                     </div>
                   </div>
 
@@ -163,6 +118,14 @@
                   <p class="mb-1"><strong>Saldo:</strong> <span id="det_saldo">$0.00</span></p>
                   <p class="mb-1"><strong>Estado:</strong> <span id="det_estado">-</span></p>
                   <p class="mb-1"><strong>Fecha:</strong> <span id="det_fecha">-</span></p>
+                  <div class="mt-2 d-flex justify-content-md-end flex-wrap">
+                    <button type="button" id="btnRecargarMiAhorro" class="btn btn-success btn-sm mr-2 mb-2">
+                      <i class="fas fa-plus-circle"></i> Recargar
+                    </button>
+                    <button type="button" id="btnRetirarMiAhorro" class="btn btn-danger btn-sm mb-2">
+                      <i class="fas fa-minus-circle"></i> Retirar
+                    </button>
+                  </div>
                 </div>
               </div>
 

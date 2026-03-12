@@ -451,6 +451,7 @@ class Ahorradores
                 IFNULL(NULLIF(TRIM(str_estado), ''), '-') AS estado,
                 created_at AS fecha_creacion,
                         idahorro,
+                        dec_porcentaje,
                         (
                            SELECT IFNULL(SUM(
                               CASE m.str_tipo
