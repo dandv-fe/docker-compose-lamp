@@ -111,6 +111,7 @@ class Corresponsal
    public function cboListEmpleado($idglobal, $idahorroExcluir = 0)
    {
       global $conexion;
+      $idglobal = intval($idglobal);
       $idahorroExcluir = intval($idahorroExcluir);
 
       $filtroExcluir = '';
@@ -122,6 +123,12 @@ class Corresponsal
             e.idpersona AS ref,
             CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado,
             e.str_cargo AS cargo,
+            CASE WHEN TRIM(IFNULL(p.str_email, '')) <> '' THEN 1 ELSE 0 END AS tiene_email,
+            CAST(IFNULL(p.str_email_verificado, '0') AS UNSIGNED) AS email_verificado,
+            CASE
+               WHEN UPPER(TRIM(IFNULL(e.str_cargo, ''))) = 'SUPER ADMINISTRADOR' THEN 1
+               ELSE 0
+            END AS es_super_admin,
             (
                SELECT COUNT(1)
                FROM tbl_ahorros a
@@ -134,9 +141,6 @@ class Corresponsal
             tbl_persona p ON p.idpersona=e.idpersona
          WHERE e.idglobal=$idglobal
            AND e.str_estado<>'inactivo'
-           AND TRIM(IFNULL(p.str_email, '')) <> ''
-           AND CAST(IFNULL(p.str_email_verificado, '0') AS UNSIGNED) = 1
-           AND UPPER(TRIM(IFNULL(e.str_cargo, ''))) <> 'SUPER ADMINISTRADOR'
          ORDER BY e.idempleado DESC";
       $query = $conexion->query($sql);
       return $query;

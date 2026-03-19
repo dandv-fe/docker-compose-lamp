@@ -104,8 +104,27 @@ switch ($_GET['op']) {
       echo '<option value="">--Seleccione--</option>';
       while ($reg = $query->fetch_object()) {
          $ocupado = intval($reg->ocupado ?? 0) > 0;
-         $disabledAttr = $ocupado ? ' disabled="disabled" style="text-decoration: line-through; color:#9aa0a6;"' : '';
-         $suffix = $ocupado ? ' (No disponible)' : '';
+         $tieneEmail = intval($reg->tiene_email ?? 0) === 1;
+         $emailVerificado = intval($reg->email_verificado ?? 0) === 1;
+         $esSuperAdmin = intval($reg->es_super_admin ?? 0) === 1;
+
+         $motivos = [];
+         if ($ocupado) {
+            $motivos[] = 'Ya tiene corresponsal asignado';
+         }
+         if (!$tieneEmail) {
+            $motivos[] = 'Sin email';
+         }
+         if (!$emailVerificado) {
+            $motivos[] = 'Email no verificado';
+         }
+         if ($esSuperAdmin) {
+            $motivos[] = 'Super Administrador';
+         }
+
+         $noDisponible = !empty($motivos);
+         $disabledAttr = $noDisponible ? ' disabled="disabled" style="text-decoration: line-through; color:#9aa0a6;"' : '';
+         $suffix = $noDisponible ? ' (' . implode(' | ', $motivos) . ')' : '';
          echo '<option value="' . $reg->ref . '"' . $disabledAttr . '>' . $reg->empleado . $suffix . '</option>';
       }
       break;
