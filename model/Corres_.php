@@ -117,7 +117,7 @@ class Corresponsal
       $filtroExcluir = '';
       if ($idahorroExcluir > 0) {
          $filtroExcluir = " AND a.idahorro<>$idahorroExcluir ";
-      }
+      } //  1d2b5fa659be17853fe50a8a64677871
 
       $sql = "SELECT 
             e.idpersona AS ref,

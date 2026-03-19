@@ -9,7 +9,7 @@ $DB = 'websdnco_db_webgoez';*/
 $HOST = 'localhost';
 $USER = 'websdnco_user_webgoez';
 $PASS = 'CHANGE_ME_EXAMPLE';
-$DB = 'websdnco_cop';
+$DB = 'websdnco_pro';
 
 
 
