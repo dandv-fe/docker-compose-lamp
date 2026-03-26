@@ -6,7 +6,21 @@ require_once "../model/MiAhorro.php";
 $objMiAhorro = new MiAhorro();
 $idglobal = $_SESSION['idglobal'];
 $superadmin = $_SESSION['userEmpresa'];
-$idpersona = $_SESSION['idpersona'];
+$idpersona = intval($_SESSION['idpersona'] ?? 0);
+
+if ($idpersona <= 0) {
+   $idempleado = intval($_SESSION['idempleado'] ?? 0);
+   if ($idempleado > 0) {
+      require_once "../model/Conexion.php";
+      global $conexion;
+      $sqlPersona = "SELECT idpersona FROM tbl_empleado WHERE idempleado=$idempleado LIMIT 1";
+      $qPersona = $conexion->query($sqlPersona);
+      $rPersona = $qPersona ? $qPersona->fetch_object() : null;
+      if (!empty($rPersona->idpersona)) {
+         $idpersona = intval($rPersona->idpersona);
+      }
+   }
+}
 switch ($_GET['op']) {
    case 'SaveOrUpdate':
       $idahorro = limpiar_cadena2($_POST['idahorro']);
@@ -135,7 +149,40 @@ switch ($_GET['op']) {
             'str_tipo' => $reg->str_tipo,
             'dec_valor' => $reg->dec_valor,
             'str_descripcion' => $reg->str_descripcion,
-            'str_estado' => $reg->str_estado
+            'str_estado' => $reg->str_estado,
+            'idahorro' => $reg->idahorro,
+            'id_cuenta' => $reg->id_cuenta,
+            'str_name' => $reg->str_name,
+            'ahorrador' => trim((string)($reg->ahorrador ?? '')) !== '' ? $reg->ahorrador : 'No definido',
+            'str_tipo_documento' => $reg->str_tipo_documento,
+            'str_num_documento' => $reg->str_num_documento
+         ];
+      }
+
+      echo json_encode(['status' => 'success', 'data' => $data]);
+      break;
+   case 'listMovimientosPersona':
+      if (intval($idpersona) <= 0) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Persona inválida']);
+         break;
+      }
+
+      $query = $objMiAhorro->listarMovimientosPersona($idglobal, intval($idpersona));
+      $data = [];
+      while ($reg = $query->fetch_object()) {
+         $data[] = [
+            'idmovimiento' => $reg->idmovimiento,
+            'date_movimiento' => $reg->date_movimiento,
+            'str_tipo' => $reg->str_tipo,
+            'dec_valor' => $reg->dec_valor,
+            'str_descripcion' => $reg->str_descripcion,
+            'str_estado' => $reg->str_estado,
+            'idahorro' => $reg->idahorro,
+            'id_cuenta' => $reg->id_cuenta,
+            'str_name' => $reg->str_name,
+            'ahorrador' => trim((string)($reg->ahorrador ?? '')) !== '' ? $reg->ahorrador : 'No definido',
+            'str_tipo_documento' => $reg->str_tipo_documento,
+            'str_num_documento' => $reg->str_num_documento
          ];
       }
 

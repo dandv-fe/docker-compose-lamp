@@ -56,6 +56,53 @@ function _get_persona_by_usuario($conexion, $idusuario, $idglobal)
    return $q ? $q->fetch_object() : null;
 }
 
+function _resolve_persona_actual($conexion)
+{
+   $idpersona = intval($_SESSION['idpersona'] ?? 0);
+   if ($idpersona > 0) {
+      return $idpersona;
+   }
+
+   $idusuario = intval($_SESSION['idusuario'] ?? 0);
+   $idglobal = intval($_SESSION['idglobal'] ?? 0);
+   if ($idusuario > 0 && $idglobal > 0) {
+      $persona = _get_persona_by_usuario($conexion, $idusuario, $idglobal);
+      if (!empty($persona->idpersona)) {
+         return intval($persona->idpersona);
+      }
+   }
+
+   $idempleado = intval($_SESSION['idempleado'] ?? 0);
+   if ($idempleado > 0) {
+      $sql = "SELECT idpersona FROM tbl_empleado WHERE idempleado=" . $idempleado . " LIMIT 1";
+      $q = $conexion->query($sql);
+      $r = $q ? $q->fetch_object() : null;
+      if (!empty($r->idpersona)) {
+         return intval($r->idpersona);
+      }
+   }
+
+   return 0;
+}
+
+function _obtener_datos_persona_actual($conexion, $idpersona)
+{
+   $sql = "SELECT
+            idpersona,
+            str_email AS email,
+            str_email_verificado AS email_verificado,
+            str_telefono AS telefono,
+            str_direccion_departamento AS departamento,
+            str_direccion_ciudad AS ciudad,
+            str_direccion_barrio AS barrio,
+            str_direccion_calle AS direccion
+         FROM tbl_persona
+         WHERE idpersona=" . intval($idpersona) . "
+         LIMIT 1";
+   $q = $conexion->query($sql);
+   return $q ? $q->fetch_object() : null;
+}
+
 function _send_verification_email($toEmail, $verifyUrl)
 {
    global $MAIL_CONFIG;
@@ -136,6 +183,101 @@ function _send_verification_email($toEmail, $verifyUrl)
       $GLOBALS['__MAIL_LAST_ERROR'] = isset($GLOBALS['__MAIL_LAST_ERROR']) ? $GLOBALS['__MAIL_LAST_ERROR'] : 'mail() fallo al enviar';
    }
    return $ok;
+}
+
+function _send_mail_generic($toEmail, $subject, $html, $text)
+{
+   global $MAIL_CONFIG;
+   $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+
+   if (class_exists('PHPMailer\\PHPMailer\\PHPMailer')) {
+      try {
+         $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+         $smtpDebug = getenv('SMTP_DEBUG');
+         if ($smtpDebug === '1' || strtolower((string)$smtpDebug) === 'true') {
+            $mail->SMTPDebug = 2;
+         }
+
+         $driver     = $MAIL_CONFIG['driver']   ?? null;
+         $smtpHost   = $MAIL_CONFIG['host']     ?? (getenv('SMTP_HOST') ?: '');
+         $smtpUser   = $MAIL_CONFIG['username'] ?? (getenv('SMTP_USER') ?: '');
+         $smtpPass   = $MAIL_CONFIG['password'] ?? (getenv('SMTP_PASS') ?: '');
+         $smtpPort   = (string)($MAIL_CONFIG['port'] ?? (getenv('SMTP_PORT') ?: '587'));
+         $smtpSecure = $MAIL_CONFIG['secure']   ?? (getenv('SMTP_SECURE') ?: 'tls');
+         $smtpAuth   = $MAIL_CONFIG['auth']     ?? getenv('SMTP_AUTH');
+         $smtpAuth   = is_bool($smtpAuth) ? $smtpAuth : !(($smtpAuth === '0') || (strtolower((string)$smtpAuth) === 'false'));
+
+         if ($driver === 'smtp' || !empty($smtpHost)) {
+            $mail->isSMTP();
+            $mail->Host = $smtpHost;
+            $mail->SMTPAuth = $smtpAuth;
+            if ($smtpAuth) {
+               $mail->Username = $smtpUser;
+               $mail->Password = $smtpPass;
+            }
+            $mail->Port = (int)$smtpPort;
+            if ($smtpSecure === 'ssl' || $smtpSecure === 'tls') {
+               $mail->SMTPSecure = $smtpSecure;
+            }
+         } else {
+            $mail->isMail();
+         }
+
+         $fromEmail = $MAIL_CONFIG['from']      ?? (getenv('SMTP_FROM') ?: ('no-reply@' . $host));
+         $fromName  = $MAIL_CONFIG['from_name'] ?? (getenv('SMTP_FROM_NAME') ?: 'No Reply');
+
+         $mail->setFrom($fromEmail, $fromName);
+         $mail->addAddress($toEmail);
+         $mail->Subject = $subject;
+         $mail->isHTML(true);
+         $mail->Body = $html;
+         $mail->AltBody = $text;
+         $mail->CharSet = 'UTF-8';
+         $mail->send();
+         return true;
+      } catch (Exception $e) {
+         $GLOBALS['__MAIL_LAST_ERROR'] = $e->getMessage();
+      }
+   }
+
+   $headers = [];
+   $headers[] = 'MIME-Version: 1.0';
+   $headers[] = 'Content-type: text/html; charset=UTF-8';
+   $headers[] = 'From: No Reply <no-reply@' . $host . '>';
+   $headers[] = 'X-Mailer: PHP/' . phpversion();
+   $ok = @mail($toEmail, $subject, $html, implode("\r\n", $headers));
+   if (!$ok) {
+      $GLOBALS['__MAIL_LAST_ERROR'] = isset($GLOBALS['__MAIL_LAST_ERROR']) ? $GLOBALS['__MAIL_LAST_ERROR'] : 'mail() fallo al enviar';
+   }
+   return $ok;
+}
+
+function _get_usuario_actual($conexion, $idusuario, $idglobal)
+{
+   $sql = "SELECT u.idusuario, u.str_user_name, u.str_password, p.idpersona, p.str_email
+           FROM tbl_usuario u
+           INNER JOIN tbl_persona p ON p.idpersona = u.idpersona
+           WHERE u.idusuario=" . intval($idusuario) . " AND u.idglobal=" . intval($idglobal) . "
+           LIMIT 1";
+   $q = $conexion->query($sql);
+   return $q ? $q->fetch_object() : null;
+}
+
+function _generate_temp_password($length = 10)
+{
+   $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789@#$%';
+   $max = strlen($alphabet) - 1;
+   $length = max(8, intval($length));
+   $password = '';
+   for ($i = 0; $i < $length; $i++) {
+      try {
+         $idx = random_int(0, $max);
+      } catch (Throwable $e) {
+         $idx = mt_rand(0, $max);
+      }
+      $password .= $alphabet[$idx];
+   }
+   return $password;
 }
 
 if (empty($_GET["op"])) {
@@ -327,6 +469,217 @@ switch ($_GET["op"]) {
          echo json_encode(['status' => 'success', 'mensaje' => 'Email verificado']);
       } else {
          echo json_encode(['status' => 'error', 'mensaje' => 'No se pudo actualizar']);
+      }
+      break;
+
+   case 'datosPersonaActual':
+      global $conexion;
+      $idpersona = _resolve_persona_actual($conexion);
+      if ($idpersona <= 0) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Persona no encontrada']);
+         break;
+      }
+
+      $persona = _obtener_datos_persona_actual($conexion, $idpersona);
+      if (!$persona) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Persona no encontrada']);
+         break;
+      }
+
+      echo json_encode(['status' => 'success', 'data' => $persona]);
+      break;
+
+   case 'actualizarDatosPersonaActual':
+      global $conexion;
+      $idglobal = intval($_SESSION['idglobal'] ?? 0);
+      $idpersona = _resolve_persona_actual($conexion);
+      if ($idglobal <= 0 || $idpersona <= 0) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Sesión inválida']);
+         break;
+      }
+
+      $email = trim(limpiar_cadena2($_POST['email'] ?? ''));
+      $telefono = trim(limpiar_cadena($_POST['telefono'] ?? ''));
+      $departamento = trim(limpiar_cadena($_POST['departamento'] ?? ''));
+      $ciudad = trim(limpiar_cadena($_POST['ciudad'] ?? ''));
+      $barrio = trim(limpiar_cadena($_POST['barrio'] ?? ''));
+      $direccion = trim(limpiar_cadena2($_POST['direccion'] ?? ''));
+      $dt = date('Y-m-d H:i:s');
+
+      $personaActual = _obtener_datos_persona_actual($conexion, $idpersona);
+      if (!$personaActual) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Persona no encontrada']);
+         break;
+      }
+
+      if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Email inválido']);
+         break;
+      }
+
+      if ($email !== '') {
+         $sqlExiste = "SELECT idpersona FROM tbl_persona WHERE idglobal=" . $idglobal . " AND str_email='" . $conexion->real_escape_string($email) . "' AND idpersona<>" . $idpersona . " LIMIT 1";
+         $qExiste = $conexion->query($sqlExiste);
+         $rExiste = $qExiste ? $qExiste->fetch_object() : null;
+         if (!empty($rExiste->idpersona)) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'Este email ya existe']);
+            break;
+         }
+      }
+
+      $camposExtra = '';
+      if (strcasecmp(trim((string)($personaActual->email ?? '')), $email) !== 0) {
+         $camposExtra = ", str_email_verificado='0'";
+      }
+
+      $sqlUpdate = "UPDATE tbl_persona SET
+            str_email='" . $conexion->real_escape_string($email) . "',
+            str_telefono='" . $conexion->real_escape_string($telefono) . "',
+            str_direccion_departamento='" . $conexion->real_escape_string($departamento) . "',
+            str_direccion_ciudad='" . $conexion->real_escape_string($ciudad) . "',
+            str_direccion_barrio='" . $conexion->real_escape_string($barrio) . "',
+            str_direccion_calle='" . $conexion->real_escape_string($direccion) . "',
+            update_at='" . $conexion->real_escape_string($dt) . "'" . $camposExtra . "
+         WHERE idpersona=" . $idpersona;
+
+      if (!$conexion->query($sqlUpdate)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'No fue posible actualizar la persona']);
+         break;
+      }
+
+      $personaActualizada = _obtener_datos_persona_actual($conexion, $idpersona);
+      echo json_encode([
+         'status' => 'success',
+         'mensaje' => 'Datos actualizados correctamente',
+         'data' => $personaActualizada
+      ]);
+      break;
+
+   case 'cambiarPasswordActual':
+      try {
+         global $conexion;
+         if (!$conexion) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'Sin conexión a BD']);
+            break;
+         }
+
+         $idusuario = intval($_SESSION['idusuario'] ?? 0);
+         $idglobal = intval($_SESSION['idglobal'] ?? 0);
+         if ($idusuario <= 0 || $idglobal <= 0) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'Sesión inválida']);
+            break;
+         }
+
+         $actual = trim(limpiar_cadena2($_POST['password_actual'] ?? ''));
+         $nueva = trim(limpiar_cadena2($_POST['password_nueva'] ?? ''));
+         $confirmacion = trim(limpiar_cadena2($_POST['password_confirmacion'] ?? ''));
+
+         if ($actual === '' || $nueva === '' || $confirmacion === '') {
+            echo json_encode(['status' => 'error', 'mensaje' => 'Todos los campos son obligatorios']);
+            break;
+         }
+
+         if (strlen($nueva) < 6) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'La nueva clave debe tener al menos 6 caracteres']);
+            break;
+         }
+
+         if ($nueva !== $confirmacion) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'La confirmación no coincide']);
+            break;
+         }
+
+         $usuario = _get_usuario_actual($conexion, $idusuario, $idglobal);
+         if (!$usuario) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'Usuario no encontrado']);
+            break;
+         }
+
+         if (md5($actual) !== (string)$usuario->str_password) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'La clave actual no es correcta']);
+            break;
+         }
+
+         if ($actual === $nueva) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'La nueva clave no puede ser igual a la actual']);
+            break;
+         }
+
+         $sqlUpdatePass = "UPDATE tbl_usuario
+                        SET str_password='" . $conexion->real_escape_string(md5($nueva)) . "'
+                        WHERE idusuario=" . intval($idusuario) . " AND idglobal=" . intval($idglobal) . "
+                        LIMIT 1";
+
+         if (!$conexion->query($sqlUpdatePass)) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'No fue posible actualizar la clave']);
+            break;
+         }
+
+         echo json_encode(['status' => 'success', 'mensaje' => 'Clave actualizada correctamente']);
+      } catch (Throwable $e) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Error interno al cambiar clave', 'debug' => $e->getMessage()]);
+      }
+      break;
+
+   case 'resetPasswordPorCorreo':
+      try {
+         global $conexion;
+         if (!$conexion) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'Sin conexión a BD']);
+            break;
+         }
+
+         $idusuario = intval($_SESSION['idusuario'] ?? 0);
+         $idglobal = intval($_SESSION['idglobal'] ?? 0);
+         if ($idusuario <= 0 || $idglobal <= 0) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'Sesión inválida']);
+            break;
+         }
+
+         $usuario = _get_usuario_actual($conexion, $idusuario, $idglobal);
+         if (!$usuario || empty($usuario->str_email)) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'No hay correo registrado para recuperar la clave']);
+            break;
+         }
+
+         if (!filter_var($usuario->str_email, FILTER_VALIDATE_EMAIL)) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'El correo registrado no es válido']);
+            break;
+         }
+
+         $temporal = _generate_temp_password(10);
+         $sqlUpdateTmp = "UPDATE tbl_usuario
+                       SET str_password='" . $conexion->real_escape_string(md5($temporal)) . "'
+                       WHERE idusuario=" . intval($idusuario) . " AND idglobal=" . intval($idglobal) . "
+                       LIMIT 1";
+
+         if (!$conexion->query($sqlUpdateTmp)) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'No fue posible generar una nueva clave']);
+            break;
+         }
+
+         $nombreSistema = isset($infoSistemaCuentas['name']) ? $infoSistemaCuentas['name'] : 'Sistema';
+         $usuarioTexto = !empty($usuario->str_user_name) ? $usuario->str_user_name : 'usuario';
+         $subject = 'Recuperación de clave';
+         $html = "<html><body style='font-family:Arial,sans-serif'>"
+            . "<h2>Recuperación de clave</h2>"
+            . "<p>Hola, se generó una clave temporal para tu acceso a " . htmlspecialchars($nombreSistema, ENT_QUOTES, 'UTF-8') . ".</p>"
+            . "<p><b>Usuario:</b> " . htmlspecialchars($usuarioTexto, ENT_QUOTES, 'UTF-8') . "</p>"
+            . "<p><b>Clave temporal:</b> " . htmlspecialchars($temporal, ENT_QUOTES, 'UTF-8') . "</p>"
+            . "<p>Te recomendamos cambiarla apenas ingreses.</p>"
+            . "</body></html>";
+         $text = "Recuperación de clave\n\nUsuario: " . $usuarioTexto . "\nClave temporal: " . $temporal . "\n\nTe recomendamos cambiarla apenas ingreses.";
+
+         $ok = _send_mail_generic($usuario->str_email, $subject, $html, $text);
+         if (!$ok) {
+            $err = isset($GLOBALS['__MAIL_LAST_ERROR']) ? $GLOBALS['__MAIL_LAST_ERROR'] : null;
+            echo json_encode(['status' => 'error', 'mensaje' => 'No se pudo enviar el correo', 'error' => $err]);
+            break;
+         }
+
+         echo json_encode(['status' => 'success', 'mensaje' => 'Se envió una clave temporal a tu correo']);
+      } catch (Throwable $e) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Error interno al restablecer clave', 'debug' => $e->getMessage()]);
       }
       break;
 }

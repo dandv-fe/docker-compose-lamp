@@ -9,6 +9,25 @@ $objAhorradores = new Ahorradores();
 $idglobal = $_SESSION['idglobal'];
 $superadmin = $_SESSION['userEmpresa'];
 
+function format_date_safe($datetime, $format = 'd/m/Y', $default = '-')
+{
+   if ($datetime === null) {
+      return $default;
+   }
+
+   $datetime = trim((string)$datetime);
+   if ($datetime === '' || $datetime === '0000-00-00' || $datetime === '0000-00-00 00:00:00') {
+      return $default;
+   }
+
+   $timestamp = strtotime($datetime);
+   if ($timestamp === false) {
+      return $default;
+   }
+
+   return date($format, $timestamp);
+}
+
 switch ($_GET["op"]) {
 
    case 'SaveOrUpdate':
@@ -328,7 +347,7 @@ switch ($_GET["op"]) {
          $btnPerfil = '<button class="btn btn-info btn-sm" title="Ver Perfil" onclick="cargarDataAhorrador(\'' . $reg->tDocumento . '\',\'' . $reg->nDocumento . '\',\'perfil\')"><i class="fa-solid fa-user-gear" style="color: #000000;"></i></button>&nbsp;';
 
          // Formatear fecha
-         $fechaCreacion = date('d/m/Y', strtotime($reg->fecha_creacion));
+         $fechaCreacion = format_date_safe($reg->fecha_creacion, 'd/m/Y', '-');
 
          $direccion = trim($reg->direccion);
          if ($direccion === '' || $direccion === ', , ,') {
@@ -463,7 +482,7 @@ switch ($_GET["op"]) {
       $query = $objAhorradores->listarMovimientosPersona($idglobal, $refPersona);
       $data = [];
       while ($r = $query->fetch_object()) {
-         $fecha = !empty($r->fecha) ? date('d/m/Y H:i', strtotime($r->fecha)) : '-';
+         $fecha = format_date_safe($r->fecha ?? null, 'd/m/Y H:i', '-');
          $monto = '$' . number_format(floatval($r->monto ?? 0), 2, '.', ',');
          $data[] = [
             $fecha,
@@ -488,7 +507,7 @@ switch ($_GET["op"]) {
       $data = [];
       while ($r = $query->fetch_object()) {
          $auth = normalize_bit($r->auth_movimientos ?? 0) === 1 ? 'Sí' : 'No';
-         $fecha = !empty($r->fecha_creacion) ? date('d/m/Y H:i', strtotime($r->fecha_creacion)) : '-';
+         $fecha = format_date_safe($r->fecha_creacion ?? null, 'd/m/Y H:i', '-');
 
          $data[] = [
             $r->nombre,

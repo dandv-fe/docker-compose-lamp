@@ -284,7 +284,8 @@ class MiAhorro
             ) AS saldo_real
          FROM tbl_ahorros a
          LEFT JOIN tbl_persona p ON p.idpersona = a.idpersona
-         WHERE a.idpersona=$idpersona AND a.str_tipo='ahorro'
+             WHERE a.idpersona=$idpersona
+                AND a.str_tipo IN ('ahorro','corriente','principal')
          ORDER BY a.idahorro DESC";
       $query = $conexion->query($sql);
       return $query;
@@ -336,16 +337,50 @@ class MiAhorro
    {
       global $conexion;
       $sql = "SELECT
-                idmovimiento,
-                date_movimiento,
-                str_tipo,
-                dec_valor,
-                str_descripcion,
-                str_estado
-              FROM tbl_movimientos
-              WHERE idglobal=$idglobal
-                AND idahorro=$idahorro
-              ORDER BY date_movimiento DESC, idmovimiento DESC";
+                        m.idmovimiento,
+                        m.date_movimiento,
+                        m.str_tipo,
+                        m.dec_valor,
+                        m.str_descripcion,
+                        m.str_estado,
+                        a.idahorro,
+                        IFNULL(NULLIF(TRIM(a.id_cuenta), ''), CONCAT('Ahorro #', a.idahorro)) AS id_cuenta,
+                        IFNULL(NULLIF(TRIM(a.str_name), ''), CONCAT('Ahorro #', a.idahorro)) AS str_name,
+                        TRIM(CONCAT(IFNULL(p.str_nombres, ''), ' ', IFNULL(p.str_apellidos, ''))) AS ahorrador,
+                        IFNULL(NULLIF(TRIM(p.str_tipo_documento), ''), '-') AS str_tipo_documento,
+                        IFNULL(NULLIF(TRIM(p.str_num_documento), ''), '-') AS str_num_documento
+                     FROM tbl_movimientos m
+                     INNER JOIN tbl_ahorros a ON a.idahorro = m.idahorro AND a.idglobal = m.idglobal
+                     LEFT JOIN tbl_persona p ON p.idpersona = a.idpersona
+                     WHERE m.idglobal=$idglobal
+                        AND m.idahorro=$idahorro
+                     ORDER BY m.date_movimiento DESC, m.idmovimiento DESC";
+      return $conexion->query($sql);
+   }
+
+   public function listarMovimientosPersona($idglobal, $idpersona)
+   {
+      global $conexion;
+      $sql = "SELECT
+                        m.idmovimiento,
+                        m.date_movimiento,
+                        m.str_tipo,
+                        m.dec_valor,
+                        m.str_descripcion,
+                        m.str_estado,
+                        a.idahorro,
+                        a.id_cuenta,
+                        a.str_name,
+                        TRIM(CONCAT(IFNULL(p.str_nombres, ''), ' ', IFNULL(p.str_apellidos, ''))) AS ahorrador,
+                        IFNULL(NULLIF(TRIM(p.str_tipo_documento), ''), '-') AS str_tipo_documento,
+                        IFNULL(NULLIF(TRIM(p.str_num_documento), ''), '-') AS str_num_documento
+                     FROM tbl_movimientos m
+                     INNER JOIN tbl_ahorros a ON a.idahorro = m.idahorro AND a.idglobal = m.idglobal
+                     LEFT JOIN tbl_persona p ON p.idpersona = a.idpersona
+                     WHERE m.idglobal=$idglobal
+                        AND a.idpersona=$idpersona
+                        AND a.str_tipo IN ('ahorro','corriente','principal')
+                     ORDER BY m.date_movimiento DESC, m.idmovimiento DESC";
       return $conexion->query($sql);
    }
 
