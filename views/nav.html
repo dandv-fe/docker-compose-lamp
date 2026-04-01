@@ -600,6 +600,18 @@ $str_cero = str_split($dias_restantes);
             </li>
             <?php    } ?>
 
+            <?PHP
+                                    if(  $userSession['usuario']->str_cargo=='Super Administrador' || 
+                                         in_array('rendimientos', $auths)
+                                    ){ ?>
+            <li class="nav-item">
+              <a id="lia-rendimientos" href="rendimientos.php" class="nav-link">
+                <i class="far fa-circle nav-icon"></i>
+                <p>Rendimientos</p>
+              </a>
+            </li>
+            <?php    } ?>
+
 
           </ul>
         </li>

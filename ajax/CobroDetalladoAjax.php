@@ -34,6 +34,7 @@ switch ($_GET["op"]) {
          } else {
             $caja += $i ? $reg->efectivoCaja : ($query[1] + $reg->efectivoCaja); // $reg->efectivoCaja;
          }
+         print_r($caja);
          $numRuw = 0;
          $query1 = $objDespacar->getEmpleadosYaDspachados($reg->refDetalle_ruta);
          $textarea = '<textarea class="form-control" rows="' . mysqli_num_rows($query1) . '" readonly style=" resize: none;" >';
