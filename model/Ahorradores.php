@@ -457,15 +457,15 @@ class Ahorradores
                               CASE m.str_tipo
                                  WHEN 'aporte' THEN m.dec_valor
                                  WHEN 'ajuste' THEN m.dec_valor
-                                 WHEN 'retiro' THEN -m.dec_valor
+                                 WHEN 'retiro' THEN m.dec_valor
                                  ELSE 0 END
                            ),0)
                            FROM tbl_movimientos m
                            WHERE m.idahorro = a.idahorro
                         ) AS saldo_disponible
               FROM tbl_ahorros a
-                     WHERE idglobal=$idglobal AND idpersona=$idpersona
-              ORDER BY created_at DESC";
+                     WHERE a.idpersona=$idpersona
+              ORDER BY a.created_at DESC";
       return $conexion->query($sql);
    }
 

@@ -37,9 +37,15 @@
 
     if (isNaN(subtotal)) subtotal = corresponsales + ahorradores + miAhorros;
 
-    $('#tbl_corresponsales').text(formatMoney(corresponsales));
-    $('#tbl_ahorradores').text(formatMoney(ahorradores));
-    $('#tbl_mi_ahorros').text(formatMoney(miAhorros));
+    function setSummaryRowValue(cellSelector, value) {
+      var $cell = $(cellSelector);
+      $cell.text(formatMoney(value));
+      $cell.closest('tr').toggle(value > 0);
+    }
+
+    setSummaryRowValue('#tbl_corresponsales', corresponsales);
+    setSummaryRowValue('#tbl_ahorradores', ahorradores);
+    setSummaryRowValue('#tbl_mi_ahorros', miAhorros);
     $('#tbl_subtotal').text(formatMoney(subtotal));
     $('#tbl_saldo_disponible').text(formatMoney(saldo_disponible));
     $('#tbl_total').text(formatMoney(saldo_disponible + subtotal));
@@ -373,12 +379,13 @@
       var idahorroOrigen = parseInt($('#idahorro').val() || 0, 10);
       var idahorroDestino = parseInt($('#stepperForm').data('idahorroDestino') || 0, 10);
       var monto = parseFloat($('#monto').val() || 0);
+      var descripcion = ($('#str_descripcion_envio').val() || '').trim();
 
-      if (!idahorroOrigen || !idahorroDestino || !monto || monto <= 0) {
+      if (!idahorroOrigen || !idahorroDestino || !monto || monto <= 0 || !descripcion) {
         Swal.fire({
           icon: 'warning',
           title: 'Datos incompletos',
-          text: 'Valide cuenta destino y monto antes de finalizar.'
+          text: 'Valide cuenta destino, monto y descripción antes de finalizar.'
         });
         return;
       }
@@ -402,7 +409,8 @@
         data: {
           idahorroOrigen: idahorroOrigen,
           idahorroDestino: idahorroDestino,
-          monto: monto
+          monto: monto,
+          descripcion: descripcion
         }
       }).done(function (resp) {
         if (resp && resp.status === 'success') {

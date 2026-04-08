@@ -179,7 +179,7 @@ class MainAccount
       return $conexion->query($sql);
    }
 
-   public function finalizarEnvioPrincipal($idglobal, $idahorroOrigen, $idahorroDestino, $idusuarioCreated, $monto)
+   public function finalizarEnvioPrincipal($idglobal, $idahorroOrigen, $idahorroDestino, $idusuarioCreated, $monto, $descripcion = '')
    {
       global $conexion;
 
@@ -249,8 +249,10 @@ class MainAccount
          }
 
          $montoSql = number_format($monto, 2, '.', '');
-         $descRetiro = mysqli_real_escape_string($conexion, "Transferencia enviada a cuenta {$destino->id_cuenta}");
-         $descAporte = mysqli_real_escape_string($conexion, "Transferencia recibida desde cuenta {$origen->id_cuenta}");
+         $descripcion = trim((string)$descripcion);
+         $descripcionExtra = $descripcion !== '' ? " | Nota: {$descripcion}" : '';
+         $descRetiro = mysqli_real_escape_string($conexion, "Transferencia enviada a cuenta {$destino->id_cuenta}{$descripcionExtra}");
+         $descAporte = mysqli_real_escape_string($conexion, "Transferencia recibida desde cuenta {$origen->id_cuenta}{$descripcionExtra}");
 
          $sqlRetiro = "INSERT INTO tbl_movimientos(
                         idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at

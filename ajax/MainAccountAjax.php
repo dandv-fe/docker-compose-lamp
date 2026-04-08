@@ -134,13 +134,14 @@ switch ($_GET['op']) {
       $idahorroOrigen = intval($_POST['idahorroOrigen'] ?? 0);
       $idahorroDestino = intval($_POST['idahorroDestino'] ?? 0);
       $monto = floatval($_POST['monto'] ?? 0);
+      $descripcion = limpiar_cadena2($_POST['descripcion'] ?? '');
 
       if (empty($idglobal) || empty($_SESSION['idusuario'])) {
          echo json_encode(['status' => 'error', 'mensaje' => 'Sesión no válida']);
          break;
       }
 
-      if ($idahorroOrigen <= 0 || $idahorroDestino <= 0 || $monto <= 0) {
+      if ($idahorroOrigen <= 0 || $idahorroDestino <= 0 || $monto <= 0 || $descripcion === '') {
          echo json_encode(['status' => 'error', 'mensaje' => 'Datos incompletos para finalizar el envío']);
          break;
       }
@@ -150,7 +151,8 @@ switch ($_GET['op']) {
          $idahorroOrigen,
          $idahorroDestino,
          intval($_SESSION['idusuario']),
-         $monto
+         $monto,
+         $descripcion
       );
 
       echo json_encode($resultado);
