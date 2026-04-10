@@ -23,6 +23,71 @@
     return String(v).replace('T', ' ').substring(0, 19);
   }
 
+  function formatMoneyGlobal(v) {
+    if (typeof window.formatearMonedaPublica === 'function') {
+      return window.formatearMonedaPublica(v, 2);
+    }
+
+    var n = parseFloat(v) || 0;
+    return n.toLocaleString('es-CO', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  function normalizeMoneyText(value) {
+    var text = String(value || '').replace(/[^\d,\.]/g, '');
+    if (!text) return '';
+
+    var hasComma = text.indexOf(',') !== -1;
+    var hasDot = text.indexOf('.') !== -1;
+    var decimalSep = '';
+
+    if (hasComma && hasDot) {
+      decimalSep = text.lastIndexOf(',') > text.lastIndexOf('.') ? ',' : '.';
+    } else if (hasComma || hasDot) {
+      var sep = hasComma ? ',' : '.';
+      var sepIdx = text.lastIndexOf(sep);
+      var decLen = text.length - sepIdx - 1;
+      var sepCount = (text.match(new RegExp('\\' + sep, 'g')) || []).length;
+
+      // Si hay un solo separador y 1-2 dígitos al final, lo tratamos como decimal.
+      if (sepCount === 1 && decLen > 0 && decLen <= 2) {
+        decimalSep = sep;
+      }
+    }
+
+    if (!decimalSep) {
+      return text.replace(/\D/g, '');
+    }
+
+    var decimalIdx = text.lastIndexOf(decimalSep);
+    var intPart = text.slice(0, decimalIdx).replace(/\D/g, '');
+    var decPart = text.slice(decimalIdx + 1).replace(/\D/g, '').slice(0, 2);
+    if (!intPart && decPart) intPart = '0';
+    return intPart + (decPart ? '.' + decPart : '');
+  }
+
+  function parseMoneyInput(value) {
+    var normalized = normalizeMoneyText(value);
+    return parseFloat(normalized) || 0;
+  }
+
+  function formatMoneyInput(value) {
+    var raw = String(value || '');
+    var normalized = normalizeMoneyText(value);
+    if (!normalized) return '';
+
+    var parts = normalized.split('.');
+    var intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    if (parts.length > 1) {
+      return intPart + ',' + parts[1];
+    }
+
+    // Permite continuar decimales cuando el usuario acaba de escribir separador.
+    return /[\.,]$/.test(raw) ? intPart + ',' : intPart;
+  }
+
   function renderMovimientosDetalle(movimientos) {
     var $tbody = $('#tbodyMovimientosCorresponsal');
     if (!$tbody.length) return;
@@ -34,9 +99,14 @@
 
     var html = movimientos.map(function (m) {
       var valor = parseFloat(m.dec_valor) || 0;
+      var valorAbs = Math.abs(valor);
+      var valorFormateado = (typeof window.formatearMonedaPublica === 'function')
+        ? window.formatearMonedaPublica(valorAbs, 2)
+        : formatMoney(valorAbs).replace('$', '');
+      var valorTexto = (valor < 0 ? '-' : '') + valorFormateado;
       var valorHtml = valor < 0
-        ? '<span class="text-danger font-weight-bold">' + formatMoney(valor) + '</span>'
-        : formatMoney(valor);
+        ? '<span class="text-danger font-weight-bold">' + valorTexto + '</span>'
+        : valorTexto;
 
       return '<tr>' +
         '<td>' + escapeHtml(formatDateTime(m.date_movimiento)) + '</td>' +
@@ -70,7 +140,7 @@
     $('#det_nombre').text(nombre);
     $('#det_descripcion').text(row.str_name || '-');
     $('#det_numero').text(row.id_cuenta || '-');
-    $('#det_saldo').text(formatMoney(row.saldo_real));
+    $('#det_saldo').text('$' + formatMoneyGlobal(row.saldo_real));
     $('#det_estado').text(row.str_estado || '-');
     $('#det_fecha').text(formatDateTime(row.created_at));
 
@@ -95,14 +165,25 @@
     Swal.fire({
       title: titulo,
       html: '' +
-        '<input id="swal-mov-valor" type="number" min="0.01" step="0.01" class="swal2-input" placeholder="' + placeholder + '">' +
+        '<input id="swal-mov-valor" type="text" inputmode="decimal" autocomplete="off" class="swal2-input" placeholder="' + placeholder + '">' +
         '<textarea id="swal-mov-descripcion" class="swal2-textarea" placeholder="Descripción del movimiento"></textarea>',
       focusConfirm: false,
       showCancelButton: true,
       confirmButtonText: 'Guardar',
       cancelButtonText: 'Cancelar',
+      didOpen: function () {
+        var inputValor = document.getElementById('swal-mov-valor');
+        if (!inputValor) return;
+
+        inputValor.addEventListener('input', function () {
+          var formatted = formatMoneyInput(inputValor.value);
+          if (inputValor.value !== formatted) {
+            inputValor.value = formatted;
+          }
+        });
+      },
       preConfirm: function () {
-        var valor = parseFloat(document.getElementById('swal-mov-valor').value || 0);
+        var valor = parseMoneyInput(document.getElementById('swal-mov-valor').value || 0);
         var descripcion = (document.getElementById('swal-mov-descripcion').value || '').trim();
 
         if (!valor || valor <= 0) {
@@ -154,7 +235,7 @@
               return parseInt(item.idahorro || 0, 10) === ahorroDetalleActual;
             });
             if (row) {
-              $('#det_saldo').text(formatMoney(row.saldo_real));
+              $('#det_saldo').text('$' + formatMoneyGlobal(row.saldo_real));
               $('#det_estado').text(row.str_estado || '-');
               $('#det_fecha').text(formatDateTime(row.created_at));
             }
@@ -230,6 +311,9 @@
         for (let i = 0; i < datos.length; i++) {
           const val = datos[i];
           var nombrePersona = capitalizarPalabras((val['str_nombres'] || '') + ' ' + (val['str_apellidos'] || '')) || 'Sin Nombre';
+          var saldoTabla = (typeof window.formatearMonedaPublica === 'function')
+            ? window.formatearMonedaPublica(val['saldo_real'], 2)
+            : formatMoney(val['saldo_real']);
           var foto = (val['str_foto'] || '').trim();
           var fotoHtml = foto
             ? '<img src="' + escapeHtml(foto) + '" class="img-circle mr-2" style="width:32px;height:32px;object-fit:cover;" alt="foto">'
@@ -244,7 +328,7 @@
               '<div class="d-flex align-items-center">' + fotoHtml + '<span>' + escapeHtml(nombrePersona) + '</span></div>',
               escapeHtml(val['str_name']),
               val['id_cuenta'],
-              formatMoney(val['saldo_real']),
+              saldoTabla,
               escapeHtml(val['str_estado']),
               formatDateTime(val['created_at']),
               btnVer + btnEditar

@@ -54,6 +54,44 @@
 
 
   <script>
+    (function (global) {
+      function normalizarNumeroMoneda(valor) {
+        if (typeof valor === 'number') {
+          return Number.isFinite(valor) ? valor : 0;
+        }
+
+        if (typeof valor === 'string') {
+          var limpio = valor.trim();
+          if (limpio === '') return 0;
+
+          // Permite entradas con miles y decimales en formatos comunes.
+          limpio = limpio.replace(/\s+/g, '');
+          limpio = limpio.replace(/\./g, '').replace(',', '.');
+          var numeroParseado = Number(limpio);
+          return Number.isFinite(numeroParseado) ? numeroParseado : 0;
+        }
+
+        return 0;
+      }
+
+      function formatearMonedaPublica(valor, decimales) {
+        var numero = normalizarNumeroMoneda(valor);
+        var precision = Number.isInteger(decimales) && decimales >= 0 ? decimales : 2;
+
+        return numero.toLocaleString('es-CO', {
+          minimumFractionDigits: precision,
+          maximumFractionDigits: precision
+        });
+      }
+
+      global.formatearMonedaPublica = formatearMonedaPublica;
+      global.formatearNumeroMoneda = formatearMonedaPublica;
+
+      if (typeof global.formatearMoneda !== 'function') {
+        global.formatearMoneda = formatearMonedaPublica;
+      }
+    })(window);
+
     function capitalizarPalabras(val) {
       //console.log(val)
       return val.toLowerCase()

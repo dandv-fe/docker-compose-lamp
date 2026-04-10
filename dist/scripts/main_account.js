@@ -2,9 +2,90 @@
 (function ($) {
   'use strict';
 
+  var isSubmittingAporte = false;
+  var isSubmittingFinalizar = false;
+
   function formatMoney(v) {
-    var n = parseFloat(v) || 0;
-    return '$' + n.toFixed(2);
+    var n = parseFloat(v);
+    if (!Number.isFinite(n)) n = 0;
+
+    var moneda;
+    if (typeof window.formatearMonedaPublica === 'function') {
+      moneda = window.formatearMonedaPublica(n, 2);
+    } else {
+      moneda = n.toLocaleString('es-CO', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+
+    return '$' + moneda;
+  }
+
+  function parseCurrencyInput(value) {
+    if (value == null) return 0;
+
+    var raw = String(value).trim();
+    if (!raw) return 0;
+
+    raw = raw.replace(/\s+/g, '').replace(/[^\d.,-]/g, '');
+
+    if (raw.indexOf(',') >= 0) {
+      raw = raw.replace(/\./g, '').replace(',', '.');
+    } else if (raw.indexOf('.') >= 0) {
+      var dotCount = (raw.match(/\./g) || []).length;
+      if (dotCount > 1) {
+        raw = raw.replace(/\./g, '');
+      } else {
+        var parts = raw.split('.');
+        if (parts[1] && parts[1].length === 3) {
+          raw = parts[0] + parts[1];
+        }
+      }
+    }
+
+    var num = Number(raw);
+    return Number.isFinite(num) ? num : 0;
+  }
+
+  function formatCurrencyTypingValue(value) {
+    var raw = String(value == null ? '' : value)
+      .replace(/\s+/g, '')
+      .replace(/[^\d,]/g, '');
+
+    if (!raw) return '';
+
+    var chunks = raw.split(',');
+    var integerPart = chunks[0] || '0';
+    var decimalPart = chunks.slice(1).join('').substring(0, 2);
+
+    integerPart = integerPart.replace(/^0+(?=\d)/, '');
+    if (!integerPart) integerPart = '0';
+    integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+    return decimalPart ? (integerPart + ',' + decimalPart) : integerPart;
+  }
+
+  function bindCurrencyInput(selector) {
+    var $input = $(selector);
+    if (!$input.length) return;
+
+    $input.off('input.currencyMask').on('input.currencyMask', function () {
+      var cursorAtEnd = this.selectionStart === this.value.length;
+      this.value = formatCurrencyTypingValue(this.value);
+
+      if (cursorAtEnd && this.setSelectionRange) {
+        this.setSelectionRange(this.value.length, this.value.length);
+      }
+    });
+
+    $input.off('blur.currencyMask').on('blur.currencyMask', function () {
+      var n = parseCurrencyInput(this.value);
+      this.value = n.toLocaleString('es-CO', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    });
   }
 
   function renderProfile(data) {
@@ -250,12 +331,22 @@
     $('#form-aporte').on('submit', function (e) {
       e.preventDefault();
 
+      if (isSubmittingAporte) return;
+
       var idahorro = $('#idahorro').val();
       var tipo = $('#str_tipo').val();
-      var valor = $('#dec_valor').val();
+      var valorNumero = parseCurrencyInput($('#dec_valor').val());
+      var valor = valorNumero.toFixed(2);
       var descripcion = $('#str_descripcion').val();
 
+      if (!valorNumero || valorNumero <= 0) {
+        Swal.fire({ icon: 'warning', title: 'Ingrese un valor valido' });
+        $('#dec_valor').focus();
+        return;
+      }
+
       var $btn = $('#form-aporte button[type="submit"]');
+      isSubmittingAporte = true;
       $btn.prop('disabled', true);
 
       $.ajax({
@@ -284,9 +375,12 @@
         console.error('Error AJAX aporte', e.responseText || e);
         Swal.fire({ icon: 'error', title: 'Error de comunicación con el servidor' });
       }).always(function () {
+        isSubmittingAporte = false;
         $btn.prop('disabled', false);
       });
     });
+
+    bindCurrencyInput('#dec_valor');
   }
 
   function goAccount() {
@@ -359,9 +453,11 @@
     $(document).on('click', '#btnFinalizar, [data-action="finalizar"]', function (e) {
       e.preventDefault();
 
+      if (isSubmittingFinalizar) return;
+
       var idahorroOrigen = parseInt($('#idahorro').val() || 0, 10);
       var idahorroDestino = parseInt($('#stepperForm').data('idahorroDestino') || 0, 10);
-      var monto = parseFloat($('#monto').val() || 0);
+      var monto = parseCurrencyInput($('#monto').val());
       var descripcion = ($('#str_descripcion_envio').val() || '').trim();
 
       if (!idahorroOrigen || !idahorroDestino || !monto || monto <= 0 || !descripcion) {
@@ -383,6 +479,7 @@
       }
 
       var $btnFinalizar = $('#btnFinalizar');
+      isSubmittingFinalizar = true;
       $btnFinalizar.prop('disabled', true);
 
       $.ajax({
@@ -427,6 +524,7 @@
           text: 'No se pudo contactar el servidor.'
         });
       }).always(function () {
+        isSubmittingFinalizar = false;
         $btnFinalizar.prop('disabled', false);
       });
     });

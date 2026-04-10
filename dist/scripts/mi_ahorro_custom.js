@@ -5,8 +5,20 @@
   var ahorroDetalleActual = 0;
 
   function formatMoney(v) {
-    var n = parseFloat(v) || 0;
-    return '$' + n.toFixed(2);
+    var n = parseFloat(v);
+    if (!Number.isFinite(n)) n = 0;
+
+    var moneda;
+    if (typeof window.formatearMonedaPublica === 'function') {
+      moneda = window.formatearMonedaPublica(n, 2);
+    } else {
+      moneda = n.toLocaleString('es-CO', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+
+    return '$' + moneda;
   }
 
   function escapeHtml(value) {

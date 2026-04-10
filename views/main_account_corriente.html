@@ -96,27 +96,27 @@
                       <table class="table">
                         <tr>
                           <th style="width:50%">Corresponsal </th>
-                          <td id="tbl_corresponsales">$0.00</td>
+                          <td id="tbl_corresponsales">$0,00</td>
                         </tr>
                         <tr>
                           <th>Ahorradores</th>
-                          <td id="tbl_ahorradores">$0.00</td>
+                          <td id="tbl_ahorradores">$0,00</td>
                         </tr>
                         <tr>
                           <th>Mi ahorros</th>
-                          <td id="tbl_mi_ahorros">$0.00</td>
+                          <td id="tbl_mi_ahorros">$0,00</td>
                         </tr>
                         <tr>
                           <th>SubTotal:</th>
-                          <td id="tbl_subtotal">$0.00</td>
+                          <td id="tbl_subtotal">$0,00</td>
                         </tr>
                         <tr>
                           <th>Saldo Disponible:</th>
-                          <td id="tbl_saldo_disponible">$0.00</td>
+                          <td id="tbl_saldo_disponible">$0,00</td>
                         </tr>
                         <tr>
                           <th>Total:</th>
-                          <td id="tbl_total">$0.00</td>
+                          <td id="tbl_total">$0,00</td>
                         </tr>
                       </table>
                     </div>
@@ -202,8 +202,8 @@
 
                       <div class="form-group">
                         <label for="monto">Monto a enviar</label>
-                        <input type="number" class="form-control" id="monto" name="monto" placeholder="Monto a enviar"
-                          step="0.01" min="0">
+                        <input type="text" class="form-control" id="monto" name="monto" placeholder="Monto a enviar"
+                          inputmode="decimal" autocomplete="off">
                       </div>
                       <div class="form-group">
                         <label for="str_descripcion_envio">Descripción</label>
@@ -282,7 +282,8 @@
 
           <div class="form-group">
             <label for="dec_valor">Valor</label>
-            <input type="number" class="form-control" id="dec_valor" name="dec_valor" step="0.01" min="0" required>
+            <input type="text" class="form-control" id="dec_valor" name="dec_valor" inputmode="decimal"
+              autocomplete="off" placeholder="0,00" required>
           </div>
 
           <div class="form-group">
@@ -375,6 +376,79 @@
   $(".lia-cuenta-principal").addClass("active");
   var stepper
 
+  function parseCurrencyInput(value) {
+    if (value == null) return 0;
+    var raw = String(value).trim();
+    if (!raw) return 0;
+
+    raw = raw.replace(/\s+/g, '').replace(/[^\d.,-]/g, '');
+    if (raw.indexOf(',') >= 0) {
+      raw = raw.replace(/\./g, '').replace(',', '.');
+    } else if (raw.indexOf('.') >= 0) {
+      var dotCount = (raw.match(/\./g) || []).length;
+      if (dotCount > 1) {
+        raw = raw.replace(/\./g, '');
+      } else {
+        var parts = raw.split('.');
+        if (parts[1] && parts[1].length === 3) {
+          raw = parts[0] + parts[1];
+        }
+      }
+    }
+
+    var num = Number(raw);
+    return Number.isFinite(num) ? num : 0;
+  }
+
+  function formatCurrencyTypingValue(value) {
+    var raw = String(value == null ? '' : value)
+      .replace(/\s+/g, '')
+      .replace(/[^\d,]/g, '');
+
+    if (!raw) return '';
+
+    var partes = raw.split(',');
+    var entero = partes[0] || '0';
+    var decimal = partes.slice(1).join('').substring(0, 2);
+
+    entero = entero.replace(/^0+(?=\d)/, '');
+    if (!entero) entero = '0';
+    entero = entero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+    return decimal ? (entero + ',' + decimal) : entero;
+  }
+
+  function bindCurrencyInput(selector) {
+    var $input = $(selector);
+    if (!$input.length) return;
+
+    $input.off('input.currencyMask').on('input.currencyMask', function () {
+      var atEnd = this.selectionStart === this.value.length;
+      this.value = formatCurrencyTypingValue(this.value);
+
+      if (atEnd && this.setSelectionRange) {
+        this.setSelectionRange(this.value.length, this.value.length);
+      }
+    });
+
+    $input.off('blur.currencyMask').on('blur.currencyMask', function () {
+      var n = parseCurrencyInput(this.value);
+      if (!n) {
+        this.value = '';
+        return;
+      }
+
+      if (typeof window.formatearMonedaPublica === 'function') {
+        this.value = window.formatearMonedaPublica(n, 2);
+      } else {
+        this.value = n.toLocaleString('es-CO', {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2
+        });
+      }
+    });
+  }
+
   document.addEventListener('DOMContentLoaded', function () {
     var stepperElement = document.querySelector('.bs-stepper')
     var formElement = document.querySelector('#stepperForm')
@@ -448,7 +522,7 @@
         return false
       },
       2: function () {
-        var monto = parseFloat($('#monto').val() || 0)
+        var monto = parseCurrencyInput($('#monto').val())
         var descripcion = ($('#str_descripcion_envio').val() || '').trim()
         if (!monto || monto <= 0) {
           Swal.fire({ icon: 'warning', title: 'Ingrese un monto válido' })
@@ -468,7 +542,10 @@
           return false
         }
 
-        $('#monto_confirmacion').text('$' + monto.toFixed(2))
+        var montoFormateado = (typeof window.formatearMonedaPublica === 'function')
+          ? window.formatearMonedaPublica(monto, 2)
+          : monto.toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        $('#monto_confirmacion').text('$' + montoFormateado)
         $('#descripcion_confirmacion').text(descripcion)
         if (!($('#cuenta_origen').text() || '').trim() || $('#cuenta_origen').text().trim() === '-') {
           $('#cuenta_origen').text(($('#txt_num_cuenta').text() || '').trim() || '-')
@@ -510,5 +587,8 @@
         stepper.previous()
       })
     })
+
+    bindCurrencyInput('#monto')
+    bindCurrencyInput('#dec_valor')
   })
 </script>

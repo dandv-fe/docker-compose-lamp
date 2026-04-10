@@ -2,9 +2,24 @@
 (function ($) {
   'use strict';
 
+  var isSubmittingAporte = false;
+  var isSubmittingFinalizar = false;
+
   function formatMoney(v) {
-    var n = parseFloat(v) || 0;
-    return '$' + n.toFixed(2);
+    var n = parseFloat(v);
+    if (!Number.isFinite(n)) n = 0;
+
+    var moneda;
+    if (typeof window.formatearMonedaPublica === 'function') {
+      moneda = window.formatearMonedaPublica(n, 2);
+    } else {
+      moneda = n.toLocaleString('es-CO', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+    }
+
+    return '$' + moneda;
   }
 
   function renderProfile(data) {
@@ -251,12 +266,15 @@
     $('#form-aporte').on('submit', function (e) {
       e.preventDefault();
 
+      if (isSubmittingAporte) return;
+
       var idahorro = $('#idahorro').val();
       var tipo = $('#str_tipo').val();
       var valor = $('#dec_valor').val();
       var descripcion = $('#str_descripcion').val();
 
       var $btn = $('#form-aporte button[type="submit"]');
+      isSubmittingAporte = true;
       $btn.prop('disabled', true);
 
       $.ajax({
@@ -301,6 +319,7 @@
         console.error('Error AJAX aporte', e.responseText || e);
         Swal.fire({ icon: 'error', title: 'Error de comunicación con el servidor' });
       }).always(function () {
+        isSubmittingAporte = false;
         $btn.prop('disabled', false);
       });
     });
@@ -376,6 +395,8 @@
     $(document).on('click', '#btnFinalizar, [data-action="finalizar"]', function (e) {
       e.preventDefault();
 
+      if (isSubmittingFinalizar) return;
+
       var idahorroOrigen = parseInt($('#idahorro').val() || 0, 10);
       var idahorroDestino = parseInt($('#stepperForm').data('idahorroDestino') || 0, 10);
       var monto = parseFloat($('#monto').val() || 0);
@@ -400,6 +421,7 @@
       }
 
       var $btnFinalizar = $('#btnFinalizar');
+      isSubmittingFinalizar = true;
       $btnFinalizar.prop('disabled', true);
 
       $.ajax({
@@ -444,6 +466,7 @@
           text: 'No se pudo contactar el servidor.'
         });
       }).always(function () {
+        isSubmittingFinalizar = false;
         $btnFinalizar.prop('disabled', false);
       });
     });
