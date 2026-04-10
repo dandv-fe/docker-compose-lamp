@@ -1187,7 +1187,7 @@ if (isset($userSession['usuario']->idempleado)){
     if (!tipos.length) {
       const $li = $('<li>').addClass('list-group-item d-flex justify-content-between align-items-center saldo-tipo-item');
       const $label = $('<b>').text('Saldo Corriente');
-      const $valor = $('<a>').addClass('float-right txt-saldo-tipo-ahorrador').text('$0.00');
+      const $valor = $('<a>').addClass('float-right txt-saldo-tipo-ahorrador').text('$' + formatearMonedaGlobal(0));
       $li.append($label).append($valor);
       $contenedor.append($li);
     } else {
@@ -1195,13 +1195,13 @@ if (isset($userSession['usuario']->idempleado)){
         const saldoTipo = saldosPorTipo[tipo];
         const $li = $('<li>').addClass('list-group-item d-flex justify-content-between align-items-center saldo-tipo-item');
         const $label = $('<b>').text('Saldo ' + capitalizarPalabras(tipo));
-        const $valor = $('<a>').addClass('float-right txt-saldo-tipo-ahorrador').text('$' + saldoTipo.toFixed(2));
+        const $valor = $('<a>').addClass('float-right txt-saldo-tipo-ahorrador').text('$' + formatearMonedaGlobal(saldoTipo));
         $li.append($label).append($valor);
         $contenedor.append($li);
       });
     }
 
-    $("#txt_saldo_ahorrador").text('$' + total.toFixed(2));
+    $("#txt_saldo_ahorrador").text('$' + formatearMonedaGlobal(total));
   }
 
   function renderEstadoEmailActual(data) {
@@ -1355,7 +1355,7 @@ if (isset($userSession['usuario']->idempleado)){
 
       $card.append($('<div>').addClass('font-weight-bold text-truncate').text(info.nombre || ('Cuenta #' + (index + 1))));
       $card.append($('<small>').addClass('text-muted d-block').text('N° ' + (info.cuenta || '-')));
-      $card.append($('<small>').addClass('text-success d-block').text(formatearMonedaGlobal(info.saldo)));
+      $card.append($('<small>').addClass('text-success d-block').text('$' + formatearMonedaGlobal(info.saldo)));
       $track.append($card);
     });
 
@@ -1377,7 +1377,7 @@ if (isset($userSession['usuario']->idempleado)){
 
     $("#fichaNombreAhorro").text(info.nombre || '-');
     $("#fichaCuentaAhorro").text(info.cuenta || '-');
-    $("#fichaSaldoAhorro").text(formatearMonedaGlobal(info.saldo));
+    $("#fichaSaldoAhorro").text('$' + formatearMonedaGlobal(info.saldo));
     $("#fichaTipoAhorro").text(info.tipo || '-');
     $("#fichaEstadoAhorro").text(info.estado || '-');
     $("#fichaMovimientosLista").empty();
@@ -1425,7 +1425,7 @@ if (isset($userSession['usuario']->idempleado)){
           const $li = $('<li>').addClass('list-group-item py-2');
           $li.append($('<div>').addClass('d-flex justify-content-between').append(
             $('<strong>').text(tipo || '-'),
-            $('<span>').addClass('text-success').text(monto)
+            $('<span>').addClass('text-success').text('$' + monto)
           ));
           $li.append($('<small>').addClass('text-muted d-block').text(fecha || '-'));
           $li.append($('<small>').text(descripcion || 'Sin descripcion'));

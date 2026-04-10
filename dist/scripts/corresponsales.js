@@ -235,6 +235,8 @@
               return parseInt(item.idahorro || 0, 10) === ahorroDetalleActual;
             });
             if (row) {
+
+
               $('#det_saldo').text('$' + formatMoneyGlobal(row.saldo_real));
               $('#det_estado').text(row.str_estado || '-');
               $('#det_fecha').text(formatDateTime(row.created_at));
@@ -305,11 +307,13 @@
       data: {},
       dataType: "json",
       success: function (datos) {
-        console.log(datos);
+        //console.log(datos);
 
         tabla.clear().draw();
         for (let i = 0; i < datos.length; i++) {
           const val = datos[i];
+          val.saldo_real = parseFloat(val.saldo_real);
+
           var nombrePersona = capitalizarPalabras((val['str_nombres'] || '') + ' ' + (val['str_apellidos'] || '')) || 'Sin Nombre';
           var saldoTabla = (typeof window.formatearMonedaPublica === 'function')
             ? window.formatearMonedaPublica(val['saldo_real'], 2)
