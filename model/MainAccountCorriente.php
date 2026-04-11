@@ -325,7 +325,7 @@ class MainAccountCorriente
 
       $dt = date('Y-m-d H:i:s');
       $sql = "UPDATE tbl_movimientos
-              SET str_estado='inactivo', update_at='$dt', idusuario_updated=$idusuarioUpdated
+               SET str_estado='inactivo', update_at='$dt'
               WHERE idglobal=$idglobal
                 AND idahorro=$idahorro
                 AND idmovimiento=$idmovimiento
