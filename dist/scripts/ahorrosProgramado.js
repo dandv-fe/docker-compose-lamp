@@ -3,10 +3,72 @@
   'use strict';
 
   var ahorroDetalleActual = 0;
+  var movimientoEnProceso = false;
+  var guardandoFormulario = false;
+
+  function setAccionesMovimientoDisabled(disabled) {
+    $('#btnRecargarAhorroProgramado').prop('disabled', disabled);
+    $('#btnAjusteInteresesAhorroProgramado').prop('disabled', disabled);
+    $('#btnRetirarAhorroProgramado').prop('disabled', disabled);
+  }
 
   function formatMoney(v) {
     var n = parseFloat(v) || 0;
+    if (typeof window.formatearMonedaPublica === 'function') {
+      return '$' + window.formatearMonedaPublica(n, 2);
+    }
     return '$' + n.toFixed(2);
+  }
+
+  function normalizeMoneyText(value) {
+    var text = String(value || '').replace(/[^\d,\.]/g, '');
+    if (!text) return '';
+
+    var hasComma = text.indexOf(',') !== -1;
+    var hasDot = text.indexOf('.') !== -1;
+    var decimalSep = '';
+
+    if (hasComma && hasDot) {
+      decimalSep = text.lastIndexOf(',') > text.lastIndexOf('.') ? ',' : '.';
+    } else if (hasComma || hasDot) {
+      var sep = hasComma ? ',' : '.';
+      var sepIdx = text.lastIndexOf(sep);
+      var decLen = text.length - sepIdx - 1;
+      var sepCount = (text.match(new RegExp('\\' + sep, 'g')) || []).length;
+
+      if (sepCount === 1 && decLen > 0 && decLen <= 2) {
+        decimalSep = sep;
+      }
+    }
+
+    if (!decimalSep) {
+      return text.replace(/\D/g, '');
+    }
+
+    var decimalIdx = text.lastIndexOf(decimalSep);
+    var intPart = text.slice(0, decimalIdx).replace(/\D/g, '');
+    var decPart = text.slice(decimalIdx + 1).replace(/\D/g, '').slice(0, 2);
+    if (!intPart && decPart) intPart = '0';
+    return intPart + (decPart ? '.' + decPart : '');
+  }
+
+  function parseMoneyInput(value) {
+    var normalized = normalizeMoneyText(value);
+    return parseFloat(normalized) || 0;
+  }
+
+  function formatMoneyInput(value) {
+    var raw = String(value || '');
+    var normalized = normalizeMoneyText(value);
+    if (!normalized) return '';
+
+    var parts = normalized.split('.');
+    var intPart = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    if (parts.length > 1) {
+      return intPart + ',' + parts[1];
+    }
+
+    return /[\.,]$/.test(raw) ? intPart + ',' : intPart;
   }
 
   function escapeHtml(value) {
@@ -21,6 +83,16 @@
   function formatDateTime(v) {
     if (!v) return '-';
     return String(v).replace('T', ' ').substring(0, 19);
+  }
+
+  function getTipoLabel(mov) {
+    if (mov && mov.tipo_label) return mov.tipo_label;
+
+    var tipo = String((mov && mov.str_tipo) || '').toLowerCase();
+    if (tipo === 'aporte') return 'Aporte';
+    if (tipo === 'retiro') return 'Retiro';
+    if (tipo === 'ajuste') return 'Interés';
+    return mov && mov.str_tipo ? mov.str_tipo : '-';
   }
 
   function renderMovimientosDetalle(movimientos) {
@@ -40,7 +112,7 @@
 
       return '<tr>' +
         '<td>' + escapeHtml(formatDateTime(m.date_movimiento)) + '</td>' +
-        '<td>' + escapeHtml(m.str_tipo || '-') + '</td>' +
+        '<td>' + escapeHtml(getTipoLabel(m)) + '</td>' +
         '<td>' + valorHtml + '</td>' +
         '<td>' + escapeHtml(m.str_descripcion || '-') + '</td>' +
         '<td>' + escapeHtml(m.str_estado || '-') + '</td>' +
@@ -83,26 +155,51 @@
   }
 
   function solicitarMovimiento(tipo) {
+    if (movimientoEnProceso) {
+      return;
+    }
+
     if (!ahorroDetalleActual) {
       Swal.fire({ icon: 'warning', title: 'Ahorro no disponible', text: 'Seleccione un ahorro programado válido.' });
       return;
     }
 
-    var titulo = tipo === 'retiro' ? 'Retirar saldo' : 'Recargar saldo';
-    var etiqueta = tipo === 'retiro' ? 'Valor a retirar' : 'Valor a recargar';
-    var placeholder = tipo === 'retiro' ? 'Ej: 50000' : 'Ej: 100000';
+    var titulo = 'Recargar saldo';
+    var etiqueta = 'Valor a recargar';
+    var placeholder = 'Ej: 1.200.000';
+
+    if (tipo === 'retiro') {
+      titulo = 'Retirar saldo';
+      etiqueta = 'Valor a retirar';
+      placeholder = 'Ej: 50.000';
+    } else if (tipo === 'ajuste') {
+      titulo = 'Aportar intereses';
+      etiqueta = 'Valor de intereses';
+      placeholder = 'Ej: 35.000';
+    }
 
     Swal.fire({
       title: titulo,
       html: '' +
-        '<input id="swal-mov-valor" type="number" min="0.01" step="0.01" class="swal2-input" placeholder="' + placeholder + '">' +
+        '<input id="swal-mov-valor" type="text" inputmode="decimal" autocomplete="off" class="swal2-input" placeholder="' + placeholder + '">' +
         '<textarea id="swal-mov-descripcion" class="swal2-textarea" placeholder="Descripción del movimiento"></textarea>',
       focusConfirm: false,
       showCancelButton: true,
       confirmButtonText: 'Guardar',
       cancelButtonText: 'Cancelar',
+      didOpen: function () {
+        var inputValor = document.getElementById('swal-mov-valor');
+        if (!inputValor) return;
+
+        inputValor.addEventListener('input', function () {
+          var formatted = formatMoneyInput(inputValor.value);
+          if (inputValor.value !== formatted) {
+            inputValor.value = formatted;
+          }
+        });
+      },
       preConfirm: function () {
-        var valor = parseFloat(document.getElementById('swal-mov-valor').value || 0);
+        var valor = parseMoneyInput(document.getElementById('swal-mov-valor').value || 0);
         var descripcion = (document.getElementById('swal-mov-descripcion').value || '').trim();
 
         if (!valor || valor <= 0) {
@@ -124,6 +221,13 @@
   }
 
   function registrarMovimiento(tipo, valor, descripcion) {
+    if (movimientoEnProceso) {
+      return;
+    }
+
+    movimientoEnProceso = true;
+    setAccionesMovimientoDisabled(true);
+
     $.ajax({
       url: './ajax/AhorrosProgramadoAjax.php?op=registrarMovimiento',
       type: 'POST',
@@ -163,6 +267,10 @@
       error: function (e) {
         console.error('Error AJAX movimiento ahorro programado', e.responseText || e);
         Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo registrar el movimiento.' });
+      },
+      complete: function () {
+        movimientoEnProceso = false;
+        setAccionesMovimientoDisabled(false);
       }
     });
   }
@@ -202,6 +310,9 @@
     $('#btnRecargarAhorroProgramado').click(function () {
       solicitarMovimiento('aporte');
     });
+    $('#btnAjusteInteresesAhorroProgramado').click(function () {
+      solicitarMovimiento('ajuste');
+    });
     $('#btnRetirarAhorroProgramado').click(function () {
       solicitarMovimiento('retiro');
     });
@@ -224,7 +335,7 @@
       data: {},
       dataType: "json",
       success: function (datos) {
-        console.log(datos);
+        //console.log(datos);
 
         tabla.clear().draw();
         for (let i = 0; i < datos.length; i++) {
@@ -317,8 +428,19 @@
 
   $(document).ready(init);
   function saveOrUpdate() {
+    if (guardandoFormulario) {
+      return;
+    }
+
     var form = $("#formCorresponsal")[0];
     var formData = new FormData(form);
+    var $btnSubmit = $("#formCorresponsal button[type='submit']");
+    var textoOriginalBtn = $btnSubmit.html();
+
+    guardandoFormulario = true;
+    $("#formCorresponsal").attr('data-submit-locked', 'true');
+    $btnSubmit.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Guardando...');
+
     $.ajax({
       url: "./ajax/AhorrosProgramadoAjax.php?op=SaveOrUpdate",
       type: "POST",
@@ -352,6 +474,11 @@
       error: function (e) {
         console.error('Error AJAX corresponsal', e.responseText || e);
         Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo guardar el corresponsal.' });
+      },
+      complete: function () {
+        guardandoFormulario = false;
+        $("#formCorresponsal").removeAttr('data-submit-locked');
+        $btnSubmit.prop('disabled', false).html(textoOriginalBtn);
       }
     });
   }

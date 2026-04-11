@@ -421,11 +421,12 @@ class AhorrosProgramado
 
       try {
          $sqlOrigen = "SELECT idahorro, id_cuenta, str_tipo, str_estado
-                       FROM tbl_ahorros
-                       WHERE idglobal=$idglobal
-                         AND idpersona=$idpersonaActual
-                         AND str_tipo='principal'
-                       LIMIT 1";
+                                  FROM tbl_ahorros
+                                  WHERE idglobal=$idglobal
+                                     AND idpersona=$idpersonaActual
+                                     AND LOWER(IFNULL(str_tipo, '')) IN ('principal','corriente')
+                                  ORDER BY CASE WHEN LOWER(IFNULL(str_tipo, ''))='principal' THEN 0 ELSE 1 END, idahorro ASC
+                                  LIMIT 1";
          $qOrigen = $conexion->query($sqlOrigen);
          $origen = $qOrigen ? $qOrigen->fetch_object() : null;
 
@@ -538,12 +539,13 @@ class AhorrosProgramado
             throw new Exception('El ahorro programado origen está inactivo');
          }
 
-         $sqlDestino = "SELECT idahorro, id_cuenta, str_estado
-                        FROM tbl_ahorros
-                        WHERE idglobal=$idglobal
-                          AND idpersona=$idpersonaActual
-                          AND str_tipo='principal'
-                        LIMIT 1";
+         $sqlDestino = "SELECT idahorro, id_cuenta, str_tipo, str_estado
+                                    FROM tbl_ahorros
+                                    WHERE idglobal=$idglobal
+                                       AND idpersona=$idpersonaActual
+                                       AND LOWER(IFNULL(str_tipo, '')) IN ('principal','corriente')
+                                    ORDER BY CASE WHEN LOWER(IFNULL(str_tipo, ''))='principal' THEN 0 ELSE 1 END, idahorro ASC
+                                    LIMIT 1";
          $qDestino = $conexion->query($sqlDestino);
          $destino = $qDestino ? $qDestino->fetch_object() : null;
 
@@ -599,6 +601,108 @@ class AhorrosProgramado
       return [
          'status' => 'success',
          'mensaje' => 'Retiro enviado a la cuenta principal',
+         'monto' => $monto
+      ];
+   }
+
+   public function registrarAjusteInteresesConPrincipalActual($idglobal, $idpersonaActual, $idahorroDestino, $idusuarioCreated, $monto, $descripcion = '')
+   {
+      global $conexion;
+
+      $idglobal = intval($idglobal);
+      $idpersonaActual = intval($idpersonaActual);
+      $idahorroDestino = intval($idahorroDestino);
+      $idusuarioCreated = intval($idusuarioCreated);
+      $monto = floatval($monto);
+
+      if ($idglobal <= 0 || $idpersonaActual <= 0 || $idahorroDestino <= 0 || $idusuarioCreated <= 0 || $monto <= 0) {
+         return ['status' => 'error', 'mensaje' => 'Parámetros inválidos'];
+      }
+
+      $sw = true;
+      $conexion->autocommit(false);
+      $dt = date('Y-m-d H:i:s');
+
+      try {
+         $sqlOrigen = "SELECT idahorro, id_cuenta, str_tipo, str_estado
+                       FROM tbl_ahorros
+                       WHERE idglobal=$idglobal
+                         AND idpersona=$idpersonaActual
+                         AND LOWER(IFNULL(str_tipo, '')) IN ('principal','corriente')
+                       ORDER BY CASE WHEN LOWER(IFNULL(str_tipo, ''))='principal' THEN 0 ELSE 1 END, idahorro ASC
+                       LIMIT 1";
+         $qOrigen = $conexion->query($sqlOrigen);
+         $origen = $qOrigen ? $qOrigen->fetch_object() : null;
+
+         if (!$origen) {
+            throw new Exception('No se encontró la cuenta principal actual');
+         }
+
+         if (strtoupper($origen->str_estado) === 'INACTIVO') {
+            throw new Exception('La cuenta principal actual está inactiva');
+         }
+
+         if (intval($origen->idahorro) === $idahorroDestino) {
+            throw new Exception('La cuenta destino no puede ser la misma cuenta principal');
+         }
+
+         $sqlDestino = "SELECT idahorro, id_cuenta, str_estado
+                        FROM tbl_ahorros
+                        WHERE idglobal=$idglobal
+                          AND idahorro=$idahorroDestino
+                          AND str_name='Ahorro Programado'
+                        LIMIT 1";
+         $qDestino = $conexion->query($sqlDestino);
+         $destino = $qDestino ? $qDestino->fetch_object() : null;
+
+         if (!$destino) {
+            throw new Exception('Cuenta destino no encontrada');
+         }
+
+         if (strtoupper($destino->str_estado) === 'INACTIVO') {
+            throw new Exception('La cuenta destino está inactiva');
+         }
+
+         $saldoOrigen = $this->obtenerSaldoDisponible($idglobal, intval($origen->idahorro));
+         if ($saldoOrigen < $monto) {
+            throw new Exception('Saldo insuficiente en la cuenta principal');
+         }
+
+         $montoSql = number_format($monto, 2, '.', '');
+         $descripcion = trim((string)$descripcion);
+         $extra = $descripcion !== '' ? ' - ' . $descripcion : '';
+         $descRetiro = mysqli_real_escape_string($conexion, "Ajuste de intereses enviado a cuenta {$destino->id_cuenta}{$extra}");
+         $descAjuste = mysqli_real_escape_string($conexion, "Ajuste de intereses recibido desde cuenta {$origen->id_cuenta}{$extra}");
+
+         $sqlRetiro = "INSERT INTO tbl_movimientos(
+                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                     ) VALUES (
+                        $idglobal,{$origen->idahorro},$idusuarioCreated,'ajuste',-$montoSql,'$descRetiro',NULL,'activo','$dt','$dt'
+                     )";
+         $conexion->query($sqlRetiro) or throw new Exception('No se pudo registrar el ajuste en cuenta principal');
+
+         $sqlAjuste = "INSERT INTO tbl_movimientos(
+                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                     ) VALUES (
+                        $idglobal,$idahorroDestino,$idusuarioCreated,'ajuste',$montoSql,'$descAjuste',NULL,'activo','$dt','$dt'
+                     )";
+         $conexion->query($sqlAjuste) or throw new Exception('No se pudo registrar el ajuste en ahorro programado');
+
+         $sqlUpd = "UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro IN ({$origen->idahorro}, $idahorroDestino)";
+         $conexion->query($sqlUpd) or throw new Exception('No se pudo actualizar la fecha de las cuentas');
+      } catch (Exception $e) {
+         $sw = false;
+         $conexion->rollback();
+         return ['status' => 'error', 'mensaje' => $e->getMessage()];
+      }
+
+      if ($sw) {
+         $conexion->commit();
+      }
+
+      return [
+         'status' => 'success',
+         'mensaje' => 'Intereses aportados correctamente',
          'monto' => $monto
       ];
    }

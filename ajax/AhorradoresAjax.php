@@ -567,12 +567,17 @@ switch ($_GET["op"]) {
 
    case 'registrarMovimiento':
       $idahorro = limpiar_cadena($_POST['idahorroMovimiento'] ?? '');
-      $tipo = limpiar_cadena($_POST['cboTipoMovimiento'] ?? '');
+      $tipo = strtolower(trim(limpiar_cadena($_POST['cboTipoMovimiento'] ?? '')));
       $valor = floatval($_POST['txtValorMovimiento'] ?? 0);
       $descripcion = limpiar_cadena2($_POST['txtDescripcionMovimiento'] ?? '');
 
       if (empty($idahorro) || $valor <= 0 || !$tipo || !$descripcion) {
          echo json_encode(['status' => 'error', 'mensaje' => 'Datos incompletos']);
+         break;
+      }
+
+      if (!in_array($tipo, ['aporte', 'retiro', 'ajuste'], true)) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Tipo de movimiento inválido']);
          break;
       }
 
@@ -588,12 +593,7 @@ switch ($_GET["op"]) {
       }
 
       // Normalizar BIT(1)
-      $authFlag = $info->auth;
-      if (is_string($authFlag)) {
-         $authFlag = ord($authFlag); // "\x01" => 1, "\x00" => 0
-      } else {
-         $authFlag = intval($authFlag);
-      }
+      $authFlag = normalize_bit($info->auth ?? 0);
 
       $esSuperAdmin = !empty($_SESSION['userEmpresa']);
       if ($authFlag !== 1 && !$esSuperAdmin) {
@@ -601,6 +601,48 @@ switch ($_GET["op"]) {
             'status' => 'error',
             'mensaje' => 'Movimientos no autorizados. Active "Autorizar Movimientos" en Configuración.'
          ]);
+         break;
+      }
+
+      // Para intereses ganados se registra doble asiento:
+      // 1) salida negativa en cuenta principal (contraparte),
+      // 2) entrada positiva en la cuenta destino.
+      if ($tipo === 'ajuste') {
+         $resultado = $objAhorradores->registrarAjusteInteresesConPrincipal(
+            intval($idglobal),
+            intval($_SESSION['idpersona'] ?? 0),
+            intval($idahorro),
+            intval($_SESSION['idusuario'] ?? 0),
+            $valor,
+            $descripcion
+         );
+         echo json_encode($resultado);
+         break;
+      }
+
+      if ($tipo === 'aporte') {
+         $resultado = $objAhorradores->transferirDesdePrincipalSesion(
+            intval($idglobal),
+            intval($_SESSION['idpersona'] ?? 0),
+            intval($idahorro),
+            intval($_SESSION['idusuario'] ?? 0),
+            $valor,
+            $descripcion
+         );
+         echo json_encode($resultado);
+         break;
+      }
+
+      if ($tipo === 'retiro') {
+         $resultado = $objAhorradores->transferirHaciaPrincipalSesion(
+            intval($idglobal),
+            intval($_SESSION['idpersona'] ?? 0),
+            intval($idahorro),
+            intval($_SESSION['idusuario'] ?? 0),
+            $valor,
+            $descripcion
+         );
+         echo json_encode($resultado);
          break;
       }
 

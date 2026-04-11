@@ -11,11 +11,34 @@
 
   function formatMoney(value) {
     var n = parseFloat(value) || 0;
+    if (typeof window.formatearMonedaPublica === 'function') {
+      return '$' + window.formatearMonedaPublica(n, 2);
+    }
     return '$' + n.toFixed(2);
   }
 
   function parseMoneyText(text) {
-    var raw = String(text || '').replace(/[^0-9.-]/g, '');
+    var raw = String(text || '').trim();
+    if (!raw) return 0;
+
+    raw = raw.replace(/\s+/g, '').replace(/\$/g, '');
+
+    var hasComma = raw.indexOf(',') !== -1;
+    var hasDot = raw.indexOf('.') !== -1;
+
+    if (hasComma && hasDot) {
+      if (raw.lastIndexOf(',') > raw.lastIndexOf('.')) {
+        raw = raw.replace(/\./g, '').replace(',', '.');
+      } else {
+        raw = raw.replace(/,/g, '');
+      }
+    } else if (hasComma) {
+      raw = raw.replace(/\./g, '').replace(',', '.');
+    } else {
+      raw = raw.replace(/,/g, '');
+    }
+
+    raw = raw.replace(/[^0-9.-]/g, '');
     var n = parseFloat(raw);
     return isNaN(n) ? 0 : n;
   }

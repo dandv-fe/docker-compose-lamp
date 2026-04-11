@@ -347,6 +347,7 @@
 
       var $btn = $('#form-aporte button[type="submit"]');
       isSubmittingAporte = true;
+      $('#form-aporte').attr('data-submit-locked', 'true');
       $btn.prop('disabled', true);
 
       $.ajax({
@@ -376,8 +377,16 @@
         Swal.fire({ icon: 'error', title: 'Error de comunicación con el servidor' });
       }).always(function () {
         isSubmittingAporte = false;
+        $('#form-aporte').removeAttr('data-submit-locked');
         $btn.prop('disabled', false);
       });
+    });
+
+    // Evita repetir submit con Enter cuando ya hay una petición en curso.
+    $('#form-aporte').on('keydown', function (e) {
+      if (e.key === 'Enter' && isSubmittingAporte) {
+        e.preventDefault();
+      }
     });
 
     bindCurrencyInput('#dec_valor');
@@ -480,6 +489,7 @@
 
       var $btnFinalizar = $('#btnFinalizar');
       isSubmittingFinalizar = true;
+      $('#stepperForm').attr('data-submit-locked', 'true');
       $btnFinalizar.prop('disabled', true);
 
       $.ajax({
@@ -525,8 +535,16 @@
         });
       }).always(function () {
         isSubmittingFinalizar = false;
+        $('#stepperForm').removeAttr('data-submit-locked');
         $btnFinalizar.prop('disabled', false);
       });
+    });
+
+    // Evita finalizar múltiples veces por Enter repetido en el stepper.
+    $('#stepperForm').on('keydown', function (e) {
+      if (e.key === 'Enter' && isSubmittingFinalizar) {
+        e.preventDefault();
+      }
     });
 
     $(".btnCancelarEnvio").click(function (e) {

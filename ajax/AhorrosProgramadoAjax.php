@@ -162,10 +162,21 @@ switch ($_GET['op']) {
       $query = $objAhorrosProgramado->listarMovimientos($idglobal, $idahorro);
       $data = [];
       while ($reg = $query->fetch_object()) {
+         $tipo = strtolower(trim((string)$reg->str_tipo));
+         $tipoLabel = 'Movimiento';
+         if ($tipo === 'aporte') {
+            $tipoLabel = 'Aporte';
+         } elseif ($tipo === 'retiro') {
+            $tipoLabel = 'Retiro';
+         } elseif ($tipo === 'ajuste') {
+            $tipoLabel = 'Interés';
+         }
+
          $data[] = [
             'idmovimiento' => $reg->idmovimiento,
             'date_movimiento' => $reg->date_movimiento,
             'str_tipo' => $reg->str_tipo,
+            'tipo_label' => $tipoLabel,
             'dec_valor' => $reg->dec_valor,
             'str_descripcion' => $reg->str_descripcion,
             'str_estado' => $reg->str_estado
@@ -185,7 +196,7 @@ switch ($_GET['op']) {
          break;
       }
 
-      if (!in_array($tipo, ['aporte', 'retiro'], true)) {
+      if (!in_array($tipo, ['aporte', 'retiro', 'ajuste'], true)) {
          echo json_encode(['status' => 'error', 'mensaje' => 'Tipo de movimiento inválido']);
          break;
       }
@@ -211,6 +222,19 @@ switch ($_GET['op']) {
             'status' => 'error',
             'mensaje' => 'Movimientos no autorizados. Active "Autorizar Movimientos" en la configuración.'
          ]);
+         break;
+      }
+
+      if ($tipo === 'ajuste') {
+         $resultado = $objAhorrosProgramado->registrarAjusteInteresesConPrincipalActual(
+            $idglobal,
+            intval($_SESSION['idpersona'] ?? 0),
+            $idahorro,
+            intval($_SESSION['idusuario'] ?? 0),
+            $valor,
+            $descripcion
+         );
+         echo json_encode($resultado);
          break;
       }
 

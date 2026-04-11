@@ -221,6 +221,7 @@ class MainAccountCorriente
       $sw = true;
       $conexion->autocommit(false);
       $dt = date('Y-m-d H:i:s');
+      $idmovimiento = 0;
 
       try {
          $sqlCuenta = "SELECT a.idahorro, a.id_cuenta, a.str_estado,
@@ -283,6 +284,7 @@ class MainAccountCorriente
                         $idglobal,$idahorro,$idusuarioCreated,'retiro',-$valorSql,'$descSegura',$codigo,'pendiente','$dt','$dt'
                       )";
          $conexion->query($sqlRetiro) or throw new Exception('No se pudo generar el retiro temporal');
+         $idmovimiento = intval($conexion->insert_id);
 
          $sqlUpd = "UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro=$idahorro";
          $conexion->query($sqlUpd) or throw new Exception('No se pudo actualizar la cuenta');
@@ -299,12 +301,43 @@ class MainAccountCorriente
       return [
          'status' => 'success',
          'mensaje' => 'Retiro temporal generado correctamente',
+         'idmovimiento' => $idmovimiento,
          'codigo_temporal' => (string)$codigo,
          'vence_en' => $fechaExpira,
          'monto' => floatval($valor),
          'email' => $email,
          'id_cuenta' => (string)$cuenta->id_cuenta
       ];
+   }
+
+   public function anularRetiroTemporalPendiente($idglobal, $idahorro, $idmovimiento, $idusuarioUpdated = 0)
+   {
+      global $conexion;
+
+      $idglobal = intval($idglobal);
+      $idahorro = intval($idahorro);
+      $idmovimiento = intval($idmovimiento);
+      $idusuarioUpdated = intval($idusuarioUpdated);
+
+      if ($idglobal <= 0 || $idahorro <= 0 || $idmovimiento <= 0) {
+         return false;
+      }
+
+      $dt = date('Y-m-d H:i:s');
+      $sql = "UPDATE tbl_movimientos
+              SET str_estado='inactivo', update_at='$dt', idusuario_updated=$idusuarioUpdated
+              WHERE idglobal=$idglobal
+                AND idahorro=$idahorro
+                AND idmovimiento=$idmovimiento
+                AND str_tipo='retiro'
+                AND str_estado='pendiente'";
+
+      $ok = $conexion->query($sql);
+      if ($ok) {
+         $conexion->query("UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro=$idahorro AND idglobal=$idglobal");
+      }
+
+      return (bool)$ok;
    }
 
    public function finalizarEnvioPrincipal($idglobal, $idahorroOrigen, $idahorroDestino, $idusuarioCreated, $monto, $descripcion = '')

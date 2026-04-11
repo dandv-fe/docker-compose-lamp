@@ -22,6 +22,30 @@
     return '$' + moneda;
   }
 
+  function parseCurrencyFlexible(value) {
+    if (value == null) return 0;
+    var raw = String(value).trim();
+    if (!raw) return 0;
+
+    raw = raw.replace(/\s+/g, '').replace(/[^\d.,-]/g, '');
+    if (raw.indexOf(',') >= 0) {
+      raw = raw.replace(/\./g, '').replace(',', '.');
+    } else if (raw.indexOf('.') >= 0) {
+      var dotCount = (raw.match(/\./g) || []).length;
+      if (dotCount > 1) {
+        raw = raw.replace(/\./g, '');
+      } else {
+        var parts = raw.split('.');
+        if (parts[1] && parts[1].length === 3) {
+          raw = parts[0] + parts[1];
+        }
+      }
+    }
+
+    var num = Number(raw);
+    return Number.isFinite(num) ? num : 0;
+  }
+
   function renderProfile(data) {
     if (!data) return;
     $('#txt_account_name').text((data.str_name || '').trim() || 'Cuenta Principal');
@@ -270,11 +294,18 @@
 
       var idahorro = $('#idahorro').val();
       var tipo = $('#str_tipo').val();
-      var valor = $('#dec_valor').val();
+      var valor = parseCurrencyFlexible($('#dec_valor').val());
       var descripcion = $('#str_descripcion').val();
+
+      if (!valor || valor <= 0) {
+        Swal.fire({ icon: 'warning', title: 'Ingrese un valor valido para retiro' });
+        $('#dec_valor').focus();
+        return;
+      }
 
       var $btn = $('#form-aporte button[type="submit"]');
       isSubmittingAporte = true;
+      $('#form-aporte').attr('data-submit-locked', 'true');
       $btn.prop('disabled', true);
 
       $.ajax({
@@ -320,8 +351,16 @@
         Swal.fire({ icon: 'error', title: 'Error de comunicación con el servidor' });
       }).always(function () {
         isSubmittingAporte = false;
+        $('#form-aporte').removeAttr('data-submit-locked');
         $btn.prop('disabled', false);
       });
+    });
+
+    // Evita repetir submit con Enter cuando ya hay una petición en curso.
+    $('#form-aporte').on('keydown', function (e) {
+      if (e.key === 'Enter' && isSubmittingAporte) {
+        e.preventDefault();
+      }
     });
   }
 
@@ -422,6 +461,7 @@
 
       var $btnFinalizar = $('#btnFinalizar');
       isSubmittingFinalizar = true;
+      $('#stepperForm').attr('data-submit-locked', 'true');
       $btnFinalizar.prop('disabled', true);
 
       $.ajax({
@@ -467,8 +507,16 @@
         });
       }).always(function () {
         isSubmittingFinalizar = false;
+        $('#stepperForm').removeAttr('data-submit-locked');
         $btnFinalizar.prop('disabled', false);
       });
+    });
+
+    // Evita finalizar múltiples veces por Enter repetido en el stepper.
+    $('#stepperForm').on('keydown', function (e) {
+      if (e.key === 'Enter' && isSubmittingFinalizar) {
+        e.preventDefault();
+      }
     });
 
     $(".btnCancelarEnvio").click(function (e) {

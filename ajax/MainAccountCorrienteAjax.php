@@ -98,6 +98,37 @@ function _send_retiro_code_email($toEmail, $codigo, $venceEn, $monto, $idCuenta)
    return @mail($toEmail, $subject, $html, implode("\r\n", $headers));
 }
 
+function _parse_money_input($value)
+{
+   if (is_null($value)) {
+      return 0;
+   }
+
+   $raw = trim((string)$value);
+   if ($raw === '') {
+      return 0;
+   }
+
+   $raw = preg_replace('/\s+/', '', $raw);
+   $raw = preg_replace('/[^\d,\.\-]/', '', $raw);
+
+   if (strpos($raw, ',') !== false) {
+      $raw = str_replace('.', '', $raw);
+      $raw = str_replace(',', '.', $raw);
+   } else {
+      if (substr_count($raw, '.') > 1) {
+         $raw = str_replace('.', '', $raw);
+      } else {
+         $parts = explode('.', $raw);
+         if (count($parts) === 2 && strlen($parts[1]) === 3) {
+            $raw = $parts[0] . $parts[1];
+         }
+      }
+   }
+
+   return is_numeric($raw) ? floatval($raw) : 0;
+}
+
 $objMainAccountCorrieneete = new MainAccountCorriente();
 $idglobal = $_SESSION['idglobal'];
 $superadmin = $_SESSION['userEmpresa'];
@@ -170,7 +201,7 @@ switch ($_GET['op']) {
    case 'registrarMovimientosRA':
       $idahorro = limpiar_cadena($_POST['idahorroMovimiento'] ?? '');
       $tipo = limpiar_cadena($_POST['cboTipoMovimiento'] ?? '');
-      $valor = floatval($_POST['txtValorMovimiento'] ?? 0);
+      $valor = _parse_money_input($_POST['txtValorMovimiento'] ?? 0);
       $descripcion = limpiar_cadena2($_POST['txtDescripcionMovimiento'] ?? '');
 
       if (empty($idahorro) || $valor <= 0 || !$tipo || !$descripcion) {
@@ -231,8 +262,18 @@ switch ($_GET['op']) {
          $venceEn = (string)($resultado['vence_en'] ?? '');
          $montoRetiro = floatval($resultado['monto'] ?? 0);
          $idCuenta = (string)($resultado['id_cuenta'] ?? '');
+         $idMovimiento = intval($resultado['idmovimiento'] ?? 0);
 
          if ($email === '' || $codigo === '' || !_send_retiro_code_email($email, $codigo, $venceEn, $montoRetiro, $idCuenta)) {
+            if ($idMovimiento > 0) {
+               $objMainAccountCorrieneete->anularRetiroTemporalPendiente(
+                  $idglobal,
+                  intval($idahorro),
+                  $idMovimiento,
+                  intval($_SESSION['idusuario'] ?? 0)
+               );
+            }
+
             echo json_encode([
                'status' => 'error',
                'mensaje' => 'Se generó el código, pero no se pudo enviar al email. Verifique la configuración SMTP.'

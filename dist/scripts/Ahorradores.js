@@ -1,6 +1,8 @@
 var ahorrosTablaData = [];
 
 jQuery(document).ready(function () {
+  let guardandoMovimiento = false;
+  let guardandoAhorro = false;
   $("#editarDocumentoAhorrador").click(function (e) {
     $("#titleModalBuscarPersona").text("Editar Documento");
 
@@ -41,6 +43,110 @@ jQuery(document).ready(function () {
 
   // Submit del formulario de configuración
   $("form#formConfiguracionAhorro").submit(SaveOrUpdateConfiguracion);
+
+  // Abrir modal de movimiento (general o ajuste de intereses).
+  $(document).on('click', '#btnNuevoMovimiento, #btnGuardarAjusteIntereses', function () {
+    let idAhorroSeleccionado = 0;
+
+    if (exploradorAhorroIndex >= 0 && exploradorAhorrosData[exploradorAhorroIndex]) {
+      idAhorroSeleccionado = parseInt(exploradorAhorrosData[exploradorAhorroIndex].idAhorro, 10) || 0;
+    }
+
+    if (!idAhorroSeleccionado) {
+      idAhorroSeleccionado = parseInt($("#txtRefAhorroConfig").val(), 10) || 0;
+    }
+
+    if (!idAhorroSeleccionado) {
+      Toast.fire({ icon: 'warning', title: 'Seleccione primero una cuenta de ahorro.' });
+      return;
+    }
+
+    if ($("#formMovimientoAhorro").length) {
+      $("#formMovimientoAhorro")[0].reset();
+    }
+
+    $("#idahorroMovimiento").val(idAhorroSeleccionado);
+
+    if ($(this).attr('id') === 'btnGuardarAjusteIntereses') {
+      $("#cboTipoMovimiento").val('ajuste');
+      $("#txtDescripcionMovimiento").val('Aporte de intereses');
+      $("#modalMovimiento .modal-title").html('<i class="fas fa-balance-scale"></i> Aportar intereses');
+    } else {
+      $("#cboTipoMovimiento").val('');
+      $("#txtDescripcionMovimiento").val('');
+      $("#modalMovimiento .modal-title").html('<i class="fa fa-plus"></i> Nuevo Movimiento');
+    }
+
+    $("#modalMovimiento").modal('show');
+  });
+
+  // Guardar movimiento desde modal.
+  $(document).on('submit', '#formMovimientoAhorro', function (e) {
+    e.preventDefault();
+
+    if (guardandoMovimiento) {
+      return;
+    }
+
+    guardandoMovimiento = true;
+    const $form = $(this);
+    const $btnSubmit = $form.find('button[type="submit"]');
+    const textoOriginalBtn = $btnSubmit.html();
+    $btnSubmit.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Guardando...');
+
+    const fd = new FormData(this);
+
+    $.ajax({
+      url: "./ajax/AhorradoresAjax.php?op=registrarMovimiento",
+      type: "POST",
+      data: fd,
+      contentType: false,
+      processData: false,
+      success: function (r) {
+        let res;
+        try {
+          res = typeof r === 'string' ? JSON.parse(r) : r;
+        } catch (err) {
+          res = { status: 'error', mensaje: 'Respuesta inválida del servidor.' };
+        }
+
+        if (res && res.status === 'success') {
+          Toast.fire({ icon: 'success', title: res.mensaje || 'Movimiento registrado.' });
+          $("#modalMovimiento").modal('hide');
+
+          var tipoDocumentoActual = $("#txt_tipo_documento_ahorrador").text().trim();
+          var numeroDocumentoActual = $("#txt_num_documento_ahorrador").text().trim();
+          if (tipoDocumentoActual && numeroDocumentoActual && typeof cargarDataAhorrador === 'function') {
+            cargarDataAhorrador(tipoDocumentoActual, numeroDocumentoActual, 'perfil');
+            return;
+          }
+
+          const refPersona = $("#txt_idpersona_ah").val();
+          if (refPersona) {
+            listarMovimientosPersona(refPersona);
+          }
+
+          if (exploradorAhorroIndex >= 0 && exploradorAhorrosData[exploradorAhorroIndex]) {
+            cargarMovimientosFicha(exploradorAhorrosData[exploradorAhorroIndex].idAhorro);
+          }
+
+          const refAhorro = $("#txtRefAhorroConfig").val();
+          if (refAhorro) {
+            actualizarPerfilAhorrador(refAhorro);
+          }
+        } else {
+          Toast.fire({ icon: 'error', title: (res && res.mensaje) ? res.mensaje : 'No se pudo registrar el movimiento.' });
+        }
+      },
+      error: function () {
+        Toast.fire({ icon: 'error', title: 'ERROR: Servidor' });
+      },
+      complete: function () {
+        guardandoMovimiento = false;
+        $btnSubmit.prop('disabled', false).html(textoOriginalBtn);
+      }
+    });
+  });
 
   // Submit del formulario de edición de ahorrador
   $("form#formAhorroEditar").submit(function (e) {
@@ -182,6 +288,17 @@ jQuery(document).ready(function () {
 
   function SaveOrUpdate(e) {
     e.preventDefault();
+
+    if (guardandoAhorro) {
+      return;
+    }
+
+    const $btnSubmit = $("#btn-submit-ahorro");
+    const textoOriginalBtn = $btnSubmit.html();
+    guardandoAhorro = true;
+    $("#frmAhorro").attr('data-submit-locked', 'true');
+    $btnSubmit.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Guardando...');
+
     $.post("./ajax/UsuarioAjax.php", function (r) {
       if (r === '0') {
         location.reload(true);
@@ -209,6 +326,11 @@ jQuery(document).ready(function () {
           ListadoAhorradores();
           OcultarForm();
         }
+      },
+      complete: function () {
+        guardandoAhorro = false;
+        $("#frmAhorro").removeAttr('data-submit-locked');
+        $btnSubmit.prop('disabled', false).html(textoOriginalBtn);
       }
     });
   }
@@ -253,7 +375,7 @@ function ListadoAhorradores() {
     data: {},
     dataType: "json",
     success: function (datos) {
-      console.log('listAhorrosPersona -> registros:', Array.isArray(datos) ? datos.length : 'no-array', datos);
+      //console.log('listAhorrosPersona -> registros:', Array.isArray(datos) ? datos.length : 'no-array', datos);
       tabla.clear().draw();
       for (let i = 0; i < datos.length; i++) {
         const val = datos[i];
@@ -321,9 +443,21 @@ function limpiarHtmlTexto(valor) {
   return $('<div>').html(valor == null ? '' : String(valor)).text().trim();
 }
 
+function getTipoMovimientoLabel(tipo) {
+  const normalizado = String(tipo || '').trim().toLowerCase();
+  if (normalizado === 'ajuste') return 'Interés';
+  return tipo;
+}
+
 function formatearMoneda(valor) {
   const numero = parseFloat(valor);
   const seguro = Number.isFinite(numero) ? numero : 0;
+  if (typeof window.formatearMonedaPublica === 'function') {
+    return '$' + window.formatearMonedaPublica(seguro, 2);
+  }
+  if (typeof window.formatearMonedaGlobal === 'function') {
+    return '$' + window.formatearMonedaGlobal(seguro);
+  }
   return '$' + seguro.toFixed(2);
 }
 
@@ -431,14 +565,16 @@ function cargarMovimientosFicha(idAhorro) {
 
       items.forEach(function (mov) {
         const fecha = limpiarHtmlTexto(mov[0]);
-        const tipo = limpiarHtmlTexto(mov[1]);
-        const monto = formatearMoneda(mov[2]);
+        const tipo = limpiarHtmlTexto(getTipoMovimientoLabel(mov[1]));
+        const montoValor = parseFloat(mov[2]) || 0;
+        const monto = formatearMoneda(montoValor);
+        const montoClass = montoValor < 0 ? 'text-danger' : 'text-success';
         const descripcion = limpiarHtmlTexto(mov[3]);
 
         const $li = $('<li>').addClass('list-group-item py-2');
         $li.append($('<div>').addClass('d-flex justify-content-between').append(
           $('<strong>').text(tipo || '-'),
-          $('<span>').addClass('text-success').text(monto)
+          $('<span>').addClass(montoClass + ' font-weight-bold').text(monto)
         ));
         $li.append($('<small>').addClass('text-muted d-block').text(fecha || '-'));
         $li.append($('<small>').text(descripcion || 'Sin descripción'));
@@ -474,7 +610,7 @@ function listarAhorrosPersona(refPersona) {
       tabla.clear().draw();
       for (let i = 0; i < datos.length; i++) {
         const val = datos[i];
-        const saldoColumna = '$' + (parseFloat(val[9]) || 0).toFixed(2);
+        const saldoColumna = formatearMoneda(val[9]);
         var btnEditar = '<button type="button" class="btn btn-warning btn-sm btn-editar-ahorro-config" data-idx="' + i + '"><i class="fas fa-edit"></i></button>';
         tabla.row.add([
           val[0],
@@ -522,11 +658,15 @@ function listarMovimientosPersona(refPersona) {
       tabla.clear().draw();
       for (let i = 0; i < datos.length; i++) {
         const val = datos[i];
+        const montoRaw = parseFloat(String(val[3] || '').replace(/[^\d.-]/g, '')) || 0;
+        const montoHtml = montoRaw < 0
+          ? '<span class="text-danger font-weight-bold">' + val[3] + '</span>'
+          : val[3];
         tabla.row.add([
           val[0],
           val[1],
-          val[2],
-          val[3],
+          getTipoMovimientoLabel(val[2]),
+          montoHtml,
           val[4],
           val[5]
         ]).draw(false);
@@ -858,7 +998,7 @@ function renderSaldosTiposAhorrador(saldosTipos, data) {
 
       const $li = $("<li>").addClass("list-group-item d-flex justify-content-between align-items-center saldo-tipo-item");
       const $label = $("<b>").text('Saldo ' + capitalizarPalabras(tipo));
-      const $valor = $("<a>").addClass("float-right txt-saldo-tipo-ahorrador").text('$' + saldoSeguro.toFixed(2));
+      const $valor = $("<a>").addClass("float-right txt-saldo-tipo-ahorrador").text(formatearMoneda(saldoSeguro));
       $li.append($label).append($valor);
       $contenedor.append($li);
     });
@@ -869,12 +1009,12 @@ function renderSaldosTiposAhorrador(saldosTipos, data) {
     total = Number.isFinite(saldoBase) ? saldoBase : 0;
     const $li = $("<li>").addClass("list-group-item d-flex justify-content-between align-items-center saldo-tipo-item");
     const $label = $("<b>").text('Saldo Corriente');
-    const $valor = $("<a>").addClass("float-right txt-saldo-tipo-ahorrador").text('$' + total.toFixed(2));
+    const $valor = $("<a>").addClass("float-right txt-saldo-tipo-ahorrador").text(formatearMoneda(total));
     $li.append($label).append($valor);
     $contenedor.append($li);
   }
   console.log(total);
-  $("#txt_saldo_ahorrador").text('$' + total.toFixed(2));
+  $("#txt_saldo_ahorrador").text(formatearMoneda(total));
 }
 
 // Al cambiar manualmente el checkbox reflejar indicador

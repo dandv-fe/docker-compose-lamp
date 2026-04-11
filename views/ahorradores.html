@@ -327,6 +327,10 @@
                                 <div class="text-right">
                                   <small class="text-muted d-block">Saldo disponible</small>
                                   <h5 id="fichaSaldoAhorro" class="mb-0 text-success">$0.00</h5>
+                                  <button type="button" id="btnGuardarAjusteIntereses" class="btn btn-info btn-sm mt-2">
+                                    <i class="fas fa-balance-scale mr-1"></i> Guardar ajuste de intereses
+                                  </button>
+
                                 </div>
                               </div>
 
@@ -589,8 +593,8 @@
               <div class="col-md-6">
                 <div class="form-group mb-2">
                   <label for="editPorcentaje">Porcentaje (%EA)</label>
-                  <input type="number" step="0.01" min="0" max="100" id="editPorcentaje"
-                    name="txtPorcentajeConfig" class="form-control" />
+                  <input type="number" step="0.01" min="0" max="100" id="editPorcentaje" name="txtPorcentajeConfig"
+                    class="form-control" />
                 </div>
               </div>
               <div class="col-md-6">
@@ -762,6 +766,35 @@
     .appendTo("#tblGanancias_wrapper .col-md-6:eq(0)");
 
   $(function () { })
+
+  $(document).on("click", "#btnGuardarAjusteIntereses", function () {
+    const refAhorro = $("#txtRefAhorroConfig").val();
+
+    if (!refAhorro) {
+      if (typeof Toast !== "undefined") {
+        Toast.fire({ icon: "warning", title: "Seleccione una cuenta para registrar el ajuste." });
+      }
+      return;
+    }
+
+    if ($("#formMovimientoAhorro").length) {
+      $("#formMovimientoAhorro")[0].reset();
+    }
+
+    $("#idahorroMovimiento").val(refAhorro);
+    $("#cboTipoMovimiento").val("ajuste");
+    $("#txtDescripcionMovimiento").val("Aporte de intereses");
+    $("#modalMovimiento .modal-title").html('<i class="fas fa-balance-scale"></i> Aportar intereses');
+    $("#modalMovimiento").modal("show");
+  });
+
+  if (typeof window.formatearMonedaPublica === "function") {
+    $("#txt_saldo_ahorrador").text('$' + window.formatearMonedaPublica(0, 2));
+    $("#fichaSaldoAhorro").text('$' + window.formatearMonedaPublica(0, 2));
+  } else if (typeof window.formatearMonedaGlobal === "function") {
+    $("#txt_saldo_ahorrador").text('$' + window.formatearMonedaGlobal(0));
+    $("#fichaSaldoAhorro").text('$' + window.formatearMonedaGlobal(0));
+  }
 
   $("#tblAhorros")
     .DataTable({

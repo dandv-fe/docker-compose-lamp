@@ -3,6 +3,13 @@
   'use strict';
 
   var ahorroDetalleActual = 0;
+  var movimientoEnProceso = false;
+  var guardandoFormulario = false;
+
+  function setAccionesMovimientoDisabled(disabled) {
+    $('#btnRecargarCorresponsal').prop('disabled', disabled);
+    $('#btnRetirarCorresponsal').prop('disabled', disabled);
+  }
 
   function formatMoney(v) {
     var n = parseFloat(v) || 0;
@@ -153,6 +160,10 @@
   }
 
   function solicitarMovimiento(tipo) {
+    if (movimientoEnProceso) {
+      return;
+    }
+
     if (!ahorroDetalleActual) {
       Swal.fire({ icon: 'warning', title: 'Cuenta no disponible', text: 'Seleccione un corresponsal válido.' });
       return;
@@ -205,6 +216,13 @@
   }
 
   function registrarMovimiento(tipo, valor, descripcion) {
+    if (movimientoEnProceso) {
+      return;
+    }
+
+    movimientoEnProceso = true;
+    setAccionesMovimientoDisabled(true);
+
     $.ajax({
       url: './ajax/Corres_Ajax.php?op=registrarMovimiento',
       type: 'POST',
@@ -246,6 +264,10 @@
       error: function (e) {
         console.error('Error AJAX movimiento corresponsal', e.responseText || e);
         Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo registrar el movimiento.' });
+      },
+      complete: function () {
+        movimientoEnProceso = false;
+        setAccionesMovimientoDisabled(false);
       }
     });
   }
@@ -406,8 +428,19 @@
 
   $(document).ready(init);
   function saveOrUpdate() {
+    if (guardandoFormulario) {
+      return;
+    }
+
     var form = $("#formCorresponsal")[0];
     var formData = new FormData(form);
+    var $btnSubmit = $("#formCorresponsal button[type='submit']");
+    var textoOriginalBtn = $btnSubmit.html();
+
+    guardandoFormulario = true;
+    $("#formCorresponsal").attr('data-submit-locked', 'true');
+    $btnSubmit.prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Guardando...');
+
     $.ajax({
       url: "./ajax/Corres_Ajax.php?op=SaveOrUpdate",
       type: "POST",
@@ -441,6 +474,11 @@
       error: function (e) {
         console.error('Error AJAX corresponsal', e.responseText || e);
         Swal.fire({ icon: 'error', title: 'Error', text: 'No se pudo guardar el corresponsal.' });
+      },
+      complete: function () {
+        guardandoFormulario = false;
+        $("#formCorresponsal").removeAttr('data-submit-locked');
+        $btnSubmit.prop('disabled', false).html(textoOriginalBtn);
       }
     });
   }
