@@ -20,22 +20,33 @@ if (!function_exists('env_or_default')) {
 if (!function_exists('load_private_db_config')) {
    function load_private_db_config()
    {
+      $candidates = [];
+
       $home = getenv('HOME');
-      if (!$home && isset($_SERVER['HOME'])) {
-         $home = $_SERVER['HOME'];
+      if ($home) {
+         $candidates[] = rtrim($home, '/') . '/config/webgoez-db.php';
       }
 
-      if (!$home) {
-         return [];
+      if (!empty($_SERVER['HOME'])) {
+         $candidates[] = rtrim($_SERVER['HOME'], '/') . '/config/webgoez-db.php';
       }
 
-      $configPath = rtrim($home, '/') . '/config/webgoez-db.php';
-      if (!file_exists($configPath)) {
-         return [];
+      $candidates[] = dirname(__DIR__, 4) . '/config/webgoez-db.php';
+
+      if (!empty($_SERVER['DOCUMENT_ROOT'])) {
+         $candidates[] = dirname(rtrim($_SERVER['DOCUMENT_ROOT'], '/'), 1) . '/config/webgoez-db.php';
       }
 
-      $cfg = include $configPath;
-      return is_array($cfg) ? $cfg : [];
+      foreach (array_unique($candidates) as $configPath) {
+         if (!$configPath || !file_exists($configPath)) {
+            continue;
+         }
+
+         $cfg = include $configPath;
+         return is_array($cfg) ? $cfg : [];
+      }
+
+      return [];
    }
 }
 
