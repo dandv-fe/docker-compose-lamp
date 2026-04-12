@@ -750,6 +750,48 @@ if (isset($userSession['usuario']->idempleado)){
 <script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
 <!-- SweetAlert2 -->
 
+<style>
+  #txt_saldo_ahorrador {
+    font-weight: 700;
+    color: #28a745;
+  }
+
+  .ahorro-slide-track {
+    display: flex;
+    gap: .5rem;
+    overflow-x: auto;
+    padding-bottom: .25rem;
+  }
+
+  .ahorro-slide-card {
+    min-width: 220px;
+    border: 1px solid #dee2e6;
+    border-radius: .5rem;
+    padding: .6rem .75rem;
+    background: #fff;
+    cursor: pointer;
+    transition: all .2s ease;
+  }
+
+  .ahorro-slide-card:hover,
+  .ahorro-slide-card.active {
+    border-color: #007bff;
+    box-shadow: 0 0 0 .15rem rgba(0, 123, 255, .15);
+  }
+
+  .ahorro-ficha {
+    border: 1px solid #e9ecef;
+    border-radius: .5rem;
+    background: #fbfcfe;
+    padding: .75rem;
+  }
+
+  .txt-saldo-tipo-ahorrador {
+    font-weight: 700;
+    color: #28a745;
+  }
+</style>
+
 
 
 <script type="text/javascript">
