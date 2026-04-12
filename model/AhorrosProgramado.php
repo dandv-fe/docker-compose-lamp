@@ -267,12 +267,24 @@ class AhorrosProgramado
                   CASE m.str_tipo
                      WHEN 'aporte' THEN m.dec_valor
                      WHEN 'ajuste' THEN m.dec_valor
-                     WHEN 'retiro' THEN m.dec_valor
+                     WHEN 'retiro' THEN -m.dec_valor
+                     WHEN 'entrada' THEN m.dec_valor
+                     WHEN 'salida' THEN -m.dec_valor
                      ELSE 0 END
                ),0)
+               +(SELECT IFNULL(SUM(
+                  CASE m2.str_tipo
+                     WHEN 'aporte' THEN -m2.dec_valor
+                     WHEN 'ajuste' THEN -m2.dec_valor
+                     WHEN 'retiro' THEN m2.dec_valor
+                     ELSE 0 END
+               ),0)
+               FROM tbl_movimientos m2
+               WHERE m2.idahorro_de=a.idahorro
+                 AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO')
                FROM tbl_movimientos m
                WHERE m.idahorro=a.idahorro
-                 AND UPPER(m.str_estado) <> 'INACTIVO'
+                 AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'
             ) AS saldo_real
          FROM tbl_ahorros a
          LEFT JOIN tbl_persona p ON p.idpersona = a.idpersona
@@ -348,7 +360,7 @@ class AhorrosProgramado
                 str_estado
               FROM tbl_movimientos
               WHERE idglobal=$idglobal
-                AND idahorro=$idahorro
+                AND (idahorro=$idahorro OR idahorro_de=$idahorro)
               ORDER BY date_movimiento DESC, idmovimiento DESC";
       return $conexion->query($sql);
    }
@@ -356,17 +368,33 @@ class AhorrosProgramado
    public function obtenerSaldoDisponible($idglobal, $idahorro)
    {
       global $conexion;
+      $idglobal = intval($idglobal);
+      $idahorro = intval($idahorro);
+
       $sql = "SELECT IFNULL(SUM(
-                  CASE str_tipo
-                     WHEN 'aporte' THEN dec_valor
-                     WHEN 'ajuste' THEN dec_valor
-                     WHEN 'retiro' THEN dec_valor
+                  CASE m.str_tipo
+                     WHEN 'aporte' THEN m.dec_valor
+                     WHEN 'ajuste' THEN m.dec_valor
+                     WHEN 'retiro' THEN -m.dec_valor
+                     WHEN 'entrada' THEN m.dec_valor
+                     WHEN 'salida' THEN -m.dec_valor
                      ELSE 0 END
-               ), 0) AS saldo
-              FROM tbl_movimientos
-              WHERE idglobal=$idglobal
-                AND idahorro=$idahorro
-                AND UPPER(str_estado) <> 'INACTIVO'";
+               ), 0)
+               +(SELECT IFNULL(SUM(
+                  CASE m2.str_tipo
+                     WHEN 'aporte' THEN -m2.dec_valor
+                     WHEN 'ajuste' THEN -m2.dec_valor
+                     WHEN 'retiro' THEN m2.dec_valor
+                     ELSE 0 END
+               ), 0)
+               FROM tbl_movimientos m2
+               WHERE m2.idglobal=$idglobal
+                 AND m2.idahorro_de=$idahorro
+                 AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO') AS saldo
+              FROM tbl_movimientos m
+              WHERE m.idglobal=$idglobal
+                AND m.idahorro=$idahorro
+                AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'";
       $query = $conexion->query($sql);
       $reg = $query ? $query->fetch_object() : null;
       return $reg ? floatval($reg->saldo ?? 0) : 0;
@@ -465,25 +493,22 @@ class AhorrosProgramado
          }
 
          $montoSql = number_format($monto, 2, '.', '');
-         $descripcion = trim((string)$descripcion);
-         $extra = $descripcion !== '' ? ' - ' . $descripcion : '';
-         $descRetiro = mysqli_real_escape_string($conexion, "Transferencia enviada a cuenta {$destino->id_cuenta}{$extra}");
-         $descAporte = mysqli_real_escape_string($conexion, "Transferencia recibida desde cuenta {$origen->id_cuenta}{$extra}");
+         $descripcion = mysqli_real_escape_string($conexion, trim((string)$descripcion));
 
-         $sqlRetiro = "INSERT INTO tbl_movimientos(
-                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+         $sqlAporte = "INSERT INTO tbl_movimientos(
+                        idglobal,idahorro,idahorro_de,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                      ) VALUES (
-                        $idglobal,{$origen->idahorro},$idusuarioCreated,'retiro',-$montoSql,'$descRetiro',NULL,'activo','$dt','$dt'
+                        $idglobal,{$destino->idahorro},{$origen->idahorro},$idusuarioCreated,'aporte',$montoSql,'$descripcion',NULL,'activo','$dt','$dt'
                      )";
-         $conexion->query($sqlRetiro) or throw new Exception('No se pudo registrar el retiro en cuenta principal');
-
+         $conexion->query($sqlAporte) or throw new Exception('No se pudo registrar el aporte en ahorro programado');
+         /*
          $sqlAporte = "INSERT INTO tbl_movimientos(
                         idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                      ) VALUES (
                         $idglobal,$idahorroDestino,$idusuarioCreated,'aporte',$montoSql,'$descAporte',NULL,'activo','$dt','$dt'
                      )";
          $conexion->query($sqlAporte) or throw new Exception('No se pudo registrar el aporte en ahorro programado');
-
+*/
          $sqlUpd = "UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro IN ({$origen->idahorro}, $idahorroDestino)";
          $conexion->query($sqlUpd) or throw new Exception('No se pudo actualizar la fecha de las cuentas');
       } catch (Exception $e) {
@@ -567,25 +592,23 @@ class AhorrosProgramado
          }
 
          $montoSql = number_format($monto, 2, '.', '');
-         $descripcion = trim((string)$descripcion);
-         $extra = $descripcion !== '' ? ' - ' . $descripcion : '';
-         $descRetiro = mysqli_real_escape_string($conexion, "Transferencia enviada a cuenta {$destino->id_cuenta}{$extra}");
-         $descAporte = mysqli_real_escape_string($conexion, "Transferencia recibida desde cuenta {$origen->id_cuenta}{$extra}");
+         $descripcion = mysqli_real_escape_string($conexion, trim((string)$descripcion));
 
          $sqlRetiro = "INSERT INTO tbl_movimientos(
-                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                        idglobal,idahorro,idahorro_de,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                      ) VALUES (
-                        $idglobal,{$origen->idahorro},$idusuarioCreated,'retiro',-$montoSql,'$descRetiro',NULL,'activo','$dt','$dt'
+                        $idglobal,{$origen->idahorro},{$destino->idahorro},$idusuarioCreated,'retiro',$montoSql,'$descripcion',NULL,'activo','$dt','$dt'
                      )";
          $conexion->query($sqlRetiro) or throw new Exception('No se pudo registrar el retiro en ahorro programado');
 
+         /*
          $sqlAporte = "INSERT INTO tbl_movimientos(
-                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                        idglobal,idahorro,idahorro_de,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                      ) VALUES (
-                        $idglobal,{$destino->idahorro},$idusuarioCreated,'aporte',$montoSql,'$descAporte',NULL,'activo','$dt','$dt'
+                        $idglobal,{$destino->idahorro},{$origen->idahorro},$idusuarioCreated,'aporte',$montoSql,'$descripcion',NULL,'activo','$dt','$dt'
                      )";
          $conexion->query($sqlAporte) or throw new Exception('No se pudo registrar el aporte en cuenta principal');
-
+*/
          $sqlUpd = "UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro IN ({$origen->idahorro}, {$destino->idahorro})";
          $conexion->query($sqlUpd) or throw new Exception('No se pudo actualizar la fecha de las cuentas');
       } catch (Exception $e) {
@@ -669,22 +692,19 @@ class AhorrosProgramado
          }
 
          $montoSql = number_format($monto, 2, '.', '');
-         $descripcion = trim((string)$descripcion);
-         $extra = $descripcion !== '' ? ' - ' . $descripcion : '';
-         $descRetiro = mysqli_real_escape_string($conexion, "Ajuste de intereses enviado a cuenta {$destino->id_cuenta}{$extra}");
-         $descAjuste = mysqli_real_escape_string($conexion, "Ajuste de intereses recibido desde cuenta {$origen->id_cuenta}{$extra}");
-
+         $descripcion = mysqli_real_escape_string($conexion, trim((string)$descripcion));
+         /*
          $sqlRetiro = "INSERT INTO tbl_movimientos(
                         idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                      ) VALUES (
                         $idglobal,{$origen->idahorro},$idusuarioCreated,'ajuste',-$montoSql,'$descRetiro',NULL,'activo','$dt','$dt'
                      )";
          $conexion->query($sqlRetiro) or throw new Exception('No se pudo registrar el ajuste en cuenta principal');
-
+*/
          $sqlAjuste = "INSERT INTO tbl_movimientos(
-                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                        idglobal,idahorro,idahorro_de,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                      ) VALUES (
-                        $idglobal,$idahorroDestino,$idusuarioCreated,'ajuste',$montoSql,'$descAjuste',NULL,'activo','$dt','$dt'
+                        $idglobal,$idahorroDestino,{$origen->idahorro},$idusuarioCreated,'ajuste',$montoSql,'$descripcion',NULL,'activo','$dt','$dt'
                      )";
          $conexion->query($sqlAjuste) or throw new Exception('No se pudo registrar el ajuste en ahorro programado');
 
