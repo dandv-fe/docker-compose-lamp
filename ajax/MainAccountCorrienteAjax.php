@@ -204,6 +204,28 @@ switch ($_GET['op']) {
 
       echo json_encode(['status' => 'success', 'data' => $data]);
       break;
+   case 'retiroTemporalVigente':
+      $idahorro = intval($_REQUEST['idahorro'] ?? 0);
+
+      if (empty($idglobal) || $idahorro <= 0) {
+         echo json_encode(['status' => 'error', 'mensaje' => 'Parámetros inválidos']);
+         break;
+      }
+
+      $vigente = $objMainAccountCorrieneete->obtenerRetiroTemporalVigente($idglobal, $idahorro);
+      if (!$vigente) {
+         echo json_encode(['status' => 'success', 'existe' => false]);
+         break;
+      }
+
+      echo json_encode([
+         'status' => 'success',
+         'existe' => true,
+         'codigo_temporal' => (string)$vigente->int_codigo,
+         'vence_en' => (string)$vigente->vence_en,
+         'monto' => floatval($vigente->monto ?? 0),
+      ]);
+      break;
    case 'tprincipal':
       if (empty($idglobal) || empty($superadmin)) {
          echo json_encode(['status' => 'error', 'mensaje' => 'Permisos insuficientes']);
@@ -275,21 +297,14 @@ switch ($_GET['op']) {
          $venceEn = (string)($resultado['vence_en'] ?? '');
          $montoRetiro = floatval($resultado['monto'] ?? 0);
          $idCuenta = (string)($resultado['id_cuenta'] ?? '');
-         $idMovimiento = intval($resultado['idmovimiento'] ?? 0);
 
          if ($email === '' || $codigo === '' || !_send_retiro_code_email($email, $codigo, $venceEn, $montoRetiro, $idCuenta)) {
-            if ($idMovimiento > 0) {
-               $objMainAccountCorrieneete->anularRetiroTemporalPendiente(
-                  $idglobal,
-                  intval($idahorro),
-                  $idMovimiento,
-                  intval($_SESSION['idusuario'] ?? 0)
-               );
-            }
-
             echo json_encode([
                'status' => 'error',
-               'mensaje' => 'Se generó el código, pero no se pudo enviar al email. Verifique la configuración SMTP.'
+               'mensaje' => 'Se generó el código, pero no se pudo enviar al email. Verifique la configuración SMTP.',
+               'codigo_temporal' => $codigo,
+               'vence_en' => $venceEn,
+               'email_sent' => false
             ]);
             break;
          }

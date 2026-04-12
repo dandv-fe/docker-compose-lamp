@@ -5,6 +5,30 @@ class MainAccountCorriente
 {
    public function __construct() {}
 
+   private function expirarRetirosTemporalesPendientes($idglobal, $idahorro = 0)
+   {
+      global $conexion;
+
+      $idglobal = intval($idglobal);
+      $idahorro = intval($idahorro);
+      if ($idglobal <= 0) {
+         return;
+      }
+
+      $limiteVigencia = date('Y-m-d H:i:s', strtotime('-30 minutes'));
+      $filtroAhorro = $idahorro > 0 ? " AND idahorro=$idahorro" : '';
+
+      $sql = "UPDATE tbl_movimientos
+              SET str_estado='inactivo', update_at=NOW()
+              WHERE idglobal=$idglobal
+                $filtroAhorro
+                AND LOWER(IFNULL(str_tipo, ''))='retiro'
+                AND UPPER(IFNULL(str_estado, ''))='PENDIENTE'
+                AND IFNULL(int_codigo, 0) > 0
+                AND COALESCE(created_at, date_movimiento) < '$limiteVigencia'";
+      $conexion->query($sql);
+   }
+
    private function generarCodigoRetiro($idglobal)
    {
       global $conexion;
@@ -85,6 +109,7 @@ class MainAccountCorriente
    public function goAccount($idglobal, $idpersona)
    {
       global $conexion;
+      $this->expirarRetirosTemporalesPendientes($idglobal);
       $sql = "SELECT *,
                (SELECT IFNULL(SUM(
                   CASE m.str_tipo
@@ -92,7 +117,12 @@ class MainAccountCorriente
                      WHEN 'ajuste' THEN m.dec_valor
                      WHEN 'retiro' THEN m.dec_valor
                      ELSE 0 END
-               ),0) FROM tbl_movimientos m WHERE m.idglobal=$idglobal AND m.idahorro=a.idahorro AND UPPER(m.str_estado) <> 'INACTIVO') AS saldo 
+               ),0) FROM tbl_movimientos m WHERE m.idglobal=$idglobal AND m.idahorro=a.idahorro AND UPPER(m.str_estado) <> 'INACTIVO'
+               AND NOT (
+                  LOWER(IFNULL(m.str_tipo, '')) = 'retiro'
+                  AND UPPER(IFNULL(m.str_estado, '')) = 'PENDIENTE'
+                  AND IFNULL(m.int_codigo, 0) > 0
+               )) AS saldo 
       FROM `tbl_ahorros` a
       WHERE a.idglobal=$idglobal 
       AND a.idpersona=$idpersona 
@@ -121,6 +151,7 @@ class MainAccountCorriente
    public function obtenerResumenSaldos($idglobal, $idpersona)
    {
       global $conexion;
+      $this->expirarRetirosTemporalesPendientes($idglobal);
 
       $sql = "SELECT
                  IFNULL(SUM(CASE WHEN LOWER(a.str_tipo) = 'corriente' THEN s.saldo ELSE 0 END), 0) AS principal,
@@ -142,6 +173,11 @@ class MainAccountCorriente
                  FROM tbl_movimientos m
                  WHERE m.idglobal = $idglobal
                   AND UPPER(m.str_estado) <> 'INACTIVO'
+                  AND NOT (
+                     LOWER(IFNULL(m.str_tipo, '')) = 'retiro'
+                     AND UPPER(IFNULL(m.str_estado, '')) = 'PENDIENTE'
+                     AND IFNULL(m.int_codigo, 0) > 0
+                  )
                  GROUP BY m.idahorro
               ) s ON s.idahorro = a.idahorro
               WHERE a.idpersona = $idpersona
@@ -170,6 +206,7 @@ class MainAccountCorriente
    public function listarMovimientosPorAhorro($idglobal, $idahorro)
    {
       global $conexion;
+      $this->expirarRetirosTemporalesPendientes($idglobal, $idahorro);
 
       $sql = "SELECT
                   idmovimiento,
@@ -184,13 +221,52 @@ class MainAccountCorriente
                   str_estado,
                   created_at,
                   update_at
-              FROM tbl_movimientos
-              WHERE idglobal=$idglobal
-                AND idahorro=$idahorro
+                     FROM tbl_movimientos m
+                     WHERE m.idglobal=$idglobal
+                        AND m.idahorro=$idahorro
+                        AND NOT (
+                            LOWER(IFNULL(m.str_tipo, '')) = 'retiro'
+                            AND UPPER(IFNULL(m.str_estado, '')) = 'PENDIENTE'
+                            AND IFNULL(m.int_codigo, 0) > 0
+                        )
               ORDER BY date_movimiento DESC, idmovimiento DESC";
 
       return $conexion->query($sql);
    }
+
+   public function obtenerRetiroTemporalVigente($idglobal, $idahorro)
+   {
+      global $conexion;
+
+      $idglobal = intval($idglobal);
+      $idahorro = intval($idahorro);
+      if ($idglobal <= 0 || $idahorro <= 0) {
+         return null;
+      }
+
+      $this->expirarRetirosTemporalesPendientes($idglobal, $idahorro);
+
+      $limiteVigencia = date('Y-m-d H:i:s', strtotime('-30 minutes'));
+      $sql = "SELECT
+                  idmovimiento,
+                  int_codigo,
+                  COALESCE(created_at, date_movimiento) AS fecha_base,
+                  DATE_ADD(COALESCE(created_at, date_movimiento), INTERVAL 30 MINUTE) AS vence_en,
+                  ABS(dec_valor) AS monto
+              FROM tbl_movimientos
+              WHERE idglobal=$idglobal
+                AND idahorro=$idahorro
+                AND LOWER(IFNULL(str_tipo, ''))='retiro'
+                AND UPPER(IFNULL(str_estado, ''))='PENDIENTE'
+                AND IFNULL(int_codigo, 0) > 0
+                AND COALESCE(created_at, date_movimiento) >= '$limiteVigencia'
+              ORDER BY idmovimiento DESC
+              LIMIT 1";
+
+      $query = $conexion->query($sql);
+      return $query ? $query->fetch_object() : null;
+   }
+
    public function registrarMovimientoRA($idglobal, $idahorro, $idusuario_created, $tipo, $valor, $descripcion, $estado = 'activo')
    {
       // Inserta movimiento; actualización de acumulado se realiza en AhorrosAjax.php
@@ -216,6 +292,20 @@ class MainAccountCorriente
 
       if ($idglobal <= 0 || $idahorro <= 0 || $idusuarioCreated <= 0 || $valor <= 0 || $descripcion === '') {
          return ['status' => 'error', 'mensaje' => 'Datos inválidos para generar el retiro'];
+      }
+
+      $this->expirarRetirosTemporalesPendientes($idglobal, $idahorro);
+
+      // Verificar si ya existe un código vigente: no generar otro
+      $vigente = $this->obtenerRetiroTemporalVigente($idglobal, $idahorro);
+      if ($vigente) {
+         return [
+            'status'          => 'codigo_ya_vigente',
+            'mensaje'         => 'Ya existe un código de retiro vigente. Presente este código al corresponsal.',
+            'codigo_temporal' => (string)$vigente->int_codigo,
+            'vence_en'        => (string)$vigente->vence_en,
+            'monto'           => floatval($vigente->monto ?? 0),
+         ];
       }
 
       $sw = true;
@@ -261,7 +351,12 @@ class MainAccountCorriente
                      FROM tbl_movimientos m
                      WHERE m.idglobal=$idglobal
                        AND m.idahorro=$idahorro
-                       AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'";
+                       AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'
+                       AND NOT (
+                          LOWER(IFNULL(m.str_tipo, '')) = 'retiro'
+                          AND UPPER(IFNULL(m.str_estado, '')) = 'PENDIENTE'
+                          AND IFNULL(m.int_codigo, 0) > 0
+                       )";
          $qSaldo = $conexion->query($sqlSaldo);
          $saldo = $qSaldo ? floatval(($qSaldo->fetch_object()->saldo ?? 0)) : 0;
 
@@ -344,6 +439,8 @@ class MainAccountCorriente
    {
       global $conexion;
 
+      $this->expirarRetirosTemporalesPendientes($idglobal, $idahorroOrigen);
+
       if ($idahorroOrigen <= 0 || $idahorroDestino <= 0 || $monto <= 0) {
          return ['status' => 'error', 'mensaje' => 'Parámetros inválidos'];
       }
@@ -401,7 +498,12 @@ class MainAccountCorriente
                      FROM tbl_movimientos m
                      WHERE m.idglobal=$idglobal
                        AND m.idahorro=$idahorroOrigen
-                       AND UPPER(m.str_estado) <> 'INACTIVO'";
+                       AND UPPER(m.str_estado) <> 'INACTIVO'
+                       AND NOT (
+                          LOWER(IFNULL(m.str_tipo, '')) = 'retiro'
+                          AND UPPER(IFNULL(m.str_estado, '')) = 'PENDIENTE'
+                          AND IFNULL(m.int_codigo, 0) > 0
+                       )";
          $qSaldo = $conexion->query($sqlSaldo);
          $saldo = $qSaldo ? floatval(($qSaldo->fetch_object()->saldo ?? 0)) : 0;
 

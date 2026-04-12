@@ -279,12 +279,52 @@
   }
 
   function bindRAForm() {
-    $(document).on('click', '[data-target="#modal-aporte"][data-tipo]', function () {
+    $(document).on('click', '[data-target="#modal-aporte"][data-tipo]', function (e) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+
+      var idahorro = parseInt($('#idahorro').val() || 0, 10);
+      if (!idahorro) {
+        Swal.fire({ icon: 'warning', title: 'Cuenta no disponible', text: 'No fue posible identificar la cuenta principal.' });
+        return;
+      }
+
       var tipo = ($(this).data('tipo') || 'retiro').toString().toLowerCase();
       if (tipo !== 'retiro') tipo = 'retiro';
       $('#str_tipo').val(tipo);
       var title = 'Registrar retiro';
       $('#modal-aporte-title').text(title);
+
+      $.getJSON('./ajax/MainAccountCorrienteAjax.php?op=retiroTemporalVigente', { idahorro: idahorro })
+        .done(function (resp) {
+          if (resp && resp.status === 'success' && resp.existe) {
+            var codigo = (resp.codigo_temporal || '').toString();
+            var venceEn = (resp.vence_en || '').toString();
+            var monto = parseFloat(resp.monto || 0);
+            var html = '';
+            if (monto > 0) {
+              html += '<div><strong>Monto:</strong> ' + escapeHtml(formatMoney(monto)) + '</div>';
+            }
+            if (codigo) {
+              html += '<div><strong>Código temporal:</strong> ' + escapeHtml(codigo) + '</div>';
+            }
+            if (venceEn) {
+              html += '<div><strong>Vence:</strong> ' + escapeHtml(venceEn) + '</div>';
+            }
+
+            Swal.fire({
+              icon: 'success',
+              title: 'Retiro temporal generado correctamente',
+              html: html || undefined
+            });
+            return;
+          }
+
+          $('#modal-aporte').modal('show');
+        })
+        .fail(function () {
+          $('#modal-aporte').modal('show');
+        });
     });
 
     $('#form-aporte').on('submit', function (e) {
@@ -319,10 +359,30 @@
           txtDescripcionMovimiento: descripcion
         }
       }).done(function (resp) {
+        if (resp && resp.status === 'codigo_ya_vigente') {
+          var codigoV = (resp.codigo_temporal || '').toString();
+          var venceV = (resp.vence_en || '').toString();
+          var montoV = parseFloat(resp.monto || 0);
+          var htmlV = '';
+          if (montoV > 0) htmlV += '<div><strong>Monto:</strong> ' + escapeHtml(formatMoney(montoV)) + '</div>';
+          if (codigoV) htmlV += '<div><strong>Código temporal:</strong> ' + escapeHtml(codigoV) + '</div>';
+          if (venceV) htmlV += '<div><strong>Vence:</strong> ' + escapeHtml(venceV) + '</div>';
+          $('#modal-aporte').modal('hide');
+          Swal.fire({
+            icon: 'info',
+            title: 'Ya existe un retiro temporal vigente',
+            html: htmlV || (resp.mensaje || undefined)
+          });
+          return;
+        }
         if (resp && resp.status === 'success') {
           var codigo = (resp.codigo_temporal || '').toString();
           var venceEn = resp.vence_en || '';
+          var montoOk = parseFloat(resp.monto || 0);
           var htmlMsg = '';
+          if (montoOk > 0) {
+            htmlMsg += '<div><strong>Monto:</strong> ' + escapeHtml(formatMoney(montoOk)) + '</div>';
+          }
           if (codigo) {
             htmlMsg += '<div><strong>Código temporal:</strong> ' + escapeHtml(codigo) + '</div>';
           }
@@ -344,7 +404,46 @@
           loadMovimientosPrincipal($('#idahorro').val());
         } else {
           var msg = (resp && resp.mensaje) ? resp.mensaje : 'No se pudo registrar el retiro';
-          Swal.fire({ icon: 'error', title: msg });
+          var errCodigo = (resp && resp.codigo_temporal) ? String(resp.codigo_temporal) : '';
+          var errVence = (resp && resp.vence_en) ? String(resp.vence_en) : '';
+          var errMonto = parseFloat((resp && resp.monto) || 0);
+          var errHtml = '';
+          if (errMonto > 0) {
+            errHtml += '<div style="color:#198754;"><strong>Monto:</strong> ' + escapeHtml(formatMoney(errMonto)) + '</div>';
+          }
+          if (errCodigo) {
+            errHtml += '<div style="color:#198754;font-weight:700;"><strong>Código temporal:</strong> ' + escapeHtml(errCodigo) + '</div>';
+          }
+          if (errVence) {
+            errHtml += '<div style="color:#198754;"><strong>Vence:</strong> ' + escapeHtml(errVence) + '</div>';
+          }
+
+          if (errCodigo || errVence) {
+            var infoMail = '';
+            if (msg && msg.toLowerCase().indexOf('email') >= 0) {
+              infoMail = '<div style="margin-bottom:8px;color:#b58105;"><strong>Atención:</strong> No fue posible enviar el correo, pero el código ya fue generado.</div>';
+            }
+
+            $('#modal-aporte').modal('hide');
+            $('#form-aporte')[0].reset();
+            $('#str_tipo').val('retiro');
+            goAccount();
+            loadResumenSaldos();
+            loadMovimientosPrincipal($('#idahorro').val());
+
+            Swal.fire({
+              icon: 'success',
+              title: 'Retiro temporal generado correctamente',
+              html: '<div style="background:#e9f7ef;border:1px solid #badbcc;border-radius:8px;padding:10px;">' + infoMail + errHtml + '</div>'
+            });
+            return;
+          }
+
+          Swal.fire({
+            icon: 'error',
+            title: msg,
+            html: errHtml || undefined
+          });
         }
       }).fail(function (e) {
         console.error('Error AJAX aporte', e.responseText || e);

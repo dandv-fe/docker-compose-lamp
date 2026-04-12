@@ -221,18 +221,32 @@ class Corresponsal
       $limiteVigencia = date('Y-m-d H:i:s', strtotime('-30 minutes'));
 
       try {
-         $sqlCorresponsal = "SELECT idahorro
-                            FROM tbl_ahorros
-                            WHERE idglobal=$idglobal
-                              AND idpersona=$idpersonaCorresponsal
-                              AND str_tipo='corresponsal'
-                              AND UPPER(IFNULL(str_estado, '')) <> 'INACTIVO'
+         $sqlCorresponsal = "SELECT a.idahorro, a.str_name
+                            FROM tbl_ahorros a
+                            WHERE a.idglobal=$idglobal
+                              AND a.idpersona=$idpersonaCorresponsal
+                              AND a.str_tipo='corresponsal'
+                              AND UPPER(IFNULL(a.str_estado, '')) <> 'INACTIVO'
                             LIMIT 1";
          $qCorresponsal = $conexion->query($sqlCorresponsal);
          $corresponsal = $qCorresponsal ? $qCorresponsal->fetch_object() : null;
          if (!$corresponsal) {
             throw new Exception('No tiene una cuenta corresponsal activa para entregar retiros');
          }
+         $nombreCorresponsal = trim((string)($corresponsal->str_name ?? ''));
+         if ($nombreCorresponsal === '') {
+            $nombreCorresponsal = 'Corresponsal';
+         }
+
+         // Cierra automaticamente codigos vencidos para no dejar pendientes incompletos.
+         $sqlExpirar = "UPDATE tbl_movimientos
+                        SET str_estado='inactivo', update_at='$dt'
+                        WHERE idglobal=$idglobal
+                          AND str_tipo='retiro'
+                          AND int_codigo=$codigoInt
+                          AND UPPER(IFNULL(str_estado, ''))='PENDIENTE'
+                          AND COALESCE(created_at, date_movimiento) < '$limiteVigencia'";
+         $conexion->query($sqlExpirar);
 
          $sqlPorCodigo = "SELECT m.idmovimiento, m.idahorro, m.dec_valor, m.str_estado, m.created_at,
                                  a.id_cuenta,
@@ -272,7 +286,7 @@ class Corresponsal
 
          $descEntrega = mysqli_real_escape_string(
             $conexion,
-            'Retiro entregado por corresponsal. Entregado a: ' . $nombreCliente . ' | Cuenta: ' . $movimiento->id_cuenta . ' | Código: ' . $codigoInt
+            'Retiro corresponsal. ' . $nombreCorresponsal . ' | Cód: ' . $codigoInt
          );
 
          $sqlUpdate = "UPDATE tbl_movimientos
