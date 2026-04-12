@@ -296,9 +296,7 @@ class Corresponsal
                         CASE m.str_tipo
                            WHEN 'aporte' THEN -m.dec_valor
                            WHEN 'ajuste' THEN -m.dec_valor
-                           WHEN 'entrada' THEN -m.dec_valor
                            WHEN 'retiro' THEN m.dec_valor
-                           WHEN 'salida' THEN m.dec_valor
                            ELSE 0 END
                      ELSE 0
                   END
@@ -356,7 +354,7 @@ class Corresponsal
                 str_estado
               FROM tbl_movimientos
               WHERE idglobal=$idglobal
-                AND idahorro=$idahorro
+                AND idahorro=$idahorro OR idahorro_de=$idahorro
               ORDER BY date_movimiento DESC, idmovimiento DESC";
       return $conexion->query($sql);
    }
