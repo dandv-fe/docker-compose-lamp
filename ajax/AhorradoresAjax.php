@@ -8,6 +8,7 @@ require_once "../model/Ahorradores.php";
 $objAhorradores = new Ahorradores();
 $idglobal = $_SESSION['idglobal'];
 $superadmin = $_SESSION['userEmpresa'];
+$idpersonaseccion = intval($_SESSION['idpersona'] ?? 0);
 
 function format_date_safe($datetime, $format = 'd/m/Y', $default = '-')
 {
@@ -497,7 +498,7 @@ switch ($_GET["op"]) {
       break;
 
    case 'listAhorrosPersona':
-      $refPersona = limpiar_cadena($_POST['refPersona'] ?? '');
+      $refPersona = limpiar_cadena($_POST['refPersona'] ?? $idpersonaseccion);
       if (empty($refPersona)) {
          echo json_encode([]);
          break;
