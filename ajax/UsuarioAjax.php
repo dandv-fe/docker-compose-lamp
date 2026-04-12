@@ -114,6 +114,51 @@ function _obtener_datos_persona_actual($conexion, $idpersona)
    return $q ? $q->fetch_object() : null;
 }
 
+function _email_verify_cooldown_seconds()
+{
+   $raw = getenv('EMAIL_VERIFY_COOLDOWN_SEC');
+   $value = intval($raw !== false ? $raw : 60);
+   return $value > 0 ? $value : 60;
+}
+
+function _email_verify_ip_cooldown_seconds()
+{
+   $raw = getenv('EMAIL_VERIFY_IP_COOLDOWN_SEC');
+   $value = intval($raw !== false ? $raw : 60);
+   return $value > 0 ? $value : 60;
+}
+
+function _get_last_email_verify_request_time($conexion, $idpersona)
+{
+   $sql = "SELECT created_at FROM tbl_email_verificacion WHERE idpersona=" . intval($idpersona) . " ORDER BY id DESC LIMIT 1";
+   $q = $conexion->query($sql);
+   $row = $q ? $q->fetch_object() : null;
+   if (!$row || empty($row->created_at)) {
+      return 0;
+   }
+
+   $ts = strtotime((string)$row->created_at);
+   return $ts ?: 0;
+}
+
+function _get_last_email_verify_request_time_by_ip($conexion, $ip)
+{
+   $ip = trim((string)$ip);
+   if ($ip === '') {
+      return 0;
+   }
+
+   $sql = "SELECT created_at FROM tbl_email_verificacion WHERE ip='" . $conexion->real_escape_string($ip) . "' ORDER BY id DESC LIMIT 1";
+   $q = $conexion->query($sql);
+   $row = $q ? $q->fetch_object() : null;
+   if (!$row || empty($row->created_at)) {
+      return 0;
+   }
+
+   $ts = strtotime((string)$row->created_at);
+   return $ts ?: 0;
+}
+
 function _send_verification_email($toEmail, $verifyUrl)
 {
    global $MAIL_CONFIG;
@@ -410,6 +455,31 @@ switch ($_GET["op"]) {
          break;
       }
       _ensure_email_verify_table($conexion);
+
+      $cooldownSec = _email_verify_cooldown_seconds();
+      $now = time();
+      $lastRequestAt = _get_last_email_verify_request_time($conexion, intval($persona->idpersona));
+      if ($lastRequestAt > 0 && ($now - $lastRequestAt) < $cooldownSec) {
+         $remaining = $cooldownSec - ($now - $lastRequestAt);
+         echo json_encode([
+            'status' => 'error',
+            'mensaje' => 'Debes esperar ' . max(1, intval($remaining)) . ' segundos antes de solicitar otro enlace.'
+         ]);
+         break;
+      }
+
+      $ip = $_SERVER['REMOTE_ADDR'] ?? null;
+      $ipCooldownSec = _email_verify_ip_cooldown_seconds();
+      $lastRequestAtByIp = _get_last_email_verify_request_time_by_ip($conexion, $ip);
+      if ($lastRequestAtByIp > 0 && ($now - $lastRequestAtByIp) < $ipCooldownSec) {
+         $remainingIp = $ipCooldownSec - ($now - $lastRequestAtByIp);
+         echo json_encode([
+            'status' => 'error',
+            'mensaje' => 'Desde esta red debes esperar ' . max(1, intval($remainingIp)) . ' segundos antes de solicitar otro enlace.'
+         ]);
+         break;
+      }
+
       try {
          $token = bin2hex(random_bytes(32));
       } catch (Throwable $e) {
@@ -421,7 +491,6 @@ switch ($_GET["op"]) {
          break;
       }
       $token_hash = hash('sha256', $token);
-      $ip = $_SERVER['REMOTE_ADDR'] ?? null;
       $insertOk = $conexion->query("INSERT INTO tbl_email_verificacion (idpersona, token_hash, created_at, expires_at, ip) VALUES (" . intval($persona->idpersona) . ", '" . $conexion->real_escape_string($token_hash) . "', NOW(), DATE_ADD(NOW(), INTERVAL 24 HOUR), " . ($ip ? ("'" . $conexion->real_escape_string($ip) . "'") : 'NULL') . ")");
       if (!$insertOk) {
          if (_is_debug_enabled()) {
