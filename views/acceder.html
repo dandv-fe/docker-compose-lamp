@@ -567,111 +567,7 @@ if (isset($userSession['usuario']->idempleado)){
                 <?php if ($mostrarTabsAhorro): ?>
                 <div class="tab-pane fade<?php echo $tabPrincipalAcceder === 'cuentas' ? ' show active' : ''; ?>"
                   id="custom-tabs-cuentas" role="tabpanel" aria-labelledby="custom-tabs-cuentas-tab">
-                  <div id="verLoadingProductos" class="overlay-wrapper">
-                    <div class="overlay dark">
-                      <i class="fas fa-3x fa-sync-alt fa-spin"></i>
-                      <div class="text-bold pt-2">Cargando...</div>
-                    </div>
-                    Espere
-                  </div>
-
-                  <div id="verListadoAhorros" class="card hide">
-
-                    <div class="card-header py-2">
-                      <div class="d-flex align-items-center justify-content-between mb-2">
-                        <h3 class="card-title mb-0">Explorador de Cuentas</h3>
-                        <div class="btn-group btn-group-sm" role="group" aria-label="Navegar cuentas">
-                          <button type="button" id="btnAhorroPrev" class="btn btn-outline-secondary">
-                            <i class="fa fa-chevron-left"></i>
-                          </button>
-                          <button type="button" id="btnAhorroNext" class="btn btn-outline-secondary">
-                            <i class="fa fa-chevron-right"></i>
-                          </button>
-                        </div>
-                      </div>
-
-                      <div id="ahorroSlideTrack" class="ahorro-slide-track"></div>
-
-                      <div id="ahorroFicha" class="ahorro-ficha d-none mt-2">
-                        <div class="d-flex align-items-start justify-content-between flex-wrap">
-                          <div>
-                            <h5 id="fichaNombreAhorro" class="mb-0">-</h5>
-                            <small class="text-muted">Cuenta: <span id="fichaCuentaAhorro">-</span></small>
-                          </div>
-                          <div class="text-right">
-                            <small class="text-muted d-block">Saldo disponible</small>
-                            <h5 id="fichaSaldoAhorro" class="mb-0 text-success">0,00</h5>
-                          </div>
-                        </div>
-
-                        <ul class="nav nav-pills nav-sm mt-2" id="fichaAhorroTabs" role="tablist">
-                          <li class="nav-item">
-                            <a class="nav-link active" id="ficha-tab-detalle" data-toggle="pill" href="#ficha-detalle"
-                              role="tab" aria-controls="ficha-detalle" aria-selected="true">Detalle</a>
-                          </li>
-                          <li class="nav-item">
-                            <a class="nav-link" id="ficha-tab-movimientos" data-toggle="pill" href="#ficha-movimientos"
-                              role="tab" aria-controls="ficha-movimientos" aria-selected="false">Movimientos</a>
-                          </li>
-                        </ul>
-
-                        <div class="tab-content pt-2">
-                          <div class="tab-pane fade show active" id="ficha-detalle" role="tabpanel"
-                            aria-labelledby="ficha-tab-detalle">
-                            <div class="row small mb-0">
-                              <div class="col-md-4"><strong>Tipo:</strong> <span id="fichaTipoAhorro">-</span>
-                              </div>
-
-                              <div class="col-md-4"><strong>Estado:</strong> <span id="fichaEstadoAhorro">-</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div class="tab-pane fade" id="ficha-movimientos" role="tabpanel"
-                            aria-labelledby="ficha-tab-movimientos">
-                            <small id="fichaMovimientosInfo" class="text-muted d-block mb-2">Últimos movimientos
-                              de la cuenta seleccionada.</small>
-                            <ul id="fichaMovimientosLista" class="list-group list-group-flush"></ul>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <!-- /.card-header -->
-                    <div class="card-body p-0">
-                      <div class="px-3 pt-2 font-weight-bold">Lista de productos</div>
-                      <table id="tblAhorros" class="table table-bordered table-striped">
-                        <thead>
-                          <tr>
-
-                            <th>Nombre</th>
-                            <th>Numero</th>
-                            <th>Tipo</th>
-                            <th>Saldo</th>
-                            <th>Aut-Movi</th>
-                            <th>Estado</th>
-                            <th>Fecha Creación</th>
-                            <th>Opciones</th>
-                          </tr>
-                        </thead>
-                        <tbody></tbody>
-                        <tfoot>
-                          <tr>
-                            <th>Nombre</th>
-                            <th>Numero</th>
-                            <th>Tipo</th>
-                            <th>Saldo</th>
-                            <th>Aut-Movi</th>
-                            <th>Estado</th>
-                            <th>Fecha Creación</th>
-                            <th>Opciones</th>
-                          </tr>
-                        </tfoot>
-                      </table>
-                    </div>
-
-                    <!-- /.card-body -->
-                  </div>
+                  <?php include "views/partials/exploradorCuentas.html"; ?>
                 </div>
                 <?php endif; ?>
 
@@ -1147,6 +1043,11 @@ if (isset($userSession['usuario']->idempleado)){
     return formatearMoneda(valor);
   }
 
+  function formatearMonedaVista(valor) {
+    const salida = String(formatearMonedaGlobal(valor) || '0.00').trim();
+    return salida.indexOf('$') === 0 ? salida : ('$' + salida);
+  }
+
   function textoSeguro(valor, fallback) {
     const limpio = limpiarHtmlTexto(valor);
     return limpio || fallback;
@@ -1160,6 +1061,33 @@ if (isset($userSession['usuario']->idempleado)){
     });
   }
 
+  function normalizarCuentaAhorro(raw) {
+    if (Array.isArray(raw)) {
+      return {
+        nombre: limpiarHtmlTexto(raw[0]),
+        cuenta: limpiarHtmlTexto(raw[1]),
+        tipo: limpiarHtmlTexto(raw[2]),
+        authMov: limpiarHtmlTexto(raw[4]),
+        estado: limpiarHtmlTexto(raw[5]),
+        fecha: limpiarHtmlTexto(raw[6]),
+        idAhorro: parseInt(raw[8], 10) || 0,
+        saldo: parseFloat(raw[9]) || 0
+      };
+    }
+
+    const item = raw || {};
+    return {
+      nombre: limpiarHtmlTexto(item.str_name),
+      cuenta: limpiarHtmlTexto(item.id_cuenta),
+      tipo: limpiarHtmlTexto(item.str_tipo),
+      authMov: parseInt(item.bit_auth_movimientos, 10) === 1 ? 'SI' : 'NO',
+      estado: limpiarHtmlTexto(item.str_estado),
+      fecha: limpiarHtmlTexto(item.created_at),
+      idAhorro: parseInt(item.idahorro, 10) || 0,
+      saldo: parseFloat(item.saldo_real) || 0
+    };
+  }
+
   function renderSaldosTiposAcceder(items) {
     const $contenedor = $("#saldos_tipos_ahorrador");
     if (!$contenedor.length) return;
@@ -1169,9 +1097,10 @@ if (isset($userSession['usuario']->idempleado)){
     let total = 0;
 
     cuentas.forEach(function (cuenta) {
-      const tipoRaw = cuenta && cuenta.str_tipo != null ? String(cuenta.str_tipo).trim() : '';
+      const info = normalizarCuentaAhorro(cuenta);
+      const tipoRaw = info.tipo != null ? String(info.tipo).trim() : '';
       const tipo = tipoRaw !== '' ? tipoRaw : 'corriente';
-      const saldo = cuenta && cuenta.saldo_real != null ? parseFloat(cuenta.saldo_real) : 0;
+      const saldo = info.saldo;
       const saldoSeguro = Number.isFinite(saldo) ? saldo : 0;
 
       total += saldoSeguro;
@@ -1184,7 +1113,7 @@ if (isset($userSession['usuario']->idempleado)){
     if (!tipos.length) {
       const $li = $('<li>').addClass('list-group-item d-flex justify-content-between align-items-center saldo-tipo-item');
       const $label = $('<b>').text('Saldo Corriente');
-      const $valor = $('<a>').addClass('float-right txt-saldo-tipo-ahorrador').text('$' + formatearMonedaGlobal(0));
+      const $valor = $('<a>').addClass('float-right txt-saldo-tipo-ahorrador').text(formatearMonedaVista(0));
       $li.append($label).append($valor);
       $contenedor.append($li);
     } else {
@@ -1192,13 +1121,13 @@ if (isset($userSession['usuario']->idempleado)){
         const saldoTipo = saldosPorTipo[tipo];
         const $li = $('<li>').addClass('list-group-item d-flex justify-content-between align-items-center saldo-tipo-item');
         const $label = $('<b>').text('Saldo ' + capitalizarPalabras(tipo));
-        const $valor = $('<a>').addClass('float-right txt-saldo-tipo-ahorrador').text('$' + formatearMonedaGlobal(saldoTipo));
+        const $valor = $('<a>').addClass('float-right txt-saldo-tipo-ahorrador').text(formatearMonedaVista(saldoTipo));
         $li.append($label).append($valor);
         $contenedor.append($li);
       });
     }
 
-    $("#txt_saldo_ahorrador").text('$' + formatearMonedaGlobal(total));
+    $("#txt_saldo_ahorrador").text(formatearMonedaVista(total));
   }
 
   function renderEstadoEmailActual(data) {
@@ -1270,9 +1199,9 @@ if (isset($userSession['usuario']->idempleado)){
     $("#verListadoAhorros").addClass('hide');
 
     const tabla = $('#tblAhorros').DataTable();
-
+    //http://projects.localhost/webgoez/ajax/AhorradoresAjax.php?op=listAhorrosPersona
     $.ajax({
-      url: './ajax/MiAhorroAjax.php?op=listMisAhorros',
+      url: './ajax/AhorradoresAjax.php?op=listAhorrosPersona',
       type: 'POST',
       dataType: 'json',
       success: function (datos) {
@@ -1280,23 +1209,18 @@ if (isset($userSession['usuario']->idempleado)){
         tabla.clear().draw();
 
         for (let i = 0; i < items.length; i++) {
-          const val = items[i] || {};
-          val.saldo_real = parseFloat(val.saldo_real) || 0;
-          const saldo = (typeof window.formatearMonedaPublica === 'function')
-            ? window.formatearMonedaPublica(val.saldo_real, 2)
-            : formatearMoneda(val.saldo_real);
-          const authMov = parseInt(val.bit_auth_movimientos, 10) === 1 ? 'SI' : 'NO';
+          const info = normalizarCuentaAhorro(items[i]);
           const btnVer = '<button type="button" class="btn btn-info btn-sm btn-ver-ahorro" data-index="' + i + '"><i class="fas fa-eye"></i></button>';
 
           tabla.row
             .add([
-              limpiarHtmlTexto(val.str_name),
-              limpiarHtmlTexto(val.id_cuenta),
-              limpiarHtmlTexto(val.str_tipo),
-              saldo,
-              authMov,
-              limpiarHtmlTexto(val.str_estado),
-              limpiarHtmlTexto(val.created_at),
+              info.nombre,
+              info.cuenta,
+              info.tipo,
+              formatearMonedaVista(info.saldo),
+              info.authMov,
+              info.estado,
+              info.fecha,
               btnVer
             ]).draw(false);
         }
@@ -1335,14 +1259,7 @@ if (isset($userSession['usuario']->idempleado)){
     }
 
     items.forEach(function (val, index) {
-      const info = {
-        idAhorro: parseInt(val.idahorro, 10) || 0,
-        nombre: limpiarHtmlTexto(val.str_name),
-        cuenta: limpiarHtmlTexto(val.id_cuenta),
-        tipo: limpiarHtmlTexto(val.str_tipo),
-        estado: limpiarHtmlTexto(val.str_estado),
-        saldo: parseFloat(val.saldo_real) || 0
-      };
+      const info = normalizarCuentaAhorro(val);
 
       exploradorAhorrosData.push(info);
 
@@ -1352,7 +1269,7 @@ if (isset($userSession['usuario']->idempleado)){
 
       $card.append($('<div>').addClass('font-weight-bold text-truncate').text(info.nombre || ('Cuenta #' + (index + 1))));
       $card.append($('<small>').addClass('text-muted d-block').text('N° ' + (info.cuenta || '-')));
-      $card.append($('<small>').addClass('text-success d-block').text('$' + formatearMonedaGlobal(info.saldo)));
+      $card.append($('<small>').addClass('text-success d-block').text(formatearMonedaVista(info.saldo)));
       $track.append($card);
     });
 
@@ -1374,7 +1291,7 @@ if (isset($userSession['usuario']->idempleado)){
 
     $("#fichaNombreAhorro").text(info.nombre || '-');
     $("#fichaCuentaAhorro").text(info.cuenta || '-');
-    $("#fichaSaldoAhorro").text('$' + formatearMonedaGlobal(info.saldo));
+    $("#fichaSaldoAhorro").text(formatearMonedaVista(info.saldo));
     $("#fichaTipoAhorro").text(info.tipo || '-');
     $("#fichaEstadoAhorro").text(info.estado || '-');
     $("#fichaMovimientosLista").empty();
@@ -1416,13 +1333,13 @@ if (isset($userSession['usuario']->idempleado)){
         items.forEach(function (mov) {
           const fecha = limpiarHtmlTexto(mov.date_movimiento);
           const tipo = limpiarHtmlTexto(mov.str_tipo);
-          const monto = formatearMonedaGlobal(mov.dec_valor);
+          const monto = formatearMonedaVista(mov.dec_valor);
           const descripcion = limpiarHtmlTexto(mov.str_descripcion);
 
           const $li = $('<li>').addClass('list-group-item py-2');
           $li.append($('<div>').addClass('d-flex justify-content-between').append(
             $('<strong>').text(tipo || '-'),
-            $('<span>').addClass('text-success').text('$' + monto)
+            $('<span>').addClass('text-success').text(monto)
           ));
           $li.append($('<small>').addClass('text-muted d-block').text(fecha || '-'));
           $li.append($('<small>').text(descripcion || 'Sin descripcion'));
