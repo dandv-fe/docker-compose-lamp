@@ -45,6 +45,10 @@ function _send_retiro_code_email($toEmail, $codigo, $venceEn, $monto, $idCuenta)
    if (class_exists('PHPMailer\\PHPMailer\\PHPMailer')) {
       try {
          $mail = new PHPMailer\PHPMailer\PHPMailer(true);
+         $smtpDebug = getenv('SMTP_DEBUG');
+         if ($smtpDebug === '1' || strtolower((string)$smtpDebug) === 'true') {
+            $mail->SMTPDebug = 2;
+         }
 
          $driver     = $MAIL_CONFIG['driver']   ?? null;
          $smtpHost   = $MAIL_CONFIG['host']     ?? (getenv('SMTP_HOST') ?: '');
@@ -85,17 +89,26 @@ function _send_retiro_code_email($toEmail, $codigo, $venceEn, $monto, $idCuenta)
 
          return true;
       } catch (Exception $e) {
-         return false;
+         $GLOBALS['__MAIL_LAST_ERROR'] = $e->getMessage();
       }
    }
 
    $headers = [];
    $headers[] = 'MIME-Version: 1.0';
    $headers[] = 'Content-type: text/html; charset=UTF-8';
-   $headers[] = 'From: No Reply <no-reply@' . $host . '>';
+   $fromEmail = $MAIL_CONFIG['from']      ?? (getenv('SMTP_FROM') ?: ('no-reply@' . $host));
+   $fromName  = $MAIL_CONFIG['from_name'] ?? (getenv('SMTP_FROM_NAME') ?: 'No Reply');
+   $headers[] = 'From: ' . $fromName . ' <' . $fromEmail . '>';
    $headers[] = 'X-Mailer: PHP/' . phpversion();
 
-   return @mail($toEmail, $subject, $html, implode("\r\n", $headers));
+   $ok = @mail($toEmail, $subject, $html, implode("\r\n", $headers));
+   if (!$ok) {
+      $GLOBALS['__MAIL_LAST_ERROR'] = isset($GLOBALS['__MAIL_LAST_ERROR'])
+         ? $GLOBALS['__MAIL_LAST_ERROR']
+         : 'mail() fallo al enviar';
+   }
+
+   return $ok;
 }
 
 function _parse_money_input($value)
