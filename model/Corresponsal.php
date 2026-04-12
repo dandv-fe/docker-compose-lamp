@@ -24,10 +24,26 @@ class Corresponsal
                               CASE m.str_tipo
                                  WHEN 'aporte' THEN m.dec_valor
                                  WHEN 'ajuste' THEN m.dec_valor
-                                 WHEN 'retiro' THEN m.dec_valor
+                                 WHEN 'retiro' THEN -m.dec_valor
+                                 WHEN 'entrada' THEN m.dec_valor
+                                 WHEN 'salida' THEN -m.dec_valor
                                  ELSE 0
                               END
                            )
+                           + IFNULL((
+                              SELECT SUM(
+                                 CASE m2.str_tipo
+                                    WHEN 'aporte' THEN -m2.dec_valor
+                                    WHEN 'ajuste' THEN -m2.dec_valor
+                                    WHEN 'retiro' THEN m2.dec_valor
+                                    ELSE 0
+                                 END
+                              )
+                              FROM tbl_movimientos m2
+                              WHERE m2.idglobal = a.idglobal
+                                 AND m2.idahorro_de = a.idahorro
+                                 AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO'
+                           ), 0)
                            FROM tbl_movimientos m
                            WHERE m.idglobal = a.idglobal
                               AND m.idahorro = a.idahorro
@@ -62,22 +78,43 @@ class Corresponsal
                               CASE m2.str_tipo
                                  WHEN 'aporte' THEN m2.dec_valor
                                  WHEN 'ajuste' THEN m2.dec_valor
-                                 WHEN 'retiro' THEN m2.dec_valor
+                                 WHEN 'retiro' THEN -m2.dec_valor
+                                 WHEN 'entrada' THEN m2.dec_valor
+                                 WHEN 'salida' THEN -m2.dec_valor
                                  ELSE 0
                               END
                            )
                            FROM tbl_movimientos m2
                            WHERE m2.idglobal = m.idglobal
-                              AND m2.idahorro = m.idahorro
+                              AND m2.idahorro = $idahorro
                               AND (
                                  m2.date_movimiento < m.date_movimiento
                                  OR (m2.date_movimiento = m.date_movimiento AND m2.idmovimiento <= m.idmovimiento)
                               )
                               AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO'
-                        ), 0) AS saldo_acumulado
+                        )
+                        + IFNULL((
+                           SELECT SUM(
+                              CASE m3.str_tipo
+                                 WHEN 'aporte' THEN -m3.dec_valor
+                                 WHEN 'ajuste' THEN -m3.dec_valor
+                                 WHEN 'retiro' THEN m3.dec_valor
+                                 ELSE 0
+                              END
+                           )
+                           FROM tbl_movimientos m3
+                           WHERE m3.idglobal = m.idglobal
+                              AND m3.idahorro_de = $idahorro
+                              AND m3.idahorro <> m3.idahorro_de
+                              AND (
+                                 m3.date_movimiento < m.date_movimiento
+                                 OR (m3.date_movimiento = m.date_movimiento AND m3.idmovimiento <= m.idmovimiento)
+                              )
+                              AND UPPER(IFNULL(m3.str_estado, '')) <> 'INACTIVO'
+                        ), 0), 0) AS saldo_acumulado
                      FROM tbl_movimientos m
                      WHERE m.idglobal=$idglobal
-                        AND m.idahorro=$idahorro
+                        AND (m.idahorro=$idahorro OR m.idahorro_de=$idahorro)
                      ORDER BY m.date_movimiento DESC, m.idmovimiento DESC";
 
       return $conexion->query($sql);
@@ -125,7 +162,7 @@ class Corresponsal
             throw new Exception('La cuenta corresponsal origen está inactiva');
          }
 
-         $sqlDestino = "SELECT idahorro, id_cuenta, str_estado
+         $sqlDestino = "SELECT idahorro, id_cuenta, str_estado,str_name
                         FROM tbl_ahorros
                         WHERE idglobal=$idglobal AND idahorro=$idahorroDestino
                         LIMIT 1";
@@ -144,13 +181,26 @@ class Corresponsal
                         CASE m.str_tipo
                            WHEN 'aporte' THEN m.dec_valor
                            WHEN 'ajuste' THEN m.dec_valor
-                           WHEN 'retiro' THEN m.dec_valor
+                     WHEN 'retiro' THEN -m.dec_valor
+                     WHEN 'entrada' THEN m.dec_valor
+                     WHEN 'salida' THEN -m.dec_valor
                            ELSE 0 END
-                     ),0) AS saldo
+                  ),0)
+                  +(SELECT IFNULL(SUM(
+                  CASE m2.str_tipo
+                     WHEN 'aporte' THEN -m2.dec_valor
+                     WHEN 'ajuste' THEN -m2.dec_valor
+                     WHEN 'retiro' THEN m2.dec_valor
+                     ELSE 0 END
+                  ),0)
+                  FROM tbl_movimientos m2
+                  WHERE m2.idglobal=$idglobal
+                    AND m2.idahorro_de=$idahorroOrigen
+                    AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO') AS saldo
                      FROM tbl_movimientos m
                      WHERE m.idglobal=$idglobal
                        AND m.idahorro=$idahorroOrigen
-                       AND UPPER(m.str_estado) <> 'INACTIVO'";
+                    AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'";
          $qSaldo = $conexion->query($sqlSaldo);
          $saldo = $qSaldo ? floatval(($qSaldo->fetch_object()->saldo ?? 0)) : 0;
 
@@ -159,23 +209,23 @@ class Corresponsal
          }
 
          $montoSql = number_format($monto, 2, '.', '');
-         $descRetiro = mysqli_real_escape_string($conexion, "Transferencia enviada a cuenta {$destino->id_cuenta}");
-         $descAporte = mysqli_real_escape_string($conexion, "Transferencia recibida desde cuenta {$origen->id_cuenta}");
+         $descRetiro = mysqli_real_escape_string($conexion, "Corresponsal: {$destino->id_cuenta}");
+         //$descAporte = mysqli_real_escape_string($conexion, "Transferencia recibida desde cuenta {$origen->id_cuenta}");
 
          $sqlRetiro = "INSERT INTO tbl_movimientos(
-                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                        idglobal,idahorro,idahorro_de,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                      ) VALUES (
-                        $idglobal,$idahorroOrigen,$idusuarioCreated,'retiro',-$montoSql,'$descRetiro',NULL,'activo','$dt','$dt'
+                        $idglobal,$idahorroOrigen,$idahorroDestino,$idusuarioCreated,'retiro',$montoSql,'$descRetiro',NULL,'activo','$dt','$dt'
                      )";
          $conexion->query($sqlRetiro) or throw new Exception('No se pudo registrar el retiro en cuenta corresponsal');
-
+         /*
          $sqlAporte = "INSERT INTO tbl_movimientos(
                         idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                      ) VALUES (
                         $idglobal,$idahorroDestino,$idusuarioCreated,'aporte',$montoSql,'$descAporte',NULL,'activo','$dt','$dt'
                      )";
          $conexion->query($sqlAporte) or throw new Exception('No se pudo registrar el aporte en cuenta destino');
-
+*/
          $sqlUpd = "UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro IN ($idahorroOrigen, $idahorroDestino)";
          $conexion->query($sqlUpd) or throw new Exception('No se pudo actualizar el estado de las cuentas');
       } catch (Exception $e) {
@@ -249,16 +299,16 @@ class Corresponsal
          $conexion->query($sqlExpirar);
 
          $sqlPorCodigo = "SELECT m.idmovimiento, m.idahorro, m.dec_valor, m.str_estado, m.created_at,
-                                 a.id_cuenta,
+                                 a.id_cuenta,a.str_name,
                                  p.str_nombres,
                                  p.str_apellidos
                           FROM tbl_movimientos m
                           INNER JOIN tbl_ahorros a ON a.idahorro = m.idahorro AND a.idglobal = m.idglobal
                           LEFT JOIN tbl_persona p ON p.idpersona = a.idpersona
                           WHERE m.idglobal=$idglobal
-                            AND m.str_tipo='retiro'
+                            AND m.str_tipo='codigo'
                             AND m.int_codigo=$codigoInt
-                            AND UPPER(IFNULL(m.str_estado, '')) = 'PENDIENTE'
+                            AND UPPER(IFNULL(m.str_estado, 'pendiente')) = 'PENDIENTE'
                                           AND COALESCE(m.created_at, m.date_movimiento) >= '$limiteVigencia'
                           ORDER BY m.idmovimiento DESC
                           LIMIT 1";
@@ -286,11 +336,14 @@ class Corresponsal
 
          $descEntrega = mysqli_real_escape_string(
             $conexion,
-            'Retiro corresponsal. ' . $nombreCorresponsal . ' | Cód: ' . $codigoInt
+            'Corresponsal. ' . $nombreCorresponsal
          );
 
          $sqlUpdate = "UPDATE tbl_movimientos
-                       SET str_estado='activo',
+                       SET idahorro = " . intval($corresponsal->idahorro) . ",
+                       idusuario_created = $idusuarioEntrega,
+                       str_tipo='aporte',
+                           str_estado='activo',
                            str_descripcion='$descEntrega',
                            update_at='$dt'
                        WHERE idmovimiento=" . intval($movimiento->idmovimiento) . "
@@ -299,15 +352,16 @@ class Corresponsal
 
          $descCorresponsal = mysqli_real_escape_string(
             $conexion,
-            'Aporte por entrega de retiro. Cuenta: ' . $movimiento->id_cuenta . ' | Código: ' . $codigoInt . ' | Monto: ' . number_format($monto, 2, '.', '')
+            'Corresponsal: ' . $movimiento->id_cuenta . ' | Código: ' . $codigoInt
          );
+         /*
          $sqlRegistroCorresponsal = "INSERT INTO tbl_movimientos(
                                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                                     ) VALUES (
                                        $idglobal," . intval($corresponsal->idahorro) . ",$idusuarioEntrega,'aporte'," . number_format($monto, 2, '.', '') . ",'$descCorresponsal',$codigoInt,'activo','$dt','$dt'
                                     )";
          $conexion->query($sqlRegistroCorresponsal) or throw new Exception('No se pudo registrar el movimiento del corresponsal');
-
+*/
          $sqlUpdAhorro = "UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro=" . intval($movimiento->idahorro);
          $conexion->query($sqlUpdAhorro);
 

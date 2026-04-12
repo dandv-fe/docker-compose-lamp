@@ -115,14 +115,27 @@ class MainAccountCorriente
                   CASE m.str_tipo
                      WHEN 'aporte' THEN m.dec_valor
                      WHEN 'ajuste' THEN m.dec_valor
-                     WHEN 'retiro' THEN m.dec_valor
+                     WHEN 'retiro' THEN -m.dec_valor
+                     WHEN 'entrada' THEN m.dec_valor
+                     WHEN 'salida' THEN -m.dec_valor
                      ELSE 0 END
                ),0) FROM tbl_movimientos m WHERE m.idglobal=$idglobal AND m.idahorro=a.idahorro AND UPPER(m.str_estado) <> 'INACTIVO'
                AND NOT (
                   LOWER(IFNULL(m.str_tipo, '')) = 'retiro'
                   AND UPPER(IFNULL(m.str_estado, '')) = 'PENDIENTE'
                   AND IFNULL(m.int_codigo, 0) > 0
-               )) AS saldo 
+               ))
+               +(SELECT IFNULL(SUM(
+                  CASE m2.str_tipo
+                     WHEN 'aporte' THEN -m2.dec_valor
+                     WHEN 'ajuste' THEN -m2.dec_valor
+                     WHEN 'retiro' THEN m2.dec_valor
+                     ELSE 0 END
+               ),0)
+               FROM tbl_movimientos m2
+               WHERE m2.idglobal=$idglobal
+                 AND m2.idahorro_de=a.idahorro
+                 AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO') AS saldo 
       FROM `tbl_ahorros` a
       WHERE a.idglobal=$idglobal 
       AND a.idpersona=$idpersona 
@@ -161,24 +174,41 @@ class MainAccountCorriente
               FROM tbl_ahorros a
               LEFT JOIN (
                  SELECT
-                    m.idahorro,
-                    IFNULL(SUM(
+                    a2.idahorro,
+                    (SELECT IFNULL(SUM(
                        CASE m.str_tipo
                           WHEN 'aporte' THEN m.dec_valor
                           WHEN 'ajuste' THEN m.dec_valor
-                          WHEN 'retiro' THEN m.dec_valor
+                          WHEN 'retiro' THEN -m.dec_valor
+                          WHEN 'entrada' THEN m.dec_valor
+                          WHEN 'salida' THEN -m.dec_valor
                           ELSE 0
                        END
-                    ), 0) AS saldo
-                 FROM tbl_movimientos m
-                 WHERE m.idglobal = $idglobal
-                  AND UPPER(m.str_estado) <> 'INACTIVO'
-                  AND NOT (
-                     LOWER(IFNULL(m.str_tipo, '')) = 'retiro'
-                     AND UPPER(IFNULL(m.str_estado, '')) = 'PENDIENTE'
-                     AND IFNULL(m.int_codigo, 0) > 0
-                  )
-                 GROUP BY m.idahorro
+                    ), 0)
+                     FROM tbl_movimientos m
+                     WHERE m.idglobal = $idglobal
+                       AND m.idahorro = a2.idahorro
+                       AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'
+                       AND NOT (
+                          LOWER(IFNULL(m.str_tipo, '')) = 'retiro'
+                          AND UPPER(IFNULL(m.str_estado, '')) = 'PENDIENTE'
+                          AND IFNULL(m.int_codigo, 0) > 0
+                       ))
+                    +(SELECT IFNULL(SUM(
+                       CASE m2.str_tipo
+                          WHEN 'aporte' THEN -m2.dec_valor
+                          WHEN 'ajuste' THEN -m2.dec_valor
+                          WHEN 'retiro' THEN m2.dec_valor
+                          ELSE 0
+                       END
+                    ), 0)
+                     FROM tbl_movimientos m2
+                     WHERE m2.idglobal = $idglobal
+                       AND m2.idahorro_de = a2.idahorro
+                       AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO') AS saldo
+                 FROM tbl_ahorros a2
+                 WHERE a2.idglobal = $idglobal
+                   AND UPPER(IFNULL(a2.str_estado, '')) <> 'INACTIVO'
               ) s ON s.idahorro = a.idahorro
               WHERE a.idpersona = $idpersona
                AND UPPER(a.str_estado) <> 'INACTIVO'";
@@ -223,7 +253,7 @@ class MainAccountCorriente
                   update_at
                      FROM tbl_movimientos m
                      WHERE m.idglobal=$idglobal
-                        AND m.idahorro=$idahorro
+                        AND (m.idahorro=$idahorro OR m.idahorro_de=$idahorro)
                         AND NOT (
                             LOWER(IFNULL(m.str_tipo, '')) = 'retiro'
                             AND UPPER(IFNULL(m.str_estado, '')) = 'PENDIENTE'
@@ -256,7 +286,7 @@ class MainAccountCorriente
               FROM tbl_movimientos
               WHERE idglobal=$idglobal
                 AND idahorro=$idahorro
-                AND LOWER(IFNULL(str_tipo, ''))='retiro'
+                AND LOWER(IFNULL(str_tipo, ''))='codigo'
                 AND UPPER(IFNULL(str_estado, ''))='PENDIENTE'
                 AND IFNULL(int_codigo, 0) > 0
                 AND COALESCE(created_at, date_movimiento) >= '$limiteVigencia'
@@ -345,15 +375,28 @@ class MainAccountCorriente
                         CASE m.str_tipo
                            WHEN 'aporte' THEN m.dec_valor
                            WHEN 'ajuste' THEN m.dec_valor
-                           WHEN 'retiro' THEN m.dec_valor
+                     WHEN 'retiro' THEN -m.dec_valor
+                     WHEN 'entrada' THEN m.dec_valor
+                     WHEN 'salida' THEN -m.dec_valor
                            ELSE 0 END
-                     ),0) AS saldo
+                  ),0)
+                  +(SELECT IFNULL(SUM(
+                  CASE m2.str_tipo
+                     WHEN 'aporte' THEN -m2.dec_valor
+                     WHEN 'ajuste' THEN -m2.dec_valor
+                     WHEN 'retiro' THEN m2.dec_valor
+                     ELSE 0 END
+                  ),0)
+                  FROM tbl_movimientos m2
+                  WHERE m2.idglobal=$idglobal
+                    AND m2.idahorro_de=$idahorro
+                    AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO') AS saldo
                      FROM tbl_movimientos m
                      WHERE m.idglobal=$idglobal
                        AND m.idahorro=$idahorro
                        AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'
                        AND NOT (
-                          LOWER(IFNULL(m.str_tipo, '')) = 'retiro'
+                          LOWER(IFNULL(m.str_tipo, '')) = 'codigo'
                           AND UPPER(IFNULL(m.str_estado, '')) = 'PENDIENTE'
                           AND IFNULL(m.int_codigo, 0) > 0
                        )";
@@ -374,9 +417,9 @@ class MainAccountCorriente
          $descSegura = mysqli_real_escape_string($conexion, $descripcion . ' | Código temporal: ' . $codigo . ' | Expira: ' . $fechaExpira);
 
          $sqlRetiro = "INSERT INTO tbl_movimientos(
-                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                        idglobal,idahorro,idahorro_de,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                       ) VALUES (
-                        $idglobal,$idahorro,$idusuarioCreated,'retiro',-$valorSql,'$descSegura',$codigo,'pendiente','$dt','$dt'
+                        $idglobal,$idahorro,$idahorro,$idusuarioCreated,'codigo',$valorSql,'$descSegura',$codigo,'pendiente','$dt','$dt'
                       )";
          $conexion->query($sqlRetiro) or throw new Exception('No se pudo generar el retiro temporal');
          $idmovimiento = intval($conexion->insert_id);
@@ -492,9 +535,22 @@ class MainAccountCorriente
                         CASE m.str_tipo
                            WHEN 'aporte' THEN m.dec_valor
                            WHEN 'ajuste' THEN m.dec_valor
-                           WHEN 'retiro' THEN m.dec_valor
+                     WHEN 'retiro' THEN -m.dec_valor
+                     WHEN 'entrada' THEN m.dec_valor
+                     WHEN 'salida' THEN -m.dec_valor
                            ELSE 0 END
-                     ),0) AS saldo
+                  ),0)
+                  +(SELECT IFNULL(SUM(
+                  CASE m2.str_tipo
+                     WHEN 'aporte' THEN -m2.dec_valor
+                     WHEN 'ajuste' THEN -m2.dec_valor
+                     WHEN 'retiro' THEN m2.dec_valor
+                     ELSE 0 END
+                  ),0)
+                  FROM tbl_movimientos m2
+                  WHERE m2.idglobal=$idglobal
+                    AND m2.idahorro_de=$idahorroOrigen
+                    AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO') AS saldo
                      FROM tbl_movimientos m
                      WHERE m.idglobal=$idglobal
                        AND m.idahorro=$idahorroOrigen
@@ -513,21 +569,18 @@ class MainAccountCorriente
 
          $montoSql = number_format($monto, 2, '.', '');
          $descripcion = trim((string)$descripcion);
-         $descripcionExtra = $descripcion !== '' ? " | Nota: {$descripcion}" : '';
-         $descRetiro = mysqli_real_escape_string($conexion, "Transferencia enviada a cuenta {$destino->id_cuenta}{$descripcionExtra}");
-         $descAporte = mysqli_real_escape_string($conexion, "Transferencia recibida desde cuenta {$origen->id_cuenta}{$descripcionExtra}");
-
+         /*
          $sqlRetiro = "INSERT INTO tbl_movimientos(
                         idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                      ) VALUES (
                         $idglobal,$idahorroOrigen,$idusuarioCreated,'retiro',-$montoSql,'$descRetiro',NULL,'activo','$dt','$dt'
                      )";
          $conexion->query($sqlRetiro) or throw new Exception('No se pudo registrar el retiro en cuenta origen');
-
+*/
          $sqlAporte = "INSERT INTO tbl_movimientos(
-                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                        idglobal,idahorro,idahorro_de,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                      ) VALUES (
-                        $idglobal,$idahorroDestino,$idusuarioCreated,'aporte',$montoSql,'$descAporte',NULL,'activo','$dt','$dt'
+                        $idglobal,$idahorroDestino,$idahorroOrigen,$idusuarioCreated,'aporte',$montoSql,'$descripcion',NULL,'activo','$dt','$dt'
                      )";
          $conexion->query($sqlAporte) or throw new Exception('No se pudo registrar el aporte en cuenta destino');
 

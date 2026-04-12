@@ -157,6 +157,7 @@
           <div id="verFormEnviar" class="card card-default">
             <div class="card-header">
               <h3 class="card-title">Enviar</h3>
+              <small class="d-block text-muted mt-1" id="txt_stepper_progress">Paso 1 de 3: Buscar cuenta</small>
             </div>
             <div class="card-body p-0">
               <div class="bs-stepper">
@@ -451,8 +452,49 @@
   document.addEventListener('DOMContentLoaded', function () {
     var stepperElement = document.querySelector('.bs-stepper')
     var formElement = document.querySelector('#stepperForm')
+    var stepperProgressLabel = document.querySelector('#txt_stepper_progress')
 
     stepper = new Stepper(stepperElement)
+
+    function getStepMeta(stepIndex) {
+      var labels = Array.prototype.map.call(
+        stepperElement.querySelectorAll('.bs-stepper-header .step .bs-stepper-label'),
+        function (node) {
+          return (node.textContent || '').trim() || 'Paso'
+        }
+      )
+      var index = Number(stepIndex) || 0
+      var total = labels.length
+      var clampedIndex = Math.max(0, Math.min(index, total - 1))
+
+      return {
+        current: clampedIndex + 1,
+        total: total,
+        label: labels[clampedIndex]
+      }
+    }
+
+    function getCurrentStepIndex() {
+      var selectedStep = stepperElement.querySelector('.bs-stepper-header .step-trigger[aria-selected="true"]')
+      if (!selectedStep) return 0
+
+      var steps = Array.prototype.slice.call(stepperElement.querySelectorAll('.bs-stepper-header .step-trigger'))
+      var index = steps.indexOf(selectedStep)
+      return index >= 0 ? index : 0
+    }
+
+    function updateStepHeader(stepIndex) {
+      if (!stepperProgressLabel) return
+
+      var stepMeta = getStepMeta(stepIndex)
+      stepperProgressLabel.textContent = 'Paso ' + stepMeta.current + ' de ' + stepMeta.total + ': ' + stepMeta.label
+    }
+
+    stepperElement.addEventListener('shown.bs-stepper', function (event) {
+      updateStepHeader(event && event.detail ? event.detail.indexStep : 0)
+    })
+
+    updateStepHeader(getCurrentStepIndex())
 
     var nextGuards = {
       1: function () {
@@ -577,6 +619,9 @@
 
         if (!guard || guard(formElement) !== false) {
           stepper.next()
+          setTimeout(function () {
+            updateStepHeader(getCurrentStepIndex())
+          }, 0)
         }
       })
     })
@@ -584,6 +629,9 @@
     document.querySelectorAll('[data-stepper-prev]').forEach(function (button) {
       button.addEventListener('click', function () {
         stepper.previous()
+        setTimeout(function () {
+          updateStepHeader(getCurrentStepIndex())
+        }, 0)
       })
     })
 
