@@ -326,25 +326,56 @@ class Ahorradores
                         CASE m.str_tipo
                            WHEN 'aporte' THEN m.dec_valor
                            WHEN 'ajuste' THEN m.dec_valor
-                           WHEN 'retiro' THEN m.dec_valor
+                           WHEN 'retiro' THEN -m.dec_valor
+                           WHEN 'entrada' THEN m.dec_valor
+                           WHEN 'salida' THEN -m.dec_valor
                            ELSE 0 END
                      ),0)
+                     +(SELECT IFNULL(SUM(
+                        CASE m2.str_tipo
+                           WHEN 'aporte' THEN -m2.dec_valor
+                           WHEN 'ajuste' THEN -m2.dec_valor
+                           WHEN 'retiro' THEN m2.dec_valor
+                           ELSE 0 END
+                     ),0)
+                     FROM tbl_movimientos m2
+                     WHERE m2.idahorro_de = a.idahorro
+                       AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO')
                      FROM tbl_movimientos m
                      WHERE m.idahorro = a.idahorro
+                       AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'
                   ) AS saldoMovimientos,
                   (
                      SELECT IFNULL(SUM(
-                        CASE mc.str_tipo
-                           WHEN 'aporte' THEN mc.dec_valor
-                           WHEN 'ajuste' THEN mc.dec_valor
-                           WHEN 'retiro' THEN mc.dec_valor
-                           ELSE 0 END
+                        (SELECT IFNULL(SUM(
+                           CASE mc.str_tipo
+                              WHEN 'aporte' THEN mc.dec_valor
+                              WHEN 'ajuste' THEN mc.dec_valor
+                              WHEN 'retiro' THEN -mc.dec_valor
+                              WHEN 'entrada' THEN mc.dec_valor
+                              WHEN 'salida' THEN -mc.dec_valor
+                              ELSE 0 END
+                        ),0)
+                        FROM tbl_movimientos mc
+                        WHERE mc.idahorro = ac.idahorro
+                          AND UPPER(IFNULL(mc.str_estado, '')) <> 'INACTIVO')
+                        +
+                        (SELECT IFNULL(SUM(
+                           CASE mc2.str_tipo
+                              WHEN 'aporte' THEN -mc2.dec_valor
+                              WHEN 'ajuste' THEN -mc2.dec_valor
+                              WHEN 'retiro' THEN mc2.dec_valor
+                              ELSE 0 END
+                        ),0)
+                        FROM tbl_movimientos mc2
+                        WHERE mc2.idahorro_de = ac.idahorro
+                          AND UPPER(IFNULL(mc2.str_estado, '')) <> 'INACTIVO')
                      ),0)
-                     FROM tbl_movimientos mc
-                     INNER JOIN tbl_ahorros ac ON ac.idahorro = mc.idahorro
+                     FROM tbl_ahorros ac
                      WHERE ac.idpersona = a.idpersona
                        AND ac.idglobal = a.idglobal
                        AND LOWER(IFNULL(ac.str_tipo, '')) = 'corresponsal'
+                       AND UPPER(IFNULL(ac.str_estado, '')) <> 'INACTIVO'
                   ) AS saldoCorresponsal
                FROM tbl_ahorros a
            WHERE idpersona=$idpersona";
@@ -415,7 +446,8 @@ class Ahorradores
                 str_descripcion AS descripcion,
                 str_estado AS estado
               FROM tbl_movimientos
-              WHERE idglobal=$idglobal AND idahorro=$idahorro
+              WHERE idglobal=$idglobal AND (idahorro=$idahorro OR idahorro_de=$idahorro)
+                AND UPPER(str_estado) <> 'INACTIVO'
               ORDER BY date_movimiento DESC";
       return $conexion->query($sql);
    }
@@ -457,11 +489,24 @@ class Ahorradores
                               CASE m.str_tipo
                                  WHEN 'aporte' THEN m.dec_valor
                                  WHEN 'ajuste' THEN m.dec_valor
-                                 WHEN 'retiro' THEN m.dec_valor
+                                 WHEN 'retiro' THEN -m.dec_valor
+                                 WHEN 'entrada' THEN m.dec_valor
+                                 WHEN 'salida' THEN -m.dec_valor
                                  ELSE 0 END
                            ),0)
+                           +(SELECT IFNULL(SUM(
+                              CASE m2.str_tipo
+                                 WHEN 'aporte' THEN -m2.dec_valor
+                                 WHEN 'ajuste' THEN -m2.dec_valor
+                                 WHEN 'retiro' THEN m2.dec_valor
+                                 ELSE 0 END
+                           ),0)
+                           FROM tbl_movimientos m2
+                           WHERE m2.idahorro_de = a.idahorro
+                             AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO')
                            FROM tbl_movimientos m
                            WHERE m.idahorro = a.idahorro
+                             AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'
                         ) AS saldo_disponible
               FROM tbl_ahorros a
                      WHERE a.idpersona=$idpersona
@@ -491,18 +536,44 @@ class Ahorradores
       global $conexion;
       $sql = "SELECT
                         IFNULL(NULLIF(TRIM(a.str_tipo), ''), 'corriente') AS tipo,
-                        IFNULL(SUM(
-                           CASE m.str_tipo
-                              WHEN 'aporte' THEN m.dec_valor
-                              WHEN 'ajuste' THEN m.dec_valor
-                              WHEN 'retiro' THEN m.dec_valor
-                              ELSE 0
-                           END
-                        ), 0) AS saldo
+                        IFNULL(SUM(s.saldo), 0) AS saldo
                      FROM tbl_ahorros a
-                     LEFT JOIN tbl_movimientos m ON m.idahorro = a.idahorro
+                     LEFT JOIN (
+                        SELECT
+                           a2.idahorro,
+                           (SELECT IFNULL(SUM(
+                              CASE m.str_tipo
+                                 WHEN 'aporte' THEN m.dec_valor
+                                 WHEN 'ajuste' THEN m.dec_valor
+                                 WHEN 'retiro' THEN -m.dec_valor
+                                 WHEN 'entrada' THEN m.dec_valor
+                                 WHEN 'salida' THEN -m.dec_valor
+                                 ELSE 0 END
+                           ),0)
+                           FROM tbl_movimientos m
+                           WHERE m.idglobal = $idglobal
+                             AND m.idahorro = a2.idahorro
+                             AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO')
+                           +
+                           (SELECT IFNULL(SUM(
+                              CASE m2.str_tipo
+                                 WHEN 'aporte' THEN -m2.dec_valor
+                                 WHEN 'ajuste' THEN -m2.dec_valor
+                                 WHEN 'retiro' THEN m2.dec_valor
+                                 ELSE 0 END
+                           ),0)
+                           FROM tbl_movimientos m2
+                           WHERE m2.idglobal = $idglobal
+                             AND m2.idahorro_de = a2.idahorro
+                             AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO') AS saldo
+                        FROM tbl_ahorros a2
+                        WHERE a2.idglobal = $idglobal
+                          AND a2.idpersona = $idpersona
+                          AND UPPER(IFNULL(a2.str_estado, '')) <> 'INACTIVO'
+                     ) s ON s.idahorro = a.idahorro
                      WHERE a.idglobal = $idglobal
                         AND a.idpersona = $idpersona
+                        AND UPPER(IFNULL(a.str_estado, '')) <> 'INACTIVO'
                      GROUP BY IFNULL(NULLIF(TRIM(a.str_tipo), ''), 'corriente')
                      ORDER BY IFNULL(NULLIF(TRIM(a.str_tipo), ''), 'corriente') ASC";
       return $conexion->query($sql);
@@ -523,25 +594,56 @@ class Ahorradores
                     CASE m.str_tipo
                       WHEN 'aporte' THEN m.dec_valor
                       WHEN 'ajuste' THEN m.dec_valor
-                      WHEN 'retiro' THEN m.dec_valor
+                      WHEN 'retiro' THEN -m.dec_valor
+                      WHEN 'entrada' THEN m.dec_valor
+                      WHEN 'salida' THEN -m.dec_valor
                       ELSE 0 END
                   ),0)
+                  +(SELECT IFNULL(SUM(
+                     CASE m2.str_tipo
+                        WHEN 'aporte' THEN -m2.dec_valor
+                        WHEN 'ajuste' THEN -m2.dec_valor
+                        WHEN 'retiro' THEN m2.dec_valor
+                        ELSE 0 END
+                  ),0)
+                  FROM tbl_movimientos m2
+                  WHERE m2.idahorro_de = a.idahorro
+                    AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO')
                   FROM tbl_movimientos m
                            WHERE m.idahorro = a.idahorro
+                             AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'
                         ) AS saldo_movimientos,
                         (
                            SELECT IFNULL(SUM(
-                              CASE mc.str_tipo
-                                 WHEN 'aporte' THEN mc.dec_valor
-                                 WHEN 'ajuste' THEN mc.dec_valor
-                                 WHEN 'retiro' THEN mc.dec_valor
-                                 ELSE 0 END
+                              (SELECT IFNULL(SUM(
+                                 CASE mc.str_tipo
+                                    WHEN 'aporte' THEN mc.dec_valor
+                                    WHEN 'ajuste' THEN mc.dec_valor
+                                    WHEN 'retiro' THEN -mc.dec_valor
+                                    WHEN 'entrada' THEN mc.dec_valor
+                                    WHEN 'salida' THEN -mc.dec_valor
+                                    ELSE 0 END
+                              ),0)
+                              FROM tbl_movimientos mc
+                              WHERE mc.idahorro = ac.idahorro
+                                AND UPPER(IFNULL(mc.str_estado, '')) <> 'INACTIVO')
+                              +
+                              (SELECT IFNULL(SUM(
+                                 CASE mc2.str_tipo
+                                    WHEN 'aporte' THEN -mc2.dec_valor
+                                    WHEN 'ajuste' THEN -mc2.dec_valor
+                                    WHEN 'retiro' THEN mc2.dec_valor
+                                    ELSE 0 END
+                              ),0)
+                              FROM tbl_movimientos mc2
+                              WHERE mc2.idahorro_de = ac.idahorro
+                                AND UPPER(IFNULL(mc2.str_estado, '')) <> 'INACTIVO')
                            ),0)
-                           FROM tbl_movimientos mc
-                           INNER JOIN tbl_ahorros ac ON ac.idahorro = mc.idahorro
+                           FROM tbl_ahorros ac
                            WHERE ac.idpersona = a.idpersona
                               AND ac.idglobal = a.idglobal
                               AND LOWER(IFNULL(ac.str_tipo, '')) = 'corresponsal'
+                              AND UPPER(IFNULL(ac.str_estado, '')) <> 'INACTIVO'
                         ) AS saldo_corresponsal
                      FROM tbl_ahorros a
                      WHERE a.idahorro=$idahorro";
@@ -591,16 +693,29 @@ class Ahorradores
       $idahorro = intval($idahorro);
 
       $sql = "SELECT IFNULL(SUM(
-                  CASE
-                     WHEN LOWER(IFNULL(str_tipo, ''))='retiro' THEN -ABS(dec_valor)
-                     WHEN LOWER(IFNULL(str_tipo, '')) IN ('aporte','ajuste') THEN ABS(dec_valor)
-                     ELSE dec_valor
-                  END
-               ), 0) AS saldo
-              FROM tbl_movimientos
-              WHERE idglobal=$idglobal
-                AND idahorro=$idahorro
-                AND UPPER(IFNULL(str_estado, '')) <> 'INACTIVO'";
+                  CASE m.str_tipo
+                     WHEN 'aporte' THEN m.dec_valor
+                     WHEN 'ajuste' THEN m.dec_valor
+                     WHEN 'retiro' THEN -m.dec_valor
+                     WHEN 'entrada' THEN m.dec_valor
+                     WHEN 'salida' THEN -m.dec_valor
+                     ELSE 0 END
+               ), 0)
+               +(SELECT IFNULL(SUM(
+                  CASE m2.str_tipo
+                     WHEN 'aporte' THEN -m2.dec_valor
+                     WHEN 'ajuste' THEN -m2.dec_valor
+                     WHEN 'retiro' THEN m2.dec_valor
+                     ELSE 0 END
+               ), 0)
+               FROM tbl_movimientos m2
+               WHERE m2.idglobal=$idglobal
+                 AND m2.idahorro_de=$idahorro
+                 AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO') AS saldo
+              FROM tbl_movimientos m
+              WHERE m.idglobal=$idglobal
+                AND m.idahorro=$idahorro
+                AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'";
       $query = $conexion->query($sql);
       $reg = $query ? $query->fetch_object() : null;
       return $reg ? floatval($reg->saldo ?? 0) : 0;
@@ -666,18 +781,16 @@ class Ahorradores
          $descripcionBase = trim((string)$descripcion);
          $extra = $descripcionBase !== '' ? ' - ' . $descripcionBase : '';
 
-         $descSalida = mysqli_real_escape_string($conexion, "Interés acreditado a cuenta {$destino->id_cuenta}{$extra}");
-         $descEntrada = mysqli_real_escape_string($conexion, "Interés ganado respaldado por cuenta principal {$principal->id_cuenta}{$extra}");
          $estadoEsc = mysqli_real_escape_string($conexion, $estado);
 
          // 1) Salida de la cuenta principal: SIEMPRE negativa.
          $sqlSalida = "INSERT INTO tbl_movimientos(
-                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                        idglobal,idahorro,idahorro_de,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                       ) VALUES (
-                        $idglobal,{$principal->idahorro},$idusuarioCreated,'ajuste',-$montoSql,'$descSalida',NULL,'$estadoEsc','$dt','$dt'
+                        $idglobal,$idahorroDestino,{$principal->idahorro},$idusuarioCreated,'ajuste',$montoSql,'$descripcion',NULL,'$estadoEsc','$dt','$dt'
                       )";
          $conexion->query($sqlSalida) or throw new Exception('No se pudo registrar la salida en cuenta principal');
-
+         /*
          // 2) Entrada de la cuenta destino: positiva.
          $sqlEntrada = "INSERT INTO tbl_movimientos(
                         idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
@@ -685,7 +798,7 @@ class Ahorradores
                         $idglobal,$idahorroDestino,$idusuarioCreated,'ajuste',$montoSql,'$descEntrada',NULL,'$estadoEsc','$dt','$dt'
                       )";
          $conexion->query($sqlEntrada) or throw new Exception('No se pudo registrar la entrada en cuenta destino');
-
+*/
          $sqlUpd = "UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro IN ({$principal->idahorro}, $idahorroDestino)";
          $conexion->query($sqlUpd) or throw new Exception('No se pudo actualizar la fecha de las cuentas');
       } catch (Exception $e) {
@@ -763,20 +876,18 @@ class Ahorradores
          $extra = $extra !== '' ? ' - ' . $extra : '';
          $estadoEsc = mysqli_real_escape_string($conexion, $estado);
 
-         $descRetiro = mysqli_real_escape_string($conexion, "Transferencia enviada a cuenta {$destino->id_cuenta}{$extra}");
-         $descAporte = mysqli_real_escape_string($conexion, "Transferencia recibida desde cuenta principal {$principal->id_cuenta}{$extra}");
-
+         /*
          $sqlOut = "INSERT INTO tbl_movimientos(
                       idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                     ) VALUES (
                       $idglobal,{$principal->idahorro},$idusuarioCreated,'retiro',-$montoSql,'$descRetiro',NULL,'$estadoEsc','$dt','$dt'
                     )";
          $conexion->query($sqlOut) or throw new Exception('No se pudo registrar salida en cuenta principal');
-
+*/
          $sqlIn = "INSERT INTO tbl_movimientos(
-                      idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                      idglobal,idahorro,idahorro_de,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                     ) VALUES (
-                      $idglobal,{$destino->idahorro},$idusuarioCreated,'aporte',$montoSql,'$descAporte',NULL,'$estadoEsc','$dt','$dt'
+                      $idglobal,{$destino->idahorro},{$principal->idahorro},$idusuarioCreated,'aporte',$montoSql,'$descripcion',NULL,'$estadoEsc','$dt','$dt'
                     )";
          $conexion->query($sqlIn) or throw new Exception('No se pudo registrar entrada en cuenta destino');
 
@@ -849,23 +960,21 @@ class Ahorradores
          $extra = $extra !== '' ? ' - ' . $extra : '';
          $estadoEsc = mysqli_real_escape_string($conexion, $estado);
 
-         $descOut = mysqli_real_escape_string($conexion, "Transferencia enviada a cuenta principal {$principal->id_cuenta}{$extra}");
-         $descIn = mysqli_real_escape_string($conexion, "Transferencia recibida desde cuenta {$origen->id_cuenta}{$extra}");
 
          $sqlOut = "INSERT INTO tbl_movimientos(
-                      idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                      idglobal,idahorro,idahorro_de,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                     ) VALUES (
-                      $idglobal,{$origen->idahorro},$idusuarioCreated,'retiro',-$montoSql,'$descOut',NULL,'$estadoEsc','$dt','$dt'
+                      $idglobal,{$origen->idahorro},{$principal->idahorro},$idusuarioCreated,'retiro',$montoSql,'$descripcion',NULL,'$estadoEsc','$dt','$dt'
                     )";
          $conexion->query($sqlOut) or throw new Exception('No se pudo registrar salida en cuenta origen');
-
+         /*
          $sqlIn = "INSERT INTO tbl_movimientos(
                       idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                     ) VALUES (
                       $idglobal,{$principal->idahorro},$idusuarioCreated,'aporte',$montoSql,'$descIn',NULL,'$estadoEsc','$dt','$dt'
                     )";
          $conexion->query($sqlIn) or throw new Exception('No se pudo registrar entrada en cuenta principal');
-
+*/
          $sqlUpd = "UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro IN ({$principal->idahorro}, {$origen->idahorro})";
          $conexion->query($sqlUpd) or throw new Exception('No se pudo actualizar cuentas');
 

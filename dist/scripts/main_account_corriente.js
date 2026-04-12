@@ -184,8 +184,8 @@
         var monto = parseFloat(r[2]) || 0;
         var desc = r[3] || '';
         var estado = r[4] || '';
-        if (tipo === 'aporte' || tipo === 'ajuste') total += monto;
-        if (tipo === 'retiro') total -= monto;
+        if (tipo === 'aporte' || tipo === 'ajuste' || tipo === 'entrada') total += monto;
+        if (tipo === 'retiro' || tipo === 'salida') total -= monto;
         table.row.add([fecha, tipo, formatMoney(monto), desc, estado]);
       });
       table.draw();

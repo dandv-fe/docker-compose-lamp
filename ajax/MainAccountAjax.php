@@ -114,7 +114,39 @@ switch ($_GET['op']) {
          ]);
          break;
       }
-      $valor = $tipo === 'retiro' ? -$valor : $valor;
+      //$valor = $tipo === 'retiro' ? -$valor : $valor;
+
+      // Validar saldo suficiente para salida/retiro
+      if (in_array($tipo, ['salida', 'retiro'])) {
+         $sqlSaldoCheck = "SELECT IFNULL(SUM(
+                              CASE m.str_tipo
+                                 WHEN 'aporte'  THEN m.dec_valor
+                                 WHEN 'ajuste'  THEN m.dec_valor
+                                 WHEN 'retiro'  THEN -m.dec_valor
+                                 WHEN 'entrada' THEN m.dec_valor
+                                 WHEN 'salida'  THEN -m.dec_valor
+                                 ELSE 0 END
+                           ),0)
+                           +(SELECT IFNULL(SUM(
+                              CASE m2.str_tipo
+                                 WHEN 'aporte' THEN -m2.dec_valor
+                                 WHEN 'ajuste' THEN -m2.dec_valor
+                                 WHEN 'retiro' THEN m2.dec_valor
+                                 ELSE 0 END
+                           ),0) FROM tbl_movimientos m2
+                            WHERE m2.idahorro_de=$idahorro
+                              AND UPPER(m2.str_estado) <> 'INACTIVO')
+                           AS saldo
+                           FROM tbl_movimientos m
+                           WHERE m.idahorro=$idahorro
+                             AND UPPER(m.str_estado) <> 'INACTIVO'";
+         $qSaldoCheck = $conexion->query($sqlSaldoCheck);
+         $saldoActual = $qSaldoCheck ? floatval($qSaldoCheck->fetch_object()->saldo ?? 0) : 0;
+         if ($saldoActual < $valor) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'Saldo insuficiente para registrar la salida']);
+            break;
+         }
+      }
 
       $ok = $objMainAccount->registrarMovimientoRA($idglobal, $idahorro, $_SESSION['idusuario'], $tipo, $valor, $descripcion);
       if (!$ok) {

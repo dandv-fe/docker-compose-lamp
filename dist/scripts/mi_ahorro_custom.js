@@ -112,6 +112,7 @@
       $tbody.html('<tr><td colspan="5" class="text-center text-muted">Sin movimientos</td></tr>');
       return;
     }
+    console.log(movimientos);
 
     var html = movimientos.map(function (m) {
       var valor = parseFloat(m.dec_valor) || 0;
@@ -325,7 +326,7 @@
       data: {},
       dataType: "json",
       success: function (datos) {
-        console.log(datos);
+        //console.log(datos);
 
         tabla.clear().draw();
         for (let i = 0; i < datos.length; i++) {

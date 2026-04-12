@@ -165,8 +165,6 @@
     }
 
     var html = rows.map(function (r) {
-      console.log(r);
-
       var valor = parseFloat(r.dec_valor) || 0;
       var valorHtml = (r.str_tipo === 'retiro' || r.str_tipo === 'salida')
         ? '<span class="text-danger font-weight-bold">' + formatMoney(valor) + '</span>'
@@ -228,8 +226,8 @@
         var monto = parseFloat(r[2]) || 0;
         var desc = r[3] || '';
         var estado = r[4] || '';
-        if (tipo === 'aporte' || tipo === 'ajuste') total += monto;
-        if (tipo === 'retiro') total -= monto;
+        if (tipo === 'aporte' || tipo === 'ajuste' || tipo === 'entrada') total += monto;
+        if (tipo === 'retiro' || tipo === 'salida') total -= monto;
         table.row.add([fecha, tipo, formatMoney(monto), desc, estado]);
       });
       table.draw();
@@ -326,7 +324,9 @@
     $(document).on('click', '[data-target="#modal-aporte"][data-tipo]', function () {
       var tipo = ($(this).data('tipo') || 'aporte').toString().toLowerCase();
       $('#str_tipo').val(tipo);
-      var title = (tipo === 'retiro') ? 'Registrar retiro' : 'Registrar aporte';
+      var title = 'Registrar movimiento';
+      if (tipo === 'salida') title = 'Registrar salida';
+      if (tipo === 'entrada') title = 'Registrar entrada';
       $('#modal-aporte-title').text(title);
     });
 
