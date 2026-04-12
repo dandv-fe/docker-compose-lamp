@@ -281,8 +281,8 @@ class Corresponsal
             p.str_nombres,
             p.str_apellidos,
             p.str_foto,
-            (
-               SELECT IFNULL(SUM(
+            IFNULL((
+               SELECT SUM(
                   CASE m.str_tipo
                      WHEN 'aporte' THEN m.dec_valor
                      WHEN 'ajuste' THEN m.dec_valor
@@ -290,12 +290,25 @@ class Corresponsal
                      WHEN 'entrada' THEN m.dec_valor
                      WHEN 'salida' THEN -m.dec_valor
                      ELSE 0 END
-               ),0)
+               )
+               + IFNULL((
+                  SELECT SUM(
+                     CASE m2.str_tipo
+                        WHEN 'aporte' THEN -m2.dec_valor
+                        WHEN 'ajuste' THEN -m2.dec_valor
+                        WHEN 'retiro' THEN m2.dec_valor
+                        ELSE 0 END
+                  )
+                  FROM tbl_movimientos m2
+                  WHERE m2.idglobal=$idglobal
+                    AND m2.idahorro_de=a.idahorro
+                    AND UPPER(IFNULL(m2.str_estado,'')) <> 'INACTIVO'
+               ), 0)
                FROM tbl_movimientos m
                WHERE m.idglobal=$idglobal
                  AND m.idahorro=a.idahorro
-                 AND UPPER(m.str_estado) <> 'INACTIVO'
-            ) AS saldo_real
+                 AND UPPER(IFNULL(m.str_estado,'')) <> 'INACTIVO'
+            ), 0) AS saldo_real
          FROM tbl_ahorros a
          LEFT JOIN tbl_persona p ON p.idpersona = a.idpersona
          WHERE a.idglobal=$idglobal AND a.str_tipo='corresponsal'
