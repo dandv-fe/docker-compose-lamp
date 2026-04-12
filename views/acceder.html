@@ -1375,7 +1375,7 @@ if (isset($userSession['usuario']->idempleado)){
         items.forEach(function (mov) {
           const fecha = limpiarHtmlTexto(mov.date_movimiento);
           const tipo = limpiarHtmlTexto(mov.str_tipo);
-          const monto = formatearMonedaVista(mov.dec_valor);
+          const monto = formatearMonedaVista(parseFloat(mov.dec_valor) || 0);
           const descripcion = limpiarHtmlTexto(mov.str_descripcion);
 
           const $li = $('<li>').addClass('list-group-item py-2');
