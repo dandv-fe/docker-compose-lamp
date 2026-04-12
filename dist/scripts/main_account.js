@@ -165,8 +165,10 @@
     }
 
     var html = rows.map(function (r) {
+      console.log(r);
+
       var valor = parseFloat(r.dec_valor) || 0;
-      var valorHtml = valor < 0
+      var valorHtml = (r.str_tipo === 'retiro' || r.str_tipo === 'salida')
         ? '<span class="text-danger font-weight-bold">' + formatMoney(valor) + '</span>'
         : formatMoney(valor);
 

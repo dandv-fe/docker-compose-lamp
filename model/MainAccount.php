@@ -65,12 +65,13 @@ class MainAccount
                   CASE m.str_tipo
                      WHEN 'aporte' THEN m.dec_valor
                      WHEN 'ajuste' THEN m.dec_valor
-                     WHEN 'retiro' THEN m.dec_valor
+                     WHEN 'retiro' THEN -m.dec_valor
+                        WHEN 'entrada' THEN m.dec_valor
+                        WHEN 'salida' THEN -m.dec_valor
                      ELSE 0 END
-               ),0) FROM tbl_movimientos m WHERE m.idglobal=$idglobal AND m.idahorro=a.idahorro AND UPPER(m.str_estado) <> 'INACTIVO') AS saldo 
+               ),0) FROM tbl_movimientos m WHERE m.idahorro=a.idahorro AND UPPER(m.str_estado) <> 'INACTIVO') AS saldo 
       FROM `tbl_ahorros` a
-      WHERE a.idglobal=$idglobal 
-      AND a.idpersona=$idpersona 
+      WHERE a.idpersona=$idpersona 
       AND a.str_tipo='principal'";
       $query = $conexion->query($sql);
       return $query;
@@ -110,17 +111,17 @@ class MainAccount
                        CASE m.str_tipo
                           WHEN 'aporte' THEN m.dec_valor
                           WHEN 'ajuste' THEN m.dec_valor
-                          WHEN 'retiro' THEN m.dec_valor
+                          WHEN 'retiro' THEN -m.dec_valor
+                          WHEN 'entrada' THEN m.dec_valor
+                          WHEN 'salida' THEN -m.dec_valor
                           ELSE 0
                        END
                     ), 0) AS saldo
                  FROM tbl_movimientos m
-                 WHERE m.idglobal = $idglobal
-                  AND UPPER(m.str_estado) <> 'INACTIVO'
+                 WHERE  UPPER(m.str_estado) <> 'INACTIVO'
                  GROUP BY m.idahorro
               ) s ON s.idahorro = a.idahorro
-              WHERE a.idglobal = $idglobal
-               AND UPPER(a.str_estado) <> 'INACTIVO'";
+              WHERE UPPER(a.str_estado) <> 'INACTIVO'";
 
       $query = $conexion->query($sql);
       $row = $query ? $query->fetch_object() : null;
@@ -172,9 +173,9 @@ class MainAccount
       global $conexion;
       $dt = date('Y-m-d H:i:s');
       $sql = "INSERT INTO tbl_movimientos(
-                idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                idglobal,idahorro,idahorro_de,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
               ) VALUES (
-                $idglobal,$idahorro,$idusuario_created,'$tipo',$valor,'$descripcion',NULL,'$estado','$dt','$dt'
+                $idglobal,$idahorro,$idahorro,$idusuario_created,'$tipo',$valor,'$descripcion',NULL,'$estado','$dt','$dt'
               )";
       return $conexion->query($sql);
    }
@@ -198,7 +199,7 @@ class MainAccount
       try {
          $sqlOrigen = "SELECT idahorro, id_cuenta, str_tipo, str_estado
                        FROM tbl_ahorros
-                       WHERE idglobal=$idglobal AND idahorro=$idahorroOrigen
+                       WHERE idahorro=$idahorroOrigen
                        LIMIT 1";
          $qOrigen = $conexion->query($sqlOrigen);
          $origen = $qOrigen ? $qOrigen->fetch_object() : null;
@@ -217,7 +218,7 @@ class MainAccount
 
          $sqlDestino = "SELECT idahorro, id_cuenta, str_estado
                         FROM tbl_ahorros
-                        WHERE idglobal=$idglobal AND idahorro=$idahorroDestino
+                        WHERE idahorro=$idahorroDestino
                         LIMIT 1";
          $qDestino = $conexion->query($sqlDestino);
          $destino = $qDestino ? $qDestino->fetch_object() : null;
@@ -234,7 +235,9 @@ class MainAccount
                         CASE m.str_tipo
                            WHEN 'aporte' THEN m.dec_valor
                            WHEN 'ajuste' THEN m.dec_valor
-                           WHEN 'retiro' THEN m.dec_valor
+                           WHEN 'retiro' THEN -m.dec_valor
+                           WHEN 'entrada' THEN m.dec_valor
+                           WHEN 'salida' THEN -m.dec_valor
                            ELSE 0 END
                      ),0) AS saldo
                      FROM tbl_movimientos m
@@ -255,19 +258,19 @@ class MainAccount
          $descAporte = mysqli_real_escape_string($conexion, "Transferencia recibida desde cuenta {$origen->id_cuenta}{$descripcionExtra}");
 
          $sqlRetiro = "INSERT INTO tbl_movimientos(
-                        idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
+                        idglobal,idahorro,idahorro_de,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                      ) VALUES (
-                        $idglobal,$idahorroOrigen,$idusuarioCreated,'retiro',-$montoSql,'$descRetiro',NULL,'activo','$dt','$dt'
+                        $idglobal,$idahorroOrigen,$idahorroDestino,$idusuarioCreated,'retiro',-$montoSql,'$descRetiro',NULL,'activo','$dt','$dt'
                      )";
          $conexion->query($sqlRetiro) or throw new Exception('No se pudo registrar el retiro en cuenta origen');
 
-         $sqlAporte = "INSERT INTO tbl_movimientos(
+         /*$sqlAporte = "INSERT INTO tbl_movimientos(
                         idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
                      ) VALUES (
                         $idglobal,$idahorroDestino,$idusuarioCreated,'aporte',$montoSql,'$descAporte',NULL,'activo','$dt','$dt'
                      )";
          $conexion->query($sqlAporte) or throw new Exception('No se pudo registrar el aporte en cuenta destino');
-
+*/
          $sqlUpd = "UPDATE tbl_ahorros SET update_at='$dt' WHERE idahorro IN ($idahorroOrigen, $idahorroDestino)";
          $conexion->query($sqlUpd) or throw new Exception('No se pudo actualizar el estado de las cuentas');
       } catch (Exception $e) {
