@@ -85,6 +85,17 @@ function _resolve_persona_actual($conexion)
    return 0;
 }
 
+function _is_debug_enabled()
+{
+   $appDebug = getenv('APP_DEBUG');
+   if ($appDebug !== false && $appDebug !== null && $appDebug !== '') {
+      return !($appDebug === '0' || strtolower((string)$appDebug) === 'false');
+   }
+
+   $smtpDebug = getenv('SMTP_DEBUG');
+   return ($smtpDebug === '1' || strtolower((string)$smtpDebug) === 'true');
+}
+
 function _obtener_datos_persona_actual($conexion, $idpersona)
 {
    $sql = "SELECT
@@ -399,17 +410,38 @@ switch ($_GET["op"]) {
          break;
       }
       _ensure_email_verify_table($conexion);
-      $token = bin2hex(random_bytes(32));
+      try {
+         $token = bin2hex(random_bytes(32));
+      } catch (Throwable $e) {
+         if (_is_debug_enabled()) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'No fue posible generar el token', 'error' => $e->getMessage()]);
+         } else {
+            echo json_encode(['status' => 'error', 'mensaje' => 'No fue posible generar el enlace de verificación']);
+         }
+         break;
+      }
       $token_hash = hash('sha256', $token);
       $ip = $_SERVER['REMOTE_ADDR'] ?? null;
-      $conexion->query("INSERT INTO tbl_email_verificacion (idpersona, token_hash, created_at, expires_at, ip) VALUES (" . intval($persona->idpersona) . ", '" . $conexion->real_escape_string($token_hash) . "', NOW(), DATE_ADD(NOW(), INTERVAL 24 HOUR), " . ($ip ? ("'" . $conexion->real_escape_string($ip) . "'") : 'NULL') . ")");
+      $insertOk = $conexion->query("INSERT INTO tbl_email_verificacion (idpersona, token_hash, created_at, expires_at, ip) VALUES (" . intval($persona->idpersona) . ", '" . $conexion->real_escape_string($token_hash) . "', NOW(), DATE_ADD(NOW(), INTERVAL 24 HOUR), " . ($ip ? ("'" . $conexion->real_escape_string($ip) . "'") : 'NULL') . ")");
+      if (!$insertOk) {
+         if (_is_debug_enabled()) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'No fue posible registrar la solicitud', 'error' => $conexion->error]);
+         } else {
+            echo json_encode(['status' => 'error', 'mensaje' => 'No fue posible registrar la solicitud']);
+         }
+         break;
+      }
       $verifyUrl = _get_base_url() . "/UsuarioAjax.php?op=verificarEmail&t=" . urlencode($token);
       $ok = _send_verification_email($persona->str_email, $verifyUrl);
       if ($ok) {
          echo json_encode(['status' => 'success', 'mensaje' => 'Enlace enviado. Revisa tu correo.']);
       } else {
          $err = isset($GLOBALS['__MAIL_LAST_ERROR']) ? $GLOBALS['__MAIL_LAST_ERROR'] : null;
-         echo json_encode(['status' => 'error', 'mensaje' => 'No se pudo enviar el correo', 'debug_url' => $verifyUrl, 'error' => $err]);
+         if (_is_debug_enabled()) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'No se pudo enviar el correo', 'debug_url' => $verifyUrl, 'error' => $err]);
+         } else {
+            echo json_encode(['status' => 'error', 'mensaje' => 'No se pudo enviar el correo']);
+         }
       }
       break;
 
