@@ -279,15 +279,24 @@ class MiAhorro
                      WHEN 'salida' THEN -m.dec_valor
                      ELSE 0 END
                ),0)
+               +(SELECT IFNULL(SUM(
+                  CASE m2.str_tipo
+                     WHEN 'aporte' THEN -m2.dec_valor
+                     WHEN 'ajuste' THEN -m2.dec_valor
+                     WHEN 'retiro' THEN m2.dec_valor
+                     ELSE 0 END
+               ),0)
+               FROM tbl_movimientos m2
+               WHERE m2.idahorro_de=a.idahorro
+                 AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO')
                FROM tbl_movimientos m
                WHERE m.idahorro=a.idahorro
-                 AND m.idahorro=a.idahorro
-                 AND UPPER(m.str_estado) <> 'INACTIVO'
+                 AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'
             ) AS saldo_real
          FROM tbl_ahorros a
          LEFT JOIN tbl_persona p ON p.idpersona = a.idpersona
              WHERE a.idpersona=$idpersona
-                AND a.str_tipo IN ('ahorro','corriente','principal')
+                AND a.str_tipo IN ('ahorro')
          ORDER BY a.idahorro DESC";
       $query = $conexion->query($sql);
       return $query;
@@ -389,20 +398,33 @@ class MiAhorro
    public function obtenerSaldoDisponible($idglobal, $idahorro)
    {
       global $conexion;
+      $idglobal = intval($idglobal);
+      $idahorro = intval($idahorro);
+
       $sql = "SELECT IFNULL(SUM(
-                  CASE str_tipo
-                     WHEN 'aporte' THEN dec_valor
-                     WHEN 'ajuste' THEN dec_valor
-                     WHEN 'retiro' THEN -dec_valor
-                     WHEN 'entrada' THEN dec_valor
-                     WHEN 'salida' THEN -dec_valor
-                     
+                  CASE m.str_tipo
+                     WHEN 'aporte' THEN m.dec_valor
+                     WHEN 'ajuste' THEN m.dec_valor
+                     WHEN 'retiro' THEN -m.dec_valor
+                     WHEN 'entrada' THEN m.dec_valor
+                     WHEN 'salida' THEN -m.dec_valor
                      ELSE 0 END
-               ), 0) AS saldo
-              FROM tbl_movimientos
-              WHERE idglobal=$idglobal
-                AND idahorro=$idahorro
-                AND UPPER(str_estado) <> 'INACTIVO'";
+               ), 0)
+               +(SELECT IFNULL(SUM(
+                  CASE m2.str_tipo
+                     WHEN 'aporte' THEN -m2.dec_valor
+                     WHEN 'ajuste' THEN -m2.dec_valor
+                     WHEN 'retiro' THEN m2.dec_valor
+                     ELSE 0 END
+               ), 0)
+               FROM tbl_movimientos m2
+               WHERE m2.idglobal=$idglobal
+                 AND m2.idahorro_de=$idahorro
+                 AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO') AS saldo
+              FROM tbl_movimientos m
+              WHERE m.idglobal=$idglobal
+                AND m.idahorro=$idahorro
+                AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'";
       $query = $conexion->query($sql);
       $reg = $query ? $query->fetch_object() : null;
       return $reg ? floatval($reg->saldo ?? 0) : 0;
