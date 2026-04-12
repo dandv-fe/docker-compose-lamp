@@ -283,30 +283,29 @@ class Corresponsal
             p.str_foto,
             IFNULL((
                SELECT SUM(
-                  CASE m.str_tipo
-                     WHEN 'aporte' THEN m.dec_valor
-                     WHEN 'ajuste' THEN m.dec_valor
-                     WHEN 'retiro' THEN -m.dec_valor
-                     WHEN 'entrada' THEN m.dec_valor
-                     WHEN 'salida' THEN -m.dec_valor
-                     ELSE 0 END
+                  CASE
+                     WHEN m.idahorro=a.idahorro THEN
+                        CASE m.str_tipo
+                           WHEN 'aporte' THEN m.dec_valor
+                           WHEN 'ajuste' THEN m.dec_valor
+                           WHEN 'entrada' THEN m.dec_valor
+                           WHEN 'retiro' THEN -m.dec_valor
+                           WHEN 'salida' THEN -m.dec_valor
+                           ELSE 0 END
+                     WHEN m.idahorro_de=a.idahorro AND m.idahorro<>a.idahorro THEN
+                        CASE m.str_tipo
+                           WHEN 'aporte' THEN -m.dec_valor
+                           WHEN 'ajuste' THEN -m.dec_valor
+                           WHEN 'entrada' THEN -m.dec_valor
+                           WHEN 'retiro' THEN m.dec_valor
+                           WHEN 'salida' THEN m.dec_valor
+                           ELSE 0 END
+                     ELSE 0
+                  END
                )
-               + IFNULL((
-                  SELECT SUM(
-                     CASE m2.str_tipo
-                        WHEN 'aporte' THEN -m2.dec_valor
-                        WHEN 'ajuste' THEN -m2.dec_valor
-                        WHEN 'retiro' THEN m2.dec_valor
-                        ELSE 0 END
-                  )
-                  FROM tbl_movimientos m2
-                  WHERE m2.idglobal=$idglobal
-                    AND m2.idahorro_de=a.idahorro
-                    AND UPPER(IFNULL(m2.str_estado,'')) <> 'INACTIVO'
-               ), 0)
                FROM tbl_movimientos m
                WHERE m.idglobal=$idglobal
-                 AND m.idahorro=a.idahorro
+                 AND (m.idahorro=a.idahorro OR m.idahorro_de=a.idahorro)
                  AND UPPER(IFNULL(m.str_estado,'')) <> 'INACTIVO'
             ), 0) AS saldo_real
          FROM tbl_ahorros a
@@ -366,18 +365,30 @@ class Corresponsal
    {
       global $conexion;
       $sql = "SELECT IFNULL(SUM(
-                  CASE str_tipo
-                     WHEN 'aporte' THEN dec_valor
-                     WHEN 'ajuste' THEN dec_valor
-                     WHEN 'retiro' THEN -dec_valor
-                     WHEN 'entrada' THEN dec_valor
-                     WHEN 'salida' THEN -dec_valor
-                     ELSE 0 END
+                  CASE
+                     WHEN idahorro=$idahorro THEN
+                        CASE str_tipo
+                           WHEN 'aporte' THEN dec_valor
+                           WHEN 'ajuste' THEN dec_valor
+                           WHEN 'entrada' THEN dec_valor
+                           WHEN 'retiro' THEN -dec_valor
+                           WHEN 'salida' THEN -dec_valor
+                           ELSE 0 END
+                     WHEN idahorro_de=$idahorro AND idahorro<>$idahorro THEN
+                        CASE str_tipo
+                           WHEN 'aporte' THEN -dec_valor
+                           WHEN 'ajuste' THEN -dec_valor
+                           WHEN 'entrada' THEN -dec_valor
+                           WHEN 'retiro' THEN dec_valor
+                           WHEN 'salida' THEN dec_valor
+                           ELSE 0 END
+                     ELSE 0
+                  END
                ), 0) AS saldo
               FROM tbl_movimientos
               WHERE idglobal=$idglobal
-                AND idahorro=$idahorro
-                AND UPPER(str_estado) <> 'INACTIVO'";
+                AND (idahorro=$idahorro OR idahorro_de=$idahorro)
+                AND UPPER(IFNULL(str_estado,'')) <> 'INACTIVO'";
       $query = $conexion->query($sql);
       $reg = $query ? $query->fetch_object() : null;
       return $reg ? floatval($reg->saldo ?? 0) : 0;
@@ -455,6 +466,7 @@ class Corresponsal
 
          $montoSql = number_format($monto, 2, '.', '');
          $descripcion = trim((string)$descripcion);
+         $descripcion = mysqli_real_escape_string($conexion, $descripcion);
          /*
          $sqlRetiro = "INSERT INTO tbl_movimientos(
                         idglobal,idahorro,idusuario_created,str_tipo,dec_valor,str_descripcion,int_codigo,str_estado,created_at,update_at
@@ -545,6 +557,7 @@ class Corresponsal
 
          $montoSql = number_format($monto, 2, '.', '');
          $descripcion = trim((string)$descripcion);
+         $descripcion = mysqli_real_escape_string($conexion, $descripcion);
          //$extra = $descripcion !== '' ? ' - ' . $descripcion : '';
          //$descRetiro = mysqli_real_escape_string($conexion, "Transferencia enviada a cuenta {$destino->id_cuenta}{$extra}");
          //$descAporte = mysqli_real_escape_string($conexion, "Transferencia recibida desde cuenta {$origen->id_cuenta}{$extra}");
