@@ -69,7 +69,13 @@ class MainAccount
                         WHEN 'entrada' THEN m.dec_valor
                         WHEN 'salida' THEN -m.dec_valor
                      ELSE 0 END
-               ),0) FROM tbl_movimientos m WHERE m.idahorro=a.idahorro AND UPPER(m.str_estado) <> 'INACTIVO') AS saldo 
+               ),0) FROM tbl_movimientos m WHERE m.idahorro=a.idahorro AND UPPER(m.str_estado) <> 'INACTIVO')-(SELECT IFNULL(SUM(
+                  CASE m2.str_tipo
+                     WHEN 'aporte' THEN -m2.dec_valor
+                     WHEN 'ajuste' THEN -m2.dec_valor
+                     WHEN 'retiro' THEN m2.dec_valor
+                     ELSE 0 END
+               ),0) FROM tbl_movimientos m2 WHERE m2.idahorro_de=a.idahorro AND UPPER(m2.str_estado) <> 'INACTIVO') AS saldo 
       FROM `tbl_ahorros` a
       WHERE a.idpersona=$idpersona 
       AND a.str_tipo='principal'";
@@ -162,7 +168,7 @@ class MainAccount
                   update_at
               FROM tbl_movimientos
               WHERE idglobal=$idglobal
-                AND idahorro=$idahorro
+                AND (idahorro=$idahorro OR idahorro_de=$idahorro)
               ORDER BY date_movimiento DESC, idmovimiento DESC";
 
       return $conexion->query($sql);
