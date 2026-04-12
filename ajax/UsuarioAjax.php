@@ -124,8 +124,12 @@ function _email_verify_cooldown_seconds()
 function _email_verify_ip_cooldown_seconds()
 {
    $raw = getenv('EMAIL_VERIFY_IP_COOLDOWN_SEC');
-   $value = intval($raw !== false ? $raw : 60);
-   return $value > 0 ? $value : 60;
+   // 0 desactiva el rate limit por IP.
+   if ($raw === false || $raw === null || $raw === '') {
+      return 0;
+   }
+   $value = intval($raw);
+   return $value > 0 ? $value : 0;
 }
 
 function _get_last_email_verify_request_time($conexion, $idpersona)
@@ -470,14 +474,16 @@ switch ($_GET["op"]) {
 
       $ip = $_SERVER['REMOTE_ADDR'] ?? null;
       $ipCooldownSec = _email_verify_ip_cooldown_seconds();
-      $lastRequestAtByIp = _get_last_email_verify_request_time_by_ip($conexion, $ip);
-      if ($lastRequestAtByIp > 0 && ($now - $lastRequestAtByIp) < $ipCooldownSec) {
-         $remainingIp = $ipCooldownSec - ($now - $lastRequestAtByIp);
-         echo json_encode([
-            'status' => 'error',
-            'mensaje' => 'Desde esta red debes esperar ' . max(1, intval($remainingIp)) . ' segundos antes de solicitar otro enlace.'
-         ]);
-         break;
+      if ($ipCooldownSec > 0) {
+         $lastRequestAtByIp = _get_last_email_verify_request_time_by_ip($conexion, $ip);
+         if ($lastRequestAtByIp > 0 && ($now - $lastRequestAtByIp) < $ipCooldownSec) {
+            $remainingIp = $ipCooldownSec - ($now - $lastRequestAtByIp);
+            echo json_encode([
+               'status' => 'error',
+               'mensaje' => 'Desde esta red debes esperar ' . max(1, intval($remainingIp)) . ' segundos antes de solicitar otro enlace.'
+            ]);
+            break;
+         }
       }
 
       try {
