@@ -30,7 +30,7 @@ class Rendimientos
             WHERE
                au.idempleado = $userEmpleadoId
                AND au.str_estado <> 'inactivo'
-               AND a.str_nombre = 'kardex valorizado'
+               AND (a.str_nombre = 'rendimientos' OR a.str_nombre = 'kardex valorizado')
             GROUP BY au.idauth_sucursal";
 
       $query = $conexion->query($sql);
@@ -63,7 +63,6 @@ class Rendimientos
 
       $sql = "SELECT 
       codigo,
-         DATE_FORMAT(fecha_at, '%d') AS mes,
          SUM(IFNULL(recaudo, 0)) AS recaudo,
          SUM(IFNULL(prestamo, 0)) AS prestamo,
          SUM(IFNULL(ventaArticulo, 0)) AS venta,
@@ -78,7 +77,7 @@ class Rendimientos
          SUM(IFNULL(efectivoCaja, 0)) AS saldo_disp,
          SUM(IFNULL(valorTotalCreditos, 0)) AS valorTotalCreditos
       FROM view_cobro_detallado
-      WHERE fecha_at >= '$primerDia' AND fecha_at <= '$ultimoDia' $scopeWhere
+      WHERE fecha_at >= '$primerDia' AND fecha_at < DATE_ADD('$ultimoDia', INTERVAL 1 DAY) $scopeWhere
       GROUP By codigo
 
       ORDER BY codigo ASC";
@@ -113,7 +112,7 @@ class Rendimientos
          SUM(IFNULL(efectivoCaja, 0)) AS saldo_disp,
          SUM(IFNULL(valorTotalCreditos, 0)) AS valorTotalCreditos
       FROM view_cobro_detallado
-      WHERE fecha_at >= '$primerDia' AND fecha_at <= '$ultimoDia' $scopeWhere";
+      WHERE fecha_at >= '$primerDia' AND fecha_at < DATE_ADD('$ultimoDia', INTERVAL 1 DAY) $scopeWhere";
 
       $query = $conexion->query($sql);
       return $query;
