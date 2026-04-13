@@ -57,30 +57,52 @@ class Rendimientos
    {
       global $conexion;
 
+      $idglobal = intval($idglobal);
       $primerDia = date('Y-m-01');
       $ultimoDia = date('Y-m-t');
       $scopeWhere = $this->buildScopeWhere($superadmin, $idglobal, $userEmpleadoId);
+      $scopeWhereSucursal = str_replace('refSucursal', 's.idsucursal', $scopeWhere);
 
       $sql = "SELECT 
-      codigo,
-         SUM(IFNULL(recaudo, 0)) AS recaudo,
-         SUM(IFNULL(prestamo, 0)) AS prestamo,
-         SUM(IFNULL(ventaArticulo, 0)) AS venta,
-         SUM(IFNULL(efectivoOtraUtilidad, 0)) AS seguro,
-         SUM(IFNULL(diferencia, 0)) AS diferencia,
-         SUM(IFNULL(descuento, 0)) AS descuento,
-         SUM(IFNULL(gastos, 0)) AS gastos,
-         SUM(IFNULL(otros_gastos, 0)) AS otros_gastos,
-         SUM(IFNULL(salida, 0)) AS salida,
-         SUM(IFNULL(entrada, 0)) AS entrada,
-         SUM(IFNULL(base, 0)) AS sum_cart,
-         SUM(IFNULL(efectivoCaja, 0)) AS saldo_disp,
-         SUM(IFNULL(valorTotalCreditos, 0)) AS valorTotalCreditos
-      FROM view_cobro_detallado
-      WHERE fecha_at >= '$primerDia' AND fecha_at < DATE_ADD('$ultimoDia', INTERVAL 1 DAY) $scopeWhere
-      GROUP By codigo
-
-      ORDER BY codigo ASC";
+      s.str_codigo AS codigo,
+         IFNULL(v.recaudo, 0) AS recaudo,
+         IFNULL(v.prestamo, 0) AS prestamo,
+         IFNULL(v.venta, 0) AS venta,
+         IFNULL(v.seguro, 0) AS seguro,
+         IFNULL(v.diferencia, 0) AS diferencia,
+         IFNULL(v.descuento, 0) AS descuento,
+         IFNULL(v.gastos, 0) AS gastos,
+         IFNULL(v.otros_gastos, 0) AS otros_gastos,
+         IFNULL(v.salida, 0) AS salida,
+         IFNULL(v.entrada, 0) AS entrada,
+         IFNULL(v.sum_cart, 0) AS sum_cart,
+         IFNULL(v.saldo_disp, 0) AS saldo_disp,
+         IFNULL(v.valorTotalCreditos, 0) AS valorTotalCreditos
+      FROM tbl_sucursal s
+      LEFT JOIN (
+         SELECT
+            refSucursal,
+            SUM(IFNULL(recaudo, 0)) AS recaudo,
+            SUM(IFNULL(prestamo, 0)) AS prestamo,
+            SUM(IFNULL(ventaArticulo, 0)) AS venta,
+            SUM(IFNULL(efectivoOtraUtilidad, 0)) AS seguro,
+            SUM(IFNULL(diferencia, 0)) AS diferencia,
+            SUM(IFNULL(descuento, 0)) AS descuento,
+            SUM(IFNULL(gastos, 0)) AS gastos,
+            SUM(IFNULL(otros_gastos, 0)) AS otros_gastos,
+            SUM(IFNULL(salida, 0)) AS salida,
+            SUM(IFNULL(entrada, 0)) AS entrada,
+            SUM(IFNULL(base, 0)) AS sum_cart,
+            SUM(IFNULL(efectivoCaja, 0)) AS saldo_disp,
+            SUM(IFNULL(valorTotalCreditos, 0)) AS valorTotalCreditos
+         FROM view_cobro_detallado
+         WHERE fecha_at >= '$primerDia' AND fecha_at < DATE_ADD('$ultimoDia', INTERVAL 1 DAY)
+         GROUP BY refSucursal
+      ) v ON v.refSucursal = s.idsucursal
+      WHERE s.idglobal = $idglobal
+        AND s.str_estado = 'disponible'
+        $scopeWhereSucursal
+      ORDER BY s.str_codigo ASC";
 
       $query = $conexion->query($sql);
       return $query;
