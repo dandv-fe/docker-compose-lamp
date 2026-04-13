@@ -347,12 +347,31 @@ class MiAhorro
    public function listarMovimientos($idglobal, $idahorro)
    {
       global $conexion;
+      $idglobal = intval($idglobal);
+      $idahorro = intval($idahorro);
+
       $sql = "SELECT
                         m.idmovimiento,
                         m.idahorro_de,
                         m.date_movimiento,
                         m.str_tipo,
                         m.dec_valor,
+                        CASE
+                           WHEN m.idahorro = $idahorro THEN
+                              CASE m.str_tipo
+                                 WHEN 'retiro' THEN -m.dec_valor
+                                 WHEN 'salida' THEN -m.dec_valor
+                                 ELSE m.dec_valor
+                              END
+                           WHEN m.idahorro_de = $idahorro THEN
+                              CASE m.str_tipo
+                                 WHEN 'aporte' THEN -m.dec_valor
+                                 WHEN 'ajuste' THEN -m.dec_valor
+                                 WHEN 'retiro' THEN m.dec_valor
+                                 ELSE 0
+                              END
+                           ELSE 0
+                        END AS monto_firmado,
                         m.str_descripcion,
                         m.str_estado,
                         a.idahorro,
@@ -365,7 +384,8 @@ class MiAhorro
                      INNER JOIN tbl_ahorros a ON a.idahorro = m.idahorro AND a.idglobal = m.idglobal
                      LEFT JOIN tbl_persona p ON p.idpersona = a.idpersona
                      WHERE m.idglobal=$idglobal
-                        AND m.idahorro=$idahorro or m.idahorro_de=$idahorro
+                        AND (m.idahorro=$idahorro OR m.idahorro_de=$idahorro)
+                        AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'
                      ORDER BY m.date_movimiento DESC, m.idmovimiento DESC";
       return $conexion->query($sql);
    }
@@ -373,11 +393,19 @@ class MiAhorro
    public function listarMovimientosPersona($idglobal, $idpersona)
    {
       global $conexion;
+      $idglobal = intval($idglobal);
+      $idpersona = intval($idpersona);
+
       $sql = "SELECT
                         m.idmovimiento,
                         m.date_movimiento,
                         m.str_tipo,
                         m.dec_valor,
+                        CASE m.str_tipo
+                           WHEN 'retiro' THEN -m.dec_valor
+                           WHEN 'salida' THEN -m.dec_valor
+                           ELSE m.dec_valor
+                        END AS monto_firmado,
                         m.str_descripcion,
                         m.str_estado,
                         a.idahorro,
@@ -391,6 +419,7 @@ class MiAhorro
                      LEFT JOIN tbl_persona p ON p.idpersona = a.idpersona
                      WHERE m.idglobal=$idglobal
                         AND a.idpersona=$idpersona
+                        AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'
                         AND a.str_tipo IN ('ahorro','corriente','principal')
                      ORDER BY m.date_movimiento DESC, m.idmovimiento DESC";
       return $conexion->query($sql);
