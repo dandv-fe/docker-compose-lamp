@@ -9,7 +9,12 @@ $superadmin = $_SESSION['userEmpresa'];
 
 switch ($_GET["op"]) {
    case 'GetCurrentMonth':
-      $query = $objRendimientos->listCurrentMonth($superadmin, $idglobal, $userEmpleadoId);
+      $periodo = isset($_GET['periodo']) ? trim($_GET['periodo']) : '';
+      if (!preg_match('/^\d{4}-\d{2}$/', $periodo)) {
+         $periodo = '';
+      }
+
+      $query = $objRendimientos->listCurrentMonth($superadmin, $idglobal, $userEmpleadoId, $periodo);
       $data = array();
 
       if ($query && $query->num_rows > 0) {
@@ -40,7 +45,7 @@ switch ($_GET["op"]) {
          }
 
          // Agregar fila de totales
-         $queryTotal = $objRendimientos->getTotalCurrentMonth($superadmin, $idglobal, $userEmpleadoId);
+         $queryTotal = $objRendimientos->getTotalCurrentMonth($superadmin, $idglobal, $userEmpleadoId, $periodo);
          $total = $queryTotal->fetch_object();
          $total_utilidad = $total->valorTotalCreditos + $total->prestamo + $total->venta + $total->seguro + $total->diferencia - $total->descuento;
          $total_gastos = $total->gastos + $total->otros_gastos;

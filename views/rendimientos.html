@@ -120,9 +120,15 @@
         <div class="card-header">
           <div class="d-flex flex-wrap align-items-center justify-content-between">
             <h3 class="card-title mb-0">Rendimientos del Mes Actual: <b id="txtMesActual">-</b></h3>
-            <button id="btnRecargarRendimientos" type="button" class="btn btn-info btn-sm mt-2 mt-md-0">
-              <i class="fa-solid fa-arrows-rotate"></i> Actualizar
-            </button>
+            <div class="d-flex align-items-end mt-2 mt-md-0">
+              <div class="mr-2">
+                <label class="mb-1">Mes</label>
+                <input id="txtPeriodoMes" type="month" class="form-control form-control-sm">
+              </div>
+              <button id="btnRecargarRendimientos" type="button" class="btn btn-info btn-sm mb-0">
+                <i class="fa-solid fa-arrows-rotate"></i> Consultar
+              </button>
+            </div>
           </div>
           <div class="row mt-2">
             <div class="col-md-3">

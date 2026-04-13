@@ -5,6 +5,26 @@ class Rendimientos
 {
    public function __construct() {}
 
+   private function resolveMonthRange($periodo = '')
+   {
+      $periodo = trim((string)$periodo);
+      if (preg_match('/^\d{4}-\d{2}$/', $periodo)) {
+         $inicio = $periodo . '-01';
+      } else {
+         $inicio = date('Y-m-01');
+      }
+
+      $time = strtotime($inicio);
+      if ($time === false) {
+         $inicio = date('Y-m-01');
+      }
+
+      $primerDia = date('Y-m-01', strtotime($inicio));
+      $ultimoDia = date('Y-m-t', strtotime($inicio));
+
+      return array($primerDia, $ultimoDia);
+   }
+
    private function buildScopeWhere($superadmin, $idglobal, $userEmpleadoId)
    {
       global $conexion;
@@ -53,13 +73,12 @@ class Rendimientos
    /**
     * Obtiene rendimientos del mes actual agrupados por día
     */
-   public function listCurrentMonth($superadmin, $idglobal, $userEmpleadoId)
+   public function listCurrentMonth($superadmin, $idglobal, $userEmpleadoId, $periodo = '')
    {
       global $conexion;
 
       $idglobal = intval($idglobal);
-      $primerDia = date('Y-m-01');
-      $ultimoDia = date('Y-m-t');
+      list($primerDia, $ultimoDia) = $this->resolveMonthRange($periodo);
       $scopeWhere = $this->buildScopeWhere($superadmin, $idglobal, $userEmpleadoId);
       $scopeWhereSucursal = str_replace('refSucursal', 's.idsucursal', $scopeWhere);
 
@@ -111,12 +130,11 @@ class Rendimientos
    /**
     * Obtiene totales del mes actual
     */
-   public function getTotalCurrentMonth($superadmin, $idglobal, $userEmpleadoId)
+   public function getTotalCurrentMonth($superadmin, $idglobal, $userEmpleadoId, $periodo = '')
    {
       global $conexion;
 
-      $primerDia = date('Y-m-01');
-      $ultimoDia = date('Y-m-t');
+      list($primerDia, $ultimoDia) = $this->resolveMonthRange($periodo);
       $scopeWhere = $this->buildScopeWhere($superadmin, $idglobal, $userEmpleadoId);
 
       $sql = "SELECT 

@@ -1,5 +1,6 @@
 $(function () {
   var COLUMN_COUNT = 16;
+  var tabla = null;
 
   function limpiarTextoNumero(valor) {
     return String(valor || '')
@@ -42,18 +43,81 @@ $(function () {
     return filas.map(normalizarFila);
   }
 
-  function establecerPeriodoActual() {
+  function establecerPeriodoUI(periodo) {
     if (typeof moment !== 'function') {
       return;
     }
 
     moment.locale('es');
-    var inicio = moment().startOf('month');
+    var inicio = moment((periodo || '') + '-01', 'YYYY-MM-DD', true);
+    if (!inicio.isValid()) {
+      inicio = moment().startOf('month');
+    }
     var fin = moment().endOf('month');
+    if (inicio.isValid()) {
+      fin = inicio.clone().endOf('month');
+    }
 
     $('#txtMesActual').text(inicio.format('MMMM YYYY'));
     $('#txtFechaDesde').val(inicio.format('YYYY-MM-DD'));
     $('#txtFechaHasta').val(fin.format('YYYY-MM-DD'));
+  }
+
+  function obtenerPeriodoSeleccionado() {
+    var periodo = String($('#txtPeriodoMes').val() || '').trim();
+    if (/^\d{4}-\d{2}$/.test(periodo)) {
+      return periodo;
+    }
+
+    return moment().format('YYYY-MM');
+  }
+
+  function renderTabla(data) {
+    if ($.fn.DataTable.isDataTable('#tblRendimientos')) {
+      $('#tblRendimientos').DataTable().clear().destroy();
+      $('#tblRendimientos tbody').empty();
+    }
+
+    tabla = $("#tblRendimientos").DataTable({
+      "sort": false,
+      "responsive": true,
+      "lengthChange": false,
+      "autoWidth": false,
+      "buttons": ["csv", "excel", "pdf", "colvis"],
+      "data": data || [],
+      "columnDefs": [
+        {
+          "targets": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
+          "className": "text-right"
+        }
+      ]
+    });
+
+    tabla.buttons().container().appendTo('#tblRendimientos_wrapper .col-md-6:eq(0)');
+  }
+
+  function cargarRendimientos(periodo) {
+    establecerPeriodoUI(periodo);
+
+    $.ajax({
+      url: "ajax/RendimientosAjax.php",
+      type: "GET",
+      dataType: "json",
+      data: {
+        op: "GetCurrentMonth",
+        periodo: periodo
+      },
+      success: function (response) {
+        var data = normalizarRespuesta(response);
+        actualizarResumen(data);
+        renderTabla(data);
+      },
+      error: function (error) {
+        console.error("Error al cargar datos:", error);
+        actualizarResumen([]);
+        renderTabla([]);
+      }
+    });
   }
 
   function actualizarResumen(response) {
@@ -82,50 +146,14 @@ $(function () {
   $("#lia-consultaCobros").addClass('active');
   $("#lia-rendimientos").addClass('active');
 
-  establecerPeriodoActual();
+  var periodoInicial = moment().format('YYYY-MM');
+  $('#txtPeriodoMes').val(periodoInicial);
+  establecerPeriodoUI(periodoInicial);
 
   $('#btnRecargarRendimientos').on('click', function () {
-    window.location.reload();
+    cargarRendimientos(obtenerPeriodoSeleccionado());
   });
 
-  // Cargar datos primero
-  $.ajax({
-    url: "ajax/RendimientosAjax.php?op=GetCurrentMonth",
-    type: "GET",
-    dataType: "json",
-    success: function (response) {
-      var data = normalizarRespuesta(response);
-      actualizarResumen(data);
-
-      // Luego inicializar DataTable CON los datos
-      var Tabla = $("#tblRendimientos").DataTable({
-        "sort": false,
-        "responsive": true,
-        "lengthChange": false,
-        "autoWidth": false,
-        "buttons": ["csv", "excel", "pdf", "colvis"],
-        "data": data,
-        "columnDefs": [
-          {
-            "targets": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], // Índices de las columnas numéricas
-            "className": "text-right"
-          }
-        ]
-      }).buttons().container().appendTo('#tblRendimientos_wrapper .col-md-6:eq(0)');
-    },
-    error: function (error) {
-      console.error("Error al cargar datos:", error);
-      actualizarResumen([]);
-
-      // Inicializar DataTable vacio si hay error
-      $("#tblRendimientos").DataTable({
-        "sort": false,
-        "responsive": true,
-        "lengthChange": false,
-        "autoWidth": false,
-        "buttons": ["csv", "excel", "pdf", "colvis"]
-      }).buttons().container().appendTo('#tblRendimientos_wrapper .col-md-6:eq(0)');
-    }
-  });
+  cargarRendimientos(periodoInicial);
 });
 
