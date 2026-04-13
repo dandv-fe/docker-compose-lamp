@@ -447,6 +447,30 @@ class MiAhorro
       return $qBase ? $qBase->fetch_object() : null;
    }
 
+   private function ahorroPermiteMovimientos($idglobal, $idpersonaActual, $idahorro)
+   {
+      global $conexion;
+      $idglobal = intval($idglobal);
+      $idpersonaActual = intval($idpersonaActual);
+      $idahorro = intval($idahorro);
+
+      if ($idglobal <= 0 || $idpersonaActual <= 0 || $idahorro <= 0) {
+         return false;
+      }
+
+      $sql = "SELECT bit_auth_movimientos
+              FROM tbl_ahorros
+              WHERE idglobal=$idglobal
+                AND idpersona=$idpersonaActual
+                AND idahorro=$idahorro
+                AND str_tipo='ahorro'
+              LIMIT 1";
+      $query = $conexion->query($sql);
+      $reg = $query ? $query->fetch_object() : null;
+
+      return !empty($reg) && intval($reg->bit_auth_movimientos ?? 0) === 1;
+   }
+
    public function transferirDesdeCuentaBaseActual($idglobal, $idpersonaActual, $idahorroDestino, $idusuarioCreated, $monto, $descripcion = '')
    {
       global $conexion;
@@ -459,6 +483,10 @@ class MiAhorro
 
       if ($idglobal <= 0 || $idpersonaActual <= 0 || $idahorroDestino <= 0 || $idusuarioCreated <= 0 || $monto <= 0) {
          return ['status' => 'error', 'mensaje' => 'Parámetros inválidos'];
+      }
+
+      if (!$this->ahorroPermiteMovimientos($idglobal, $idpersonaActual, $idahorroDestino)) {
+         return ['status' => 'error', 'mensaje' => 'Este ahorro no está autorizado para recargar o retirar movimientos'];
       }
 
       $sw = true;
@@ -553,6 +581,10 @@ class MiAhorro
 
       if ($idglobal <= 0 || $idpersonaActual <= 0 || $idahorroOrigen <= 0 || $idusuarioCreated <= 0 || $monto <= 0) {
          return ['status' => 'error', 'mensaje' => 'Parámetros inválidos'];
+      }
+
+      if (!$this->ahorroPermiteMovimientos($idglobal, $idpersonaActual, $idahorroOrigen)) {
+         return ['status' => 'error', 'mensaje' => 'Este ahorro no está autorizado para recargar o retirar movimientos'];
       }
 
       $sw = true;

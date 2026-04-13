@@ -454,10 +454,10 @@ class MainAccountCorriente
 
       $idglobal = intval($idglobal);
       $idahorro = intval($idahorro);
-      $idmovimiento = intval($idmovimiento);
+      $idMovimiento = intval($idmovimiento);
       $idusuarioUpdated = intval($idusuarioUpdated);
 
-      if ($idglobal <= 0 || $idahorro <= 0 || $idmovimiento <= 0) {
+      if ($idglobal <= 0 || $idahorro <= 0 || $idMovimiento <= 0) {
          return false;
       }
 
@@ -466,7 +466,7 @@ class MainAccountCorriente
                SET str_estado='inactivo', update_at='$dt'
               WHERE idglobal=$idglobal
                 AND idahorro=$idahorro
-                AND idmovimiento=$idmovimiento
+                        AND idmovimiento=$idMovimiento
                 AND str_tipo='retiro'
                 AND str_estado='pendiente'";
 

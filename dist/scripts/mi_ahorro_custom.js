@@ -3,12 +3,29 @@
   'use strict';
 
   var ahorroDetalleActual = 0;
+  var ahorroDetallePermiteMovimientos = false;
   var movimientoEnProceso = false;
   var guardandoFormulario = false;
 
   function setAccionesMovimientoDisabled(disabled) {
     $('#btnRecargarMiAhorro').prop('disabled', disabled);
     $('#btnRetirarMiAhorro').prop('disabled', disabled);
+  }
+
+  function cuentaPermiteMovimientos(row) {
+    return parseInt((row && row.bit_auth_movimientos) || 0, 10) === 1;
+  }
+
+  function syncAccionesMovimiento() {
+    var disabled = movimientoEnProceso || !ahorroDetallePermiteMovimientos;
+    setAccionesMovimientoDisabled(disabled);
+
+    var mensaje = ahorroDetallePermiteMovimientos
+      ? 'Movimientos habilitados para este ahorro.'
+      : 'Este ahorro no tiene autorización para recargar o retirar.';
+
+    $('#btnRecargarMiAhorro').attr('title', mensaje);
+    $('#btnRetirarMiAhorro').attr('title', mensaje);
   }
 
   function formatMoney(v) {
@@ -148,11 +165,13 @@
 
   function verDetalle(row) {
     ahorroDetalleActual = parseInt(row.idahorro || 0, 10) || 0;
+    ahorroDetallePermiteMovimientos = cuentaPermiteMovimientos(row);
     $('#det_descripcion').text(row.str_name || '-');
     $('#det_numero').text(row.id_cuenta || '-');
     $('#det_saldo').text(formatMoney(row.saldo_real));
     $('#det_estado').text(row.str_estado || '-');
     $('#det_fecha').text(formatDateTime(row.created_at));
+    syncAccionesMovimiento();
 
     cargarMovimientosDetalle(ahorroDetalleActual);
 
@@ -169,6 +188,15 @@
 
     if (!ahorroDetalleActual) {
       Swal.fire({ icon: 'warning', title: 'Ahorro no disponible', text: 'Seleccione un ahorro válido.' });
+      return;
+    }
+
+    if (!ahorroDetallePermiteMovimientos) {
+      Swal.fire({
+        icon: 'warning',
+        title: 'Movimientos bloqueados',
+        text: 'Este ahorro no tiene autorización para recargar o retirar.'
+      });
       return;
     }
 
@@ -224,7 +252,7 @@
     }
 
     movimientoEnProceso = true;
-    setAccionesMovimientoDisabled(true);
+    syncAccionesMovimiento();
 
     $.ajax({
       url: './ajax/MiAhorroAjax.php?op=registrarMovimiento',
@@ -256,9 +284,11 @@
               return parseInt(item.idahorro || 0, 10) === ahorroDetalleActual;
             });
             if (row) {
+              ahorroDetallePermiteMovimientos = cuentaPermiteMovimientos(row);
               $('#det_saldo').text(formatMoney(row.saldo_real));
               $('#det_estado').text(row.str_estado || '-');
               $('#det_fecha').text(formatDateTime(row.created_at));
+              syncAccionesMovimiento();
             }
           });
       },
@@ -268,7 +298,7 @@
       },
       complete: function () {
         movimientoEnProceso = false;
-        setAccionesMovimientoDisabled(false);
+        syncAccionesMovimiento();
       }
     });
   }
