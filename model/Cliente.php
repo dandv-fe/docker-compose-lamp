@@ -37,93 +37,119 @@ class Cliente
       $dt = date('Y-m-d H:i:s');
       try {
          $idsucursal = $_SESSION['idsucursal'];
-         $sql = "SELECT
-				a.str_nombre
-				 FROM  `tbl_auth_sucursal` au INNER JOIN 
-						tbl_auths b ON b.idauth_sucursal=au.idauth_sucursal INNER JOIN 
-						tbl_auth a ON a.idauth=b.idauth 
-				 where au.str_estado<>'inactivo' AND 
-						 au.idempleado=$created_empleado_id AND 
-						 au.idsucursal=$idsucursal AND 
-						 a.str_nombre='crear cliente'";
-         $qry = $conexion->query($sql);
-         $bloq = $qry->fetch_object();
+         // Se migra a sentencias preparadas sin alterar mensajes ni flujo de retorno.
+         $bloq = db_fetch_object(
+            $conexion,
+            "SELECT
+            a.str_nombre
+             FROM  `tbl_auth_sucursal` au INNER JOIN 
+                  tbl_auths b ON b.idauth_sucursal=au.idauth_sucursal INNER JOIN 
+                  tbl_auth a ON a.idauth=b.idauth 
+             where au.str_estado<>'inactivo' AND 
+                   au.idempleado=? AND 
+                   au.idsucursal=? AND 
+                   a.str_nombre=?",
+            "iis",
+            [intval($created_empleado_id), intval($idsucursal), 'crear cliente']
+         );
          if (isset($_SESSION['userEmpresa']) || isset($bloq->str_nombre)) {
          } else {
             echo "ERROR: No estas authorizado para esta accion";
             return;
          }
 
-         $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$idglobal AND str_tipo_documento='$tipo_documento' AND str_num_documento='$num_documento'";
-         $query = $conexion->query($sql);
-         $request = $query->fetch_object();
+         $request = db_fetch_object(
+            $conexion,
+            "SELECT idpersona FROM tbl_persona WHERE idglobal=? AND str_tipo_documento=? AND str_num_documento=?",
+            "iss",
+            [intval($idglobal), $tipo_documento, $num_documento]
+         );
          if (isset($request->idpersona)) {
             echo "ERROR: Este Documento ya existe";
             return;
          }
 
-         $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$idglobal AND str_email='$email'";
-         $query = $conexion->query($sql);
-         $request = $query->fetch_object();
+         $request = db_fetch_object(
+            $conexion,
+            "SELECT idpersona FROM tbl_persona WHERE idglobal=? AND str_email=?",
+            "is",
+            [intval($idglobal), $email]
+         );
          if (isset($request->idpersona) && $email != '') {
             echo "ERROR: Este Email ya existe";
             return;
          }
 
-
-
-         $sql = "INSERT INTO `tbl_persona`(	
-					idglobal,
-					str_nombres,
-					str_apellidos,
-					str_sexo,
-					str_fecha_nacimiento,
-					str_tipo_documento,
-					str_num_documento,
-					str_telefono,
-					str_email,
-					str_foto,
-					str_ocupacion,
-					str_estado,
-					str_nota,
-					str_direccion_departamento,
-					str_direccion_ciudad,
-					str_direccion_barrio,
-					str_direccion_calle,
-					str_email_verificado,
-					created_at,
-					update_at
-	
-					)
-					 VALUES ($idglobal,'$nombres', '$apellidos', '$sexo', '$fecha_nacimiento', '$tipo_documento', '$num_documento', '$telefono', '$email', '$ruta_carga', '$ocupacion', 'activo', '$notaPersona',
-						'$direccion_departamento',
-						'$direccion_siudad',
-						'$direccion_barrio',
-						'$direccion_calle',
-							'',
-							'$dt',
-							'$dt'
-							)";
-
-         $conexion->query($sql) or throw new Exception('error!');
+         db_execute(
+            $conexion,
+            "INSERT INTO `tbl_persona`(
+               idglobal,
+               str_nombres,
+               str_apellidos,
+               str_sexo,
+               str_fecha_nacimiento,
+               str_tipo_documento,
+               str_num_documento,
+               str_telefono,
+               str_email,
+               str_foto,
+               str_ocupacion,
+               str_estado,
+               str_nota,
+               str_direccion_departamento,
+               str_direccion_ciudad,
+               str_direccion_barrio,
+               str_direccion_calle,
+               str_email_verificado,
+               created_at,
+               update_at
+               )
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            'i' . str_repeat('s', 19),
+            [
+               intval($idglobal),
+               $nombres,
+               $apellidos,
+               $sexo,
+               $fecha_nacimiento,
+               $tipo_documento,
+               $num_documento,
+               $telefono,
+               $email,
+               $ruta_carga,
+               $ocupacion,
+               'activo',
+               $notaPersona,
+               $direccion_departamento,
+               $direccion_siudad,
+               $direccion_barrio,
+               $direccion_calle,
+               '',
+               $dt,
+               $dt
+            ]
+         );
          $idpersona = $conexion->insert_id;
 
-         $sql = "INSERT INTO `tbl_clientes`(
-						idglobal,
-						idpersona,
-						dec_max_credito,
-						str_apodo,
-						str_nota,
-						str_estado,
-						str_calificacion,
-						fiador_persona_id,
-						created_empleado_id,
-						create_at,
-						update_at
-
-				 )
-				  VALUES ($idglobal, $idpersona, $max_credito, '$apodo', '$notaCliente', '$estadoCliente','nuevo', $fiador, $created_empleado_id, '$dt', '$dt')";
-         $conexion->query($sql) or throw new Exception('error!');
+         db_execute(
+            $conexion,
+            "INSERT INTO `tbl_clientes`(
+                  idglobal,
+                  idpersona,
+                  dec_max_credito,
+                  str_apodo,
+                  str_nota,
+                  str_estado,
+                  str_calificacion,
+                  fiador_persona_id,
+                  created_empleado_id,
+                  create_at,
+                  update_at
+                )
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "iidssssiiss",
+            [intval($idglobal), intval($idpersona), floatval($max_credito), $apodo, $notaCliente, $estadoCliente, 'nuevo', intval($fiador), intval($created_empleado_id), $dt, $dt]
+         );
       } catch (Exception $e) {
          //
          $sw = false;
@@ -170,87 +196,98 @@ class Cliente
       try {
 
          $idsucursal = $_SESSION['idsucursal'];
-         $sql = "SELECT
-				a.str_nombre
-				 FROM  `tbl_auth_sucursal` au INNER JOIN 
-						tbl_auths b ON b.idauth_sucursal=au.idauth_sucursal INNER JOIN 
-						tbl_auth a ON a.idauth=b.idauth 
-				 where au.str_estado<>'inactivo' AND 
-						 au.idempleado=$created_empleado_id AND 
-						 au.idsucursal=$idsucursal AND 
-						 a.str_nombre='editar cliente'";
-         $qry = $conexion->query($sql);
-         $bloq = $qry->fetch_object();
+         $bloq = db_fetch_object(
+            $conexion,
+            "SELECT
+            a.str_nombre
+             FROM  `tbl_auth_sucursal` au INNER JOIN 
+                  tbl_auths b ON b.idauth_sucursal=au.idauth_sucursal INNER JOIN 
+                  tbl_auth a ON a.idauth=b.idauth 
+             where au.str_estado<>'inactivo' AND 
+                   au.idempleado=? AND 
+                   au.idsucursal=? AND 
+                   a.str_nombre=?",
+            "iis",
+            [intval($created_empleado_id), intval($idsucursal), 'editar cliente']
+         );
          if (isset($_SESSION['userEmpresa']) || isset($bloq->str_nombre)) {
          } else {
             echo "ERROR: No estas authorizado para esta accion";
             return;
          }
 
-         $sql = "SELECT idpersona FROM tbl_persona
-				 WHERE idglobal=$idglobal 
-				 AND str_email='$email' 
-				 AND  idpersona<>$idpersona";
-         $query = $conexion->query($sql);
-         $request = $query->fetch_object();
+         $request = db_fetch_object(
+            $conexion,
+            "SELECT idpersona FROM tbl_persona WHERE idglobal=? AND str_email=? AND idpersona<>?",
+            "isi",
+            [intval($idglobal), $email, intval($idpersona)]
+         );
          if (isset($request->idpersona) && $email != '') {
             echo "ERROR: Este Email ya existe";
             return;
          }
 
-
-
-         $sql = "UPDATE `tbl_persona` SET	
-					str_nombres='$nombres',
-					str_apellidos='$apellidos',
-					str_sexo='$sexo',
-					str_fecha_nacimiento='$fecha_nacimiento',
-					str_tipo_documento='$tipo_documento',
-					str_num_documento='$num_documento',
-					str_telefono='$telefono',
-					str_email='$email',
-					str_foto='$ruta_carga',
-					str_ocupacion='$ocupacion',
-					str_nota='$notaPersona',
-					str_direccion_departamento='$direccion_departamento',
-					str_direccion_ciudad='$direccion_siudad',
-					str_direccion_barrio='$direccion_barrio',
-					str_direccion_calle='$direccion_calle',
-					update_at='$dt'
-					WHERE idpersona=$idpersona";
-
-         $conexion->query($sql) or throw new Exception('error!');
+         db_execute(
+            $conexion,
+            "UPDATE `tbl_persona` SET	
+               str_nombres=?,
+               str_apellidos=?,
+               str_sexo=?,
+               str_fecha_nacimiento=?,
+               str_tipo_documento=?,
+               str_num_documento=?,
+               str_telefono=?,
+               str_email=?,
+               str_foto=?,
+               str_ocupacion=?,
+               str_nota=?,
+               str_direccion_departamento=?,
+               str_direccion_ciudad=?,
+               str_direccion_barrio=?,
+               str_direccion_calle=?,
+               update_at=?
+               WHERE idpersona=?",
+            str_repeat('s', 16) . 'i',
+            [$nombres, $apellidos, $sexo, $fecha_nacimiento, $tipo_documento, $num_documento, $telefono, $email, $ruta_carga, $ocupacion, $notaPersona, $direccion_departamento, $direccion_siudad, $direccion_barrio, $direccion_calle, $dt, intval($idpersona)]
+         );
 
 
          if (empty($idcliente)) {
-            $sql = "INSERT INTO `tbl_clientes`(
-						idglobal,
-						idpersona,
-						dec_max_credito,
-						str_apodo,
-						str_nota,
-						str_estado,
-						str_calificacion,
-						fiador_persona_id,
-						created_empleado_id,
-						create_at,
-						update_at
+            db_execute(
+               $conexion,
+               "INSERT INTO `tbl_clientes`(
+                  idglobal,
+                  idpersona,
+                  dec_max_credito,
+                  str_apodo,
+                  str_nota,
+                  str_estado,
+                  str_calificacion,
+                  fiador_persona_id,
+                  created_empleado_id,
+                  create_at,
+                  update_at
 
-				 )
-				  VALUES ($idglobal, $idpersona, $max_credito, '$apodo', '$notaCliente', '$estadoCliente','nuevo', $fiador, $created_empleado_id, '$dt', '$dt')";
-            $conexion->query($sql) or throw new Exception('error!');
+                )
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+               "iidssssiiss",
+               [intval($idglobal), intval($idpersona), floatval($max_credito), $apodo, $notaCliente, $estadoCliente, 'nuevo', intval($fiador), intval($created_empleado_id), $dt, $dt]
+            );
          } else {
-            $sql = "UPDATE `tbl_clientes` SET
-						dec_max_credito=$max_credito,
-						str_apodo='$apodo',
-						str_nota='$notaCliente',
-						str_estado='$estadoCliente',
-						fiador_persona_id='$fiador',
-						created_empleado_id='$created_empleado_id',
-						update_at='$dt'
-						WHERE idcliente=$idcliente
-				";
-            $conexion->query($sql) or throw new Exception('error!');
+            db_execute(
+               $conexion,
+               "UPDATE `tbl_clientes` SET
+                  dec_max_credito=?,
+                  str_apodo=?,
+                  str_nota=?,
+                  str_estado=?,
+                  fiador_persona_id=?,
+                  created_empleado_id=?,
+                  update_at=?
+                  WHERE idcliente=?",
+               "dsssiisi",
+               [floatval($max_credito), $apodo, $notaCliente, $estadoCliente, intval($fiador), intval($created_empleado_id), $dt, intval($idcliente)]
+            );
          }
       } catch (Exception $e) {
          print_r($e);

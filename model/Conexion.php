@@ -65,4 +65,50 @@ if (mysqli_connect_errno()) {
    printf("Connect failed: %s\n", mysqli_connect_error());
    exit();
 }
+
+if (!function_exists('db_prepare_execute')) {
+   function db_prepare_execute(mysqli $conexion, $sql, $types = '', array $params = [])
+   {
+      $stmt = $conexion->prepare($sql);
+
+      if (($types === '' && !empty($params)) || ($types !== '' && strlen($types) !== count($params))) {
+         throw new InvalidArgumentException('ERROR: tipos/parametros invalidos en sentencia preparada');
+      }
+
+      if ($types !== '' && !empty($params)) {
+         // bind_param requiere referencias; usar call_user_func_array evita errores fatales con arrays desempaquetados.
+         $bindValues = [$types];
+         foreach ($params as $index => $value) {
+            $bindValues[] = &$params[$index];
+         }
+
+         call_user_func_array([$stmt, 'bind_param'], $bindValues);
+      }
+
+      $stmt->execute();
+      return $stmt;
+   }
+}
+
+if (!function_exists('db_fetch_object')) {
+   function db_fetch_object(mysqli $conexion, $sql, $types = '', array $params = [])
+   {
+      $stmt = db_prepare_execute($conexion, $sql, $types, $params);
+      $result = $stmt->get_result();
+      $row = $result ? $result->fetch_object() : null;
+      $stmt->close();
+
+      return $row;
+   }
+}
+
+if (!function_exists('db_execute')) {
+   function db_execute(mysqli $conexion, $sql, $types = '', array $params = [])
+   {
+      $stmt = db_prepare_execute($conexion, $sql, $types, $params);
+      $stmt->close();
+
+      return true;
+   }
+}
 //4377382
