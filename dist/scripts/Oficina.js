@@ -31,7 +31,7 @@ var Oficina = (function () {
         $tr.append('<td data-idempleado="' + idEmpleadoAdmin + '" data-idpersona="' + idpersona + '">' + representante + '</td>');
         $tr.append(`<td>
                         <button class="btn btn-sm btn-warning btnEditar" data-id="${item.id}"><i class="fa fa-pen"></i> <span class="d-none d-sm-inline">Editar</span></button>
-                        <!--<button class="btn btn-sm btn-info btnVistaOficina" data-item='${JSON.stringify(item)}'><i class="fa fa-eye"></i> <span class="d-none d-sm-inline">Ver</span></button>-->
+                        <button class="btn btn-sm btn-info btnVistaOficina" data-item='${JSON.stringify(item)}'><i class="fa fa-eye"></i> <span class="d-none d-sm-inline">Ver</span></button>
                       </td>`);
         $tbody.append($tr);
         verListado();
@@ -137,16 +137,16 @@ var Oficina = (function () {
       // }
       switch (e.target.getAttribute('id')) {
         case 'custom-tabs-five-overlay-tab-movimientos':
-          cargarMovimientos();
+           cargarMovimientos();
           break;
         case 'custom-tabs-five-overlay-dark-tab-carteras':
-          cargarCarteras();
+           cargarCarteras();
           break;
         case 'custom-tabs-five-normal-tab-empleados':
-          cargarEmpleados();
+           cargarEmpleados();
           break;
         default:
-          cargarDespedidos();
+           cargarDespedidos();
           break;
       }
     });
@@ -176,7 +176,7 @@ var Oficina = (function () {
     var idOficina = $('#txtRefOficinaDetalle').val() || '0';
     console.log('Listar carteras para oficina ID:', idOficina);
     // Aquí puedes agregar la lógica para listar las carteras asociadas a la oficina
-
+    
   }
   var cargarEmpleados = function () {
     var idOficina = $('#txtRefOficinaDetalle').val() || '0';
