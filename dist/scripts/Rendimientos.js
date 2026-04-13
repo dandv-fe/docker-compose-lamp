@@ -1,8 +1,57 @@
 $(function () {
+  var COLUMN_COUNT = 16;
+
   function limpiarTextoNumero(valor) {
     return String(valor || '')
       .replace(/<[^>]*>/g, '')
       .trim();
+  }
+
+  function formatearNumeroSeguro(valor) {
+    var raw = limpiarTextoNumero(valor).replace(/,/g, '');
+    var n = parseFloat(raw);
+    if (!isFinite(n)) {
+      n = 0;
+    }
+
+    return n.toLocaleString('en-US', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    });
+  }
+
+  function normalizarFila(fila) {
+    var row = Array.isArray(fila) ? fila.slice(0, COLUMN_COUNT) : [];
+    var isTotal = /<b>/i.test(String(row[0] || '')) || limpiarTextoNumero(row[0]).toUpperCase() === 'TOTAL';
+    var normalized = [];
+
+    normalized[0] = row[0] || '-';
+
+    for (var i = 1; i < COLUMN_COUNT; i++) {
+      var valor = formatearNumeroSeguro(row[i]);
+      normalized[i] = isTotal ? ('<b>' + valor + '</b>') : valor;
+    }
+
+    return normalized;
+  }
+
+  function normalizarRespuesta(response) {
+    var filas = Array.isArray(response) ? response : [];
+    return filas.map(normalizarFila);
+  }
+
+  function aplicarFechasMesActual() {
+    if (typeof moment !== 'function') {
+      return;
+    }
+
+    moment.locale('es');
+    var inicio = moment().startOf('month');
+    var fin = moment().endOf('month');
+
+    $('#txtMesActual').text(inicio.format('MMMM YYYY'));
+    $('#txtFechaDesde').val(inicio.format('YYYY-MM-DD'));
+    $('#txtFechaHasta').val(fin.format('YYYY-MM-DD'));
   }
 
   function actualizarResumen(response) {
@@ -20,10 +69,10 @@ $(function () {
       filaTotal = filas[filas.length - 1];
     }
 
-    $('#resumenGastos').text(filaTotal ? limpiarTextoNumero(filaTotal[9]) : '0.00');
-    $('#resumenSuma').text(filaTotal ? limpiarTextoNumero(filaTotal[13]) : '0.00');
-    $('#resumenSaldo').text(filaTotal ? limpiarTextoNumero(filaTotal[14]) : '0.00');
-    $('#resumenCrece').text(filaTotal ? limpiarTextoNumero(filaTotal[12]) : '0.00');
+    $('#resumenGastos').text(filaTotal ? formatearNumeroSeguro(filaTotal[9]) : '0.00');
+    $('#resumenSuma').text(filaTotal ? formatearNumeroSeguro(filaTotal[13]) : '0.00');
+    $('#resumenSaldo').text(filaTotal ? formatearNumeroSeguro(filaTotal[14]) : '0.00');
+    $('#resumenCrece').text(filaTotal ? formatearNumeroSeguro(filaTotal[12]) : '0.00');
   }
 
   // Activar menú
@@ -31,13 +80,20 @@ $(function () {
   $("#lia-consultaCobros").addClass('active');
   $("#lia-rendimientos").addClass('active');
 
+  aplicarFechasMesActual();
+
+  $('#btnRecargarRendimientos').on('click', function () {
+    window.location.reload();
+  });
+
   // Cargar datos primero
   $.ajax({
     url: "ajax/RendimientosAjax.php?op=GetCurrentMonth",
     type: "GET",
     dataType: "json",
     success: function (response) {
-      actualizarResumen(response);
+      var data = normalizarRespuesta(response);
+      actualizarResumen(data);
 
       // Luego inicializar DataTable CON los datos
       var Tabla = $("#tblRendimientos").DataTable({
@@ -46,7 +102,7 @@ $(function () {
         "lengthChange": false,
         "autoWidth": false,
         "buttons": ["csv", "excel", "pdf", "colvis"],
-        "data": response || [],
+        "data": data,
         "columnDefs": [
           {
             "targets": [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15], // Índices de las columnas numéricas
