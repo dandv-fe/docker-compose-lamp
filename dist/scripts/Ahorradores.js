@@ -533,7 +533,25 @@ function seleccionarAhorroSlide(index) {
     cargarMovimientosFicha(info.idAhorro);
   }
 }
+function escapeHtml(value) {
+  return String(value == null ? '' : value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+function getTipoLabel(mov) {
+  console.log(mov);
 
+  if (mov && mov.tipo_label) return mov.tipo_label;
+
+  var tipo = String((mov && mov[1]) || '').toLowerCase();
+  if (tipo === 'aporte') return 'Aporte';
+  if (tipo === 'retiro') return 'Retiro';
+  if (tipo === 'ajuste') return 'Interés';
+  return mov && mov[1] ? mov[1] : '-';
+}
 function cargarMovimientosFicha(idAhorro) {
   const $lista = $("#fichaMovimientosLista");
   const $info = $("#fichaMovimientosInfo");
@@ -584,10 +602,12 @@ function cargarMovimientosFicha(idAhorro) {
         const montoClass = esSalida ? 'text-danger' : 'text-success';
         const montoTexto = (esSalida ? '-' : '+') + monto;
         const descripcion = limpiarHtmlTexto(mov[3]);
-
+        if (mov[1] == 'retiro' || mov[1] == 'aporte') {
+          mov[1] = esSalida ? 'retiro' : 'aporte';
+        }
         const $li = $('<li>').addClass('list-group-item py-2');
         $li.append($('<div>').addClass('d-flex justify-content-between').append(
-          $('<strong>').text(tipo || '-'),
+          $('<strong>').text(escapeHtml(getTipoLabel(mov))),
           $('<span>').addClass(montoClass + ' font-weight-bold').text(montoTexto)
         ));
         $li.append($('<small>').addClass('text-muted d-block').text(fecha || '-'));

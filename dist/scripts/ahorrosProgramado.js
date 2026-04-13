@@ -119,6 +119,9 @@
         ? '<span class="text-danger font-weight-bold">-' + formatMoney(valor) + '</span>'
         : '<span class="text-success font-weight-bold">+' + formatMoney(valor) + '</span>';
 
+      if (m.str_tipo == 'retiro' || m.str_tipo == 'aporte') {
+        m.str_tipo = esSalida ? 'retiro' : 'aporte';
+      }
       return '<tr>' +
         '<td>' + escapeHtml(formatDateTime(m.date_movimiento)) + '</td>' +
         '<td>' + escapeHtml(getTipoLabel(m)) + '</td>' +

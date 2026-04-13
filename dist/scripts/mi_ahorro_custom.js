@@ -148,7 +148,7 @@
 
       return '<tr>' +
         '<td>' + escapeHtml(formatDateTime(m.date_movimiento)) + '</td>' +
-        '<td>' + escapeHtml(m.str_tipo || '-') + '</td>' +
+        '<td>' + escapeHtml(esSalida ? 'retiro' : 'aporte') + '</td>' +
         '<td>' + valorHtml + '</td>' +
         '<td>' + escapeHtml(m.str_descripcion || '-') + '</td>' +
         '<td>' + escapeHtml(m.str_estado || '-') + '</td>' +

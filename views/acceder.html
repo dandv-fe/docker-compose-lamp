@@ -1425,7 +1425,7 @@ if (isset($userSession['usuario']->idempleado)){
           const $monto = $('<span>').text(monto);
           aplicarColorSaldo($monto, montoFirmado);
           $li.append($('<div>').addClass('d-flex justify-content-between').append(
-            $('<strong>').text(tipo || '-'),
+            $('<strong>').text(montoFirmado < 0 ? 'retiro' : 'aporte'),
             $monto
           ));
           $li.append($('<small>').addClass('text-muted d-block').text(fecha || '-'));

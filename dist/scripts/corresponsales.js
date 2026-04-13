@@ -94,6 +94,15 @@
     // Permite continuar decimales cuando el usuario acaba de escribir separador.
     return /[\.,]$/.test(raw) ? intPart + ',' : intPart;
   }
+  function getTipoLabel(mov) {
+    if (mov && mov.tipo_label) return mov.tipo_label;
+
+    var tipo = String((mov && mov.str_tipo) || '').toLowerCase();
+    if (tipo === 'aporte') return 'Aporte';
+    if (tipo === 'retiro') return 'Retiro';
+    if (tipo === 'ajuste') return 'Interés';
+    return mov && mov.str_tipo ? mov.str_tipo : '-';
+  }
 
   function renderMovimientosDetalle(movimientos) {
     var $tbody = $('#tbodyMovimientosCorresponsal');
@@ -118,10 +127,13 @@
       var valorHtml = esSalida
         ? '<span class="text-danger font-weight-bold">-' + formatMoney(valor) + '</span>'
         : '<span class="text-success font-weight-bold">+' + formatMoney(valor) + '</span>';
-
+      m.str_tipo = esSalida ? 'retiro' : 'aporte';
+      if (m.str_tipo == 'retiro' || m.str_tipo == 'aporte') {
+        m.str_tipo = esSalida ? 'retiro' : 'aporte';
+      }
       return '<tr>' +
         '<td>' + escapeHtml(formatDateTime(m.date_movimiento)) + '</td>' +
-        '<td>' + escapeHtml(m.str_tipo || '-') + '</td>' +
+        '<td>' + escapeHtml(getTipoLabel(m)) + '</td>' +
         '<td>' + valorHtml + '</td>' +
         '<td>' + escapeHtml(m.str_descripcion || '-') + '</td>' +
         '<td>' + escapeHtml(m.str_estado || '-') + '</td>' +

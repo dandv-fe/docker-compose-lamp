@@ -196,7 +196,7 @@
         'data-int-codigo="' + escapeHtml(r.int_codigo || '') + '" ' +
         'data-update-at="' + escapeHtml(r.update_at || '') + '">' +
         '<td>' + escapeHtml(r.date_movimiento) + '</td>' +
-        '<td>' + escapeHtml(r.str_tipo) + '</td>' +
+        '<td>' + escapeHtml(esSalida ? 'retiro' : 'aporte') + '</td>' +
         '<td>' + valorHtml + '</td>' +
         '<td>' + escapeHtml(r.str_descripcion) + '</td>' +
         '<td>' + escapeHtml(r.str_estado) + '</td>' +
