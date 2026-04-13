@@ -1,6 +1,13 @@
 $(function () {
   var COLUMN_COUNT = 16;
   var tabla = null;
+  var requestActual = null;
+
+  function establecerEstadoCarga(cargando) {
+    $('#btnRecargarRendimientos')
+      .prop('disabled', !!cargando)
+      .toggleClass('disabled', !!cargando);
+  }
 
   function limpiarTextoNumero(valor) {
     return String(valor || '')
@@ -99,7 +106,13 @@ $(function () {
   function cargarRendimientos(periodo) {
     establecerPeriodoUI(periodo);
 
-    $.ajax({
+    if (requestActual && requestActual.readyState !== 4) {
+      requestActual.abort();
+    }
+
+    establecerEstadoCarga(true);
+
+    requestActual = $.ajax({
       url: "ajax/RendimientosAjax.php",
       type: "GET",
       dataType: "json",
@@ -113,9 +126,17 @@ $(function () {
         renderTabla(data);
       },
       error: function (error) {
+        if (error && error.statusText === 'abort') {
+          return;
+        }
+
         console.error("Error al cargar datos:", error);
         actualizarResumen([]);
         renderTabla([]);
+      },
+      complete: function () {
+        establecerEstadoCarga(false);
+        requestActual = null;
       }
     });
   }

@@ -6,6 +6,7 @@ $objRendimientos = new Rendimientos();
 $idglobal = $_SESSION['idglobal'];
 $userEmpleadoId = $_SESSION['idempleado'];
 $superadmin = $_SESSION['userEmpresa'];
+session_write_close();
 
 switch ($_GET["op"]) {
    case 'GetCurrentMonth':
@@ -16,13 +17,41 @@ switch ($_GET["op"]) {
 
       $query = $objRendimientos->listCurrentMonth($superadmin, $idglobal, $userEmpleadoId, $periodo);
       $data = array();
+      $totales = array(
+         'recaudo' => 0,
+         'prestamo' => 0,
+         'venta' => 0,
+         'seguro' => 0,
+         'diferencia' => 0,
+         'descuento' => 0,
+         'gastos' => 0,
+         'otros_gastos' => 0,
+         'salida' => 0,
+         'entrada' => 0,
+         'sum_cart' => 0,
+         'saldo_disp' => 0,
+         'valorTotalCreditos' => 0
+      );
 
       if ($query && $query->num_rows > 0) {
          while ($reg = $query->fetch_object()) {
-            // $utilidad_neta = $reg->utilidad - $reg->gastos;
             $utilidad = $reg->valorTotalCreditos + $reg->prestamo + $reg->venta + $reg->seguro + $reg->diferencia - $reg->descuento;
             $gastos = $reg->gastos + $reg->otros_gastos;
             $crece = $utilidad - $gastos - $reg->salida + $reg->entrada;
+
+            $totales['recaudo'] += (float)$reg->recaudo;
+            $totales['prestamo'] += (float)$reg->prestamo;
+            $totales['venta'] += (float)$reg->venta;
+            $totales['seguro'] += (float)$reg->seguro;
+            $totales['diferencia'] += (float)$reg->diferencia;
+            $totales['descuento'] += (float)$reg->descuento;
+            $totales['gastos'] += (float)$reg->gastos;
+            $totales['otros_gastos'] += (float)$reg->otros_gastos;
+            $totales['salida'] += (float)$reg->salida;
+            $totales['entrada'] += (float)$reg->entrada;
+            $totales['sum_cart'] += (float)$reg->sum_cart;
+            $totales['saldo_disp'] += (float)$reg->saldo_disp;
+            $totales['valorTotalCreditos'] += (float)$reg->valorTotalCreditos;
 
             $data[] = array(
                $reg->codigo,
@@ -44,31 +73,28 @@ switch ($_GET["op"]) {
             );
          }
 
-         // Agregar fila de totales
-         $queryTotal = $objRendimientos->getTotalCurrentMonth($superadmin, $idglobal, $userEmpleadoId, $periodo);
-         $total = $queryTotal->fetch_object();
-         $total_utilidad = $total->valorTotalCreditos + $total->prestamo + $total->venta + $total->seguro + $total->diferencia - $total->descuento;
-         $total_gastos = $total->gastos + $total->otros_gastos;
+         $total_utilidad = $totales['valorTotalCreditos'] + $totales['prestamo'] + $totales['venta'] + $totales['seguro'] + $totales['diferencia'] - $totales['descuento'];
+         $total_gastos = $totales['gastos'] + $totales['otros_gastos'];
          $utilidad_neta_total = $total_utilidad - $total_gastos;
-         $total_crece = $total_utilidad - $total_gastos + $total->movimientos;
+         $total_crece = $utilidad_neta_total - $totales['salida'] + $totales['entrada'];
 
          $data[] = array(
             '<b>TOTAL</b>',
-            '<b>' . number_format($total->recaudo, 2, '.', ',') . '</b>',
-            '<b>' . number_format($total->prestamo, 2, '.', ',') . '</b>',
-            '<b>' . number_format($total->venta, 2, '.', ',') . '</b>',
-            '<b>' . number_format($total->seguro, 2, '.', ',') . '</b>',
-            '<b>' . number_format($total->diferencia, 2, '.', ',') . '</b>',
-            '<b>' . number_format($total->descuento, 2, '.', ',') . '</b>',
+            '<b>' . number_format($totales['recaudo'], 2, '.', ',') . '</b>',
+            '<b>' . number_format($totales['prestamo'], 2, '.', ',') . '</b>',
+            '<b>' . number_format($totales['venta'], 2, '.', ',') . '</b>',
+            '<b>' . number_format($totales['seguro'], 2, '.', ',') . '</b>',
+            '<b>' . number_format($totales['diferencia'], 2, '.', ',') . '</b>',
+            '<b>' . number_format($totales['descuento'], 2, '.', ',') . '</b>',
             '<b>' . number_format($total_utilidad, 2, '.', ',') . '</b>',
             '<b>' . number_format($utilidad_neta_total, 2, '.', ',') . '</b>',
             '<b>' . number_format($total_gastos, 2, '.', ',') . '</b>',
-            '<b>' . number_format(0, 2, '.', ',') . '</b>',
-            '<b>' . number_format(0, 2, '.', ',') . '</b>',
+            '<b>' . number_format($totales['salida'], 2, '.', ',') . '</b>',
+            '<b>' . number_format($totales['entrada'], 2, '.', ',') . '</b>',
             '<b>' . number_format($total_crece, 2, '.', ',') . '</b>',
-            '<b>' . number_format($total->sum_cart, 2, '.', ',') . '</b>',
-            '<b>' . number_format($total->saldo_disp, 2, '.', ',') . '</b>',
-            '<b>' . number_format($total->valorTotalCreditos, 2, '.', ',') . '</b>'
+            '<b>' . number_format($totales['sum_cart'], 2, '.', ',') . '</b>',
+            '<b>' . number_format($totales['saldo_disp'], 2, '.', ',') . '</b>',
+            '<b>' . number_format($totales['valorTotalCreditos'], 2, '.', ',') . '</b>'
          );
       }
 
