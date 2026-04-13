@@ -174,6 +174,8 @@ switch ($_GET['op']) {
 
          $data[] = [
             'idmovimiento' => $reg->idmovimiento,
+            'idahorro' => $reg->idahorro,
+            'idahorro_de' => $reg->idahorro_de,
             'date_movimiento' => $reg->date_movimiento,
             'str_tipo' => $reg->str_tipo,
             'tipo_label' => $tipoLabel,

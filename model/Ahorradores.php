@@ -444,7 +444,9 @@ class Ahorradores
                 str_tipo AS tipo,
                 dec_valor AS monto,
                 str_descripcion AS descripcion,
-                str_estado AS estado
+                        str_estado AS estado,
+                        idahorro,
+                        idahorro_de
               FROM tbl_movimientos
               WHERE idglobal=$idglobal AND (idahorro=$idahorro OR idahorro_de=$idahorro)
                 AND UPPER(str_estado) <> 'INACTIVO'
@@ -456,6 +458,8 @@ class Ahorradores
    {
       global $conexion;
       $sql = "SELECT
+                m.idahorro,
+                m.idahorro_de,
                 m.date_movimiento AS fecha,
                 IFNULL(NULLIF(TRIM(a.id_cuenta), ''), CONCAT('Ahorro #', a.idahorro)) AS cuenta,
                 m.str_tipo AS tipo,

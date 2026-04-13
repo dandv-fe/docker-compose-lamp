@@ -145,12 +145,13 @@ switch ($_GET['op']) {
       while ($reg = $query->fetch_object()) {
          $data[] = [
             'idmovimiento' => $reg->idmovimiento,
+            'idahorro' => $reg->idahorro,
+            'idahorro_de' => $reg->idahorro_de,
             'date_movimiento' => $reg->date_movimiento,
             'str_tipo' => $reg->str_tipo,
             'dec_valor' => $reg->dec_valor,
             'str_descripcion' => $reg->str_descripcion,
             'str_estado' => $reg->str_estado,
-            'idahorro' => $reg->idahorro,
             'id_cuenta' => $reg->id_cuenta,
             'str_name' => $reg->str_name,
             'ahorrador' => trim((string)($reg->ahorrador ?? '')) !== '' ? $reg->ahorrador : 'No definido',

@@ -185,6 +185,12 @@
           </div>
           <!-- /.card -->
           <div id="VerConfiguracion" class="card">
+            <div class="card-header d-flex justify-content-between align-items-center perfil-header-sticky">
+              <h3 class="card-title mb-0">Perfil del ahorrador</h3>
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="ListadoAhorradores()">
+                <i class="fas fa-arrow-left mr-1"></i> Atrás
+              </button>
+            </div>
             <input type="hidden" id="txtRefAhorroConfig" />
             <div class="row">
               <div class="col-md-3">
@@ -832,5 +838,12 @@
   #VerConfiguracion .card.card-primary .card-body .text-muted,
   #txt_sexo_ahorrador.text-muted {
     color: #5f6770 !important;
+  }
+
+  .perfil-header-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+    background: #ffffff;
   }
 </style>

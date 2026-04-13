@@ -67,6 +67,8 @@ class Corresponsal
 
       $sql = "SELECT
                         m.idmovimiento,
+                        m.idahorro,
+                        m.idahorro_de,
                         m.date_movimiento,
                         m.str_tipo,
                         m.str_descripcion,

@@ -164,11 +164,29 @@
       return;
     }
 
+    var currentIdahorro = parseInt($('#idahorro').val() || 0, 10);
+
     var html = rows.map(function (r) {
       var valor = parseFloat(r.dec_valor) || 0;
-      var valorHtml = (r.str_tipo === 'retiro' || r.str_tipo === 'salida')
-        ? '<span class="text-danger font-weight-bold">' + formatMoney(valor) + '</span>'
-        : formatMoney(valor);
+      // Determinar si el movimiento llega vía idahorro_de (esta cuenta es el destino/origen referenciado)
+      var idahorroRow = parseInt(r.idahorro, 10);
+      var idahorroDeRow = parseInt(r.idahorro_de, 10);
+      var esMovVia = (idahorroDeRow === currentIdahorro && idahorroRow !== currentIdahorro);
+      var esSalida;
+      if (esMovVia) {
+        // idahorro_de = esta cuenta:
+        //   retiro  → +dec_valor (transferencia recibida, dinero que llega)
+        //   aporte/ajuste → -dec_valor (cede saldo a esta cuenta, reduce saldo de origen)
+        esSalida = (r.str_tipo === 'aporte' || r.str_tipo === 'ajuste');
+      } else {
+        // Movimiento directo sobre esta cuenta (idahorro = currentIdahorro):
+        //   retiro/salida → -dec_valor
+        //   aporte/ajuste/entrada → +dec_valor
+        esSalida = (r.str_tipo === 'retiro' || r.str_tipo === 'salida');
+      }
+      var valorHtml = esSalida
+        ? '<span class="text-danger font-weight-bold">-' + formatMoney(valor) + '</span>'
+        : '<span class="text-success font-weight-bold">+' + formatMoney(valor) + '</span>';
 
       return '<tr ' +
         'data-idmovimiento="' + escapeHtml(r.idmovimiento) + '" ' +

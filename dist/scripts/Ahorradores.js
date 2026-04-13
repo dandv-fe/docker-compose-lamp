@@ -567,14 +567,28 @@ function cargarMovimientosFicha(idAhorro) {
         const fecha = limpiarHtmlTexto(mov[0]);
         const tipo = limpiarHtmlTexto(getTipoMovimientoLabel(mov[1]));
         const montoValor = parseFloat(mov[2]) || 0;
-        const monto = formatearMoneda(montoValor);
-        const montoClass = montoValor < 0 ? 'text-danger' : 'text-success';
+        const idahorroRow = parseInt(mov[5] || 0, 10);
+        const idahorroDeRow = parseInt(mov[6] || 0, 10);
+        const strTipo = String(mov[1] || '').toLowerCase();
+
+        const idAhorroActual = parseInt(idAhorro || 0, 10);
+        const esMovVia = (idahorroDeRow === idAhorroActual && idahorroRow !== idAhorroActual);
+        let esSalida;
+        if (esMovVia) {
+          esSalida = (strTipo === 'aporte' || strTipo === 'ajuste');
+        } else {
+          esSalida = (strTipo === 'retiro' || strTipo === 'salida');
+        }
+
+        const monto = formatearMoneda(Math.abs(montoValor));
+        const montoClass = esSalida ? 'text-danger' : 'text-success';
+        const montoTexto = (esSalida ? '-' : '+') + monto;
         const descripcion = limpiarHtmlTexto(mov[3]);
 
         const $li = $('<li>').addClass('list-group-item py-2');
         $li.append($('<div>').addClass('d-flex justify-content-between').append(
           $('<strong>').text(tipo || '-'),
-          $('<span>').addClass(montoClass + ' font-weight-bold').text(monto)
+          $('<span>').addClass(montoClass + ' font-weight-bold').text(montoTexto)
         ));
         $li.append($('<small>').addClass('text-muted d-block').text(fecha || '-'));
         $li.append($('<small>').text(descripcion || 'Sin descripción'));
@@ -658,10 +672,20 @@ function listarMovimientosPersona(refPersona) {
       tabla.clear().draw();
       for (let i = 0; i < datos.length; i++) {
         const val = datos[i];
-        const montoRaw = parseFloat(String(val[3] || '').replace(/[^\d.-]/g, '')) || 0;
-        const montoHtml = montoRaw < 0
-          ? '<span class="text-danger font-weight-bold">' + val[3] + '</span>'
-          : val[3];
+        const monto = parseFloat(val[3] || 0);
+        const strTipo = String(val[2] || '').toLowerCase();
+
+        // En esta vista la fila pertenece a m.idahorro (cuenta mostrada), por lo que aplica regla directa.
+        const esSalida = (strTipo === 'retiro' || strTipo === 'salida');
+
+        const montoFormato = typeof window.formatearMonedaPublica === 'function'
+          ? window.formatearMonedaPublica(Math.abs(monto), 2)
+          : Math.abs(monto).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+        const montoHtml = esSalida
+          ? '<span class="text-danger font-weight-bold">-' + montoFormato + '</span>'
+          : '<span class="text-success font-weight-bold">+' + montoFormato + '</span>';
+
         tabla.row.add([
           val[0],
           val[1],

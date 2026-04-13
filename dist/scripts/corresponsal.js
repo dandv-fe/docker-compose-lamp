@@ -9,6 +9,8 @@
     guardando: false
   };
 
+  var currentCorresponsalId = 0;
+
   function formatMoney(value) {
     var n = parseFloat(value) || 0;
     if (typeof window.formatearMonedaPublica === 'function') {
@@ -83,9 +85,18 @@
       var valor = parseFloat(m.dec_valor) || 0;
       var saldo = parseFloat(m.saldo_acumulado) || 0;
       var referencia = m.int_codigo == null ? '-' : m.int_codigo;
-      var valorHtml = valor < 0
-        ? '<span class="text-danger font-weight-bold">' + formatMoney(valor) + '</span>'
-        : '<span class="text-success font-weight-bold">' + formatMoney(valor) + '</span>';
+      var idahorroRow = parseInt(m.idahorro, 10);
+      var idahorroDeRow = parseInt(m.idahorro_de, 10);
+      var esMovVia = (idahorroDeRow === currentCorresponsalId && idahorroRow !== currentCorresponsalId);
+      var esSalida;
+      if (esMovVia) {
+        esSalida = (m.str_tipo === 'aporte' || m.str_tipo === 'ajuste');
+      } else {
+        esSalida = (m.str_tipo === 'retiro' || m.str_tipo === 'salida');
+      }
+      var valorHtml = esSalida
+        ? '<span class="text-danger font-weight-bold">-' + formatMoney(valor) + '</span>'
+        : '<span class="text-success font-weight-bold">+' + formatMoney(valor) + '</span>';
 
       return '<tr>' +
         '<td>' + escapeHtml(formatDateTime(m.date_movimiento)) + '</td>' +
@@ -101,6 +112,7 @@
   }
 
   function cargarMovimientos(idahorro) {
+    currentCorresponsalId = parseInt(idahorro || 0, 10);
     $.getJSON('./ajax/CorresponsalAjax.php?op=listMovimientos', { idahorro: idahorro })
       .done(function (resp) {
         if (resp && resp.status === 'success' && Array.isArray(resp.data)) {

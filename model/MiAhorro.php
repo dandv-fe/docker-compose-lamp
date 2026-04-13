@@ -349,6 +349,7 @@ class MiAhorro
       global $conexion;
       $sql = "SELECT
                         m.idmovimiento,
+                        m.idahorro_de,
                         m.date_movimiento,
                         m.str_tipo,
                         m.dec_valor,
@@ -364,7 +365,7 @@ class MiAhorro
                      INNER JOIN tbl_ahorros a ON a.idahorro = m.idahorro AND a.idglobal = m.idglobal
                      LEFT JOIN tbl_persona p ON p.idpersona = a.idpersona
                      WHERE m.idglobal=$idglobal
-                        AND m.idahorro=$idahorro
+                        AND m.idahorro=$idahorro or m.idahorro_de=$idahorro
                      ORDER BY m.date_movimiento DESC, m.idmovimiento DESC";
       return $conexion->query($sql);
    }

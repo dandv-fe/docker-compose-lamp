@@ -163,6 +163,8 @@ switch ($_GET['op']) {
       while ($reg = $query->fetch_object()) {
          $data[] = [
             'idmovimiento' => $reg->idmovimiento,
+            'idahorro' => $reg->idahorro,
+            'idahorro_de' => $reg->idahorro_de,
             'date_movimiento' => $reg->date_movimiento,
             'str_tipo' => $reg->str_tipo,
             'dec_valor' => $reg->dec_valor,

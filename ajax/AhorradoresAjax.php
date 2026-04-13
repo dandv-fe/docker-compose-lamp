@@ -467,7 +467,9 @@ switch ($_GET["op"]) {
             $r->tipo,
             $r->monto,
             $r->descripcion,
-            $r->estado
+            $r->estado,
+            intval($r->idahorro ?? 0),
+            intval($r->idahorro_de ?? 0)
          ];
       }
       echo json_encode($data);
@@ -484,14 +486,16 @@ switch ($_GET["op"]) {
       $data = [];
       while ($r = $query->fetch_object()) {
          $fecha = format_date_safe($r->fecha ?? null, 'd/m/Y H:i', '-');
-         $monto = '$' . number_format(floatval($r->monto ?? 0), 2, '.', ',');
+         $monto = floatval($r->monto ?? 0);
          $data[] = [
             $fecha,
             $r->cuenta,
             $r->tipo,
             $monto,
             $r->descripcion,
-            $r->estado
+            $r->estado,
+            intval($r->idahorro ?? 0),
+            intval($r->idahorro_de ?? 0)
          ];
       }
       echo json_encode($data);

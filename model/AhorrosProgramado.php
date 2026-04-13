@@ -353,6 +353,8 @@ class AhorrosProgramado
       global $conexion;
       $sql = "SELECT
                 idmovimiento,
+                idahorro,
+                idahorro_de,
                 date_movimiento,
                 str_tipo,
                 dec_valor,

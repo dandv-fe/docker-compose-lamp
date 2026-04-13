@@ -169,6 +169,7 @@ class MainAccount
                   idmovimiento,
                   idglobal,
                   idahorro,
+                  idahorro_de,
                   idusuario_created,
                   date_movimiento,
                   str_tipo,

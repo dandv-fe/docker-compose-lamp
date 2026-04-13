@@ -124,9 +124,19 @@
 
     var html = rows.map(function (r) {
       var valor = parseFloat(r.dec_valor) || 0;
-      var valorHtml = valor < 0
-        ? '<span class="text-danger font-weight-bold">' + formatMoney(valor) + '</span>'
-        : formatMoney(valor);
+      var currentIdahorro = parseInt($('#idahorro').val() || 0, 10);
+      var idahorroRow = parseInt(r.idahorro, 10);
+      var idahorroDeRow = parseInt(r.idahorro_de, 10);
+      var esMovVia = (idahorroDeRow === currentIdahorro && idahorroRow !== currentIdahorro);
+      var esSalida;
+      if (esMovVia) {
+        esSalida = (r.str_tipo === 'aporte' || r.str_tipo === 'ajuste');
+      } else {
+        esSalida = (r.str_tipo === 'retiro' || r.str_tipo === 'salida');
+      }
+      var valorHtml = esSalida
+        ? '<span class="text-danger font-weight-bold">-' + formatMoney(valor) + '</span>'
+        : '<span class="text-success font-weight-bold">+' + formatMoney(valor) + '</span>';
 
       return '<tr ' +
         'data-idmovimiento="' + escapeHtml(r.idmovimiento) + '" ' +

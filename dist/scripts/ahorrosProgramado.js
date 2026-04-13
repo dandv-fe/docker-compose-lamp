@@ -106,9 +106,18 @@
 
     var html = movimientos.map(function (m) {
       var valor = parseFloat(m.dec_valor) || 0;
-      var valorHtml = valor < 0
-        ? '<span class="text-danger font-weight-bold">' + formatMoney(valor) + '</span>'
-        : formatMoney(valor);
+      var idahorroRow = parseInt(m.idahorro, 10);
+      var idahorroDeRow = parseInt(m.idahorro_de, 10);
+      var esMovVia = (idahorroDeRow === ahorroDetalleActual && idahorroRow !== ahorroDetalleActual);
+      var esSalida;
+      if (esMovVia) {
+        esSalida = (m.str_tipo === 'aporte' || m.str_tipo === 'ajuste');
+      } else {
+        esSalida = (m.str_tipo === 'retiro' || m.str_tipo === 'salida');
+      }
+      var valorHtml = esSalida
+        ? '<span class="text-danger font-weight-bold">-' + formatMoney(valor) + '</span>'
+        : '<span class="text-success font-weight-bold">+' + formatMoney(valor) + '</span>';
 
       return '<tr>' +
         '<td>' + escapeHtml(formatDateTime(m.date_movimiento)) + '</td>' +
