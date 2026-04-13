@@ -1385,7 +1385,25 @@ if (isset($userSession['usuario']->idempleado)){
       cargarMovimientosFicha(info.idAhorro);
     }
   }
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+  function getTipoLabel(mov) {
+    console.log(mov);
 
+    if (mov && mov.tipo_label) return mov.tipo_label;
+
+    var tipo = String((mov && mov.str_tipo) || '').toLowerCase();
+    if (tipo === 'aporte') return 'Aporte';
+    if (tipo === 'retiro') return 'Retiro';
+    if (tipo === 'ajuste') return 'Interés';
+    return mov && mov.str_tipo ? mov.str_tipo : '-';
+  }
   function cargarMovimientosFicha(idAhorro) {
     const $lista = $("#fichaMovimientosLista");
     const $info = $("#fichaMovimientosInfo");
@@ -1420,12 +1438,15 @@ if (isset($userSession['usuario']->idempleado)){
           const montoFirmado = obtenerMontoFirmadoPorTipo(tipo, mov.dec_valor, mov.monto_firmado);
           const monto = formatearMonedaVista(montoFirmado);
           const descripcion = limpiarHtmlTexto(mov.str_descripcion);
+          if (mov.str_tipo == 'retiro' || mov.str_tipo == 'aporte') {
+            mov.str_tipo = montoFirmado ? 'retiro' : 'aporte';
+          }
 
           const $li = $('<li>').addClass('list-group-item py-2');
           const $monto = $('<span>').text(monto);
           aplicarColorSaldo($monto, montoFirmado);
           $li.append($('<div>').addClass('d-flex justify-content-between').append(
-            $('<strong>').text(montoFirmado < 0 ? 'retiro' : 'aporte'),
+            $('<strong>').text(escapeHtml(getTipoLabel(mov))),
             $monto
           ));
           $li.append($('<small>').addClass('text-muted d-block').text(fecha || '-'));
