@@ -51,6 +51,16 @@ var Oficina = (function () {
     }).first().replaceWith(item.str_nombre || '');
     $('#txt-nombre-representante').text(item.representante || '');
     $('#txt-telefono-representante').text(item.telefono_representante || '');
+    // actualizar foto del representante (si existe) — fallback a imagen por defecto
+    var foto = item.foto || '';
+    if (foto && foto.indexOf('Files/') === 0) {
+      $('#imgRepresentanteOficina').attr('src', foto);
+    } else if (foto) {
+      // si es url relativa o absoluta, usarla
+      $('#imgRepresentanteOficina').attr('src', foto);
+    } else {
+      $('#imgRepresentanteOficina').attr('src', 'dist/img/user7-128x128.jpg');
+    }
     $('#txt-cantidad-carteras').text(item.cantidad_carteras || '0');
     $('#txt-cantidad-empleados').text(item.cantidad_empleados || '0');
     $('#txt-cantidad-despedidos').text(item.cantidad_despedidos || '0');

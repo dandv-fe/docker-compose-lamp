@@ -18,6 +18,7 @@ switch (isset($_GET["op"]) ? $_GET["op"] : '') {
             'idempleado_administrador' => $row->idempleado_administrador,
             'idpersona_representante' => $row->idpersona_representante,
             'representante' => $row->representante,
+            'foto' => isset($row->foto) ? $row->foto : '',
             'telefono_representante' => $row->telefono_representante,
             'cantidad_carteras' => $row->cantidad_carteras,
             'cantidad_empleados' => $row->cantidad_empleados,
