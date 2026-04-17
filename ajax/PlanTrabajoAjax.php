@@ -188,6 +188,36 @@ switch (isset($_GET["op"]) ? $_GET["op"] : '') {
         }
         break;
 
+    case 'listarDespedidos':
+        $idoficina = intval($_GET['idoficina']);
+        $data = array();
+        try {
+            global $conexion;
+            // Seleccionamos despidos asociados a empleados que pertenecen a la oficina
+            $sql = "SELECT ed.idempleado_despido AS id, ed.fecha_despido AS fechaDespido, ed.tipo_despido AS tipoDespido, ed.motivo_despido AS motivo, CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado, e.str_cargo AS cargo, p.str_telefono AS telefono
+                    FROM tbl_empleado_despido ed
+                    INNER JOIN tbl_empleado e ON e.idempleado = ed.idempleado
+                    INNER JOIN tbl_persona p ON p.idpersona = e.idpersona
+                    WHERE ed.idglobal = $useridglobal AND e.idoficina = $idoficina
+                    ORDER BY ed.created_at DESC";
+            $query = $conexion->query($sql);
+            while ($row = $query->fetch_object()) {
+                $data[] = array(
+                    'id' => $row->id,
+                    'fechaDespido' => $row->fechaDespido,
+                    'tipoDespido' => $row->tipoDespido,
+                    'motivo' => $row->motivo,
+                    'empleado' => $row->empleado,
+                    'cargo' => $row->cargo,
+                    'telefono' => $row->telefono
+                );
+            }
+            echo json_encode(array('ok' => true, 'data' => $data));
+        } catch (Exception $e) {
+            echo json_encode(array('ok' => false, 'msg' => 'Error al cargar despedidos: ' . $e->getMessage()));
+        }
+        break;
+
     case 'guardarSucursales':
         $idoficina = intval($_POST['idoficina']);
         $sucursales = isset($_POST['sucursales']) ? $_POST['sucursales'] : array();

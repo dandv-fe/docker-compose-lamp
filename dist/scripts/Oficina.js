@@ -237,7 +237,30 @@ var Oficina = (function () {
   var cargarDespedidos = function () {
     var idOficina = $('#txtRefOficinaDetalle').val() || '0';
     console.log('Listar despedidos para oficina ID:', idOficina);
-    // Aquí puedes agregar la lógica para listar los empleados despedidos asociados a la oficina
+    var $container = $('#custom-tabs-five-normal-retirados');
+    if (idOficina == '0' || idOficina === 0) {
+      $container.html('<div class="p-3 text-muted">Seleccione una oficina para ver los despedidos.</div>');
+      return;
+    }
+    $container.html('<div class="table-responsive"><table class="table table-sm table-striped"><thead><tr><th>#</th><th>Empleado</th><th>Cargo</th><th>Fecha</th><th>Motivo</th></tr></thead><tbody></tbody></table></div>');
+    var $tbody = $container.find('tbody');
+    $.getJSON('ajax/PlanTrabajoAjax.php?op=listarDespedidos&idoficina=' + encodeURIComponent(idOficina), function (res) {
+      if (!res.ok) { console.error(res.msg); $container.html('<div class="p-3 text-danger">Error cargando despedidos</div>'); return; }
+      if (!res.data || res.data.length === 0) {
+        $tbody.append('<tr><td colspan="5" class="text-center">No se encontraron despedidos</td></tr>');
+        return;
+      }
+      var i = 1;
+      res.data.forEach(function (d) {
+        var $tr = $('<tr>');
+        $tr.append('<td>' + (i++) + '</td>');
+        $tr.append('<td>' + (d.empleado || '') + '</td>');
+        $tr.append('<td>' + (d.cargo || '') + '</td>');
+        $tr.append('<td>' + (d.fechaDespido || '') + '</td>');
+        $tr.append('<td>' + (d.motivo || '') + '</td>');
+        $tbody.append($tr);
+      });
+    }).fail(function (err) { console.error('Error cargando despedidos', err); $container.html('<div class="p-3 text-danger">Error cargando despedidos</div>'); });
   };
 
   return {
