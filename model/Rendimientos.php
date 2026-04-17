@@ -25,6 +25,7 @@ class Rendimientos
       return array($primerDia, $ultimoDia);
    }
 
+
    private function buildScopeWhere($superadmin, $idglobal, $userEmpleadoId)
    {
       global $conexion;
@@ -82,6 +83,7 @@ class Rendimientos
       $scopeWhere = $this->buildScopeWhere($superadmin, $idglobal, $userEmpleadoId);
       $scopeWhereSucursal = str_replace('refSucursal', 's.idsucursal', $scopeWhere);
 
+      
       $sql = "SELECT 
       s.str_codigo AS codigo,
          IFNULL(v.recaudo, 0) AS recaudo,
@@ -94,9 +96,28 @@ class Rendimientos
          IFNULL(v.otros_gastos, 0) AS otros_gastos,
          IFNULL(v.salida, 0) AS salida,
          IFNULL(v.entrada, 0) AS entrada,
-         IFNULL(v.sum_cart, 0) AS sum_cart,
-         IFNULL(v.saldo_disp, 0) AS saldo_disp,
-         IFNULL(v.valorTotalCreditos, 0) AS valorTotalCreditos
+
+         
+         (SELECT IFNULL( sum( dec_resta ), 0 ) 
+            FROM tbl_tarjetas WHERE idsucursal=s.idsucursal 
+                     AND str_estado<>'cancelado' 
+                     AND str_estado<>'inactiva' 
+                     AND str_estado<>'moroso' 
+                     AND str_estado<>'fallecio'
+                     AND str_estado<>'discapacitado'
+          ) AS sum_cart,
+
+         IFNULL(v.saldo_disp +(SELECT IFNULL( sum( efectivoCaja ), 0 ) 
+            FROM view_cobro_detallado WHERE refSucursal=s.idsucursal AND fecha_at<'$primerDia'), 0)  AS saldo_disp,
+
+         (SELECT IFNULL( sum( dec_resta ), 0 ) 
+            FROM tbl_tarjetas WHERE idsucursal=s.idsucursal 
+                     AND str_estado<>'cancelado' 
+                     AND str_estado<>'inactiva' 
+
+          ) AS valorTotalCreditos
+
+
       FROM tbl_sucursal s
       LEFT JOIN (
          SELECT
