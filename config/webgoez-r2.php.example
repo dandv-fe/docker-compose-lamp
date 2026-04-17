@@ -9,6 +9,7 @@
 
 return [
     'bucket' => 'R2_BUCKET_PLACEHOLDER',
+    'account_id' => 'TU_ACCOUNT_ID', // Lo encuentras en la URL o el panel de R2
     'access_key_id' => 'R2_ACCESS_KEY_ID_PLACEHOLDER',
     'secret_access_key' => 'R2_SECRET_ACCESS_KEY_PLACEHOLDER',
     'endpoint' => 'https://<ACCOUNT_ID>.r2.cloudflarestorage.com',
