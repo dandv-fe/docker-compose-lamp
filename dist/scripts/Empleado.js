@@ -856,6 +856,13 @@ function cargarDataEmpleado(tipo_documento, num_documento, accion) {// funcion q
     $("#txtRefUsuario").val(data.refUsuario)
     $("#txt_Login").val(data.username)
     $("#txtidPublica").val(data.id)
+    // Si viene la oficina del empleado, seleccionar en el combo
+    if (typeof data.idoficina !== 'undefined' && data.idoficina !== null) {
+      $('#cboOficinaEmpleado').val(data.idoficina);
+      $('#txtRefOficinaEmpleado').val(data.idoficina);
+    } else {
+      $('#txtRefOficinaEmpleado').val('');
+    }
 
   }
   function perfil(data) {

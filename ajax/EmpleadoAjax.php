@@ -266,6 +266,8 @@ switch ($_GET["op"]) {
          $req->username = $request->username;
          $req->id = $request->id;
          $req->t_condiciones = $request->t_condiciones;
+         // Si el empleado tiene oficina asociada, devolverla
+         $req->idoficina = isset($request->idoficina) ? $request->idoficina : null;
       }
       echo json_encode($req);
       break;

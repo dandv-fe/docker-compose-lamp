@@ -403,7 +403,8 @@ print_r($e);
             u.idusuario AS refUsuario,
             u.str_user_name AS username,
             u.str_password AS id,
-            u.str_terminos_condiciones AS t_condiciones
+            u.str_terminos_condiciones AS t_condiciones,
+            e.idoficina AS idoficina
          FROM tbl_empleado e INNER JOIN 
          tbl_usuario u ON u.idpersona=e.idpersona WHERE e.idpersona=$idpersona";
       $query = $conexion->query($sql);
