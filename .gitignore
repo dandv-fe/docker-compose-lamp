@@ -36,3 +36,8 @@ error_log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Private config templates / files (do not commit actual credentials)
+config/webgoez-db.php
+config/webgoez-r2.php
+/*.secret.php
