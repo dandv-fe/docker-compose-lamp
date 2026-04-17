@@ -137,16 +137,16 @@ var Oficina = (function () {
       // }
       switch (e.target.getAttribute('id')) {
         case 'custom-tabs-five-overlay-tab-movimientos':
-           cargarMovimientos();
+          cargarMovimientos();
           break;
         case 'custom-tabs-five-overlay-dark-tab-carteras':
-           cargarCarteras();
+          cargarCarteras();
           break;
         case 'custom-tabs-five-normal-tab-empleados':
-           cargarEmpleados();
+          cargarEmpleados();
           break;
         default:
-           cargarDespedidos();
+          cargarDespedidos();
           break;
       }
     });
@@ -203,7 +203,28 @@ var Oficina = (function () {
   var cargarEmpleados = function () {
     var idOficina = $('#txtRefOficinaDetalle').val() || '0';
     console.log('Listar empleados para oficina ID:', idOficina);
-    // Aquí puedes agregar la lógica para listar los empleados asociados a la oficina
+    var $container = $('#custom-tabs-five-normal-empleados');
+    if (idOficina == '0' || idOficina === 0) {
+      $container.html('<div class="p-3 text-muted">Seleccione una oficina para ver sus empleados.</div>');
+      return;
+    }
+    $container.html('<div class="table-responsive"><table class="table table-sm table-striped"><thead><tr><th>#</th><th>Empleado</th><th>Estado</th></tr></thead><tbody></tbody></table></div>');
+    var $tbody = $container.find('tbody');
+    $.getJSON('ajax/PlanTrabajoAjax.php?op=listarEmpleados&idoficina=' + encodeURIComponent(idOficina), function (res) {
+      if (!res.ok) { console.error(res.msg); $container.html('<div class="p-3 text-danger">Error cargando empleados</div>'); return; }
+      if (!res.data || res.data.length === 0) {
+        $tbody.append('<tr><td colspan="3" class="text-center">No se encontraron empleados</td></tr>');
+        return;
+      }
+      var i = 1;
+      res.data.forEach(function (emp) {
+        var $tr = $('<tr>');
+        $tr.append('<td>' + (i++) + '</td>');
+        $tr.append('<td>' + (emp.nombre || '') + '</td>');
+        $tr.append('<td>' + (emp.asignado ? 'Asignado' : 'Disponible') + '</td>');
+        $tbody.append($tr);
+      });
+    }).fail(function (err) { console.error('Error cargando empleados', err); $container.html('<div class="p-3 text-danger">Error cargando empleados</div>'); });
   }
   var cargarDespedidos = function () {
     var idOficina = $('#txtRefOficinaDetalle').val() || '0';
