@@ -124,7 +124,7 @@ class Cliente
                $direccion_siudad,
                $direccion_barrio,
                $direccion_calle,
-               '',
+               '0',
                $dt,
                $dt
             ]
@@ -227,6 +227,14 @@ class Cliente
             return;
          }
 
+         // resetear verificación si cambia el email
+         $cur = $conexion->query("SELECT str_email FROM tbl_persona WHERE idpersona=$idpersona");
+         $curRow = $cur->fetch_object();
+         $email_verif_sql = '';
+         if (isset($curRow->str_email) && $curRow->str_email !== $email) {
+            $email_verif_sql = ", str_email_verificado='0'";
+         }
+
          db_execute(
             $conexion,
             "UPDATE `tbl_persona` SET	
@@ -244,7 +252,7 @@ class Cliente
                str_direccion_departamento=?,
                str_direccion_ciudad=?,
                str_direccion_barrio=?,
-               str_direccion_calle=?,
+               str_direccion_calle=? $email_verif_sql,
                update_at=?
                WHERE idpersona=?",
             str_repeat('s', 16) . 'i',
@@ -690,9 +698,9 @@ class Cliente
 					 VALUES ($reg->idglobal,'$reg->str_nombres', '$reg->str_apellidos', '$reg->str_sexo', '$reg->str_fecha_nacimiento', '$reg->str_tipo_documento', '$reg->str_num_documento', '$reg->str_telefono', '$reg->str_email', '$reg->str_foto', '$reg->str_ocupacion', 'activo', '$reg->str_nota',
 						'$reg->str_direccion_departamento',
 						'$reg->str_direccion_ciudad',
-						'$reg->str_direccion_barrio',
-						'$reg->str_direccion_calle',
-							'',
+                  '$reg->str_direccion_barrio',
+                  '$reg->str_direccion_calle',
+                     '0',
 							'$dt',
 							'$dt'
 							)";

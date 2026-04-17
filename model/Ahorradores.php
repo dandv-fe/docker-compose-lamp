@@ -80,7 +80,7 @@ class Ahorradores
                  '$sexo', '$fecha_nacimiento', '$tipo_documento', '$num_documento', 
                  '$telefono', '$email', '$ruta_carga', '$ocupacion', 'activo', 
                  '$nota', '$direccion_departamento',  '$direccion_siudad',
-                    '$direccion_barrio', '$direccion_calle', '', '$dt', '$dt'
+                  '$direccion_barrio', '$direccion_calle', '0', '$dt', '$dt'
                         )";
          $conexion->query($sql) or throw new Exception('error!');
          $idpersona = $conexion->insert_id;
@@ -181,24 +181,33 @@ class Ahorradores
 
 
 
-         $sql = "UPDATE `tbl_persona` SET	
-                str_nombres='$nombres',
-                str_apellidos='$apellidos',
-                str_sexo='$sexo',
-                str_fecha_nacimiento='$fecha_nacimiento',
-                str_tipo_documento='$tipo_documento',
-                str_num_documento='$num_documento',
-                str_telefono='$telefono',
-                str_email='$email',
-                str_foto='$ruta_carga',
-                str_ocupacion='$ocupacion',
-                str_nota='$nota',
-                str_direccion_departamento='$direccion_departamento',
-                str_direccion_ciudad='$direccion_siudad',
-                str_direccion_barrio='$direccion_barrio',
-                str_direccion_calle='$direccion_calle',
-                update_at='$dt'
-                WHERE idpersona=$idpersona";
+           // Resetear verificación si cambia el email
+           $cur = $conexion->query("SELECT str_email FROM tbl_persona WHERE idpersona=$idpersona");
+           $curRow = $cur->fetch_object();
+           $email_verif_sql = '';
+           if (isset($curRow->str_email) && $curRow->str_email !== $email) {
+              $email_verif_sql = ", str_email_verificado='0'";
+           }
+
+           $sql = "UPDATE `tbl_persona` SET	
+              str_nombres='$nombres',
+              str_apellidos='$apellidos',
+              str_sexo='$sexo',
+              str_fecha_nacimiento='$fecha_nacimiento',
+              str_tipo_documento='$tipo_documento',
+              str_num_documento='$num_documento',
+              str_telefono='$telefono',
+              str_email='$email',
+              str_foto='$ruta_carga',
+              str_ocupacion='$ocupacion',
+              str_nota='$nota',
+              str_direccion_departamento='$direccion_departamento',
+              str_direccion_ciudad='$direccion_siudad',
+              str_direccion_barrio='$direccion_barrio',
+              str_direccion_calle='$direccion_calle' 
+              $email_verif_sql,
+              update_at='$dt'
+              WHERE idpersona=$idpersona";
 
          $conexion->query($sql) or throw new Exception('error!');
 
