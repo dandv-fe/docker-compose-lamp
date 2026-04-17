@@ -13,6 +13,10 @@ var Oficina = (function () {
 
     verListado();
 
+    // Si la pestaña 'Carteras' está marcada como activa por defecto, cargar su contenido
+    if ($('#custom-tabs-five-overlay-dark-tab-carteras').hasClass('active')) {
+      cargarCarteras();
+    }
   };
 
   var cargarOficinas = function () {
@@ -51,6 +55,10 @@ var Oficina = (function () {
     $('#txt-cantidad-empleados').text(item.cantidad_empleados || '0');
     $('#txt-cantidad-despedidos').text(item.cantidad_despedidos || '0');
     verDetalle();
+    // Si la pestaña Cartera está activa al mostrar detalle, cargar carteras inmediatamente
+    if ($('#custom-tabs-five-overlay-dark-tab-carteras').hasClass('active')) {
+      cargarCarteras();
+    }
     /*
     $.getJSON('ajax/OficinaAjax.php?op=detalle', { id: idOficina }, function (res) {
       // console.log(res.data);
