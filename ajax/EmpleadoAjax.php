@@ -47,6 +47,13 @@ switch ($_GET["op"]) {
       $apodo = limpiar_cadena($_POST["txtApodo"]);
       $cargo = limpiar_cadena($_POST["txtCargo"]);
       $maxCredito = limpiar_cadena($_POST["txtMaxCredito"]) ?: 0; // Valor por defecto 0 si está vacío
+      // oficina seleccionada (puede venir por select o por hidden)
+      $idoficina = '';
+      if (isset($_POST['cboOficinaEmpleado'])) {
+         $idoficina = limpiar_cadena($_POST['cboOficinaEmpleado']);
+      } elseif (isset($_POST['txtRefOficinaEmpleado'])) {
+         $idoficina = limpiar_cadena($_POST['txtRefOficinaEmpleado']);
+      }
       //$estadoEmpleado = limpiar_cadena($_POST["txtEstadoEmpleado"]);
 
       $os = array("Super Administrador", "Semanal", "Quincenal", "Mensual");
@@ -102,6 +109,7 @@ switch ($_GET["op"]) {
                      $apodo,
                      $cargo,
                      $maxCredito,
+                     $idoficina,
                      $idglobal
                   );
                } else {
@@ -132,6 +140,7 @@ switch ($_GET["op"]) {
                      $apodo,
                      $cargo,
                      $maxCredito,
+                     $idoficina,
                      $idglobal
                   );
                }
@@ -168,6 +177,7 @@ switch ($_GET["op"]) {
                $apodo,
                $cargo,
                $maxCredito,
+               $idoficina,
                $idglobal
             );
          } else {
@@ -196,6 +206,7 @@ switch ($_GET["op"]) {
                $apodo,
                $cargo,
                $maxCredito,
+               $idoficina,
                $idglobal
             );
          }
