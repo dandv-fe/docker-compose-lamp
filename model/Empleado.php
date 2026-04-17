@@ -88,7 +88,7 @@ class Empleado
          $conexion->query($sql) or throw new Exception('error!');
          $idpersona = $conexion->insert_id;
 
-          $sql = "INSERT INTO `tbl_empleado`(
+            $sql = "INSERT INTO `tbl_empleado`(
                  idglobal,
                  idpersona,
                  str_apodo,
@@ -101,7 +101,7 @@ class Empleado
                  created_at,
                  update_at
               )
-               VALUES ($idglobal, $idpersona, '$apodo', '$cargo', 'activo', '', '$fechaIngreso', $maxCredito, " . (empty($idoficina) ? 'NULL' : intval($idoficina)) . ", '$dt', '$dt')";
+               VALUES ($idglobal, $idpersona, '$apodo', '$cargo', 'activo', '', '$fechaIngreso', $maxCredito, " . intval($idoficina) . ", '$dt', '$dt')";
          $conexion->query($sql) or throw new Exception('error!');
 
          $sql = "INSERT INTO `tbl_usuario`(
@@ -232,16 +232,16 @@ print_r($e);
                    created_at,
                    update_at
                 )
-                 VALUES ($idglobal, $idpersona, '$apodo', '$cargo', 'activo', '', '$fechaIngreso', $maxCredito, " . (empty($idoficina) ? 'NULL' : intval($idoficina)) . ", '$dt', '$dt')";
+                 VALUES ($idglobal, $idpersona, '$apodo', '$cargo', 'activo', '', '$fechaIngreso', $maxCredito, " . intval($idoficina) . ", '$dt', '$dt')";
             $conexion->query($sql) or throw new Exception('error!');
          } else {
-            $sql = "UPDATE `tbl_empleado` SET
+                $sql = "UPDATE `tbl_empleado` SET
                     str_apodo='$apodo',
                     str_cargo='$cargo',
                     str_comentarios='',
                     date_fecha_inicio='$fechaIngreso',
                     dec_max_credito=$maxCredito,
-                   idoficina=" . (empty($idoficina) ? 'NULL' : intval($idoficina)) . ",
+                  idoficina=" . intval($idoficina) . ",
                    update_at='$dt'
                     WHERE idempleado=$idempleado
             ";
