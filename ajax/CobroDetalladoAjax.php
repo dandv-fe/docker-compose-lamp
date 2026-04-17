@@ -14,7 +14,7 @@ switch ($_GET["op"]) {
       require_once "../model/Despachar.php";
       $objDespacar = new Despachar();
       $ultimo = limpiar_cadena($_POST["txtUltimo"]);
-      $idsucursal = limpiar_cadena($_POST['cbosucursal']);
+      $idsucursal = intval($_POST['cbosucursal']);
       $desde = limpiar_cadena2($_POST['txtFechaDesde']);
       $hasta = limpiar_cadena2($_POST['txtFechaHasta']);
       $query = null;
@@ -26,7 +26,6 @@ switch ($_GET["op"]) {
       $textarea = '';
       $caja = 0;
       $i = 0;
-
       $query = $objCobroDetallado->list($idsucursal, $desde, $hasta, $ultimo);
       while ($reg = $query[0]->fetch_object()) {
          if ($ultimo == 'true') {
@@ -34,9 +33,16 @@ switch ($_GET["op"]) {
          } else {
             $caja += $i ? $reg->efectivoCaja : ($query[1] + $reg->efectivoCaja); // $reg->efectivoCaja;
          }
-         // print_r($caja);
+
+
+
+
+          
          $numRuw = 0;
-         $query1 = $objDespacar->getEmpleadosYaDspachados($reg->refDetalle_ruta);
+
+
+
+         $query1 = $objDespacar->getEmpleadosYaDspachados($reg->refDetalleRuta);
          $textarea = '<textarea class="form-control" rows="' . mysqli_num_rows($query1) . '" readonly style=" resize: none;" >';
          while ($a = $query1->fetch_object()) {
             $phpeol = mysqli_num_rows($query1) - 1 != $numRuw ? PHP_EOL : '';
@@ -79,7 +85,7 @@ switch ($_GET["op"]) {
             $reg->entrada,
             $reg->descripcion_entrada,
 
-            '<button onclick="verFormContabilibad(' . $reg->refDetalle_ruta . ', \'' . $reg->codigo . '\', \'' . $reg->tipo . '\', ' . $caja . ')" class="btn btn-default m-0">
+            '<button onclick="verFormContabilibad(' . $reg->refDetalleRuta . ', \'' . $reg->codigo . '\', \'' . $reg->tipo . '\', ' . $caja . ')" class="btn btn-default m-0">
                 
                 <i class="fa-regular fa-eye fa-lg" style="color: #000000;"></i>
               </button>'
