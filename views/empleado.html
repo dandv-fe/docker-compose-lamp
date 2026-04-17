@@ -85,6 +85,7 @@
           <div id="VerForm" class="card">
             <form role="form" name="frmEmpleado" id="frmEmpleado" enctype="multipart/form-data">
               <input id="txtidPublica" type="hidden" class="form-control" maxlength="32" name="txtidPublica" />
+              <input id="txtRefOficinaEmpleado" type="hidden" name="txtRefOficinaEmpleado" />
               <div class="card-header">
                 <h3 class="card-title">Datos de persona</h3>
               </div>
@@ -173,6 +174,17 @@
                             empleado</small>
                         </div>
                       </div>
+
+                      <div class="col-md-4">
+                        <div class="form-group has-success">
+                          <label for="cboOficinaEmpleado">Oficina</label>
+                          <select id="cboOficinaEmpleado" name="cboOficinaEmpleado" class="form-control">
+                            <option value="">Cargando...</option>
+                          </select>
+                          <small class="form-text text-muted">Seleccione la oficina donde trabajará el empleado</small>
+                        </div>
+                      </div>
+
                     </div>
                   </div>
                 </div>

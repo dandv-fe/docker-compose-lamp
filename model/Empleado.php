@@ -109,7 +109,7 @@ class Empleado
           VALUES ($idglobal, $idpersona, '$login', '$password', 'pendiente', 'activo')";
          $conexion->query($sql) or throw new Exception('error!');
       } catch (Exception $e) {
-
+print_r($e);
          $sw = false;
          $conexion->rollback();
       }
@@ -268,7 +268,7 @@ class Empleado
             $conexion->query($sql) or throw new Exception('error!');
          }
       } catch (Exception $e) {
-
+print_r($e);
          $sw = false;
          $conexion->rollback();
       }

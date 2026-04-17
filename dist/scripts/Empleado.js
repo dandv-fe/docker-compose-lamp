@@ -20,6 +20,9 @@ jQuery(document).ready(function () {
 
   OcultarForm();
 
+  // Cargar oficinas en el combo
+  cargarOficinasCbo();
+
   $("#dateDeste").on("hide.datetimepicker", function (e) {
     $("form#formSearchNominaDetallado").trigger('submit');
   });
@@ -501,6 +504,38 @@ function AuthorizacionEmpleado() {
     error: function (e) {
       console.log(e.responseText);
     }
+  });
+}
+
+// Carga las oficinas disponibles y las pone en el select #cboOficinaEmpleado
+function cargarOficinasCbo() {
+  const $cbo = $("#cboOficinaEmpleado");
+  $cbo.prop('disabled', true);
+  $.ajax({
+    url: './ajax/OficinaAjax.php?op=list',
+    type: 'GET',
+    dataType: 'json',
+    success: function (res) {
+      $cbo.empty();
+      if (res && res.ok && Array.isArray(res.data)) {
+        $cbo.append('<option value="">- Seleccione Oficina -</option>');
+        res.data.forEach(function (of) {
+          $cbo.append('<option value="' + of.id + '">' + of.str_nombre + '</option>');
+        });
+      } else {
+        $cbo.append('<option value="">No hay oficinas</option>');
+      }
+      $cbo.prop('disabled', false);
+    },
+    error: function (e) {
+      console.log(e.responseText || e);
+      $cbo.empty().append('<option value="">Error cargando oficinas</option>').prop('disabled', false);
+    }
+  });
+
+  // Al cambiar, guardar en el hidden para enviar si se requiere
+  $(document).off('change', '#cboOficinaEmpleado').on('change', '#cboOficinaEmpleado', function () {
+    $('#txtRefOficinaEmpleado').val($(this).val());
   });
 }
 
