@@ -52,6 +52,22 @@ switch ($_GET["op"]) {
       echo json_encode($data);
       break;
 
+   case 'listByOficina':
+      $idoficina = intval($_GET['idoficina']);
+      $data = array();
+      $query = $objSucursal->ListarPorOficina($idoficina);
+      while ($reg = $query->fetch_object()) {
+         $data[] = array(
+            'id' => $reg->id,
+            'codigo' => $reg->codigo,
+            'tipo' => $reg->tipo,
+            'empleado' => $reg->empleado,
+            'estado' => $reg->estado
+         );
+      }
+      echo json_encode(array('ok' => true, 'data' => $data));
+      break;
+
 
 
    case 'buscarSucursal':

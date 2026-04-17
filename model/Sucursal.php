@@ -158,6 +158,24 @@
 			$query = $conexion->query($sql);
 			return $query;
 		}
+
+		public function ListarPorOficina($idoficina){
+			global $conexion;
+			$idoficina = intval($idoficina);
+			$sql = "SELECT 
+			s.idsucursal AS id,
+			s.str_tipo AS tipo,
+			s.str_codigo AS codigo,
+			s.str_estado AS estado,
+			CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado
+			FROM tbl_sucursal s 
+			LEFT JOIN tbl_empleado e ON e.idempleado = s.idempleado
+			LEFT JOIN tbl_persona p ON p.idpersona = e.idpersona
+			WHERE s.idoficina=$idoficina
+			ORDER BY s.idsucursal DESC";
+			$query = $conexion->query($sql);
+			return $query;
+		}
 		public function buscarSucursal($idsucursal){
 			global $conexion;
 			$sql = "SELECT 

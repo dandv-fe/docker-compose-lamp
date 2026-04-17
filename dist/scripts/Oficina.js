@@ -175,8 +175,30 @@ var Oficina = (function () {
   var cargarCarteras = function () {
     var idOficina = $('#txtRefOficinaDetalle').val() || '0';
     console.log('Listar carteras para oficina ID:', idOficina);
-    // Aquí puedes agregar la lógica para listar las carteras asociadas a la oficina
-    
+    var $container = $('#custom-tabs-five-overlay-dark-carteras');
+    if (idOficina == '0' || idOficina === 0) {
+      $container.html('<div class="p-3 text-muted">Seleccione una oficina para ver sus carteras.</div>');
+      return;
+    }
+    $container.html('<div class="table-responsive"><table class="table table-sm table-striped"><thead><tr><th>#</th><th>Código</th><th>Tipo</th><th>Empleado</th><th>Estado</th></tr></thead><tbody></tbody></table></div>');
+    var $tbody = $container.find('tbody');
+    $.getJSON('ajax/SucursalAjax.php?op=listByOficina&idoficina=' + encodeURIComponent(idOficina), function (res) {
+      if (!res.ok) { console.error(res.msg); $container.html('<div class="p-3 text-danger">Error cargando carteras</div>'); return; }
+      if (!res.data || res.data.length === 0) {
+        $tbody.append('<tr><td colspan="5" class="text-center">No se encontraron carteras</td></tr>');
+        return;
+      }
+      var i = 1;
+      res.data.forEach(function (suc) {
+        var $tr = $('<tr>');
+        $tr.append('<td>' + (i++) + '</td>');
+        $tr.append('<td>' + (suc.codigo || '') + '</td>');
+        $tr.append('<td>' + (suc.tipo || '') + '</td>');
+        $tr.append('<td>' + (suc.empleado || '') + '</td>');
+        $tr.append('<td>' + (suc.estado || '') + '</td>');
+        $tbody.append($tr);
+      });
+    }).fail(function (err) { console.error('Error cargando carteras', err); $container.html('<div class="p-3 text-danger">Error cargando carteras</div>'); });
   }
   var cargarEmpleados = function () {
     var idOficina = $('#txtRefOficinaDetalle').val() || '0';

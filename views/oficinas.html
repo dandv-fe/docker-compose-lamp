@@ -8,255 +8,210 @@
 <script type="text/javascript" src="dist/scripts/Oficina.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper">
-    <!-- Content Header (Page header) -->
-    <div id="txt-titulo-oficinas" class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h1 class="m-0">Oficinas</h1>
-                </div><!-- /.col -->
-            </div><!-- /.row -->
-        </div><!-- /.container-fluid -->
-    </div>
-    <!-- /.content-header -->
-    <!-- Main content -->
-    <section class="content">
-        <div class="container-fluid">
-            <div class="card card-default">
-                <div id="VerOficina" class="row">
-                    <div class="col-12">
-                        <div class="card card-outline card-warning vh-100">
-                            <div class="card-header pl-0">
-                                <input type="hidden" name="txtRefOficinaDetalle" id="txtRefOficinaDetalle" value="0">
-                                <h3 id="txt-nombre-oficina-detalle" class="card-title"><i id="icono-ver-lista-oficinas"
-                                        class="fa-solid fa-arrow-left" style="cursor: pointer;">&lArr;&nbsp;</i> Warning
-                                    Outline</h3>
-                                <!-- /.card-tools -->
-                            </div>
-                            <!-- /.card-header -->
-                            <div class="card-body p-0">
-                                <div class="row justify-content-center align-items-center">
-                                    <div class="col-md-4">
-                                        <!-- Widget: user widget style 2 -->
-                                        <div class="card card-widget widget-user-2">
-                                            <!-- Add the bg color to the header using any of the bg-* classes -->
-                                            <div class="widget-user-header bg-warning">
-                                                <div class="widget-user-image">
-                                                    <img class="img-circle elevation-2" src="dist/img/user7-128x128.jpg"
-                                                        alt="User Avatar">
-                                                </div>
-                                                <!-- /.widget-user-image -->
-                                                <h3 id="txt-nombre-representante" class="widget-user-username">Nadia
-                                                    Carmichael</h3>
-                                                <h5 id="txt-telefono-representante" class="widget-user-desc">Lead
-                                                    Developer</h5>
-                                            </div>
-                                            <div class="card-footer p-0">
-                                                <ul class="nav flex-column">
-                                                    <li class="nav-item">
-                                                        <a href="#" class="nav-link">
-                                                            Caja <span class="float-right badge bg-warning">31</span>
-                                                        </a>
-                                                    </li>
-                                                    <li class="nav-item">
-                                                        <a href="#" class="nav-link">
-                                                            Carteras <span id="txt-cantidad-carteras"
-                                                                class="float-right badge bg-info">578</span>
-                                                        </a>
-                                                    </li>
-                                                    <li class="nav-item">
-                                                        <a href="#" class="nav-link">
-                                                            Empleados <span id="txt-cantidad-empleados"
-                                                                class="float-right badge bg-success">12</span>
-                                                        </a>
-                                                    </li>
-                                                    <li class="nav-item">
-                                                        <a href="#" class="nav-link">
-                                                            Despedidos <span id="txt-cantidad-despedidos"
-                                                                class="float-right badge bg-danger">842</span>
-                                                        </a>
-                                                    </li>
-                                                </ul>
-                                            </div>
-                                        </div>
-                                        <!-- /.widget-user -->
-                                    </div>
-                                </div>
-                                <style>
-                                    .tab-content .tab-pane {
-                                        min-height: 300px;
-                                        /* 🔹 altura fija */
-                                        overflow-y: auto;
-                                        /* 🔹 agrega scroll si el contenido es más alto */
-                                        padding: 15px;
-                                        /* opcional: espacio interno */
-                                        border: 1px solid #dee2e6;
-                                        /* opcional: borde visible */
-                                        border-top: none;
-                                        /* para que no duplique el borde del nav-tabs */
-                                    }
-                                </style>
-                                <div class="row">
-                                    <div class="col-md-12">
-                                        <div class="card card-warning card-outline card-tabs m-0">
-                                            <div class="card-header p-0 pt-1">
-                                                <ul class="nav nav-tabs" id="custom-tabs-five-tab" role="tablist">
-                                                    <li class="nav-item">
-                                                        <a class="nav-link"
-                                                            id="custom-tabs-five-overlay-tab-movimientos"
-                                                            data-toggle="pill"
-                                                            href="#custom-tabs-five-overlay-movimientos" role="tab"
-                                                            aria-controls="custom-tabs-five-overlay-movimientos"
-                                                            aria-selected="true">Movimientos</a>
-                                                    </li>
-                                                    <li class="nav-item">
-                                                        <a class="nav-link"
-                                                            id="custom-tabs-five-overlay-dark-tab-carteras"
-                                                            data-toggle="pill"
-                                                            href="#custom-tabs-five-overlay-dark-carteras" role="tab"
-                                                            aria-controls="custom-tabs-five-overlay-dark-carteras"
-                                                            aria-selected="false">Carteras</a>
-                                                    </li>
-                                                    <li class="nav-item">
-                                                        <a class="nav-link" id="custom-tabs-five-normal-tab-empleados"
-                                                            data-toggle="pill" href="#custom-tabs-five-normal-empleados"
-                                                            role="tab" aria-controls="custom-tabs-five-normal-empleados"
-                                                            aria-selected="false">Empleados</a>
-                                                    </li>
-                                                    <li class="nav-item">
-                                                        <a class="nav-link" id="custom-tabs-five-normal-tab-retirados"
-                                                            data-toggle="pill" href="#custom-tabs-five-normal-retirados"
-                                                            role="tab" aria-controls="custom-tabs-five-normal-retirados"
-                                                            aria-selected="false">Despedidos</a>
-                                                    </li>
-                                                </ul>
-                                            </div>
-                                            <div class="card-body">
-                                                <div class="tab-content" id="custom-tabs-five-tabContent">
-                                                    <div class="tab-pane fade" id="custom-tabs-five-overlay-movimientos"
-                                                        role="tabpanel"
-                                                        aria-labelledby="custom-tabs-five-overlay-tab-movimientos">
-                                                        <div class="overlay-wrapper">
-                                                            <div class="overlay"><i
-                                                                    class="fas fa-3x fa-sync-alt fa-spin"></i>
-                                                                <div class="text-bold pt-2">Loading...</div>
-                                                            </div>
-                                                            Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-                                                            Proin malesuada lacus ullamcorper dui molestie, sit amet
-                                                            congue quam finibus. Etiam ultricies nunc non magna feugiat
-                                                            commodo. Etiam odio magna, mollis auctor felis vitae,
-                                                            ullamcorper ornare ligula. Proin pellentesque tincidunt
-                                                            nisi, vitae ullamcorper felis aliquam id. Pellentesque
-                                                            habitant morbi tristique senectus et netus et malesuada
-                                                            fames ac turpis egestas. Proin id orci eu lectus blandit
-                                                            suscipit. Phasellus porta, ante et varius ornare, sem enim
-                                                            sollicitudin eros, at commodo leo est vitae lacus. Etiam ut
-                                                            porta sem. Proin porttitor porta nisl, id tempor risus
-                                                            rhoncus quis. In in quam a nibh cursus pulvinar non
-                                                            consequat neque. Mauris lacus elit, condimentum ac
-                                                            condimentum at, semper vitae lectus. Cras lacinia erat eget
-                                                            sapien porta consectetur.
-                                                        </div>
-                                                    </div>
-                                                    <div class="tab-pane fade"
-                                                        id="custom-tabs-five-overlay-dark-carteras" role="tabpanel"
-                                                        aria-labelledby="custom-tabs-five-overlay-dark-tab-carteras">
-
-                                                        Pellentesque vestibulum commodo nibh nec blandit. Maecenas
-                                                        neque magna, iaculis tempus turpis ac, ornare sodales
-                                                        tellus. Mauris eget blandit dolor. Quisque tincidunt
-                                                        venenatis vulputate. Morbi euismod molestie tristique.
-                                                        Vestibulum consectetur dolor a vestibulum pharetra. Donec
-                                                        interdum placerat urna nec pharetra. Etiam eget dapibus
-                                                        orci, eget aliquet urna. Nunc at consequat diam. Nunc et
-                                                        felis ut nisl commodo dignissim. In hac habitasse platea
-                                                        dictumst. Praesent imperdiet accumsan ex sit amet facilisis.
-
-                                                    </div>
-                                                    <div class="tab-pane fade" id="custom-tabs-five-normal-empleados"
-                                                        role="tabpanel"
-                                                        aria-labelledby="custom-tabs-five-normal-tab-empleados">
-                                                        Mauris tincidunt mi at erat gravida, eget tristique urna
-                                                        bibendum. Mauris pharetra purus ut ligula tempor, et vulputate
-                                                        metus facilisis. Lorem ipsum dolor sit amet, consectetur
-                                                        adipiscing elit. Vestibulum ante ipsum primis in faucibus orci
-                                                        luctus et ultrices posuere cubilia Curae; Maecenas sollicitudin,
-                                                        nisi a luctus interdum, nisl ligula placerat mi, quis posuere
-                                                        purus ligula eu lectus. Donec nunc tellus, elementum sit amet
-                                                        ultricies at, posuere nec nunc. Nunc euismod pellentesque diam.
-                                                    </div>
-
-                                                    <div class="tab-pane fade" id="custom-tabs-five-normal-retirados"
-                                                        role="tabpanel"
-                                                        aria-labelledby="custom-tabs-five-normal-tab-retirados">
-                                                        <h1>retirados</h1>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <!-- /.card -->
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <!-- /.card-body -->
+  <!-- Content Header (Page header) -->
+  <div id="txt-titulo-oficinas" class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1 class="m-0">Oficinas</h1>
+        </div><!-- /.col -->
+      </div><!-- /.row -->
+    </div><!-- /.container-fluid -->
+  </div>
+  <!-- /.content-header -->
+  <!-- Main content -->
+  <section class="content">
+    <div class="container-fluid">
+      <div class="card card-default">
+        <div id="VerOficina" class="row">
+          <div class="col-12">
+            <div class="card card-outline card-warning vh-100">
+              <div class="card-header pl-0">
+                <input type="hidden" name="txtRefOficinaDetalle" id="txtRefOficinaDetalle" value="0">
+                <h3 id="txt-nombre-oficina-detalle" class="card-title"><i id="icono-ver-lista-oficinas"
+                    class="fa-solid fa-arrow-left" style="cursor: pointer;">&lArr;&nbsp;</i> Warning
+                  Outline</h3>
+                <!-- /.card-tools -->
+              </div>
+              <!-- /.card-header -->
+              <div class="card-body p-0">
+                <div class="row justify-content-center align-items-center">
+                  <div class="col-md-4">
+                    <!-- Widget: user widget style 2 -->
+                    <div class="card card-widget widget-user-2">
+                      <!-- Add the bg color to the header using any of the bg-* classes -->
+                      <div class="widget-user-header bg-warning">
+                        <div class="widget-user-image">
+                          <img class="img-circle elevation-2" src="dist/img/user7-128x128.jpg" alt="User Avatar">
                         </div>
-                        <!-- /.card -->
+                        <!-- /.widget-user-image -->
+                        <h3 id="txt-nombre-representante" class="widget-user-username">Nadia
+                          Carmichael</h3>
+                        <h5 id="txt-telefono-representante" class="widget-user-desc">Lead
+                          Developer</h5>
+                      </div>
+                      <div class="card-footer p-0">
+                        <ul class="nav flex-column">
+                          <!--li class="nav-item">
+                            <a href="#" class="nav-link">
+                              Caja <span class="float-right badge bg-warning">31</span>
+                            </a>
+                          </li-->
+                          <li class="nav-item">
+                            <a href="#" class="nav-link">
+                              Carteras <span id="txt-cantidad-carteras" class="float-right badge bg-info">578</span>
+                            </a>
+                          </li>
+                          <li class="nav-item">
+                            <a href="#" class="nav-link">
+                              Empleados <span id="txt-cantidad-empleados" class="float-right badge bg-success">12</span>
+                            </a>
+                          </li>
+                          <li class="nav-item">
+                            <a href="#" class="nav-link">
+                              Despedidos <span id="txt-cantidad-despedidos"
+                                class="float-right badge bg-danger">842</span>
+                            </a>
+                          </li>
+                        </ul>
+                      </div>
                     </div>
-
+                    <!-- /.widget-user -->
+                  </div>
                 </div>
+                <style>
+                  .tab-content .tab-pane {
+                    min-height: 300px;
+                    /* 🔹 altura fija */
+                    overflow-y: auto;
+                    /* 🔹 agrega scroll si el contenido es más alto */
+                    padding: 15px;
+                    /* opcional: espacio interno */
+                    border: 1px solid #dee2e6;
+                    /* opcional: borde visible */
+                    border-top: none;
+                    /* para que no duplique el borde del nav-tabs */
+                  }
+                </style>
+                <div class="row">
+                  <div class="col-md-12">
+                    <div class="card card-warning card-outline card-tabs m-0">
+                      <div class="card-header p-0 pt-1">
+                        <ul class="nav nav-tabs" id="custom-tabs-five-tab" role="tablist">
+                          <li class="nav-item">
+                            <a class="nav-link active" id="custom-tabs-five-overlay-dark-tab-carteras"
+                              data-toggle="pill" href="#custom-tabs-five-overlay-dark-carteras" role="tab"
+                              aria-controls="custom-tabs-five-overlay-dark-carteras" aria-selected="true">Carteras</a>
+                          </li>
+                          <li class="nav-item">
+                            <a class="nav-link" id="custom-tabs-five-normal-tab-empleados" data-toggle="pill"
+                              href="#custom-tabs-five-normal-empleados" role="tab"
+                              aria-controls="custom-tabs-five-normal-empleados" aria-selected="false">Empleados</a>
+                          </li>
+                          <li class="nav-item">
+                            <a class="nav-link" id="custom-tabs-five-normal-tab-retirados" data-toggle="pill"
+                              href="#custom-tabs-five-normal-retirados" role="tab"
+                              aria-controls="custom-tabs-five-normal-retirados" aria-selected="false">Despedidos</a>
+                          </li>
+                        </ul>
+                      </div>
+                      <div class="card-body">
+                        <div class="tab-content" id="custom-tabs-five-tabContent">
+                          <div class="tab-pane fade show active" id="custom-tabs-five-overlay-dark-carteras"
+                            role="tabpanel" aria-labelledby="custom-tabs-five-overlay-dark-tab-carteras">
 
+                            Pellentesque vestibulum commodo nibh nec blandit. Maecenas
+                            neque magna, iaculis tempus turpis ac, ornare sodales
+                            tellus. Mauris eget blandit dolor. Quisque tincidunt
+                            venenatis vulputate. Morbi euismod molestie tristique.
+                            Vestibulum consectetur dolor a vestibulum pharetra. Donec
+                            interdum placerat urna nec pharetra. Etiam eget dapibus
+                            orci, eget aliquet urna. Nunc at consequat diam. Nunc et
+                            felis ut nisl commodo dignissim. In hac habitasse platea
+                            dictumst. Praesent imperdiet accumsan ex sit amet facilisis.
 
+                          </div>
+                          <div class="tab-pane fade" id="custom-tabs-five-normal-empleados" role="tabpanel"
+                            aria-labelledby="custom-tabs-five-normal-tab-empleados">
+                            Mauris tincidunt mi at erat gravida, eget tristique urna
+                            bibendum. Mauris pharetra purus ut ligula tempor, et vulputate
+                            metus facilisis. Lorem ipsum dolor sit amet, consectetur
+                            adipiscing elit. Vestibulum ante ipsum primis in faucibus orci
+                            luctus et ultrices posuere cubilia Curae; Maecenas sollicitudin,
+                            nisi a luctus interdum, nisl ligula placerat mi, quis posuere
+                            purus ligula eu lectus. Donec nunc tellus, elementum sit amet
+                            ultricies at, posuere nec nunc. Nunc euismod pellentesque diam.
+                          </div>
 
-
-
-                <button id="btnNuevaOficina" type="button" class="btn btn-primary float-left"
-                    style="width: 200px;margin: 5px;">
-                    <i class="fas fa-download"></i> Crear Nueva Oficina
-                </button>
-
-                <div id="VerListado">
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h3 class="card-title">Listado</h3>
-                                </div>
-                                <!-- /.card-header -->
-                                <div class="card-body">
-                                    <div class="table-responsive">
-                                        <table class="table table-bordered table-striped">
-                                            <thead>
-                                                <tr>
-                                                    <th>#</th>
-                                                    <th>Nombre</th>
-                                                    <th>Representante</th>
-                                                    <th>Opciones</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                            </tbody>
-                                            <tfoot>
-                                                <tr>
-                                                    <th>#</th>
-                                                    <th>Nombre</th>
-                                                    <th>Representante</th>
-                                                    <th>Opciones</th>
-                                                </tr>
-                                            </tfoot>
-                                        </table>
-                                    </div>
-                                </div>
-                            </div>
+                          <div class="tab-pane fade" id="custom-tabs-five-normal-retirados" role="tabpanel"
+                            aria-labelledby="custom-tabs-five-normal-tab-retirados">
+                            <h1>retirados</h1>
+                          </div>
                         </div>
+                      </div>
+                      <!-- /.card -->
                     </div>
+                  </div>
                 </div>
-
-
-
+              </div>
+              <!-- /.card-body -->
             </div>
             <!-- /.card -->
+          </div>
+
         </div>
-    </section>
+
+
+
+
+
+        <button id="btnNuevaOficina" type="button" class="btn btn-primary float-left" style="width: 200px;margin: 5px;">
+          <i class="fas fa-download"></i> Crear Nueva Oficina
+        </button>
+
+        <div id="VerListado">
+          <div class="row">
+            <div class="col-12">
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">Listado</h3>
+                </div>
+                <!-- /.card-header -->
+                <div class="card-body">
+                  <div class="table-responsive">
+                    <table class="table table-bordered table-striped">
+                      <thead>
+                        <tr>
+                          <th>#</th>
+                          <th>Nombre</th>
+                          <th>Representante</th>
+                          <th>Opciones</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                      </tbody>
+                      <tfoot>
+                        <tr>
+                          <th>#</th>
+                          <th>Nombre</th>
+                          <th>Representante</th>
+                          <th>Opciones</th>
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+
+      </div>
+      <!-- /.card -->
+    </div>
+  </section>
 </div>
 
 <!-- DataTables  & Plugins -->
@@ -274,61 +229,61 @@
 
 
 <script type="text/javascript">
-    $("#li-manteniniento").addClass('menu-open')
-    $(".lia-mantenimiento").addClass('active')
-    $(".lia-oficinas").addClass('active')
+  $("#li-manteniniento").addClass('menu-open')
+  $(".lia-mantenimiento").addClass('active')
+  $(".lia-oficinas").addClass('active')
 </script>
 
 <style>
-    /* Mejoras responsive para la vista de oficinas */
-    .table th,
-    .table td {
-        white-space: normal;
-        vertical-align: middle;
-    }
+  /* Mejoras responsive para la vista de oficinas */
+  .table th,
+  .table td {
+    white-space: normal;
+    vertical-align: middle;
+  }
 
+  .btnEditar {
+    min-width: 72px;
+  }
+
+  /* en pantallas pequeñas hacer los botones full-width */
+  @media (max-width: 576px) {
     .btnEditar {
-        min-width: 72px;
+      display: block;
+      width: 100%;
     }
-
-    /* en pantallas pequeñas hacer los botones full-width */
-    @media (max-width: 576px) {
-        .btnEditar {
-            display: block;
-            width: 100%;
-        }
-    }
+  }
 </style>
 
 <!-- Modal Crear/Editar Oficina -->
 <div class="modal fade" id="modalOficina">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h4 id="modalOficinaTitle" class="modal-title">Nueva Oficina</h4>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="formOficina">
-                    <input type="hidden" id="txtRefOficina" name="txtRefOficina" value="0">
-                    <div class="form-group">
-                        <label>Nombre</label>
-                        <input type="text" id="txtNombre" name="txtNombre" class="form-control" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Administrador (Empleado)</label>
-                        <select id="cboAdministrador" name="cboAdministrador" class="form-control">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 id="modalOficinaTitle" class="modal-title">Nueva Oficina</h4>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <form id="formOficina">
+          <input type="hidden" id="txtRefOficina" name="txtRefOficina" value="0">
+          <div class="form-group">
+            <label>Nombre</label>
+            <input type="text" id="txtNombre" name="txtNombre" class="form-control" required>
+          </div>
+          <div class="form-group">
+            <label>Administrador (Empleado)</label>
+            <select id="cboAdministrador" name="cboAdministrador" class="form-control">
 
-                        </select>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer justify-content-between">
-                <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
-                <button type="button" id="btnGuardarOficina" class="btn btn-primary">Guardar</button>
-            </div>
-        </div>
+            </select>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer justify-content-between">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+        <button type="button" id="btnGuardarOficina" class="btn btn-primary">Guardar</button>
+      </div>
     </div>
+  </div>
 </div>
