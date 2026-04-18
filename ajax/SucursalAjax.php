@@ -31,7 +31,6 @@ switch ($_GET["op"]) {
       }
 
 
-
       break;
 
    case "list":
@@ -45,7 +44,8 @@ switch ($_GET["op"]) {
          $data[] = array(
             "0" => $reg->codigo,
             "1" => $reg->empleado,
-            "2" => $reg->id
+            "2" => $reg->oficina,
+            "3" => $reg->id
          );
          $i++;
       }

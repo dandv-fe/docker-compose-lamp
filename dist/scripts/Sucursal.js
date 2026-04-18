@@ -71,7 +71,7 @@ jQuery(document).ready(function () {
           tabla.row.add([
             i + 1,
             val[0], // Codigo
-            'of',
+            val[2], // Oficina
             val[1],
             '<button class="btn btn-warning" data-toggle="tooltip" title="Editar" onclick="cargarDataSucursal(\'' + val[2] + '\')"><i class="fa fa-pencil"></i> </button>&nbsp;'
           ]).draw(false);

@@ -150,10 +150,12 @@
 			s.str_tipo AS tipo,
 			s.str_codigo AS codigo,
 			s.str_estado AS estado,
-			CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado
+			CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado,
+         o.str_nombre AS oficina
 			 FROM tbl_sucursal s INNER JOIN 
 			 	tbl_empleado e ON e.idempleado=s.idempleado INNER JOIN
-				tbl_persona p ON p.idpersona=e.idpersona
+				tbl_persona p ON p.idpersona=e.idpersona INNER JOIN 
+            tbl_oficina o ON o.idoficina=s.idoficina
 			 where s.idglobal=$idglobal order by idsucursal desc";
 			$query = $conexion->query($sql);
 			return $query;
