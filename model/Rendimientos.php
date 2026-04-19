@@ -87,8 +87,8 @@ class Rendimientos
       $sql = "SELECT 
       s.str_codigo AS codigo,
          IFNULL(v.recaudo, 0) AS recaudo,
-         IFNULL(v.prestamo, 0) AS prestamo,
-         IFNULL(v.venta, 0) AS venta,
+         ABS(IFNULL(v.prestamo, 0)) AS prestamo,
+         ABS(IFNULL(v.venta, 0)) AS venta,
          IFNULL(v.seguro, 0) AS seguro,
          IFNULL(v.diferencia, 0) AS diferencia,
          IFNULL(v.descuento, 0) AS descuento,
@@ -110,12 +110,13 @@ class Rendimientos
          IFNULL(v.saldo_disp +(SELECT IFNULL( sum( efectivoCaja ), 0 ) 
             FROM view_cobro_detallado WHERE refSucursal=s.idsucursal AND fecha_at<'$primerDia'), 0)  AS saldo_disp,
 
+          IFNULL(v.valorTotalCreditos, 0) AS valorTotalCreditos,
          (SELECT IFNULL( sum( dec_resta ), 0 ) 
             FROM tbl_tarjetas WHERE idsucursal=s.idsucursal 
                      AND str_estado<>'cancelado' 
                      AND str_estado<>'inactiva' 
 
-          ) AS valorTotalCreditos
+          ) AS carteraTotal
 
 
       FROM tbl_sucursal s

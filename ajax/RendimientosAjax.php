@@ -30,13 +30,15 @@ switch ($_GET["op"]) {
          'entrada' => 0,
          'sum_cart' => 0,
          'saldo_disp' => 0,
-         'valorTotalCreditos' => 0
+         'valorTotalCreditos' => 0,
+         'carteraTotal' => 0
       );
 
       if ($query && $query->num_rows > 0) {
          while ($reg = $query->fetch_object()) {
+           // print_r($reg);
             
-            $utilidad = $reg->valorTotalCreditos + $reg->prestamo + $reg->venta + $reg->seguro + $reg->diferencia - $reg->descuento;
+            $utilidad = ($reg->valorTotalCreditos - ($reg->prestamo + $reg->venta)) + $reg->seguro + $reg->diferencia - $reg->descuento;
             $gastos = $reg->gastos + $reg->otros_gastos;
             $crece = $utilidad - $gastos - $reg->salida + $reg->entrada;
 
@@ -53,6 +55,7 @@ switch ($_GET["op"]) {
             $totales['sum_cart'] += (float)$reg->sum_cart;
             $totales['saldo_disp'] += (float)$reg->saldo_disp;
             $totales['valorTotalCreditos'] += (float)$reg->valorTotalCreditos;
+            $totales['carteraTotal'] += (float)$reg->carteraTotal;
 
             $data[] = array(
                $reg->codigo,
@@ -70,7 +73,7 @@ switch ($_GET["op"]) {
                number_format($crece, 2, '.', ','), //crece
                number_format($reg->sum_cart, 2, '.', ','), //sum_cart
                number_format($reg->saldo_disp, 2, '.', ','), //saldo_disp
-               number_format($reg->valorTotalCreditos, 2, '.', ',')
+               number_format($reg->carteraTotal, 2, '.', ',')
             );
          }
 
@@ -95,7 +98,7 @@ switch ($_GET["op"]) {
             '<b>' . number_format($total_crece, 2, '.', ',') . '</b>',
             '<b>' . number_format($totales['sum_cart'], 2, '.', ',') . '</b>',
             '<b>' . number_format($totales['saldo_disp'], 2, '.', ',') . '</b>',
-            '<b>' . number_format($totales['valorTotalCreditos'], 2, '.', ',') . '</b>'
+            '<b>' . number_format($totales['carteraTotal'], 2, '.', ',') . '</b>'
          );
       }
 
