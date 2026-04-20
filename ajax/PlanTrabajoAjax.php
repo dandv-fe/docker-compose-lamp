@@ -85,22 +85,23 @@ switch (isset($_GET["op"]) ? $_GET["op"] : '') {
             
             if (tablaOficinaExiste()) {
                 // Si existe la tabla oficina, mostrar disponibles y asignadas a esta oficina
+                // Considerar tanto NULL como 0 como "no asignado" para compatibilidad con esquemas
                 $sql = "SELECT 
                             s.idsucursal AS id,
                             s.str_codigo AS nombre,
                             CASE 
                                 WHEN s.idoficina = $idoficina THEN 1
-                                WHEN s.idoficina IS NULL THEN 0
+                                WHEN (s.idoficina IS NULL OR s.idoficina = 0) THEN 0
                                 ELSE -1
                             END AS estado_asignacion,
                             CASE 
                                 WHEN s.idoficina = $idoficina THEN 'Asignada a esta oficina'
-                                WHEN s.idoficina IS NULL THEN 'Disponible'
+                                WHEN (s.idoficina IS NULL OR s.idoficina = 0) THEN 'Disponible'
                                 ELSE CONCAT('Asignada a oficina ID: ', s.idoficina)
                             END AS estado_texto
                         FROM tbl_sucursal s 
                         WHERE s.idglobal = $useridglobal
-                        ORDER BY s.idoficina IS NULL DESC, s.idoficina = $idoficina DESC, s.str_codigo";
+                        ORDER BY (s.idoficina IS NULL OR s.idoficina = 0) DESC, s.idoficina = $idoficina DESC, s.str_codigo";
             } else {
                 // Si no existe la tabla oficina, todas están disponibles
                 $sql = "SELECT 
@@ -140,23 +141,24 @@ switch (isset($_GET["op"]) ? $_GET["op"] : '') {
             
             if (tablaOficinaExiste()) {
                 // Si existe la tabla oficina, mostrar disponibles y asignados a esta oficina
+                // Considerar tanto NULL como 0 como "no asignado" para compatibilidad con esquemas
                 $sql = "SELECT 
                             e.idempleado AS id,
                             CONCAT(p.str_nombres, ' ', p.str_apellidos, ' - ', e.str_cargo) AS nombre_base,
                             CASE 
                                 WHEN e.idoficina = $idoficina THEN 1
-                                WHEN e.idoficina IS NULL THEN 0
+                                WHEN (e.idoficina IS NULL OR e.idoficina = 0) THEN 0
                                 ELSE -1
                             END AS estado_asignacion,
                             CASE 
                                 WHEN e.idoficina = $idoficina THEN 'Asignado a esta oficina'
-                                WHEN e.idoficina IS NULL THEN 'Disponible'
+                                WHEN (e.idoficina IS NULL OR e.idoficina = 0) THEN 'Disponible'
                                 ELSE CONCAT('Asignado a oficina ID: ', e.idoficina)
                             END AS estado_texto
                         FROM tbl_empleado e 
                         INNER JOIN tbl_persona p ON p.idpersona = e.idpersona
                         WHERE e.idglobal = $useridglobal AND e.str_estado <> 'inactivo'
-                        ORDER BY e.idoficina IS NULL DESC, e.idoficina = $idoficina DESC, p.str_nombres, p.str_apellidos";
+                        ORDER BY (e.idoficina IS NULL OR e.idoficina = 0) DESC, e.idoficina = $idoficina DESC, p.str_nombres, p.str_apellidos";
             } else {
                 // Si no existe la tabla oficina, todos están disponibles
                 $sql = "SELECT 
@@ -230,7 +232,8 @@ switch (isset($_GET["op"]) ? $_GET["op"] : '') {
                 $conexion->autocommit(false);
                 
                 // Primero, desasignar todas las sucursales de esta oficina
-                $sql = "UPDATE tbl_sucursal SET idoficina = NULL WHERE idoficina = ? AND idglobal = ?";
+                // Usar 0 como valor "no asignado" para esquemas donde "idoficina" no permite NULL
+                $sql = "UPDATE tbl_sucursal SET idoficina = 0 WHERE idoficina = ? AND idglobal = ?";
                 $stmt = $conexion->prepare($sql);
                 $stmt->bind_param("ii", $idoficina, $useridglobal);
                 $stmt->execute();
@@ -279,7 +282,8 @@ switch (isset($_GET["op"]) ? $_GET["op"] : '') {
                 $conexion->autocommit(false);
                 
                 // Primero, desasignar todos los empleados de esta oficina
-                $sql = "UPDATE tbl_empleado SET idoficina = NULL WHERE idoficina = ? AND idglobal = ?";
+                // Usar 0 como valor "no asignado" para esquemas donde "idoficina" no permite NULL
+                $sql = "UPDATE tbl_empleado SET idoficina = 0 WHERE idoficina = ? AND idglobal = ?";
                 $stmt = $conexion->prepare($sql);
                 $stmt->bind_param("ii", $idoficina, $useridglobal);
                 $stmt->execute();
