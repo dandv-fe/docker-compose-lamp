@@ -5,6 +5,6 @@ function infoSistemaCuentas()
 
    return array(
       "name" => 'Sistema WebGoez',
-      "version" => 6.2
+      "version" => 6.3
    );
 }
