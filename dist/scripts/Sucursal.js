@@ -73,7 +73,7 @@ jQuery(document).ready(function () {
             val[0], // Codigo
             val[2], // Oficina
             val[1],
-            '<button class="btn btn-warning" data-toggle="tooltip" title="Editar" onclick="cargarDataSucursal(\'' + val[2] + '\')"><i class="fa fa-pencil"></i> </button>&nbsp;'
+            '<button class="btn btn-warning" data-toggle="tooltip" title="Editar" onclick="cargarDataSucursal(\'' + val[3] + '\')"><i class="fa fa-pencil"></i> </button>&nbsp;'
           ]).draw(false);
         } // End For
 
