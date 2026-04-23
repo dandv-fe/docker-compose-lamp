@@ -69,6 +69,19 @@
 
       $.get("./ajax/DocSucursalAjax.php?op=listTipoDoc", { tipo: 'Persona' }, function (r) {
         $("#cboBusTipo_Documento").html(r);
+        // Seleccionar por defecto la opción correspondiente a cédula de ciudadanía
+        try {
+          const strip = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+          const select = $("#cboBusTipo_Documento");
+          const opt = select.find('option').filter(function () {
+            return strip($(this).text()).includes('cedula');
+          }).first();
+          if (opt.length) {
+            select.val(opt.val());
+          }
+        } catch (e) {
+          console.error('Error al seleccionar tipo de documento por defecto', e);
+        }
 
       })
     }
