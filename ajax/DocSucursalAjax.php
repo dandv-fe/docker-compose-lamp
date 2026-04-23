@@ -85,7 +85,8 @@ switch ($_GET["op"]) {
       $objDocSucursal = new DocSucursal();
       $tipo = $_GET["tipo"];
       $query_Categoria = $objDocSucursal->ListarTipoDocumento($tipo);
-      echo "<option>--Seleccione Comprobante--</option>";
+      // Placeholder no válida (sin valor) y deshabilitada para obligar selección válida
+      echo "<option value=\"\" disabled selected>--Seleccione Comprobante--</option>";
       while ($reg = $query_Categoria->fetch_object()) {
          echo '<option value="' . $reg->str_nombre . '">' . $reg->str_nombre . '</option>';
       }
