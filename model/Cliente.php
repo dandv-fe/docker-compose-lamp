@@ -235,6 +235,15 @@ class Cliente
             $email_verif_sql = ", str_email_verificado='0'";
          }
 
+           // Validar unicidad de documento dentro del mismo idglobal
+           $sqlDoc = "SELECT idpersona FROM tbl_persona WHERE idglobal=" . intval($idglobal) . " AND str_tipo_documento='" . $conexion->real_escape_string($tipo_documento) . "' AND str_num_documento='" . $conexion->real_escape_string($num_documento) . "' AND idpersona<>" . intval($idpersona) . " LIMIT 1";
+           $qDoc = $conexion->query($sqlDoc);
+           $rDoc = $qDoc ? $qDoc->fetch_object() : null;
+           if (!empty($rDoc->idpersona)) {
+              echo "ERROR: Este Documento ya existe";
+              return;
+           }
+
          db_execute(
             $conexion,
             "UPDATE `tbl_persona` SET	

@@ -203,6 +203,15 @@ class ClassEmpresas
          $email_verif_sql,
          update_at='$dt'
          WHERE idpersona=$idpersona";
+
+           // Validar unicidad de documento dentro del mismo idglobal
+           $sqlDoc = "SELECT idpersona FROM tbl_persona WHERE idglobal=" . intval($idempresa) . " AND str_tipo_documento='" . $conexion->real_escape_string($tipo_documento) . "' AND str_num_documento='" . $conexion->real_escape_string($num_documento) . "' AND idpersona<>" . intval($idpersona) . " LIMIT 1";
+           $qDoc = $conexion->query($sqlDoc);
+           $rDoc = $qDoc ? $qDoc->fetch_object() : null;
+           if (!empty($rDoc->idpersona)) {
+              echo "ERROR: Este Documento ya existe";
+              return;
+           }
          $conexion->query($sql) or throw new Exception('error!');
 
          $sql = "UPDATE `tbl_usuario` SET
