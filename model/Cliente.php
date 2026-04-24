@@ -324,7 +324,7 @@ class Cliente
       global $conexion;
       $conexion->autocommit(false);
       $sw = true;
-      $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$idglobal AND str_tipo_documento='$tipo_documento' AND str_num_documento='$num_documento'";
+      $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=" . intval($idglobal) . " AND str_tipo_documento='" . $conexion->real_escape_string($tipo_documento) . "' AND str_num_documento='" . $conexion->real_escape_string($num_documento) . "' AND idpersona<>" . intval($idpersona) . " LIMIT 1";
       $query = $conexion->query($sql);
       $request = $query->fetch_object();
       if (isset($request->idpersona)) {
