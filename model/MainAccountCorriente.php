@@ -70,7 +70,32 @@ class MainAccountCorriente
             return false;
          }
 
-         $idCuenta = uniqidReal(); // Asignar el valor adecuado para idCuenta
+         $sqlIdCuenta = "SELECT id_cuenta FROM tbl_ahorros
+         WHERE id_cuenta LIKE '%0' ORDER BY idahorro DESC LIMIT 1";
+         $qIdCuenta = $conexion->query($sqlIdCuenta);
+         $ultimoIdCuenta = $qIdCuenta ? $qIdCuenta->fetch_object()->id_cuenta : null;
+         // Generar nuevo id_cuenta a partir del último: quitar último dígito, sumar 1, añadir '0'
+         $strUltimo = $ultimoIdCuenta !== null ? (string)$ultimoIdCuenta : '';
+         if ($strUltimo === '') {
+            // No existe cuenta previa -> devolver error
+            echo json_encode(['status' => 'error', 'mensaje' => 'No existe cuenta previa para generar id_cuenta']);
+            $conexion->rollback();
+            if ($conexion != null) {
+               $conexion->close();
+            }
+            return false;
+         } else {
+            // Quitar último carácter
+            $base = substr($strUltimo, 0, -1);
+            if ($base === '') {
+               $base = '0';
+            }
+            // Incrementar y añadir '0' al final
+            $nuevo = (string)(intval($base) + 1);
+            $idCuenta = $nuevo . '0';
+         }
+
+        
          $sqlIns = "INSERT INTO tbl_ahorros (
                    idglobal,idpersona,dec_porcentaje,
                    str_name,
@@ -81,15 +106,13 @@ class MainAccountCorriente
                  ) VALUES (
                    $idglobal,$idpersona,0,
                    'Cuenta Principal',
-                   '$idCuenta',
+                  '$idCuenta',
                    'principal',
                    'manual',
                   1,'activo','$dt','$dt'
                  )";
          $conexion->query($sqlIns) or throw new Exception('error!');
-         $idahorro = $conexion->insert_id;
-         $qr_upd = "UPDATE tbl_ahorros SET id_cuenta=CONCAT('$idahorro', '-00') WHERE idahorro=$idahorro";
-         $conexion->query($qr_upd);
+
       } catch (Exception $e) {
          $sw = false;
          $conexion->rollback();

@@ -34,6 +34,8 @@ class Ahorradores
       $sw = true;
       $conexion->autocommit(false);
       $dt = date('Y-m-d H:i:s');
+      $idCuenta = '';
+      
       try {
          $sql = "SELECT idpersona 
             FROM tbl_persona
@@ -84,8 +86,33 @@ class Ahorradores
                         )";
          $conexion->query($sql) or throw new Exception('error!');
          $idpersona = $conexion->insert_id;
+         
+                  //$sqlIdCuenta = "SELECT id_cuenta FROM tbl_ahorros WHERE ORDER BY idahorro DESC LIMIT 1";
+         $sqlIdCuenta = "SELECT id_cuenta FROM tbl_ahorros
+         WHERE id_cuenta LIKE '%0' ORDER BY idahorro DESC LIMIT 1";
+                  $qIdCuenta = $conexion->query($sqlIdCuenta);
+                  $ultimoIdCuenta = $qIdCuenta ? $qIdCuenta->fetch_object()->id_cuenta : null;
+                  // Generar nuevo id_cuenta a partir del último: quitar último dígito, sumar 1, añadir '0'
+                  $strUltimo = $ultimoIdCuenta !== null ? (string)$ultimoIdCuenta : '';
+                  if ($strUltimo === '') {
+                     // No existe cuenta previa -> devolver error
+                     echo json_encode(['status' => 'error', 'mensaje' => 'No existe cuenta previa para generar id_cuenta']);
+                     $conexion->rollback();
+                     if ($conexion != null) {
+                        $conexion->close();
+                     }
+                     return false;
+                  } else {
+                     // Quitar último carácter
+                     $base = substr($strUltimo, 0, -1);
+                     if ($base === '') {
+                        $base = '0';
+                     }
+                     // Incrementar y añadir '0' al final
+                     $nuevo = (string)(intval($base) + 1);
+                     $idCuenta = $nuevo . '0';
+                  }
 
-         $idCuenta = uniqidReal(); // Asignar el valor adecuado para idCuenta
 
 
          $sqlIns = "INSERT INTO tbl_ahorros (
@@ -104,11 +131,7 @@ class Ahorradores
                   1,'activo','$dt','$dt'
                  )";
          $conexion->query($sqlIns) or throw new Exception('error!');
-         $idahorro = $conexion->insert_id;
 
-         // Generar número de cuenta concatenando el ID del ahorro con un contador
-         $qr_upd = "UPDATE tbl_ahorros SET id_cuenta=CONCAT('$idahorro', '-', '00') WHERE idahorro=$idahorro";
-         $conexion->query($qr_upd) or throw new Exception('error!');
       } catch (Exception $e) {
          $sw = false;
          $conexion->rollback();
@@ -243,7 +266,32 @@ class Ahorradores
          $request = $query->fetch_object();
 
          if (empty($request->idahorro)) {
-            $idCuenta = uniqidReal(); // Asignar el valor adecuado para idCuenta
+            $idCuenta = '';
+              //$sqlIdCuenta = "SELECT id_cuenta FROM tbl_ahorros WHERE ORDER BY idahorro DESC LIMIT 1";
+         $sqlIdCuenta = "SELECT id_cuenta FROM tbl_ahorros
+         WHERE id_cuenta LIKE '%0' ORDER BY idahorro DESC LIMIT 1";
+                  $qIdCuenta = $conexion->query($sqlIdCuenta);
+                  $ultimoIdCuenta = $qIdCuenta ? $qIdCuenta->fetch_object()->id_cuenta : null;
+                  // Generar nuevo id_cuenta a partir del último: quitar último dígito, sumar 1, añadir '0'
+                  $strUltimo = $ultimoIdCuenta !== null ? (string)$ultimoIdCuenta : '';
+                  if ($strUltimo === '') {
+                     // No existe cuenta previa -> devolver error
+                     echo json_encode(['status' => 'error', 'mensaje' => 'No existe cuenta previa para generar id_cuenta']);
+                     $conexion->rollback();
+                     if ($conexion != null) {
+                        $conexion->close();
+                     }
+                     return false;
+                  } else {
+                     // Quitar último carácter
+                     $base = substr($strUltimo, 0, -1);
+                     if ($base === '') {
+                        $base = '0';
+                     }
+                     // Incrementar y añadir '0' al final
+                     $nuevo = (string)(intval($base) + 1);
+                     $idCuenta = $nuevo . '0';
+                  }
 
 
             $sqlIns = "INSERT INTO tbl_ahorros (
@@ -262,11 +310,7 @@ class Ahorradores
                   1,'activo','$dt','$dt'
                  )";
             $conexion->query($sqlIns) or throw new Exception('error!');
-            $idahorro = $conexion->insert_id;
 
-            // Generar número de cuenta concatenando el ID del ahorro con un contador
-            $qr_upd = "UPDATE tbl_ahorros SET id_cuenta=CONCAT('$idahorro', '-', '00') WHERE idahorro=$idahorro";
-            $conexion->query($qr_upd) or throw new Exception('error!');
          }
       } catch (Exception $e) {
          $sw = false;

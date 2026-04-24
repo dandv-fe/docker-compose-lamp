@@ -10,7 +10,7 @@ $idpersona = $_SESSION['idpersona'];
 switch ($_GET['op']) {
    case 'SaveOrUpdate':
       $idahorro = limpiar_cadena2($_POST['idahorro']);
-      $idpersona = limpiar_cadena2($_POST['str_empleado']);
+      $idpersonaE = limpiar_cadena2($_POST['str_empleado']);
       $dec_porcentaje  = floatval($_POST['dec_porcentaje']);
       $str_name = 'Ahorro Programado';
 
@@ -27,12 +27,12 @@ switch ($_GET['op']) {
       $bit_auth_movimientos = ($bit_auth_movimientos === 'true' || $bit_auth_movimientos === '1') ? 1 : 0;
       $str_estado = limpiar_cadena($_POST['str_estado']); // enum('activo','inactivo')
 
-      if (empty($idpersona)) {
+      if (empty($idpersonaE)) {
          echo json_encode(['status' => 'error', 'mensaje' => 'Debe seleccionar un empleado']);
          break;
       }
 
-      if (!$objAhorrosProgramado->empleadoConEmailVerificado($idglobal, intval($idpersona))) {
+      if (!$objAhorrosProgramado->empleadoConEmailVerificado($idglobal, intval($idpersonaE))) {
          echo json_encode([
             'status' => 'error',
             'mensaje' => 'El empleado seleccionado debe tener email y estar verificado.'
@@ -40,7 +40,8 @@ switch ($_GET['op']) {
          break;
       }
 
-      $idCuentaCorriente = $objAhorrosProgramado->asegurarCuentaCorriente($idglobal, intval($idpersona));
+      $idCuentaCorriente = $objAhorrosProgramado->asegurarCuentaCorriente($idglobal, intval($idpersonaE));
+     
       if (intval($idCuentaCorriente) <= 0) {
          echo json_encode([
             'status' => 'error',
@@ -48,17 +49,18 @@ switch ($_GET['op']) {
          ]);
          break;
       }
-
+      
+/*
       if ($objAhorrosProgramado->esSuperAdministrador($idglobal, intval($idpersona))) {
          echo json_encode([
             'status' => 'error',
             'mensaje' => 'Un empleado con cargo Super Administrador no puede tener un corresponsal a cargo.'
          ]);
          break;
-      }
+      }*/
 
 
-      if ($objAhorrosProgramado->existeAhorroProgramadoPorPersona($idglobal, intval($idpersona), intval($idahorro))) {
+      if ($objAhorrosProgramado->existeAhorroProgramadoPorPersona($idglobal, intval($idpersonaE), intval($idahorro))) {
          echo json_encode([
             'status' => 'error',
             'mensaje' => 'El empleado seleccionado ya tiene un Ahorro Programado registrado.'
@@ -70,7 +72,7 @@ switch ($_GET['op']) {
          # registrar
          $objAhorrosProgramado->registrar(
             $idglobal,
-            $idpersona,
+            $idpersonaE,
             $dec_porcentaje,
             $str_name,
             $str_tipo,
@@ -83,7 +85,7 @@ switch ($_GET['op']) {
          $ok = $objAhorrosProgramado->actualizar(
             $idglobal,
             intval($idahorro),
-            intval($idpersona),
+            intval($idpersonaE),
             $dec_porcentaje,
             $str_name,
             $str_pago_utilidad,

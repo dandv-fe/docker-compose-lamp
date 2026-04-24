@@ -11,9 +11,11 @@ class MainAccount
       $conexion->autocommit(false);
       $dt = date('Y-m-d H:i:s');
       $idahorro = null;
+       $idCuenta = '120100';
       try {
          // Verificar si ya tiene ahorro
-         $sqlExist = "SELECT idahorro FROM tbl_ahorros WHERE idglobal=$idglobal AND idpersona=$idpersona AND str_tipo='principal'";
+         
+         $sqlExist = "SELECT idahorro, id_cuenta FROM tbl_ahorros ORDER BY idahorro DESC LIMIT 1";
          $qExist = $conexion->query($sqlExist);
          $rExist = $qExist ? $qExist->fetch_object() : null;
          if ($rExist && !empty($rExist->idahorro)) {
@@ -21,7 +23,6 @@ class MainAccount
             return false;
          }
 
-         $idCuenta = uniqidReal(); // Asignar el valor adecuado para idCuenta
          $sqlIns = "INSERT INTO tbl_ahorros (
                    idglobal,idpersona,dec_porcentaje,
                    str_name,
@@ -38,9 +39,6 @@ class MainAccount
                   1,'activo','$dt','$dt'
                  )";
          $conexion->query($sqlIns) or throw new Exception('error!');
-         $idahorro = $conexion->insert_id;
-         $qr_upd = "UPDATE tbl_ahorros SET id_cuenta=CONCAT('$idahorro', '-00') WHERE idahorro=$idahorro";
-         $conexion->query($qr_upd);
       } catch (Exception $e) {
          $sw = false;
          $conexion->rollback();

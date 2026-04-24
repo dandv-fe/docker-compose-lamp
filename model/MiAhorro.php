@@ -20,10 +20,60 @@ class MiAhorro
       $str_pago_utilidad = 'manual';
       $bit_auth_movimientos = 0;
       $str_estado = 'activo';
+      $idCuenta = '';
       try {
+         // buscar el último id_cuenta para el ahorro principal de la persona
+         $sqlUltimoIdCuenta = "SELECT id_cuenta FROM tbl_ahorros 
+            WHERE idpersona=$idpersona 
+            ORDER BY idahorro DESC LIMIT 1";
+         $qUltimoIdCuenta = $conexion->query($sqlUltimoIdCuenta);
+         $rUltimoIdCuenta = $qUltimoIdCuenta ? $qUltimoIdCuenta->fetch_object() : null;   
 
+        if (!$rUltimoIdCuenta) {
+           echo json_encode(['status' => 'error', 'mensaje' => 'No existe cuenta previa para generar id_cuenta']);
+           $conexion->rollback();
+           if ($conexion != null) {
+              $conexion->close();
+           }
+           return false;
+        } else {
+           // Generar nuevo id_cuenta a partir del último: incrementar último dígito (0-8)
+           $strUltimo = isset($rUltimoIdCuenta->id_cuenta) ? (string)$rUltimoIdCuenta->id_cuenta : '';
+           if ($strUltimo === '') {
+              echo json_encode(['status' => 'error', 'mensaje' => 'Formato inválido de id_cuenta previo']);
+              $conexion->rollback();
+              if ($conexion != null) {
+                 $conexion->close();
+              }
+              return false;
+           }
 
-         $idCuenta = uniqidReal(); // Asignar el valor adecuado para idCuenta
+           $lastChar = substr($strUltimo, -1);
+           if (!ctype_digit($lastChar)) {
+              echo json_encode(['status' => 'error', 'mensaje' => 'Formato inválido de id_cuenta previo']);
+              $conexion->rollback();
+              if ($conexion != null) {
+                 $conexion->close();
+              }
+              return false;
+           }
+
+           $digit = intval($lastChar);
+           if ($digit >= 0 && $digit <= 8) {
+              $prefix = substr($strUltimo, 0, -1);
+              $idCuenta = $prefix . (string)($digit + 1);
+           } else {
+              // Si el último dígito es 9 -> devolver error
+              echo json_encode(['status' => 'error', 'mensaje' => 'No se puede generar id_cuenta: último dígito es 9']);
+              $conexion->rollback();
+              if ($conexion != null) {
+                 $conexion->close();
+              }
+              return false;
+           }
+        }
+
+       
 
 
          $sqlIns = "INSERT INTO tbl_ahorros (
@@ -42,47 +92,9 @@ class MiAhorro
                   $bit_auth_movimientos,'$str_estado','$dt','$dt'
                  )";
          $conexion->query($sqlIns) or throw new Exception('error!');
-         $idahorro = $conexion->insert_id;
 
-         // Buscar el id_cuenta del ahorro principal de la empresa
-         if (!empty($superadmin)) {
-            $qr_idCuentaPrincipal = "SELECT a.id_cuenta, 
-         (SELECT IFNULL(MAX(CAST(SUBSTRING_INDEX(b.id_cuenta,'-',-1) AS UNSIGNED)),0)
-            FROM tbl_ahorros b
-            WHERE b.idglobal=a.idglobal
-              AND b.id_cuenta LIKE CONCAT(REPLACE(a.id_cuenta,'-00',''), '-%')
-              AND b.id_cuenta<>a.id_cuenta) AS ultimo_consecutivo 
-         FROM tbl_ahorros a
-          WHERE a.idglobal=$idglobal AND 
-          
-          a.str_tipo='principal' LIMIT 1";
-         } else {
-            $this->asegurarCuentaCorriente($idglobal, $idpersona);
 
-            $qr_idCuentaPrincipal = "SELECT a.id_cuenta, 
-             (SELECT IFNULL(MAX(CAST(SUBSTRING_INDEX(b.id_cuenta,'-',-1) AS UNSIGNED)),0)
-            FROM tbl_ahorros b
-            WHERE b.idglobal=a.idglobal
-              AND b.idpersona=a.idpersona
-                     AND b.id_cuenta LIKE CONCAT(REPLACE(a.id_cuenta,'-00',''), '-%')
-                     AND b.id_cuenta<>a.id_cuenta) AS ultimo_consecutivo 
-         FROM tbl_ahorros a
-          WHERE a.idpersona=$idpersona AND 
-          
-          a.str_tipo='corriente' LIMIT 1";
-         }
-
-         $q_idCuentaPrincipal = $conexion->query($qr_idCuentaPrincipal);
-         $r_idCuentaPrincipal = $q_idCuentaPrincipal ? $q_idCuentaPrincipal->fetch_object() : null;
-
-         if (empty($r_idCuentaPrincipal) || empty($r_idCuentaPrincipal->id_cuenta)) {
-            throw new Exception('No se encontró cuenta corriente principal');
-         }
-
-         $can = intval($r_idCuentaPrincipal->ultimo_consecutivo) + 1;
-         $canFormateado = str_pad((string)$can, 2, '0', STR_PAD_LEFT);
-         $qr_upd = "UPDATE tbl_ahorros SET id_cuenta=CONCAT(REPLACE('$r_idCuentaPrincipal->id_cuenta','-00',''), '-', '$canFormateado') WHERE idahorro=$idahorro";
-         $conexion->query($qr_upd);
+        
       } catch (Exception $e) {
          print_r($e);
          $sw = false;
