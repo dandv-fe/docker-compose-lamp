@@ -51,6 +51,8 @@
 <script type="text/javascript">
   $(function () {
     $('#modal-xl').on('show.bs.modal', function (e) {
+      // Asegurar que el combo se cargue al mostrar el modal y luego enfocar
+      ComboTipo_Documento();
       setTimeout(numdocumentoFocus, 300)
     })
     $('#modal-xl').on('hide.bs.modal', function (e) {
@@ -68,17 +70,32 @@
     function ComboTipo_Documento() {
 
       $.get("./ajax/DocSucursalAjax.php?op=listTipoDoc", { tipo: 'Persona' }, function (r) {
-        $("#cboBusTipo_Documento").html(r);
+        const select = $("#cboBusTipo_Documento");
+        select.html(r);
         // Seleccionar por defecto la opción correspondiente a cédula de ciudadanía
         try {
           const strip = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
-          const select = $("#cboBusTipo_Documento");
           const opt = select.find('option').filter(function () {
             return strip($(this).text()).includes('cedula');
           }).first();
           if (opt.length) {
             select.val(opt.val());
+          } else {
+            // fallback: buscar abreviaturas comunes o valores conocidos
+            const opt2 = select.find('option').filter(function () {
+              const t = strip($(this).text());
+              return t.includes('cc') || $(this).val() === 'CC' || $(this).val() === '1';
+            }).first();
+            if (opt2.length) select.val(opt2.val());
           }
+
+          // Si por alguna razón quedó seleccionado un placeholder, forzar la cédula
+          const selectedText = (select.find('option:selected').text() || '').toLowerCase();
+          if (/selecciona|seleccione|comprobante/.test(selectedText)) {
+            if (opt.length) select.val(opt.val());
+          }
+
+          select.trigger('change');
         } catch (e) {
           console.error('Error al seleccionar tipo de documento por defecto', e);
         }
