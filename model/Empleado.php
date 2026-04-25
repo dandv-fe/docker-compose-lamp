@@ -111,7 +111,7 @@ class Empleado
           VALUES ($idglobal, $idpersona, '$login', '$password', 'pendiente', 'activo')";
          $conexion->query($sql) or throw new Exception('error!');
       } catch (Exception $e) {
-print_r($e);
+//print_r($e);
          $sw = false;
          $conexion->rollback();
       }
@@ -157,6 +157,8 @@ print_r($e);
       $sw = true;
       $conexion->autocommit(false);
       $dt = date('Y-m-d H:i:s');
+      $idglobal = intval($idglobal);
+      $idpersona = intval($idpersona);
       try {
 
          $sql = "SELECT idusuario 
@@ -194,8 +196,9 @@ print_r($e);
 
             // Validar unicidad de documento dentro del mismo idglobal
            $sqlDoc = "SELECT idpersona FROM tbl_persona 
-           WHERE idglobal=" . intval($idglobal) . " AND str_num_documento='" . $conexion->real_escape_string($num_documento) . "' 
-           AND idpersona<>" . intval($idpersona) . " LIMIT 1";
+           WHERE idglobal=$idglobal
+           AND str_num_documento='$num_documento' 
+           AND idpersona<>$idpersona LIMIT 1";
            $qDoc = $conexion->query($sqlDoc);
            $rDoc = $qDoc ? $qDoc->fetch_object() : null;
            if (!empty($rDoc->idpersona)) {
@@ -296,7 +299,7 @@ print_r($e);
             $conexion->query($sql) or throw new Exception('error!');
          }
       } catch (Exception $e) {
-print_r($e);
+///print_r($e);
          $sw = false;
          $conexion->rollback();
       }
