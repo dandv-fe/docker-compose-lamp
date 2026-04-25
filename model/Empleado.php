@@ -273,6 +273,8 @@ print_r($e);
          $request = $query->fetch_object();
 
          if (empty($request->idusuario)) {
+            $loginEsc = $conexion->real_escape_string($login);
+            $passEsc = $conexion->real_escape_string($password);
             $sql = "INSERT INTO `tbl_usuario`(
                         idglobal,
                         idpersona,
@@ -280,16 +282,17 @@ print_r($e);
                         str_password,
                         str_terminos_condiciones,
                         str_estado
-                  
                   )
-                  VALUES ($idglobal, $idpersona, '$login', '$password', 'pendiente', 'activo')";
+                  VALUES ($idglobal, $idpersona, '" . $loginEsc . "', '" . $passEsc . "', 'pendiente', 'activo')";
             $conexion->query($sql) or throw new Exception('error!');
          } else {
+            $loginEsc = $conexion->real_escape_string($login);
+            $passEsc = $conexion->real_escape_string($password);
+            $existingId = intval($request->idusuario);
             $sql = "UPDATE `tbl_usuario` SET
-                        str_user_name='$login',
-                        str_password='$password'
-                        WHERE idusuario=$idusuario
-                  ";
+                        str_user_name='" . $loginEsc . "',
+                        str_password='" . $passEsc . "'
+                        WHERE idusuario=" . $existingId;
             $conexion->query($sql) or throw new Exception('error!');
          }
       } catch (Exception $e) {
