@@ -49,9 +49,9 @@ class ClassEmpresas
             '$tipo_documento', '$num_documento', '$telefono', '$email', '$ruta_carga', 
             '$ocupacion', 'activo', '', 
             '$direccion_departamento', '$direccion_siudad', '$direccion_barrio', '$direccion_calle',
-							'', '$dt', '$dt'
+							'0', '$dt', '$dt'
 							)";
-                               '0', '$dt', '$dt'
+
          $conexion->query($sql) or throw new Exception('error!');
 
          $idpersona = $conexion->insert_id;
