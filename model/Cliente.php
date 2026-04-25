@@ -60,9 +60,9 @@ class Cliente
 
          $request = db_fetch_object(
             $conexion,
-            "SELECT idpersona FROM tbl_persona WHERE idglobal=? AND str_tipo_documento=? AND str_num_documento=?",
-            "iss",
-            [intval($idglobal), $tipo_documento, $num_documento]
+            "SELECT idpersona FROM tbl_persona WHERE idglobal=? AND str_num_documento=?",
+            "is",
+            [intval($idglobal), $num_documento]
          );
          if (isset($request->idpersona)) {
             echo "ERROR: Este Documento ya existe";
@@ -236,7 +236,9 @@ class Cliente
          }
 
            // Validar unicidad de documento dentro del mismo idglobal
-           $sqlDoc = "SELECT idpersona FROM tbl_persona WHERE idglobal=" . intval($idglobal) . " AND str_tipo_documento='" . $conexion->real_escape_string($tipo_documento) . "' AND str_num_documento='" . $conexion->real_escape_string($num_documento) . "' AND idpersona<>" . intval($idpersona) . " LIMIT 1";
+           $sqlDoc = "SELECT idpersona FROM tbl_persona 
+           WHERE idglobal=" . intval($idglobal) . " AND str_num_documento='" . $conexion->real_escape_string($num_documento) . "' 
+           AND idpersona<>" . intval($idpersona) . " LIMIT 1";
            $qDoc = $conexion->query($sqlDoc);
            $rDoc = $qDoc ? $qDoc->fetch_object() : null;
            if (!empty($rDoc->idpersona)) {
@@ -324,7 +326,10 @@ class Cliente
       global $conexion;
       $conexion->autocommit(false);
       $sw = true;
-      $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=" . intval($idglobal) . " AND str_tipo_documento='" . $conexion->real_escape_string($tipo_documento) . "' AND str_num_documento='" . $conexion->real_escape_string($num_documento) . "' AND idpersona<>" . intval($idpersona) . " LIMIT 1";
+      $sql = "SELECT idpersona FROM tbl_persona WHERE 
+      idglobal=" . intval($idglobal) . " 
+      AND str_num_documento='" . $conexion->real_escape_string($num_documento) . "' 
+      AND idpersona<>" . intval($idpersona) . " LIMIT 1";
       $query = $conexion->query($sql);
       $request = $query->fetch_object();
       if (isset($request->idpersona)) {
@@ -654,8 +659,9 @@ class Cliente
       $dt = date('Y-m-d H:i:s');
       try {
 
-         $sql = "SELECT idpersona FROM tbl_persona WHERE idglobal=$reg->idglobal AND 
-					str_tipo_documento='$reg->str_tipo_documento' AND str_num_documento='$reg->str_num_documento'";
+         $sql = "SELECT idpersona FROM tbl_persona 
+         WHERE idglobal=$reg->idglobal AND 
+					 str_num_documento='$reg->str_num_documento'";
          $query = $conexion->query($sql);
          $request = $query->fetch_object();
          if (isset($request->idpersona)) {
