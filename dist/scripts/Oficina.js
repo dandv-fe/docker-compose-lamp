@@ -41,7 +41,7 @@ var Oficina = (function () {
         $tbody.append($tr);
         verListado();
       });
-    }).fail(function (err) { console.error('Error cargando oficinas', err); }).always(function(){ hideLoading(); });
+    }).fail(function (err) { console.error('Error cargando oficinas', err); }).always(function () { hideLoading(); });
   };
 
   var cargarDetalleOficina = function (item) {
@@ -220,7 +220,7 @@ var Oficina = (function () {
         $tr.append('<td>' + (suc.estado || '') + '</td>');
         $tbody.append($tr);
       });
-    }).fail(function (err) { console.error('Error cargando carteras', err); $container.html('<div class="p-3 text-danger">Error cargando carteras</div>'); }).always(function(){ hideLoading(); });
+    }).fail(function (err) { console.error('Error cargando carteras', err); $container.html('<div class="p-3 text-danger">Error cargando carteras</div>'); }).always(function () { hideLoading(); });
   }
   var cargarEmpleados = function () {
     var idOficina = $('#txtRefOficinaDetalle').val() || '0';
@@ -247,7 +247,7 @@ var Oficina = (function () {
         $tr.append('<td>' + (emp.asignado ? 'Asignado' : 'Disponible') + '</td>');
         $tbody.append($tr);
       });
-    }).fail(function (err) { console.error('Error cargando empleados', err); $container.html('<div class="p-3 text-danger">Error cargando empleados</div>'); }).always(function(){ hideLoading(); });
+    }).fail(function (err) { console.error('Error cargando empleados', err); $container.html('<div class="p-3 text-danger">Error cargando empleados</div>'); }).always(function () { hideLoading(); });
   }
   var cargarDespedidos = function () {
     var idOficina = $('#txtRefOficinaDetalle').val() || '0';
