@@ -20,6 +20,7 @@ var Oficina = (function () {
   };
 
   var cargarOficinas = function () {
+    showLoading();
     $.getJSON('ajax/OficinaAjax.php?op=list', function (res) {
       if (!res.ok) { console.error(res.msg); return; }
       var $tbody = $('div#VerListado table tbody');
@@ -40,7 +41,7 @@ var Oficina = (function () {
         $tbody.append($tr);
         verListado();
       });
-    }).fail(function (err) { console.error('Error cargando oficinas', err); });
+    }).fail(function (err) { console.error('Error cargando oficinas', err); }).always(function(){ hideLoading(); });
   };
 
   var cargarDetalleOficina = function (item) {
@@ -202,6 +203,7 @@ var Oficina = (function () {
     }
     $container.html('<div class="table-responsive"><table class="table table-sm table-striped"><thead><tr><th>#</th><th>Código</th><th>Tipo</th><th>Empleado</th><th>Estado</th></tr></thead><tbody></tbody></table></div>');
     var $tbody = $container.find('tbody');
+    showLoading();
     $.getJSON('ajax/SucursalAjax.php?op=listByOficina&idoficina=' + encodeURIComponent(idOficina), function (res) {
       if (!res.ok) { console.error(res.msg); $container.html('<div class="p-3 text-danger">Error cargando carteras</div>'); return; }
       if (!res.data || res.data.length === 0) {
@@ -218,7 +220,7 @@ var Oficina = (function () {
         $tr.append('<td>' + (suc.estado || '') + '</td>');
         $tbody.append($tr);
       });
-    }).fail(function (err) { console.error('Error cargando carteras', err); $container.html('<div class="p-3 text-danger">Error cargando carteras</div>'); });
+    }).fail(function (err) { console.error('Error cargando carteras', err); $container.html('<div class="p-3 text-danger">Error cargando carteras</div>'); }).always(function(){ hideLoading(); });
   }
   var cargarEmpleados = function () {
     var idOficina = $('#txtRefOficinaDetalle').val() || '0';
@@ -230,6 +232,7 @@ var Oficina = (function () {
     }
     $container.html('<div class="table-responsive"><table class="table table-sm table-striped"><thead><tr><th>#</th><th>Empleado</th><th>Estado</th></tr></thead><tbody></tbody></table></div>');
     var $tbody = $container.find('tbody');
+    showLoading();
     $.getJSON('ajax/PlanTrabajoAjax.php?op=listarEmpleados&idoficina=' + encodeURIComponent(idOficina), function (res) {
       if (!res.ok) { console.error(res.msg); $container.html('<div class="p-3 text-danger">Error cargando empleados</div>'); return; }
       if (!res.data || res.data.length === 0) {
@@ -244,7 +247,7 @@ var Oficina = (function () {
         $tr.append('<td>' + (emp.asignado ? 'Asignado' : 'Disponible') + '</td>');
         $tbody.append($tr);
       });
-    }).fail(function (err) { console.error('Error cargando empleados', err); $container.html('<div class="p-3 text-danger">Error cargando empleados</div>'); });
+    }).fail(function (err) { console.error('Error cargando empleados', err); $container.html('<div class="p-3 text-danger">Error cargando empleados</div>'); }).always(function(){ hideLoading(); });
   }
   var cargarDespedidos = function () {
     var idOficina = $('#txtRefOficinaDetalle').val() || '0';
@@ -274,6 +277,14 @@ var Oficina = (function () {
       });
     }).fail(function (err) { console.error('Error cargando despedidos', err); $container.html('<div class="p-3 text-danger">Error cargando despedidos</div>'); });
   };
+
+  /* Loading helpers */
+  function showLoading() {
+    try { $('#global-loading').show(); } catch (e) { }
+  }
+  function hideLoading() {
+    try { $('#global-loading').hide(); } catch (e) { }
+  }
 
   return {
     init: init,

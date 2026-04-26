@@ -8,6 +8,17 @@
 <script type="text/javascript" src="dist/scripts/Oficina.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper">
+  <!-- Loading overlay (hidden by default) -->
+  <div id="global-loading" style="display:none;">
+    <div class="loading-backdrop"></div>
+    <div class="loading-content">
+      <div class="loading-spinner" aria-hidden="true"></div>
+      <div class="loading-bar" role="progressbar">
+        <div class="loading-bar-fill"></div>
+      </div>
+      <div class="loading-text">Cargando datos...</div>
+    </div>
+  </div>
   <!-- Content Header (Page header) -->
   <div id="txt-titulo-oficinas" class="content-header">
     <div class="container-fluid">
@@ -254,6 +265,20 @@
       width: 100%;
     }
   }
+</style>
+
+<style>
+  /* Global loading overlay styles */
+  #global-loading { position: fixed; inset: 0; z-index: 1200; pointer-events: none; }
+  #global-loading .loading-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.35); }
+  #global-loading .loading-content { position: absolute; left:50%; top:10px; transform: translateX(-50%); pointer-events: auto; width: 80%; max-width: 900px; text-align:center; }
+  .loading-spinner { width: 40px; height: 40px; margin: 6px auto; border: 4px solid rgba(255,255,255,0.2); border-top-color: #fff; border-radius: 50%; animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loading-bar { height: 6px; background: rgba(255,255,255,0.12); border-radius: 4px; overflow: hidden; margin: 6px 0; }
+  .loading-bar-fill { width: 0%; height:100%; background: linear-gradient(90deg,#4aa3ff,#0ea5a6); animation: loadingFill 2s linear infinite; }
+  @keyframes loadingFill { 0% { transform: translateX(-100%); width: 30%; } 50% { transform: translateX(10%); width: 60%; } 100% { transform: translateX(100%); width: 30%; } }
+  .loading-text { color: #fff; font-weight: 600; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+  /* Hidden by default; shown by JS by setting display:block */
 </style>
 
 <!-- Modal Crear/Editar Oficina -->
