@@ -146,11 +146,13 @@ switch (isset($_GET["op"]) ? $_GET["op"] : '') {
                             e.idempleado AS id,
                             CONCAT(p.str_nombres, ' ', p.str_apellidos, ' - ', e.str_cargo) AS nombre_base,
                             CASE 
+                                WHEN e.str_cargo = 'Super Administrador' THEN 1
                                 WHEN e.idoficina = $idoficina THEN 1
                                 WHEN (e.idoficina IS NULL OR e.idoficina = 0) THEN 0
                                 ELSE -1
                             END AS estado_asignacion,
                             CASE 
+                                WHEN e.str_cargo = 'Super Administrador' THEN 'Super Administrador (Acceso global)'
                                 WHEN e.idoficina = $idoficina THEN 'Asignado a esta oficina'
                                 WHEN (e.idoficina IS NULL OR e.idoficina = 0) THEN 'Disponible'
                                 ELSE CONCAT('Asignado a oficina ID: ', e.idoficina)
@@ -158,7 +160,7 @@ switch (isset($_GET["op"]) ? $_GET["op"] : '') {
                         FROM tbl_empleado e 
                         INNER JOIN tbl_persona p ON p.idpersona = e.idpersona
                         WHERE e.idglobal = $useridglobal AND e.str_estado <> 'inactivo'
-                        ORDER BY (e.idoficina IS NULL OR e.idoficina = 0) DESC, e.idoficina = $idoficina DESC, p.str_nombres, p.str_apellidos";
+                        ORDER BY (e.str_cargo = 'Super Administrador') DESC, (e.idoficina IS NULL OR e.idoficina = 0) DESC, e.idoficina = $idoficina DESC, p.str_nombres, p.str_apellidos";
             } else {
                 // Si no existe la tabla oficina, todos están disponibles
                 $sql = "SELECT 
