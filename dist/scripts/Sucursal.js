@@ -4,8 +4,9 @@ jQuery(document).ready(function () {
   OcultarForm();
   ListadoSucursal()
   ComboEmpleado()
+  ComboOficina()
   $("form#frmSucursal").submit(SaveOrUpdate);
-  $("#btnNuevoSucursal").click(VerForm);
+  $("#btnNuevoSucursal").click(checkAndShowForm);
   var Toast = Swal.mixin({
     toast: true,
     position: 'top-end',
@@ -93,6 +94,40 @@ jQuery(document).ready(function () {
 
     })
   }
+
+  function ComboOficina(callback) {
+    $.getJSON("./ajax/OficinaAjax.php?op=list", function (resp) {
+      if (!resp || !resp.ok) {
+        if (typeof callback === 'function') callback(false);
+        return;
+      }
+      var html = '';
+      for (var i = 0; i < resp.data.length; i++) {
+        var it = resp.data[i];
+        html += '<option value="' + it.id + '">' + it.str_nombre + '</option>';
+      }
+      $("#cboOficina").html(html);
+      if (typeof callback === 'function') callback(resp.data.length > 0);
+    }).fail(function () {
+      if (typeof callback === 'function') callback(false);
+    });
+  }
+
+  function checkAndShowForm() {
+    ComboOficina(function (has) {
+      if (!has) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'No hay oficinas',
+          text: 'Debe crear una oficina antes de registrar una sucursal. Será redirigido a la página de oficinas.'
+        }).then(function () {
+          window.location.href = 'oficinas.php';
+        });
+        return;
+      }
+      VerForm();
+    });
+  }
 });
 
 function VerForm() {
@@ -132,6 +167,7 @@ function cargarDataSucursal(id) {// funcion que llamamos del archivo ajax/Catego
           $("#txtRazon_Social").val(data.codigo);
           $("#txtTelefono").val(data.tel);
           $("#cboRepresentante").val(data.refEmpleado);
+          $("#cboOficina").val(data.refOficina);
           $("#txtEstado").val(data.estado);
           $("#txtTipo").val(data.tipo);
           $("#cboAdicional").val(data.adicional)

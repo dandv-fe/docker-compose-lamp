@@ -19,7 +19,7 @@ $userSession = $objusuario->viewUsuarioSession($_SESSION["idusuario"]);
 // is empresa Superadmin || si es superadmin o no valor 0 o idglobal de la empresa
 $_SESSION['idpersona'] = $userSession['usuario']->idpersona;
 $_SESSION['userEmpresa'] = $userSession['usuario']->str_cargo === 'Super Administrador' ? $userSession['usuario']->idglobal : null;
-$_SESSION['idempleado'] = $userSession["usuario"]->idempleado;
+$_SESSION['idempleado'] = $userSession["usuario"]->idempleado ?? null;
 $idglobal = $userSession['usuario']->idglobal;
 $idoficina = $_SESSION['idoficina'] ?? 0;
 $idsucursal = $_SESSION['idsucursal'] ?? 0;

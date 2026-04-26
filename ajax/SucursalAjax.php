@@ -18,16 +18,17 @@ switch ($_GET["op"]) {
       $estado = limpiar_cadena($_POST['txtEstado']);
       $idreprecentante = limpiar_cadena($_POST["cboRepresentante"]);
       $adicional = limpiar_cadena($_POST["cboAdicional"]);
+      $idoficina = isset($_POST['cboOficina']) ? intval($_POST['cboOficina']) : 0;
       $razon_social = preg_replace("/\s+/", "_", $razon_social);
 
 
       if (empty($idsucursal)) {
 
-         $objSucursal->Registrar($useridglobal, $tipo, $razon_social, $telefono, $idreprecentante, $estado, $adicional);
+         $objSucursal->Registrar($useridglobal, $tipo, $razon_social, $telefono, $idreprecentante, $estado, $adicional, $idoficina);
       } else {
 
          // $idglobal = $_POST["txtIdGlobal"];
-         $objSucursal->Modificar($idsucursal, $useridglobal, $tipo, $razon_social, $telefono, $idreprecentante, $estado, $adicional);
+         $objSucursal->Modificar($idsucursal, $useridglobal, $tipo, $razon_social, $telefono, $idreprecentante, $estado, $adicional, $idoficina);
       }
 
 

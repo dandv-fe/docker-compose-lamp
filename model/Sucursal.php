@@ -7,7 +7,7 @@
 		public function __construct(){
 		}
 
-		public function Registrar($useridglobal,$tipo,$razon_social,$telefono,$idreprecentante,$estado,$adicional){
+		public function Registrar($useridglobal,$tipo,$razon_social,$telefono,$idreprecentante,$estado,$adicional, $idoficina=0){
 			global $conexion;
 			$dt = date('Y-m-d H:i:s');
 			$sw=true;
@@ -31,15 +31,15 @@
 			 }
 
 			$sql = "INSERT INTO tbl_sucursal(
-				idglobal, str_tipo, str_codigo,
+				idglobal, idoficina, str_tipo, str_codigo,
 				str_telefono, idempleado, str_cobro_adicional,
-				str_estado, created_at, updated_at
+				str_estado, str_logo, created_at, updated_at
 			)
-			
-			VALUES($useridglobal, '$tipo', '$razon_social', 
+            
+			VALUES($useridglobal, $idoficina, '$tipo', '$razon_social', 
 			'$telefono',
 			$idreprecentante, '$adicional',
-			'$estado', '$dt', '$dt'
+			'$estado', '', '$dt', '$dt'
 			)";
 			$conexion->query($sql) or throw new Exception('error!'); 
 
@@ -55,6 +55,7 @@
 				$conexion->query($sql) or throw new Exception('error!');
 			}
 		} catch (Exception $e) {
+         print_r($e);
 			$sw=false;
 			$conexion->rollback();
 		  }
@@ -67,7 +68,7 @@
 		  return;
 		}
 
-		public function Modificar($idsucursal,$useridglobal,$tipo,$razon_social,$telefono,$idreprecentante,$estado,$adicional){
+		public function Modificar($idsucursal,$useridglobal,$tipo,$razon_social,$telefono,$idreprecentante,$estado,$adicional, $idoficina=0){
 			global $conexion;
 			$dt = date('Y-m-d H:i:s');
 			$sw=true;
@@ -80,6 +81,7 @@
 				
 
 			$sql = "UPDATE tbl_sucursal SET
+				idoficina=$idoficina,
 				str_tipo='$tipo',
 				str_codigo='$razon_social',
 				str_telefono='$telefono',
@@ -182,6 +184,7 @@
 			global $conexion;
 			$sql = "SELECT 
 				idsucursal AS ref,
+				idoficina AS refOficina,
 				str_tipo AS tipo,
 				str_codigo AS codigo,
 				str_telefono AS tel,
