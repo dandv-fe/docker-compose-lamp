@@ -547,7 +547,7 @@
 
       var idahorroOrigen = parseInt($('#idahorro').val() || 0, 10);
       var idahorroDestino = parseInt($('#stepperForm').data('idahorroDestino') || 0, 10);
-      var monto = parseFloat($('#monto').val() || 0);
+      var monto = parseCurrencyFlexible($('#monto').val());
       var descripcion = ($('#str_descripcion_envio').val() || '').trim();
 
       if (!idahorroOrigen || !idahorroDestino || !monto || monto <= 0 || !descripcion) {
