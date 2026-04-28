@@ -408,6 +408,7 @@ class MiAhorro
       $idglobal = intval($idglobal);
       $idpersona = intval($idpersona);
 
+      // Incluir movimientos donde la cuenta del usuario esté en idahorro OR en idahorro_de
       $sql = "SELECT
                         m.idmovimiento,
                         m.date_movimiento,
@@ -420,20 +421,28 @@ class MiAhorro
                         END AS monto_firmado,
                         m.str_descripcion,
                         m.str_estado,
-                        a.idahorro,
-                        a.id_cuenta,
-                        a.str_name,
+                        COALESCE(a1.idahorro, a2.idahorro) AS idahorro,
+                        COALESCE(a1.id_cuenta, a2.id_cuenta) AS id_cuenta,
+                        COALESCE(a1.str_name, a2.str_name) AS str_name,
                         TRIM(CONCAT(IFNULL(p.str_nombres, ''), ' ', IFNULL(p.str_apellidos, ''))) AS ahorrador,
                         IFNULL(NULLIF(TRIM(p.str_tipo_documento), ''), '-') AS str_tipo_documento,
                         IFNULL(NULLIF(TRIM(p.str_num_documento), ''), '-') AS str_num_documento
                      FROM tbl_movimientos m
-                     INNER JOIN tbl_ahorros a ON a.idahorro = m.idahorro AND a.idglobal = m.idglobal
-                     LEFT JOIN tbl_persona p ON p.idpersona = a.idpersona
+                     LEFT JOIN tbl_ahorros a1 ON a1.idahorro = m.idahorro AND a1.idglobal = m.idglobal
+                     LEFT JOIN tbl_ahorros a2 ON a2.idahorro = m.idahorro_de AND a2.idglobal = m.idglobal
+                     LEFT JOIN tbl_persona p ON p.idpersona = COALESCE(a1.idpersona, a2.idpersona)
                      WHERE m.idglobal=$idglobal
-                        AND a.idpersona=$idpersona
+                        AND (
+                           (a1.idpersona IS NOT NULL AND a1.idpersona=$idpersona)
+                           OR (a2.idpersona IS NOT NULL AND a2.idpersona=$idpersona)
+                        )
                         AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'
-                        AND a.str_tipo IN ('ahorro','corriente','principal')
+                        AND (
+                           (a1.str_tipo IS NOT NULL AND a1.str_tipo IN ('ahorro','corriente','principal'))
+                           OR (a2.str_tipo IS NOT NULL AND a2.str_tipo IN ('ahorro','corriente','principal'))
+                        )
                      ORDER BY m.date_movimiento DESC, m.idmovimiento DESC";
+
       return $conexion->query($sql);
    }
 
