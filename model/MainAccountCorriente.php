@@ -53,7 +53,7 @@ class MainAccountCorriente
 
       return 0;
    }
-   public function registrar($idglobal, $idpersona)
+   public function registrar(int $idglobal, int $idpersona)
    {
       global $conexion;
       $sw = true;
@@ -84,18 +84,10 @@ class MainAccountCorriente
                $conexion->close();
             }
             return false;
-         } else {
-            // Quitar último carácter
-            $base = substr($strUltimo, 0, -1);
-            if ($base === '') {
-               $base = '0';
-            }
-            // Incrementar y añadir '0' al final
-            $nuevo = (string)(intval($base) + 1);
-            $idCuenta = $nuevo . '0';
          }
 
-        
+         $idCuenta = (intval($strUltimo) + 10);
+         $idCuenta = strval($idCuenta);
          $sqlIns = "INSERT INTO tbl_ahorros (
                    idglobal,idpersona,dec_porcentaje,
                    str_name,
@@ -112,7 +104,6 @@ class MainAccountCorriente
                   1,'activo','$dt','$dt'
                  )";
          $conexion->query($sqlIns) or throw new Exception('error!');
-
       } catch (Exception $e) {
          $sw = false;
          $conexion->rollback();

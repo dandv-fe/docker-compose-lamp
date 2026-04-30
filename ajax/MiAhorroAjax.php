@@ -4,23 +4,9 @@ require_once "../method.php";
 require_once "../model/MiAhorro.php";
 
 $objMiAhorro = new MiAhorro();
-$idglobal = $_SESSION['idglobal'];
-$superadmin = $_SESSION['userEmpresa'];
-$idpersona = intval($_SESSION['idpersona'] ?? 0);
-
-if ($idpersona <= 0) {
-   $idempleado = intval($_SESSION['idempleado'] ?? 0);
-   if ($idempleado > 0) {
-      require_once "../model/Conexion.php";
-      global $conexion;
-      $sqlPersona = "SELECT idpersona FROM tbl_empleado WHERE idempleado=$idempleado LIMIT 1";
-      $qPersona = $conexion->query($sqlPersona);
-      $rPersona = $qPersona ? $qPersona->fetch_object() : null;
-      if (!empty($rPersona->idpersona)) {
-         $idpersona = intval($rPersona->idpersona);
-      }
-   }
-}
+$idglobal = intval($_SESSION['idglobal']);
+$superadmin = intval($_SESSION['userEmpresa']);
+$idpersona = intval($_SESSION['idpersona']);
 switch ($_GET['op']) {
    case 'SaveOrUpdate':
       $idahorro = limpiar_cadena2($_POST['idahorro']);
@@ -55,9 +41,6 @@ switch ($_GET['op']) {
          }
       }
 
-
-
-
       if (empty($idahorro) && $objMiAhorro->tieneCuentasAhorros($idpersona, 3)) {
          echo json_encode([
             'status' => 'error',
@@ -81,8 +64,7 @@ switch ($_GET['op']) {
          $objMiAhorro->registrar(
             $idglobal,
             $idpersona,
-            $str_name,
-            $superadmin
+            $str_name
          );
       } else {
          # editar
@@ -90,8 +72,7 @@ switch ($_GET['op']) {
             $idglobal,
             intval($idahorro),
             intval($idpersona),
-            $str_name,
-            $superadmin
+            $str_name
          );
 
          echo json_encode($respuesta);

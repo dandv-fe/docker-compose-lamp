@@ -1,4 +1,3 @@
-
 <?php
 
 function limpiar_cadena($cadena)

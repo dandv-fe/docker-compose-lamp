@@ -5,10 +5,9 @@ class MiAhorro
 {
    public function __construct() {}
    public function registrar(
-      $idglobal,
-      $idpersona,
-      $str_name,
-      $superadmin
+      int $idglobal,
+      int $idpersona,
+      string $str_name,
    ) {
       global $conexion;
       $sw = true;
@@ -27,53 +26,53 @@ class MiAhorro
             WHERE idpersona=$idpersona 
             ORDER BY idahorro DESC LIMIT 1";
          $qUltimoIdCuenta = $conexion->query($sqlUltimoIdCuenta);
-         $rUltimoIdCuenta = $qUltimoIdCuenta ? $qUltimoIdCuenta->fetch_object() : null;   
+         $rUltimoIdCuenta = $qUltimoIdCuenta ? $qUltimoIdCuenta->fetch_object() : null;
 
-        if (!$rUltimoIdCuenta) {
-           echo json_encode(['status' => 'error', 'mensaje' => 'No existe cuenta previa para generar id_cuenta']);
-           $conexion->rollback();
-           if ($conexion != null) {
-              $conexion->close();
-           }
-           return false;
-        } else {
-           // Generar nuevo id_cuenta a partir del último: incrementar último dígito (0-8)
-           $strUltimo = isset($rUltimoIdCuenta->id_cuenta) ? (string)$rUltimoIdCuenta->id_cuenta : '';
-           if ($strUltimo === '') {
-              echo json_encode(['status' => 'error', 'mensaje' => 'Formato inválido de id_cuenta previo']);
-              $conexion->rollback();
-              if ($conexion != null) {
-                 $conexion->close();
-              }
-              return false;
-           }
+         if (!$rUltimoIdCuenta) {
+            echo json_encode(['status' => 'error', 'mensaje' => 'No existe cuenta previa para generar id_cuenta']);
+            $conexion->rollback();
+            if ($conexion != null) {
+               $conexion->close();
+            }
+            return false;
+         } else {
+            // Generar nuevo id_cuenta a partir del último: incrementar último dígito (0-8)
+            $strUltimo = isset($rUltimoIdCuenta->id_cuenta) ? (string)$rUltimoIdCuenta->id_cuenta : '';
+            if ($strUltimo === '') {
+               echo json_encode(['status' => 'error', 'mensaje' => 'Formato inválido de id_cuenta previo']);
+               $conexion->rollback();
+               if ($conexion != null) {
+                  $conexion->close();
+               }
+               return false;
+            }
 
-           $lastChar = substr($strUltimo, -1);
-           if (!ctype_digit($lastChar)) {
-              echo json_encode(['status' => 'error', 'mensaje' => 'Formato inválido de id_cuenta previo']);
-              $conexion->rollback();
-              if ($conexion != null) {
-                 $conexion->close();
-              }
-              return false;
-           }
+            $lastChar = substr($strUltimo, -1);
+            if (!ctype_digit($lastChar)) {
+               echo json_encode(['status' => 'error', 'mensaje' => 'Formato inválido de id_cuenta previo']);
+               $conexion->rollback();
+               if ($conexion != null) {
+                  $conexion->close();
+               }
+               return false;
+            }
 
-           $digit = intval($lastChar);
-           if ($digit >= 0 && $digit <= 8) {
-              $prefix = substr($strUltimo, 0, -1);
-              $idCuenta = $prefix . (string)($digit + 1);
-           } else {
-              // Si el último dígito es 9 -> devolver error
-              echo json_encode(['status' => 'error', 'mensaje' => 'No se puede generar id_cuenta: último dígito es 9']);
-              $conexion->rollback();
-              if ($conexion != null) {
-                 $conexion->close();
-              }
-              return false;
-           }
-        }
+            $digit = intval($lastChar);
+            if ($digit >= 0 && $digit <= 8) {
+               $prefix = substr($strUltimo, 0, -1);
+               $idCuenta = $prefix . (string)($digit + 1);
+            } else {
+               // Si el último dígito es 9 -> devolver error
+               echo json_encode(['status' => 'error', 'mensaje' => 'No se puede generar id_cuenta: último dígito es 9']);
+               $conexion->rollback();
+               if ($conexion != null) {
+                  $conexion->close();
+               }
+               return false;
+            }
+         }
 
-       
+
 
 
          $sqlIns = "INSERT INTO tbl_ahorros (
@@ -92,9 +91,6 @@ class MiAhorro
                   $bit_auth_movimientos,'$str_estado','$dt','$dt'
                  )";
          $conexion->query($sqlIns) or throw new Exception('error!');
-
-
-        
       } catch (Exception $e) {
          print_r($e);
          $sw = false;
@@ -199,7 +195,7 @@ class MiAhorro
       return !empty($reg);
    }
 
-   public function asegurarCuentaCorriente($idglobal, $idpersona)
+   public function asegurarCuentaCorriente(int $idglobal, int $idpersona)
    {
       global $conexion;
       $idglobal = intval($idglobal);
@@ -218,7 +214,30 @@ class MiAhorro
       }
 
       $dt = date('Y-m-d H:i:s');
-      $idcuentatemp = uniqidReal();
+
+      $idcuentatemp = 0;
+
+
+      $sqlIdCuenta = "SELECT id_cuenta FROM tbl_ahorros where id_cuenta like '%0' ORDER BY idahorro DESC LIMIT 1";
+      $qIdCuenta = $conexion->query($sqlIdCuenta);
+      $ultimoIdCuenta = $qIdCuenta ? $qIdCuenta->fetch_object()->id_cuenta : null;
+
+
+      // Generar nuevo id_cuenta a partir del último: quitar último dígito, sumar 1, añadir '0'
+      $strUltimo = intval($ultimoIdCuenta);
+      if ($strUltimo === 0) {
+         // No existe cuenta previa -> devolver error
+         echo json_encode(['status' => 'error', 'mensaje' => 'No existe cuenta previa para generar id_cuenta']);
+         $conexion->rollback();
+         if ($conexion != null) {
+            $conexion->close();
+         }
+         return '0';
+      }
+
+      $idcuentatemp = $strUltimo + 10;
+      $idcuentatemp = (string)$idcuentatemp;
+
       $sqlIns = "INSERT INTO tbl_ahorros (
                     idglobal,
                     idpersona,
@@ -255,12 +274,6 @@ class MiAhorro
       if ($idahorroNuevo <= 0) {
          return 0;
       }
-
-      $sqlUpdCuenta = "UPDATE tbl_ahorros
-                       SET id_cuenta=CONCAT('$idahorroNuevo', '-00'), update_at='$dt'
-                       WHERE idahorro=$idahorroNuevo";
-      $conexion->query($sqlUpdCuenta);
-
       return $idahorroNuevo;
    }
 
@@ -315,11 +328,10 @@ class MiAhorro
    }
 
    public function actualizar(
-      $idglobal,
-      $idahorro,
-      $idpersona,
-      $str_name,
-      $superadmin = null
+      int $idglobal,
+      int $idahorro,
+      int $idpersona,
+      string $str_name
    ) {
       global $conexion;
       $dt = date('Y-m-d H:i:s');
@@ -356,7 +368,7 @@ class MiAhorro
       ];
    }
 
-   public function listarMovimientos($idglobal, $idahorro)
+   public function listarMovimientos(int $idglobal, int $idahorro)
    {
       global $conexion;
       $idglobal = intval($idglobal);

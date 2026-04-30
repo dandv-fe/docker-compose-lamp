@@ -23,16 +23,7 @@ class Corresponsal
       $idCuenta = ''; // Asignar el valor adecuado para idCuenta
 
       try {
-         // Verificar si ya tiene ahorro
-         $sqlExist = "SELECT idahorro FROM tbl_ahorros 
-          WHERE idglobal=$idglobal AND idpersona=$idpersonaE AND str_tipo='$str_tipo'";
-         $qExist = $conexion->query($sqlExist);
-         $rExist = $qExist ? $qExist->fetch_object() : null;
-         if ($rExist && !empty($rExist->idahorro)) {
-            echo json_encode(['status' => 'error', 'mensaje' => 'El empleado seleccionado ya tiene un corresponsal a cargo']);
-            return false;
-         }
-
+        
           // buscar el último id_cuenta para el ahorro principal de la persona
          $sqlUltimoIdCuenta = "SELECT id_cuenta FROM tbl_ahorros 
             WHERE idpersona=$idpersona
@@ -233,10 +224,10 @@ class Corresponsal
       }
 
       $dt = date('Y-m-d H:i:s');
-      $idcuentatemp = '';
+      
 
 
-  $sqlIdCuenta = "SELECT id_cuenta FROM tbl_ahorros ORDER BY idahorro DESC LIMIT 1";
+  $sqlIdCuenta = "SELECT id_cuenta FROM tbl_ahorros WHERE id_cuenta LIKE '%0' ORDER BY idahorro DESC LIMIT 1";
          $qIdCuenta = $conexion->query($sqlIdCuenta);
          $ultimoIdCuenta = $qIdCuenta ? $qIdCuenta->fetch_object()->id_cuenta : null;
          // Generar nuevo id_cuenta a partir del último: quitar último dígito, sumar 1, añadir '0'
@@ -249,16 +240,8 @@ class Corresponsal
                $conexion->close();
             }
             return false;
-         } else {
-            // Quitar último carácter
-            $base = substr($strUltimo, 0, -1);
-            if ($base === '') {
-               $base = '0';
-            }
-            // Incrementar y añadir '0' al final
-            $nuevo = (string)(intval($base) + 1);
-            $idcuentatemp = $nuevo . '0';
-         }
+         } 
+         $idcuentatemp = (intval($strUltimo) + 10);
 
       $sqlIns = "INSERT INTO tbl_ahorros (
                     idglobal,

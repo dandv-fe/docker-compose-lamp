@@ -33,6 +33,7 @@ switch ($_GET["op"]) {
 
    case 'SaveOrUpdate':
       $password = '';
+      $claveAnterior = '';
       //datos persona txtRefPersona
       $idpersona = limpiar_cadena($_POST["txtRefPersona"]); // hidden
       $nombres = limpiar_cadena($_POST["txt_Nombre"]);
@@ -116,8 +117,6 @@ switch ($_GET["op"]) {
                      $ocupacion,
                      $nota,
                      $login,
-                     $password,
-
                      $idglobal
                   );
                } else {
