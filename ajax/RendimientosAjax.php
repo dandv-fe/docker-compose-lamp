@@ -36,8 +36,8 @@ switch ($_GET["op"]) {
 
       if ($query && $query->num_rows > 0) {
          while ($reg = $query->fetch_object()) {
-           // print_r($reg);
-            
+            // print_r($reg);
+
             $utilidad = ($reg->valorTotalCreditos - ($reg->prestamo + $reg->venta)) + $reg->seguro + $reg->diferencia - $reg->descuento;
             $gastos = $reg->gastos + $reg->otros_gastos;
             $crece = $utilidad - $gastos - $reg->salida + $reg->entrada;
@@ -55,7 +55,7 @@ switch ($_GET["op"]) {
             $totales['sum_cart'] += (float)$reg->sum_cart;
             $totales['saldo_disp'] += (float)$reg->saldo_disp;
             $totales['valorTotalCreditos'] += (float)$reg->valorTotalCreditos;
-            $totales['carteraTotal'] += (float)$reg->carteraTotal;
+            $totales['carteraTotal'] += ((float)$reg->sum_cart + (float)$reg->saldo_disp);
 
             $data[] = array(
                $reg->codigo,
@@ -73,11 +73,11 @@ switch ($_GET["op"]) {
                number_format($crece, 2, '.', ','), //crece
                number_format($reg->sum_cart, 2, '.', ','), //sum_cart
                number_format($reg->saldo_disp, 2, '.', ','), //saldo_disp
-               number_format($reg->carteraTotal, 2, '.', ',')
+               number_format(((float)$reg->sum_cart + (float)$reg->saldo_disp), 2, '.', ',')
             );
          }
 
-         $total_utilidad = $totales['valorTotalCreditos'] + $totales['prestamo'] + $totales['venta'] + $totales['seguro'] + $totales['diferencia'] - $totales['descuento'];
+         $total_utilidad = ($totales['valorTotalCreditos'] - ($totales['prestamo'] + $totales['venta'])  + $totales['seguro'] + $totales['diferencia'] - $totales['descuento']);
          $total_gastos = $totales['gastos'] + $totales['otros_gastos'];
          $utilidad_neta_total = $total_utilidad - $total_gastos;
          $total_crece = $utilidad_neta_total - $totales['salida'] + $totales['entrada'];
