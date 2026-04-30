@@ -9,7 +9,8 @@ $superadmin = $_SESSION['userEmpresa'];
 $idpersona = $_SESSION['idpersona'];
 switch ($_GET['op']) {
    case 'SaveOrUpdate':
-      $idahorro = limpiar_cadena2($_POST['idahorro']);
+        ob_start();
+        $idahorro = limpiar_cadena2($_POST['idahorro']);
       $idpersonaE = limpiar_cadena2($_POST['str_empleado']);
       $dec_porcentaje  = floatval($_POST['dec_porcentaje']);
       $str_name = 'Ahorro Programado';
@@ -99,7 +100,17 @@ switch ($_GET['op']) {
          ]);
       }
 
-      //
+      // al finalizar, asegurar que la salida es JSON válido
+      $out = trim((string)ob_get_clean());
+      // si ya se imprimió JSON válido por alguna función, devolverlo
+      $decoded = json_decode($out, true);
+      if (is_array($decoded) && array_key_exists('status', $decoded)) {
+         echo json_encode($decoded);
+      } else {
+         // devolver error uniforme incluyendo cualquier salida inesperada
+         $mensaje = $out !== '' ? $out : 'No se obtuvo respuesta del servidor.';
+         echo json_encode(['status' => 'error', 'mensaje' => $mensaje]);
+      }
       break;
    case 'listEmpleados':
       $idahorroRef = intval($_REQUEST['idahorro'] ?? 0);
