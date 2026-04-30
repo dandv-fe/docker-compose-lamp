@@ -491,21 +491,22 @@ class Ahorradores
    public function listarMovimientosPersona($idglobal, $idpersona)
    {
       global $conexion;
-      $sql = "SELECT
-                m.idahorro,
-                m.idahorro_de,
-                m.date_movimiento AS fecha,
-                IFNULL(NULLIF(TRIM(a.id_cuenta), ''), CONCAT('Ahorro #', a.idahorro)) AS cuenta,
-                m.str_tipo AS tipo,
-                m.dec_valor AS monto,
-                m.str_descripcion AS descripcion,
-                m.str_estado AS estado
-              FROM tbl_movimientos m
-              INNER JOIN tbl_ahorros a ON a.idahorro = m.idahorro
-              WHERE m.idglobal=$idglobal
-                AND a.idglobal=$idglobal
-                AND a.idpersona=$idpersona
-              ORDER BY m.date_movimiento DESC";
+         $sql = "SELECT
+                        m.idahorro,
+                        m.idahorro_de,
+                        m.date_movimiento AS fecha,
+                        IFNULL(NULLIF(TRIM(a.id_cuenta), ''), CONCAT('Ahorro #', a.idahorro)) AS cuenta,
+                        m.str_tipo AS tipo,
+                        m.dec_valor AS monto,
+                        CASE WHEN m.idahorro_de = a.idahorro AND m.idahorro <> m.idahorro_de THEN 1 ELSE 0 END AS isvia,
+                        m.str_descripcion AS descripcion,
+                        m.str_estado AS estado
+                     FROM tbl_movimientos m
+                     INNER JOIN tbl_ahorros a ON (a.idahorro = m.idahorro OR a.idahorro = m.idahorro_de)
+                     WHERE m.idglobal=$idglobal
+                        AND a.idglobal=$idglobal
+                        AND a.idpersona=$idpersona
+                     ORDER BY m.date_movimiento DESC";
       return $conexion->query($sql);
    }
 
