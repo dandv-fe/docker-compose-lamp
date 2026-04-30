@@ -460,20 +460,27 @@
       contentType: false,
       processData: false,
       success: function (resp) {
-        var msg = resp;
-        var isError = false;
+        var msg = '';
+        var isError = true; // asumir error hasta validar
         try {
           var data = typeof resp === 'string' ? JSON.parse(resp) : resp;
-          if (data && data.status) {
+          if (data && typeof data === 'object' && 'status' in data) {
             isError = data.status !== 'success';
-            msg = data.mensaje || data.msg || resp;
+            msg = data.mensaje || data.msg || '';
+          } else {
+            // respuesta inesperada (no JSON con campo status)
+            msg = typeof resp === 'string' ? resp : JSON.stringify(resp);
+            isError = true;
           }
         } catch (e) {
-          isError = typeof resp === 'string' && resp.indexOf('ERROR:') !== -1;
+          // no se pudo parsear JSON -> tratar como error y mostrar respuesta cruda
+          msg = typeof resp === 'string' ? resp : JSON.stringify(resp);
+          isError = true;
+          console.error('Respuesta no JSON SaveOrUpdate:', resp);
         }
 
         if (isError) {
-          Swal.fire({ icon: 'error', title: 'Error', text: msg || 'No se pudo guardar.' });
+          Swal.fire({ icon: 'error', title: 'Error', html: escapeHtml(msg) || 'No se pudo guardar.' });
           return;
         }
 
