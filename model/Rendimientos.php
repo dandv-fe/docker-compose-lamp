@@ -51,7 +51,7 @@ class Rendimientos
             WHERE
                au.idempleado = $userEmpleadoId
                AND au.str_estado <> 'inactivo'
-               AND (a.str_nombre = 'rendimientos' OR a.str_nombre = 'kardex valorizado')
+               AND a.str_nombre = 'rendimientos' 
             GROUP BY au.idauth_sucursal";
 
       $query = $conexion->query($sql);
@@ -83,7 +83,8 @@ class Rendimientos
       $scopeWhere = $this->buildScopeWhere($superadmin, $idglobal, $userEmpleadoId);
       $scopeWhereSucursal = str_replace('refSucursal', 's.idsucursal', $scopeWhere);
 
-      
+
+
       $sql = "SELECT 
       s.str_codigo AS codigo,
          IFNULL(v.recaudo, 0) AS recaudo,
