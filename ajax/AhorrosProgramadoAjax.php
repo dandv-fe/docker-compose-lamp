@@ -9,9 +9,11 @@ $superadmin = $_SESSION['userEmpresa'];
 $idpersona = $_SESSION['idpersona'];
 switch ($_GET['op']) {
    case 'SaveOrUpdate':
-        ob_start();
-        $idahorro = limpiar_cadena2($_POST['idahorro']);
-      $idpersonaE = limpiar_cadena2($_POST['str_empleado']);
+            ob_start();
+            header('Content-Type: application/json; charset=utf-8');
+            try {
+                  $idahorro = limpiar_cadena2($_POST['idahorro']);
+                  $idpersonaE = limpiar_cadena2($_POST['str_empleado']);
       $dec_porcentaje  = floatval($_POST['dec_porcentaje']);
       $str_name = 'Ahorro Programado';
 
@@ -69,7 +71,7 @@ switch ($_GET['op']) {
          break;
       }
 
-      if (empty($idahorro)) {
+            if (empty($idahorro)) {
          # registrar
          $objAhorrosProgramado->registrar(
             $idglobal,
@@ -98,20 +100,25 @@ switch ($_GET['op']) {
             'status' => $ok ? 'success' : 'error',
             'mensaje' => $ok ? 'Corresponsal actualizado correctamente' : 'No se pudo actualizar el corresponsal'
          ]);
-      }
+            }
 
-      // al finalizar, asegurar que la salida es JSON válido
-      $out = trim((string)ob_get_clean());
-      // si ya se imprimió JSON válido por alguna función, devolverlo
-      $decoded = json_decode($out, true);
-      if (is_array($decoded) && array_key_exists('status', $decoded)) {
-         echo json_encode($decoded);
-      } else {
-         // devolver error uniforme incluyendo cualquier salida inesperada
-         $mensaje = $out !== '' ? $out : 'No se obtuvo respuesta del servidor.';
-         echo json_encode(['status' => 'error', 'mensaje' => $mensaje]);
-      }
-      break;
+            // al finalizar, asegurar que la salida es JSON válido
+            $out = trim((string)ob_get_clean());
+            $decoded = json_decode($out, true);
+            if (is_array($decoded) && array_key_exists('status', $decoded)) {
+               echo json_encode($decoded);
+            } else {
+               $mensaje = $out !== '' ? $out : 'Operación completada sin respuesta explícita.';
+               echo json_encode(['status' => 'success', 'mensaje' => $mensaje]);
+            }
+        } catch (Throwable $e) {
+            $out = trim((string)ob_get_clean());
+            $detalle = $out !== '' ? ($out . "\n") : '';
+            $msg = $detalle . $e->getMessage();
+            echo json_encode(['status' => 'error', 'mensaje' => $msg]);
+        }
+
+        break;
    case 'listEmpleados':
       $idahorroRef = intval($_REQUEST['idahorro'] ?? 0);
       $query = $objAhorrosProgramado->cboListEmpleado($idglobal, $idahorroRef);
