@@ -243,6 +243,8 @@ function VerForm() {
 function OcultarForm() {
   $("#VerConfiguracion").hide();
   $("form#frmEmpleado").trigger('reset');
+  // Asegurar que los campos ocultos queden vacíos después del reset
+  $("form#frmEmpleado input:hidden").val('');
   $("#VerForm").hide();// Mostramos el formulario
   $("#btnNuevoEmpleado").show();// ocultamos el boton nuevo
   $("#VerListado").show();// ocultamos el listado
@@ -888,6 +890,13 @@ function cargarDataEmpleado(tipo_documento, num_documento, accion) {// funcion q
     $("#txt_tipo_documentoHidden").val(tipo_documento)
     $("#txt_num_DocumentoHidden").val(num_documento)
     $("#txt_num_Documento").val(num_documento)
+    // Asegurar que referencias ocultas estén vacías al crear uno nuevo
+    $("#txtRefPersona").val('');
+    $("#txtRefEmpleado").val('');
+    $("#txtRefUsuario").val('');
+    $("#txtidPublica").val('');
+    $("#txtRefOficinaEmpleado").val('');
+    $("#txt_RutaImgCli").val('');
 
   }
 

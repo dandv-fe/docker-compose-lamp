@@ -218,6 +218,8 @@ function VerForm() {
 function OcultarForm() {
   $("#VerConfiguracion").hide();
   $("form#frmAhorro").trigger('reset');
+  // Asegurar que los campos ocultos no conserven valores residuales
+  $("form#frmAhorro input:hidden").val('');
   $("#VerForm").hide();
   $("#btnNuevoAhorrador").show();
   $("#VerListado").show();

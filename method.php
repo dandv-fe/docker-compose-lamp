@@ -3,6 +3,7 @@
 
 function limpiar_cadena($cadena)
 {
+   $cadena = (string)($cadena ?? '');
    $cadena = trim($cadena);
    $cadena = stripslashes($cadena);
    $cadena = str_ireplace("<script>", "", $cadena);
@@ -29,6 +30,7 @@ function limpiar_cadena($cadena)
 
 function limpiar_cadena2($cadena)
 {
+   $cadena = (string)($cadena ?? '');
    $cadena = trim($cadena);
    $cadena = stripslashes($cadena);
    $cadena = str_ireplace("<script>", "", $cadena);

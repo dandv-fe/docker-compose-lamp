@@ -21,32 +21,30 @@ class Corresponsal
                         a.created_at,
                         IFNULL((
                            SELECT SUM(
-                              CASE m.str_tipo
-                                 WHEN 'aporte' THEN m.dec_valor
-                                 WHEN 'ajuste' THEN m.dec_valor
-                                 WHEN 'retiro' THEN -m.dec_valor
-                                 WHEN 'entrada' THEN m.dec_valor
-                                 WHEN 'salida' THEN -m.dec_valor
+                              CASE
+                                 WHEN m.idahorro = a.idahorro THEN
+                                    CASE m.str_tipo
+                                       WHEN 'aporte' THEN m.dec_valor
+                                       WHEN 'ajuste' THEN m.dec_valor
+                                       WHEN 'entrada' THEN m.dec_valor
+                                       WHEN 'retiro' THEN -m.dec_valor
+                                       WHEN 'salida' THEN -m.dec_valor
+                                       ELSE 0
+                                    END
+                                 WHEN m.idahorro_de = a.idahorro THEN
+                                    CASE m.str_tipo
+                                       WHEN 'retiro' THEN m.dec_valor
+                                       WHEN 'aporte' THEN m.dec_valor
+                                       WHEN 'ajuste' THEN m.dec_valor
+                                       WHEN 'entrada' THEN m.dec_valor
+                                       ELSE 0
+                                    END
                                  ELSE 0
                               END
                            )
-                           + IFNULL((
-                              SELECT SUM(
-                                 CASE m2.str_tipo
-                                    WHEN 'aporte' THEN -m2.dec_valor
-                                    WHEN 'ajuste' THEN -m2.dec_valor
-                                    WHEN 'retiro' THEN m2.dec_valor
-                                    ELSE 0
-                                 END
-                              )
-                              FROM tbl_movimientos m2
-                              WHERE m2.idglobal = a.idglobal
-                                 AND m2.idahorro_de = a.idahorro
-                                 AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO'
-                           ), 0)
                            FROM tbl_movimientos m
                            WHERE m.idglobal = a.idglobal
-                              AND m.idahorro = a.idahorro
+                              AND (m.idahorro = a.idahorro OR m.idahorro_de = a.idahorro)
                               AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'
                         ), 0) AS saldo_actual
                      FROM tbl_ahorros a
@@ -77,49 +75,50 @@ class Corresponsal
                         m.str_estado,
                         IFNULL((
                            SELECT SUM(
-                              CASE m2.str_tipo
-                                 WHEN 'aporte' THEN m2.dec_valor
-                                 WHEN 'ajuste' THEN m2.dec_valor
-                                 WHEN 'retiro' THEN -m2.dec_valor
-                                 WHEN 'entrada' THEN m2.dec_valor
-                                 WHEN 'salida' THEN -m2.dec_valor
+                              CASE
+                                 WHEN m2.idahorro = $idahorro THEN
+                                    CASE m2.str_tipo
+                                       WHEN 'aporte' THEN m2.dec_valor
+                                       WHEN 'ajuste' THEN m2.dec_valor
+                                       WHEN 'entrada' THEN m2.dec_valor
+                                       WHEN 'retiro' THEN -m2.dec_valor
+                                       WHEN 'salida' THEN -m2.dec_valor
+                                       ELSE 0
+                                    END
+                                 WHEN m2.idahorro_de = $idahorro THEN
+                                    CASE m2.str_tipo
+                                       WHEN 'retiro' THEN m2.dec_valor
+                                       WHEN 'aporte' THEN m2.dec_valor
+                                       WHEN 'ajuste' THEN m2.dec_valor
+                                       WHEN 'entrada' THEN m2.dec_valor
+                                       ELSE 0
+                                    END
                                  ELSE 0
                               END
                            )
                            FROM tbl_movimientos m2
                            WHERE m2.idglobal = m.idglobal
-                              AND m2.idahorro = $idahorro
-                              AND (
-                                 m2.date_movimiento < m.date_movimiento
-                                 OR (m2.date_movimiento = m.date_movimiento AND m2.idmovimiento <= m.idmovimiento)
-                              )
+                              AND (m2.date_movimiento < m.date_movimiento OR (m2.date_movimiento = m.date_movimiento AND m2.idmovimiento <= m.idmovimiento))
+                              AND (m2.idahorro = $idahorro OR m2.idahorro_de = $idahorro)
                               AND UPPER(IFNULL(m2.str_estado, '')) <> 'INACTIVO'
-                        )
-                        + IFNULL((
-                           SELECT SUM(
-                              CASE m3.str_tipo
-                                 WHEN 'aporte' THEN -m3.dec_valor
-                                 WHEN 'ajuste' THEN -m3.dec_valor
-                                 WHEN 'retiro' THEN m3.dec_valor
-                                 ELSE 0
-                              END
-                           )
-                           FROM tbl_movimientos m3
-                           WHERE m3.idglobal = m.idglobal
-                              AND m3.idahorro_de = $idahorro
-                              AND m3.idahorro <> m3.idahorro_de
-                              AND (
-                                 m3.date_movimiento < m.date_movimiento
-                                 OR (m3.date_movimiento = m.date_movimiento AND m3.idmovimiento <= m.idmovimiento)
-                              )
-                              AND UPPER(IFNULL(m3.str_estado, '')) <> 'INACTIVO'
-                        ), 0), 0) AS saldo_acumulado
+                        ), 0) AS saldo_acumulado
                      FROM tbl_movimientos m
                      WHERE m.idglobal=$idglobal
                         AND (m.idahorro=$idahorro OR m.idahorro_de=$idahorro)
                      ORDER BY m.date_movimiento DESC, m.idmovimiento DESC";
 
       return $conexion->query($sql);
+   }
+
+   private function cuentaPermiteMovimientos($idglobal, $idahorro)
+   {
+      global $conexion;
+      $idglobal = intval($idglobal);
+      $idahorro = intval($idahorro);
+      $sql = "SELECT COALESCE(bit_auth_movimientos,0) AS permiso FROM tbl_ahorros WHERE idglobal=$idglobal AND idahorro=$idahorro LIMIT 1";
+      $q = $conexion->query($sql);
+      $r = $q ? $q->fetch_object() : null;
+      return $r && intval($r->permiso) === 1;
    }
 
    public function finalizarTransferencia($idglobal, $idpersona, $idahorroOrigen, $idahorroDestino, $idusuarioCreated, $monto)
@@ -210,8 +209,17 @@ class Corresponsal
             throw new Exception('Saldo insuficiente para completar la transferencia');
          }
 
+         // Validar que la cuenta origen permita movimientos
+         if (!$this->cuentaPermiteMovimientos($idglobal, $idahorroOrigen)) {
+            throw new Exception('Movimientos deshabilitados para la cuenta origen');
+         }
+
          $montoSql = number_format($monto, 2, '.', '');
          $descRetiro = mysqli_real_escape_string($conexion, "Corresponsal: {$destino->id_cuenta}");
+            // Validar que la cuenta destino permita movimientos
+            if (!$this->cuentaPermiteMovimientos($idglobal, $idahorroDestino)) {
+               throw new Exception('Movimientos deshabilitados para la cuenta destino');
+            }
          //$descAporte = mysqli_real_escape_string($conexion, "Transferencia recibida desde cuenta {$origen->id_cuenta}");
 
          $sqlRetiro = "INSERT INTO tbl_movimientos(
