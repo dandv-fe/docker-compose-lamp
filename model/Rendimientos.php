@@ -74,7 +74,7 @@ class Rendimientos
    /**
     * Obtiene rendimientos del mes actual agrupados por día
     */
-   public function listCurrentMonth($superadmin, $idglobal, $userEmpleadoId, $periodo = '')
+   public function listCurrentMonth($superadmin, $idglobal, $userEmpleadoId, $periodo)
    {
       global $conexion;
 
