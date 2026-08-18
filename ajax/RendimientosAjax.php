@@ -15,7 +15,7 @@ switch ($_GET["op"]) {
          $periodo = '';
       }
       // print_r($periodo);
-      echo json_encode($superadmin, $idglobal, $userEmpleadoId, $periodo);
+      echo json_encode($superadmin);
       $query = $objRendimientos->listCurrentMonth($superadmin, $idglobal, $userEmpleadoId, $periodo);
       $data = array();
       $totales = array(
