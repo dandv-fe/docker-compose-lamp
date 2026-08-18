@@ -84,7 +84,7 @@ class Rendimientos
       $scopeWhereSucursal = str_replace('refSucursal', 's.idsucursal', $scopeWhere);
 
 
-
+      print_r('HJ');
       $sql = "SELECT 
       s.str_codigo AS codigo,
          IFNULL(v.recaudo, 0) AS recaudo,
