@@ -14,7 +14,8 @@ switch ($_GET["op"]) {
       if (!preg_match('/^\d{4}-\d{2}$/', $periodo)) {
          $periodo = '';
       }
-      print_r($periodo);
+      // print_r($periodo);
+      echo json_encode($periodo);
       $query = $objRendimientos->listCurrentMonth($superadmin, $idglobal, $userEmpleadoId, $periodo);
       $data = array();
       $totales = array(
