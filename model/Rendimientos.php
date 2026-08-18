@@ -84,7 +84,7 @@ class Rendimientos
       $scopeWhereSucursal = str_replace('refSucursal', 's.idsucursal', $scopeWhere);
 
 
-      print_r('HJ');
+
       $sql = "SELECT 
       s.str_codigo AS codigo,
          IFNULL(v.recaudo, 0) AS recaudo,
@@ -145,6 +145,8 @@ class Rendimientos
         AND s.str_estado = 'disponible'
         $scopeWhereSucursal
       ORDER BY s.str_codigo ASC";
+
+      print_r('HJ');
 
       $query = $conexion->query($sql);
       return $query;
