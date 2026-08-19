@@ -153,75 +153,17 @@ ORDER BY s.str_codigo ASC;
 ";
 
 
-      /*
-
-      $sql = "SELECT 
-      s.str_codigo AS codigo,
-         IFNULL(v.recaudo, 0) AS recaudo,
-         ABS(IFNULL(v.prestamo, 0)) AS prestamo,
-         ABS(IFNULL(v.venta, 0)) AS venta,
-         IFNULL(v.seguro, 0) AS seguro,
-         IFNULL(v.diferencia, 0) AS diferencia,
-         IFNULL(v.descuento, 0) AS descuento,
-         IFNULL(v.gastos, 0) AS gastos,
-         IFNULL(v.otros_gastos, 0) AS otros_gastos,
-         IFNULL(v.salida, 0) AS salida,
-         IFNULL(v.entrada, 0) AS entrada,
-
-         
-         (SELECT IFNULL( sum( dec_resta ), 0 ) 
-            FROM tbl_tarjetas WHERE idsucursal=s.idsucursal 
-                     AND str_estado<>'cancelado' 
-                     AND str_estado<>'inactiva' 
-                     AND str_estado<>'moroso' 
-                     AND str_estado<>'fallecio'
-                     AND str_estado<>'discapacitado'
-          ) AS sum_cart,
-
-         IFNULL(v.saldo_disp +(SELECT IFNULL( sum( efectivoCaja ), 0 ) 
-            FROM view_cobro_detallado WHERE refSucursal=s.idsucursal AND fecha_at<'$primerDia'), 0)  AS saldo_disp,
-
-          IFNULL(v.valorTotalCreditos, 0) AS valorTotalCreditos,
-         (SELECT IFNULL( sum( dec_resta ), 0 ) 
-            FROM tbl_tarjetas WHERE idsucursal=s.idsucursal 
-                     AND str_estado<>'cancelado' 
-                     AND str_estado<>'inactiva' 
-
-          ) AS carteraTotal
 
 
-      FROM tbl_sucursal s
-      LEFT JOIN (
-         SELECT
-            refSucursal,
-            SUM(IFNULL(recaudo, 0)) AS recaudo,
-            SUM(IFNULL(prestamo, 0)) AS prestamo,
-            SUM(IFNULL(ventaArticulo, 0)) AS venta,
-            SUM(IFNULL(efectivoOtraUtilidad, 0)) AS seguro,
-            SUM(IFNULL(diferencia, 0)) AS diferencia,
-            SUM(IFNULL(descuento, 0)) AS descuento,
-            SUM(IFNULL(gastos, 0)) AS gastos,
-            SUM(IFNULL(otros_gastos, 0)) AS otros_gastos,
-            SUM(IFNULL(salida, 0)) AS salida,
-            SUM(IFNULL(entrada, 0)) AS entrada,
-            SUM(IFNULL(base, 0)) AS sum_cart,
-            SUM(IFNULL(efectivoCaja, 0)) AS saldo_disp,
-            SUM(IFNULL(valorTotalCreditos, 0)) AS valorTotalCreditos
-         FROM view_cobro_detallado
-         WHERE fecha_at >= '$primerDia' AND fecha_at < DATE_ADD('$ultimoDia', INTERVAL 1 DAY)
-         GROUP BY refSucursal
-      ) v ON v.refSucursal = s.idsucursal
-      WHERE s.idglobal = $idglobal
-        AND s.str_estado = 'disponible'
-        $scopeWhereSucursal
-      ORDER BY s.str_codigo ASC";
 
-
-*/
-
-      print_r($sql);
+      // 2. Ejecución de la consulta utilizando tu conexión nativa
       $query = $conexion->query($sql);
-      print_r($query);
+
+      // 3. Validación y captura de errores (Estándar profesional)
+      if (!$query) {
+         die("Error en la consulta de MariaDB: " . $conexion->error);
+      }
+
       return $query;
    }
 
