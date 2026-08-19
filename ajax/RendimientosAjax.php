@@ -37,7 +37,6 @@ switch ($_GET["op"]) {
 
       if ($query && $query->num_rows > 0) {
          while ($reg = $query->fetch_object()) {
-            print_r($reg);
 
             $utilidad = ($reg->valorTotalCreditos - ($reg->prestamo + $reg->venta)) + $reg->seguro + $reg->diferencia - $reg->descuento;
             $gastos = $reg->gastos + $reg->otros_gastos;
