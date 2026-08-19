@@ -95,52 +95,62 @@ class Rendimientos
     IFNULL(v.otros_gastos, 0) AS otros_gastos, 
     IFNULL(v.salida, 0) AS salida, 
     IFNULL(v.entrada, 0) AS entrada, 
-    (
-        SELECT IFNULL(SUM(dec_resta), 0) 
-        FROM tbl_tarjetas 
-        WHERE idsucursal = s.idsucursal 
-          AND str_estado NOT IN ('cancelado', 'inactiva', 'moroso', 'fallecio', 'discapacitado')
-    ) AS sum_cart, 
-    IFNULL(
-        v.saldo_disp + (
-            SELECT IFNULL(SUM(efectivoCaja), 0) 
-            FROM view_cobro_detallado 
-            WHERE refSucursal = s.idsucursal 
-              AND fecha_at < '$primerDia'
-        ), 0
-    ) AS saldo_disp, 
+    IFNULL(t.sum_cart, 0) AS sum_cart,
+    IFNULL(v.saldo_disp + IFNULL(h.efectivo_historico, 0), 0) AS saldo_disp, 
     IFNULL(v.valorTotalCreditos, 0) AS valorTotalCreditos, 
-    (
-        SELECT IFNULL(SUM(dec_resta), 0) 
-        FROM tbl_tarjetas 
-        WHERE idsucursal = s.idsucursal 
-          AND str_estado NOT IN ('cancelado', 'inactiva')
-    ) AS carteraTotal 
-FROM tbl_sucursal s 
+    IFNULL(t.carteraTotal, 0) AS carteraTotal
+FROM tbl_sucursal s
+
+-- 1. Bloque del periodo actual optimizado desde las tablas base
 LEFT JOIN (
     SELECT 
-        refSucursal, 
-        SUM(IFNULL(recaudo, 0)) AS recaudo, 
-        SUM(IFNULL(prestamo, 0)) AS prestamo, 
-        SUM(IFNULL(ventaArticulo, 0)) AS venta, 
-        SUM(IFNULL(efectivoOtraUtilidad, 0)) AS seguro, 
-        SUM(IFNULL(diferencia, 0)) AS diferencia, 
-        SUM(IFNULL(descuento, 0)) AS descuento, 
-        SUM(IFNULL(gastos, 0)) AS gastos, 
-        SUM(IFNULL(otros_gastos, 0)) AS otros_gastos, 
-        SUM(IFNULL(salida, 0)) AS salida, 
-        SUM(IFNULL(entrada, 0)) AS entrada, 
-        SUM(IFNULL(efectivoCaja, 0)) AS saldo_disp, 
-        SUM(IFNULL(valorTotalCreditos, 0)) AS valorTotalCreditos 
-    FROM view_cobro_detallado 
-    WHERE fecha_at >= '$primerDia' 
-      AND fecha_at < DATE_ADD('$ultimoDia', INTERVAL 1 DAY)
-    GROUP BY refSucursal
-) v ON v.refSucursal = s.idsucursal 
-WHERE s.idglobal =  $idglobal
+        dr.idsucursal AS refSucursal, 
+        SUM(CASE WHEN c.str_nombre = 'recaudo' THEN c.dec_total ELSE 0 END) AS recaudo,
+        SUM(CASE WHEN c.str_nombre = 'prestamos' THEN c.dec_total ELSE 0 END) AS prestamo,
+        SUM(CASE WHEN c.str_nombre = 'articulos' THEN c.dec_total ELSE 0 END) AS venta,
+        SUM(CASE WHEN c.str_nombre = 'efectivo-otra-utilidad' THEN c.dec_total ELSE 0 END) AS seguro,
+        SUM(CASE WHEN c.str_nombre = 'diferencia' THEN c.dec_total ELSE 0 END) AS diferencia,
+        SUM(CASE WHEN c.str_nombre = 'descuento' THEN c.dec_total ELSE 0 END) AS descuento,
+        SUM(CASE WHEN c.str_nombre = 'valorTotalCreditos' THEN c.dec_total ELSE 0 END) AS valorTotalCreditos,
+        SUM(CASE WHEN c.idtipo_contabilidad <> 8 THEN c.dec_total ELSE 0 END) AS saldo_disp,
+        SUM(CASE WHEN c.str_nombre <> 'prestamos' AND c.str_nombre <> 'articulos' AND c.str_operacion LIKE 'salida-totalizar%' THEN c.dec_total ELSE 0 END) * -1 AS gastos,
+        SUM(CASE WHEN c.idtipo_contabilidad <> 6 AND c.str_operacion LIKE 'salida-contabilidad%' THEN c.dec_total ELSE 0 END) * -1 AS otros_gastos,
+        SUM(CASE WHEN c.idtipo_contabilidad = 6 AND c.str_operacion LIKE 'salida-contabilidad%' THEN c.dec_total ELSE 0 END) * -1 AS salida,
+        SUM(CASE WHEN c.idtipo_contabilidad = 9 THEN c.dec_total ELSE 0 END) AS entrada
+    FROM tbl_detalle_ruta dr
+    INNER JOIN tbl_contabilidad_detalle c ON c.iddetalleruta = dr.iddetalleruta
+    WHERE dr.created_at >= '$primerDia' 
+      AND dr.created_at < DATE_ADD('$ultimoDia', INTERVAL 1 DAY)
+    GROUP BY dr.idsucursal
+) v ON v.refSucursal = s.idsucursal
+
+-- 2. Bloque de cartera consolidada (Una sola lectura en lugar de dos subconsultas)
+LEFT JOIN (
+    SELECT 
+        idsucursal,
+        SUM(CASE WHEN str_estado NOT IN ('cancelado', 'inactiva', 'moroso', 'fallecio', 'discapacitado') THEN dec_resta ELSE 0 END) AS sum_cart,
+        SUM(CASE WHEN str_estado NOT IN ('cancelado', 'inactiva') THEN dec_resta ELSE 0 END) AS carteraTotal
+    FROM tbl_tarjetas
+    WHERE str_estado NOT IN ('cancelado', 'inactiva')
+    GROUP BY idsucursal
+) t ON t.idsucursal = s.idsucursal
+
+-- 3. Histórico acumulado de caja (Calculado de forma directa y rápida)
+LEFT JOIN (
+    SELECT 
+        dr.idsucursal AS refSucursal, 
+        SUM(CASE WHEN c.idtipo_contabilidad <> 8 THEN c.dec_total ELSE 0 END) AS efectivo_historico
+    FROM tbl_detalle_ruta dr
+    INNER JOIN tbl_contabilidad_detalle c ON c.iddetalleruta = dr.iddetalleruta
+    WHERE dr.created_at < '$primerDia'
+    GROUP BY dr.idsucursal
+) h ON h.refSucursal = s.idsucursal
+
+WHERE s.idglobal = $idglobal 
   AND s.str_estado = 'disponible' 
-   $scopeWhereSucursal
-ORDER BY s.str_codigo ASC;";
+  $scopeWhereSucursal 
+ORDER BY s.str_codigo ASC;
+";
 
 
       /*
