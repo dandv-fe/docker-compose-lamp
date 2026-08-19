@@ -209,7 +209,7 @@ ORDER BY s.str_codigo ASC;";
 
 */
 
-
+      print_r($sql);
       $query = $conexion->query($sql);
       print_r($query);
       return $query;
