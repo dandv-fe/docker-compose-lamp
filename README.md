@@ -105,7 +105,9 @@ cp sample.env .env
 
 ```cmd
 ### builds and starts the environment:
-docker-compose up -d --build
+### docker-compose up -d --build
+docker compose up -d --build
+
 build.cmd
 
 ### starts the environment:
@@ -116,6 +118,9 @@ docker-compose up -d
 stop.cmd
 docker-compose up down
 ```
+
+## Dar permisos totales a la carpeta de sesiones locales
+sudo chmod -R 777 ./config/phpmyadmin/sessions
 
 ## Getting started
 

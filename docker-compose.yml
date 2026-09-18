@@ -1,4 +1,4 @@
-version: "3"
+version: "3.8"
 
 services:
   webserver:
@@ -9,8 +9,6 @@ services:
     ports:
       - "${HOST_MACHINE_UNSECURE_HOST_PORT}:80"
       - "${HOST_MACHINE_SECURE_HOST_PORT}:443"
-    links: 
-      - database
     volumes: 
       - ${DOCUMENT_ROOT-./www}:/var/www/html:rw
       - ${PHP_INI-./config/php/php.ini}:/usr/local/etc/php/php.ini
@@ -33,6 +31,7 @@ services:
       - "dash.localhost:127.0.0.1"
       - "projects.localhost:127.0.0.1"
       - "app.localhost:127.0.0.1"
+
   database:
     build:
       context: "./bin/${DATABASE}"
@@ -40,7 +39,7 @@ services:
     restart: 'always'
     ports:
       - "127.0.0.1:${HOST_MACHINE_MYSQL_PORT}:3306"
-    user: ${CURRENT_UID}
+    user: ${CURRENT_UID-1000} # Si no existe CURRENT_UID, usa el 1000 por defecto de Pop!_OS
     volumes: 
       - ${MYSQL_INITDB_DIR-./config/initdb}:/docker-entrypoint-initdb.d
       - ${MYSQL_DATA_DIR-./data/mysql}:/var/lib/mysql
@@ -50,13 +49,12 @@ services:
       MYSQL_DATABASE: ${MYSQL_DATABASE}
       MYSQL_USER: ${MYSQL_USER}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+
   phpmyadmin:
     build: 
       context: ./bin/phpmyadmin
     container_name: '${COMPOSE_PROJECT_NAME}-phpmyadmin'
     restart: 'always'
-    links:
-      - database
     environment:
       PMA_HOST: database
       PMA_PORT: 3306
@@ -71,8 +69,9 @@ services:
       - '${HOST_MACHINE_PMA_PORT}:80'
       - '${HOST_MACHINE_PMA_SECURE_PORT}:443'
     volumes: 
-      - /sessions
+      - ./config/phpmyadmin/sessions:/sessions # Ruta local para evitar volumen oculto basura
       - ${PHP_INI-./config/php/php.ini}:/usr/local/etc/php/conf.d/php-phpmyadmin.ini
+
   redis:
     image: redis:latest
     container_name: '${COMPOSE_PROJECT_NAME}-redis'

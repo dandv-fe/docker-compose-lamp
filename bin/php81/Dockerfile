@@ -1,13 +1,13 @@
-FROM php:8.1-apache-bullseye
+
+FROM php:8.1-apache-bookworm
 
 # Surpresses debconf complaints of trying to install apt packages interactively
 # https://github.com/moby/moby/issues/4032#issuecomment-192327844
  
 ARG DEBIAN_FRONTEND=noninteractive
 
-# Update
+# Update (Se eliminó la línea de apt-get upgrade -y para evitar el error 404)
 RUN apt-get -y update --fix-missing && \
-    apt-get upgrade -y && \
     apt-get --no-install-recommends install -y apt-utils && \
     rm -rf /var/lib/apt/lists/*
 
@@ -25,7 +25,7 @@ libicu-dev && \
 build-essential \
 git \
 curl \
-libonig-dev && \ 
+libonig-dev && \
     apt-get -y --no-install-recommends install --fix-missing libcurl4 \
 libcurl4-openssl-dev \
 zip \
@@ -49,13 +49,11 @@ RUN apt-get update && \
     docker-php-ext-enable imagick
 
 # Other PHP8 Extensions
-
 RUN docker-php-ext-install pdo_mysql && \
     docker-php-ext-install pdo_sqlite && \
     docker-php-ext-install mysqli && \
     docker-php-ext-install bcmath && \
     docker-php-ext-install curl && \
-    #docker-php-ext-install tokenizer && \
     docker-php-ext-install zip && \
     docker-php-ext-install -j$(nproc) intl && \
     docker-php-ext-install mbstring && \
