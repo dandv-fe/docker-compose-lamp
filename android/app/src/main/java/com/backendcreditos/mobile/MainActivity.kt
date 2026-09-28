@@ -789,20 +789,33 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             app.vault.saveSession(selected)
                             screen = Screen.HOME
                             online = true
-                            notice = "Sincronizando la cartera de ${branch.name}…"
                             scope.launch {
                                 busy = true
-                                app.repository.retainOnlyBranchCache(selected.accountKey, branch.id)
                                 loadBranchPermissions()
                                 SyncScheduler.schedulePeriodic(activity, selected.accountKey, branch.id, syncIntervalMinutes)
-                                when (val result = app.repository.syncPortfolio(selected, branch.id)) {
-                                    is ApiResult.Success -> {
-                                        app.repository.pullChanges(selected, branch.id)
-                                        notice = "Cartera sincronizada (${result.value} créditos)."
-                                        loadLocal()
-                                        enqueuePendingBranches(selected)
+                                // Avoid throwing away and re-downloading a portfolio already cached on this
+                                // device: if this branch was synced before, only pull what changed since then.
+                                if (app.repository.hasCachedBranch(selected.accountKey, branch.id)) {
+                                    notice = "Actualizando la cartera de ${branch.name}…"
+                                    when (val result = app.repository.pullChanges(selected, branch.id)) {
+                                        is ApiResult.Success -> {
+                                            notice = "Cartera de ${branch.name} al día."
+                                            loadLocal()
+                                            enqueuePendingBranches(selected)
+                                        }
+                                        else -> report(result)
                                     }
-                                    else -> report(result)
+                                } else {
+                                    notice = "Sincronizando la cartera de ${branch.name}…"
+                                    when (val result = app.repository.syncPortfolio(selected, branch.id)) {
+                                        is ApiResult.Success -> {
+                                            app.repository.pullChanges(selected, branch.id)
+                                            notice = "Cartera sincronizada (${result.value} créditos)."
+                                            loadLocal()
+                                            enqueuePendingBranches(selected)
+                                        }
+                                        else -> report(result)
+                                    }
                                 }
                                 busy = false
                             }
