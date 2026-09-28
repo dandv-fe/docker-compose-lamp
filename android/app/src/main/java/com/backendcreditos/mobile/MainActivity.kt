@@ -732,7 +732,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                             is ApiResult.Success -> {
                                                 when (val branches = app.api.branches(newSession.token)) {
                                                     is ApiResult.Success -> {
-                                                        branchList = branches.value.branches.map { BranchEntity(it.id.toString(), it.name) }
+                                                        branchList = branches.value.branches.map { BranchEntity(it.id.toString(), it.name, it.type) }
                                                         enqueuePendingBranches(newSession)
                                                         screen = Screen.BRANCHES
                                                     }
@@ -779,7 +779,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                                 when (val branches = app.api.branches(current.token)) {
                                                     is ApiResult.Success ->
                                                         branchList = branches.value.branches.map {
-                                                            BranchEntity(it.id.toString(), it.name)
+                                                            BranchEntity(it.id.toString(), it.name, it.type)
                                                         }
                                                     else -> { /* keep whatever branchList had; branch switch will report the error if used */ }
                                                 }
@@ -878,11 +878,15 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                 Screen.HOME -> {
                     // branchId (session.selectedBranchId) is the numeric idsucursal; show the
                     // human-readable str_codigo (BranchDto.name) instead, looked up from the
-                    // last fetched branchList, falling back to the raw id if not found yet.
-                    val branchCode = branchList.find { it.id == branchId }?.name ?: branchId.orEmpty()
+                    // last fetched branchList, falling back to the raw id if not found yet. The
+                    // label itself uses str_tipo (BranchDto.type) instead of a hardcoded word,
+                    // since branches can be typed differently (e.g. "Agencia", "Sucursal").
+                    val selectedBranch = branchList.find { it.id == branchId }
+                    val branchCode = selectedBranch?.name ?: branchId.orEmpty()
+                    val branchLabel = (selectedBranch?.type ?: "sucursal").lowercase()
                     Text(
-                        if (online) "En línea · ${account?.username} · sucursal $branchCode"
-                        else "Sin conexión · caché de esta sucursal $branchCode",
+                        if (online) "En línea · ${account?.username} · $branchLabel $branchCode"
+                        else "Sin conexión · caché de esta $branchLabel $branchCode",
                         style = MaterialTheme.typography.titleMedium
                     )
                     if (!online) Text("El desbloqueo local no autentica ni renueva credenciales del servidor.")
