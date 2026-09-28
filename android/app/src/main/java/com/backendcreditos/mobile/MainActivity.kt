@@ -876,9 +876,13 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     }) { Text("Volver") }
                 }
                 Screen.HOME -> {
+                    // branchId (session.selectedBranchId) is the numeric idsucursal; show the
+                    // human-readable str_codigo (BranchDto.name) instead, looked up from the
+                    // last fetched branchList, falling back to the raw id if not found yet.
+                    val branchCode = branchList.find { it.id == branchId }?.name ?: branchId.orEmpty()
                     Text(
-                        if (online) "En línea · ${account?.username} · sucursal ${branchId.orEmpty()}"
-                        else "Sin conexión · caché de esta sucursal ${branchId.orEmpty()}",
+                        if (online) "En línea · ${account?.username} · sucursal $branchCode"
+                        else "Sin conexión · caché de esta sucursal $branchCode",
                         style = MaterialTheme.typography.titleMedium
                     )
                     if (!online) Text("El desbloqueo local no autentica ni renueva credenciales del servidor.")
