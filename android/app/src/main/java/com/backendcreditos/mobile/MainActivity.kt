@@ -754,17 +754,42 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                         Spacer(Modifier.height(12.dp))
                         HorizontalDivider()
                         Text("Acceso sin conexión", style = MaterialTheme.typography.titleMedium)
-                        Text("Solo desbloquea datos sincronizados en este dispositivo; no verifica la sesión del servidor.")
+                        Text("Desbloquea datos sincronizados en este dispositivo e intenta revalidar la sesión con el servidor.")
                         OutlinedButton(onClick = {
                             activity.unlockDevice { unlocked, error ->
                                 if (unlocked) {
-                                    online = false
-                                    screen = Screen.HOME
+                                    val current = session
                                     scope.launch {
-                                        loadLocal()
-                                        loadOperations()
+                                        busy = true
+                                        notice = "Verificando conexión…"
+                                        // The token saved at the last real login is still on the
+                                        // device; probe it to learn the true connection/session
+                                        // state instead of assuming offline just because we came
+                                        // in through the local biometric unlock.
+                                        val me = current?.let { app.api.me(it.token) }
+                                        when (me) {
+                                            is ApiResult.Success -> {
+                                                online = true
+                                                screen = Screen.HOME
+                                                loadLocal()
+                                                loadOperations()
+                                                notice = "Conectado: se validó la sesión con el servidor."
+                                            }
+                                            is ApiResult.AuthExpired -> {
+                                                online = false
+                                                notice = "Tu sesión venció; inicia sesión de nuevo con usuario y contraseña."
+                                            }
+                                            else -> {
+                                                online = false
+                                                screen = Screen.HOME
+                                                loadLocal()
+                                                loadOperations()
+                                                notice = "Sin conexión: te quedas en la última sucursal vista; " +
+                                                    "no se puede cambiar de sucursal hasta reconectar."
+                                            }
+                                        }
+                                        busy = false
                                     }
-                                    notice = "Modo sin conexión: el servidor no ha autenticado esta sesión."
                                 } else notice = error ?: "No se pudo desbloquear el dispositivo."
                             }
                         }) { Text("Desbloquear este dispositivo") }
