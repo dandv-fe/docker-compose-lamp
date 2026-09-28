@@ -7,6 +7,8 @@ import androidx.fragment.app.FragmentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -153,7 +155,7 @@ private fun friendlyServerError(rawMessage: String?): String {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     val scope = rememberCoroutineScope()
@@ -866,7 +868,9 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     OutlinedButton(onClick = { prepareComposer(OperationKind.CREATE_CREDIT) }) {
                         Text("Crear crédito")
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // FlowRow instead of Row: with 3 buttons this wide, a plain Row overflows the
+                    // screen width and clips buttons off-screen instead of wrapping them.
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (online) OutlinedButton(onClick = { showDocumentLookup = true }) {
                             Text("Buscar cliente por documento")
                         }
