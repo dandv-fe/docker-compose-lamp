@@ -886,6 +886,12 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 busy = false
                             }
                         }) { Text("Actualizar cartera") }
+                        if (online) OutlinedButton(onClick = {
+                            // Only navigates back to the branch picker; keeps the session and the
+                            // local cache intact. Picking a branch already synced before will only
+                            // pull incremental changes instead of a full re-download (see hasCachedBranch).
+                            screen = Screen.BRANCHES
+                        }) { Text("Cambiar sucursal") }
                     }
                     if (busy) Text("Trabajando…")
                     if (online && branchPermissionSet.isNotEmpty()) {
