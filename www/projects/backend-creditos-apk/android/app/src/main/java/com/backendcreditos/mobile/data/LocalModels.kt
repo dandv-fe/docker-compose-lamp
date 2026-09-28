@@ -121,7 +121,7 @@ data class OfflineOperationEntity(
     val createdAt: Long
 )
 
-data class BranchEntity(val id: String, val name: String)
+data class BranchEntity(val id: String, val name: String, val type: String? = null)
 
 @Entity(tableName = "sync_control")
 data class SyncControlEntity(
