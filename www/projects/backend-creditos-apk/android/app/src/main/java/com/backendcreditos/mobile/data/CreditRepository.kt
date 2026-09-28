@@ -498,6 +498,16 @@ class CreditRepository(
     // without introducing a second, non-idempotent submission path to the server.
     suspend fun operation(operationId: String): OfflineOperationEntity? = dao.operation(operationId)
 
+    // Whether a full snapshot of this branch's portfolio was already downloaded. When true,
+    // switching back into the branch only needs pullChanges() (incremental), avoiding a
+    // wasteful full re-download of data already cached locally on the device.
+    suspend fun hasCachedBranch(accountKey: String, branchId: String): Boolean =
+        dao.syncCursor(accountKey, branchId) != null
+
+    // Kept for an explicit "free up space" action (e.g. a settings/storage screen); no
+    // longer called automatically on every branch switch, since caches for multiple
+    // branches can coexist on-device (all local tables are keyed by branchId) and are
+    // kept current via pullChanges() instead of being discarded and re-downloaded.
     suspend fun retainOnlyBranchCache(accountKey: String, branchId: String) {
         database.withTransaction {
             dao.deleteCustomersOutsideBranch(accountKey, branchId)
