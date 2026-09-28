@@ -1,0 +1,130 @@
+package com.backendcreditos.mobile.network
+
+object GraphQlDocuments {
+    const val LOGIN = """
+        mutation Login(${'$'}companyId: Int!, ${'$'}username: String!, ${'$'}password: String!) {
+          login(companyId: ${'$'}companyId, username: ${'$'}username, password: ${'$'}password) {
+            token expiresIn
+            user { userId companyId employeeId username firstName lastName companyName }
+            company { id name }
+            branches { id name type }
+          }
+        }
+    """
+    const val ME = """
+        query Me {
+          me {
+            userId companyId employeeId username firstName lastName companyName
+            branches { id name type }
+          }
+        }
+    """
+    const val BRANCHES = """query Branches { branches { id name type } }"""
+    const val PORTFOLIO = """
+        query Portfolio(${'$'}branchId: Int!, ${'$'}first: Int!, ${'$'}after: String, ${'$'}snapshotCursor: String) {
+          portfolio(branchId: ${'$'}branchId, first: ${'$'}first, after: ${'$'}after, snapshotCursor: ${'$'}snapshotCursor) {
+            nodes {
+              id companyId personId firstName lastName sex birthDate
+              documentType documentNumber phone email photo occupation personStatus personNote
+              department city neighborhood street maxCredit nickname note status rating guarantorPersonId
+              credits {
+                id companyId branchId customerId routeId saleId concept value frequency term principal balance
+                description sortOrder profit additionalNumber additionalValue receiptType receiptSeries receiptNumber
+                paymentSummary style note status createdEmployeeId agreementDate createdAt updatedAt
+              }
+              comments { id customerId comment type userId createdAt updatedAt }
+            }
+            snapshotCursor nextCursor hasNextPage
+          }
+        }
+    """
+    const val CUSTOMER_BY_ID = """
+        query CustomerById(${'$'}branchId: Int!, ${'$'}id: Int!) {
+          customerById(branchId: ${'$'}branchId, id: ${'$'}id) {
+            id companyId personId firstName lastName sex birthDate
+            documentType documentNumber phone email photo occupation personStatus personNote
+            department city neighborhood street maxCredit nickname note status rating guarantorPersonId
+            credits {
+              id companyId branchId customerId routeId saleId concept value frequency term principal balance
+              description sortOrder profit additionalNumber additionalValue receiptType receiptSeries receiptNumber
+              paymentSummary style note status createdEmployeeId agreementDate createdAt updatedAt
+            }
+            comments { id customerId comment type userId createdAt updatedAt }
+          }
+        }
+    """
+    const val CUSTOMER_BY_DOCUMENT = """
+        query CustomerByDocument(${'$'}branchId: Int!, ${'$'}documentType: String!, ${'$'}documentNumber: String!) {
+          customerByDocument(branchId: ${'$'}branchId, documentType: ${'$'}documentType, documentNumber: ${'$'}documentNumber) {
+            id companyId personId firstName lastName sex birthDate
+            documentType documentNumber phone email photo occupation personStatus personNote
+            department city neighborhood street maxCredit nickname note status rating guarantorPersonId
+            credits {
+              id companyId branchId customerId routeId saleId concept value frequency term principal balance
+              description sortOrder profit additionalNumber additionalValue receiptType receiptSeries receiptNumber
+              paymentSummary style note status createdEmployeeId agreementDate createdAt updatedAt
+            }
+            comments { id customerId comment type userId createdAt updatedAt }
+          }
+        }
+    """
+    const val PAYMENT_HISTORY = """
+        query PaymentHistory(${'$'}branchId: Int!, ${'$'}creditId: ID!) {
+          paymentHistory(branchId: ${'$'}branchId, creditId: ${'$'}creditId) {
+            id creditId amount description state createdAt updatedAt routeId
+          }
+        }
+    """
+    const val SYNC_CHANGES = """
+        query SyncChanges(${'$'}branchId: Int!, ${'$'}after: String!, ${'$'}first: Int!) {
+          syncChanges(branchId: ${'$'}branchId, after: ${'$'}after, first: ${'$'}first) {
+            nodes { cursor recordType recordId action createdAt payload }
+          }
+        }
+    """
+    const val APPLY_OFFLINE_OPERATION = """
+        mutation ApplyOfflineOperation(${'$'}input: OfflineOperationInput!) {
+          applyOfflineOperation(input: ${'$'}input) {
+            operationId status entityId data eventCursor replayed
+          }
+        }
+    """
+    const val BRANCH_PERMISSIONS = """
+        query BranchPermissions(${'$'}branchId: Int!) { branchPermissions(branchId: ${'$'}branchId) }
+    """
+    const val DEFAULTERS_OF_PORTFOLIO = """
+        query DefaultersOfPortfolio(${'$'}branchId: Int!) {
+          defaultersOfPortfolio(branchId: ${'$'}branchId) {
+            id balance principal value additionalValue createdAt customerName documentType documentNumber phone
+          }
+        }
+    """
+    const val WITHDRAWN_OF_PORTFOLIO = """
+        query WithdrawnOfPortfolio(${'$'}branchId: Int!) {
+          withdrawnOfPortfolio(branchId: ${'$'}branchId) {
+            id balance principal value additionalValue createdAt customerName documentType documentNumber phone status
+          }
+        }
+    """
+    const val CANCELLED_CREDITS = """
+        query CancelledCredits(${'$'}branchId: Int!, ${'$'}dateFrom: String!, ${'$'}dateTo: String!) {
+          cancelledCredits(branchId: ${'$'}branchId, dateFrom: ${'$'}dateFrom, dateTo: ${'$'}dateTo) {
+            id value principal additionalValue createdAt customerName documentType documentNumber phone
+            paidAmount description cancelledAt
+          }
+        }
+    """
+    const val PORTFOLIO_CLIENTS = """
+        query PortfolioClients(${'$'}branchId: Int!) {
+          portfolioClients(branchId: ${'$'}branchId) {
+            personId firstName lastName documentType documentNumber sex birthDate occupation phone email
+            department city neighborhood street customerStatus maxCredit nickname
+          }
+        }
+    """
+    const val RESTORE_CREDIT = """
+        mutation RestoreCredit(${'$'}branchId: Int!, ${'$'}creditId: ID!) {
+          restoreCredit(branchId: ${'$'}branchId, creditId: ${'$'}creditId) { id previousState state }
+        }
+    """
+}

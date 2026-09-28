@@ -1,0 +1,146 @@
+package com.backendcreditos.mobile.data
+
+import androidx.room.Entity
+import androidx.room.Index
+import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
+
+enum class OperationStatus { PENDING, IN_FLIGHT, CONFIRMED, CONFLICT, REJECTED }
+
+enum class OperationKind {
+    CREATE_CUSTOMER, UPDATE_CUSTOMER, UPDATE_DOCUMENT, CREATE_CREDIT, UPDATE_CREDIT,
+    UPDATE_CREDIT_TERMS, CREATE_PAYMENT, UPDATE_PAYMENT, DELETE_PAYMENT, DELETE_CREDIT,
+    APPLY_DISCOUNT, ADD_INTEREST, CHANGE_CREDIT_STATUS, REORDER_CREDIT, CREATE_COMMENT,
+    UPDATE_COMMENT, DELETE_COMMENT, UPSERT_ALERT
+}
+
+@Entity(
+    tableName = "customers",
+    primaryKeys = ["accountKey", "branchId", "id"],
+    indices = [Index("branchId"), Index(value = ["accountKey", "branchId", "documentNumber"])]
+)
+@Serializable
+data class CustomerEntity(
+    val accountKey: String,
+    val branchId: String,
+    val id: String,
+    val documentType: String?,
+    val documentNumber: String?,
+    val firstName: String,
+    val lastName: String,
+    val phone: String?,
+    val address: String?,
+    val locallyCreated: Boolean = false,
+    val sex: String? = null,
+    val birthDate: String? = null,
+    val email: String? = null,
+    val occupation: String? = null,
+    val personNote: String? = null,
+    val department: String? = null,
+    val city: String? = null,
+    val neighborhood: String? = null,
+    val maxCredit: String? = null,
+    val nickname: String? = null,
+    val customerNote: String? = null,
+    val customerStatus: String? = null,
+    val guarantorPersonId: String? = null
+)
+
+@Entity(
+    tableName = "credits",
+    primaryKeys = ["accountKey", "branchId", "id"],
+    indices = [Index("customerId"), Index(value = ["accountKey", "branchId", "status"])]
+)
+@Serializable
+data class CreditEntity(
+    val accountKey: String,
+    val branchId: String,
+    val id: String,
+    val customerId: String,
+    val routeId: Int?,
+    val additionalNumber: String?,
+    val concept: String?,
+    val value: String?,
+    val frequency: String?,
+    val term: Int?,
+    val principal: String?,
+    val balance: String?,
+    val description: String?,
+    val sortOrder: Double?,
+    val status: String?,
+    val saleId: Int? = null,
+    val additionalValue: String? = null,
+    val receiptType: String? = null,
+    val receiptSeries: String? = null,
+    val receiptNumber: String? = null,
+    val note: String? = null,
+    val createdAt: String? = null,
+    val profit: String? = null
+)
+
+@Entity(
+    tableName = "payments",
+    primaryKeys = ["accountKey", "branchId", "id"],
+    indices = [Index(value = ["accountKey", "branchId", "creditId"])]
+)
+@Serializable
+data class PaymentEntity(
+    val accountKey: String,
+    val branchId: String,
+    val id: String,
+    val creditId: String,
+    val amount: String?,
+    val description: String?,
+    val state: String?,
+    val createdAt: String?,
+    val updatedAt: String?,
+    val routeId: Int?
+)
+
+@Entity(
+    tableName = "offline_operations",
+    indices = [
+        Index(value = ["accountKey", "companyId", "branchId", "status", "createdAt"]),
+        Index(value = ["operationId"], unique = true)
+    ]
+)
+data class OfflineOperationEntity(
+    @PrimaryKey val operationId: String,
+    val accountKey: String,
+    val companyId: String,
+    val branchId: String,
+    val kind: OperationKind,
+    val entityId: String,
+    val baseVersion: String?,
+    val payload: String,
+    val dependsOnOperationId: String?,
+    val status: OperationStatus,
+    val attempts: Int,
+    val lastError: String?,
+    val serverState: String?,
+    val createdAt: Long
+)
+
+data class BranchEntity(val id: String, val name: String)
+
+@Entity(tableName = "sync_control")
+data class SyncControlEntity(
+    @PrimaryKey val accountKey: String,
+    val paused: Boolean,
+    val pauseReason: String?
+)
+
+@Entity(tableName = "sync_cursors", primaryKeys = ["accountKey", "branchId"])
+data class SyncCursorEntity(val accountKey: String, val branchId: String, val cursor: String)
+
+@Entity(
+    tableName = "record_versions",
+    primaryKeys = ["accountKey", "branchId", "recordType", "recordId"]
+)
+data class RecordVersionEntity(
+    val accountKey: String,
+    val branchId: String,
+    val recordType: String,
+    val recordId: String,
+    val cursor: String
+)
