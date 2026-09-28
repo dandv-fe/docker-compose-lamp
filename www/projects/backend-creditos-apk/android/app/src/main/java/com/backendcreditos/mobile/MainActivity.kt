@@ -773,6 +773,16 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                                 screen = Screen.HOME
                                                 loadLocal()
                                                 loadOperations()
+                                                // The biometric unlock never populates branchList (it
+                                                // skips login's branch fetch), so "Cambiar sucursal"
+                                                // would open an empty list unless we refresh it here.
+                                                when (val branches = app.api.branches(current.token)) {
+                                                    is ApiResult.Success ->
+                                                        branchList = branches.value.branches.map {
+                                                            BranchEntity(it.id.toString(), it.name)
+                                                        }
+                                                    else -> { /* keep whatever branchList had; branch switch will report the error if used */ }
+                                                }
                                                 notice = "Conectado: se validó la sesión con el servidor."
                                             }
                                             is ApiResult.AuthExpired -> {
@@ -816,8 +826,14 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             app.vault.saveSession(selected)
                             screen = Screen.HOME
                             online = true
+                            // Clear the previous branch's rows/matches right away instead of leaving
+                            // them on screen while the new branch syncs; loadLocal() below repopulates
+                            // them from this branch's own cache (may briefly be empty on first visit).
+                            rows = emptyList()
+                            customerMatches = emptyList()
                             scope.launch {
                                 busy = true
+                                loadLocal()
                                 loadBranchPermissions()
                                 SyncScheduler.schedulePeriodic(activity, selected.accountKey, branch.id, syncIntervalMinutes)
                                 // Avoid throwing away and re-downloading a portfolio already cached on this
