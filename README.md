@@ -44,3 +44,15 @@ a las sucursales de otras oficinas ni privilegios globales de empresa.
 Los rechazos devuelven
 `ERROR:` para que los formularios existentes muestren el motivo y no confundan
 un rechazo con un guardado exitoso.
+
+## Cupo al crear clientes en cartera web
+
+El botón «Nuevo» busca primero a la persona por documento. Al registrar un
+cliente nuevo (también si la persona ya existe), «Máximo cupo que apruebo»
+guarda `tbl_clientes.dec_max_credito`: es el límite aprobado para el cliente,
+no el importe de una tarjeta. El servidor exige que no supere
+`tbl_empleado.dec_max_credito` del empleado de la empresa que lo registra.
+Solo el Super Administrador puede aprobar un cupo sin ese límite. El formulario
+muestra el máximo del empleado como ayuda, pero la comprobación del servidor
+es obligatoria aunque se modifique la petición desde el navegador. La edición
+de clientes existentes conserva su flujo y permisos anteriores.

@@ -973,6 +973,15 @@ function verFormPanel() {
     cargarDatosEnPanel()
 }
 function verFormCliente() {
+    const nuevoCliente = !$("#txtRefCliente").val();
+    const limiteEmpleado = $("#limiteCupoEmpleado");
+    const max = nuevoCliente ? limiteEmpleado.attr("data-max") : null;
+    if (max !== undefined && max !== null) {
+        $("#txt_max_credito").attr("max", max);
+    } else {
+        $("#txt_max_credito").removeAttr("max");
+    }
+    limiteEmpleado.toggle(nuevoCliente);
     $("#verSubirTarjetasEcxel").hide();
     $("#inputBuscarClienteRuta").hide();
     $("#verEcabezado").show();
@@ -1086,6 +1095,10 @@ function cargarDataCliente(tipo_documento, num_documento, editar) {// funcion qu
         function (data, textStatus) {
 
             if (textStatus === 'success') {
+                if (!editar && (data === null || (data && typeof data === 'object' && !data.refCliente))) {
+                    $("#frmCliente").trigger('reset');
+                    $("#frmCliente input:hidden").val('');
+                }
                 $("#txt_tipo_documento").val(tipo_documento)
                 $("#txt_tipo_documentoHidden").val(tipo_documento)
                 $("#txt_num_DocumentoHidden").val(num_documento)

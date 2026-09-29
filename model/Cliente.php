@@ -8,6 +8,30 @@ class Cliente
 
    public function __construct() {}
 
+   public function errorCupoNuevoCliente($max_credito, $created_empleado_id, $idglobal)
+   {
+      global $conexion;
+      if (!is_finite((float)$max_credito) || $max_credito < 0) {
+         return "ERROR: El máximo cupo que apruebo debe ser un valor válido mayor o igual a cero.";
+      }
+      if ((int)($_SESSION['userEmpresa'] ?? 0) === (int)$idglobal) {
+         return null;
+      }
+      $empleado = db_fetch_object(
+         $conexion,
+         "SELECT dec_max_credito FROM tbl_empleado WHERE idempleado=? AND idglobal=? LIMIT 1",
+         "ii",
+         [(int)$created_empleado_id, (int)$idglobal]
+      );
+      if ($empleado === null) {
+         return "ERROR: No se encontró el cupo autorizado del empleado.";
+      }
+      if ($max_credito > (float)$empleado->dec_max_credito) {
+         return "ERROR: El máximo cupo aprobado supera el cupo que puede otorgar el empleado.";
+      }
+      return null;
+   }
+
    public function Registrar(
       $nombres,
       $apellidos,
@@ -57,6 +81,12 @@ class Cliente
          } else {
             echo "ERROR: No estas authorizado para esta accion";
             return;
+         }
+
+         $errorCupo = $this->errorCupoNuevoCliente($max_credito, $created_empleado_id, $idglobal);
+         if ($errorCupo !== null) {
+            $conexion->rollback();
+            return $errorCupo;
          }
 
          $request = db_fetch_object(
@@ -215,6 +245,14 @@ class Cliente
          } else {
             echo "ERROR: No estas authorizado para esta accion";
             return;
+         }
+
+         if (empty($idcliente)) {
+            $errorCupo = $this->errorCupoNuevoCliente($max_credito, $created_empleado_id, $idglobal);
+            if ($errorCupo !== null) {
+               $conexion->rollback();
+               return $errorCupo;
+            }
          }
 
          $request = db_fetch_object(

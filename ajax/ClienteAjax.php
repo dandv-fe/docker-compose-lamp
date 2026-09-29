@@ -42,13 +42,25 @@ switch ($_GET["op"]) {
       // datos cliente
       $idcliente = limpiar_cadena($_POST["txtRefCliente"]);
 
-      $max_credito = floatval($_POST["txt_max_credito"]);
+      $cupoSolicitado = trim((string)($_POST["txt_max_credito"] ?? ''));
+      if ($cupoSolicitado === '' || !is_numeric($cupoSolicitado) || !is_finite((float)$cupoSolicitado) || (float)$cupoSolicitado < 0) {
+         echo "ERROR: El máximo cupo que apruebo debe ser un valor válido mayor o igual a cero.";
+         break;
+      }
+      $max_credito = (float)$cupoSolicitado;
       $apodo = limpiar_cadena($_POST["txtApodo"]);
       $estadoCliente = limpiar_cadena($_POST["txtEstadoCliente"]);
       $notaCliente = '';
       $fiador = 0;
       $created_empleado_id = $_SESSION['idempleado'];
 
+      if (empty($idcliente)) {
+         $errorCupo = $objCliente->errorCupoNuevoCliente($max_credito, $created_empleado_id, $idglobal);
+         if ($errorCupo !== null) {
+            echo $errorCupo;
+            break;
+         }
+      }
 
       if ($imagen_Cli['size'] > 0) {
          //si subio imagen
@@ -76,8 +88,7 @@ switch ($_GET["op"]) {
                $ruta_carga = "Files/" . $idglobal . "/" . "cliente/" . $newNombreImg;
                if (empty($idpersona)) {
 
-                  if (
-                     $objCliente->Registrar(
+                  $resultado = $objCliente->Registrar(
                         $nombres,
                         $apellidos,
                         $sexo,
@@ -100,16 +111,15 @@ switch ($_GET["op"]) {
                         $fiador,
                         $created_empleado_id,
                         $idglobal
-                     )
-                  ) {
+                     );
+                  if ($resultado === true) {
                      echo "Cliente Registrado correctamente.";
                   } else {
-                     echo "ERROR: Cliente no ha podido ser registado.";
+                     echo is_string($resultado) ? $resultado : "ERROR: Cliente no ha podido ser registado.";
                   }
                } else {
 
-                  if (
-                     $objCliente->Modificar(
+                  $resultado = $objCliente->Modificar(
                         $idpersona,
                         $nombres,
                         $apellidos,
@@ -134,11 +144,11 @@ switch ($_GET["op"]) {
                         $fiador,
                         $created_empleado_id,
                         $idglobal
-                     )
-                  ) {
+                     );
+                  if ($resultado === true) {
                      echo "Cliente Actualizado correctamente.";
                   } else {
-                     echo "ERROR: Cliente no ha podido ser Actualizado.";
+                     echo is_string($resultado) ? $resultado : "ERROR: Cliente no ha podido ser Actualizado.";
                   }
                }
             } else {
@@ -151,8 +161,7 @@ switch ($_GET["op"]) {
          $ruta_carga = $rutaImgCli;
          if (empty($idpersona)) {
 
-            if (
-               $objCliente->Registrar(
+            $resultado = $objCliente->Registrar(
                   $nombres,
                   $apellidos,
                   $sexo,
@@ -175,17 +184,16 @@ switch ($_GET["op"]) {
                   $fiador,
                   $created_empleado_id,
                   $idglobal
-               )
-            ) {
+               );
+            if ($resultado === true) {
                echo "Cliente Registrado correctamente.";
             } else {
-               echo "ERROR: Cliente no ha podido ser registado.";
+               echo is_string($resultado) ? $resultado : "ERROR: Cliente no ha podido ser registado.";
             }
          } else {
 
 
-            if (
-               $objCliente->Modificar(
+            $resultado = $objCliente->Modificar(
                   $idpersona,
                   $nombres,
                   $apellidos,
@@ -210,11 +218,11 @@ switch ($_GET["op"]) {
                   $fiador,
                   $created_empleado_id,
                   $idglobal
-               )
-            ) {
+               );
+            if ($resultado === true) {
                echo "Cliente Actualizado correctamente.";
             } else {
-               echo "ERROR: Cliente no ha podido ser Actualizado.";
+               echo is_string($resultado) ? $resultado : "ERROR: Cliente no ha podido ser Actualizado.";
             }
          }
       }
