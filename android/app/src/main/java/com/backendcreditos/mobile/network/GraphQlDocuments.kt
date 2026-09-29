@@ -7,7 +7,7 @@ object GraphQlDocuments {
             token expiresIn
             user { userId companyId employeeId username firstName lastName companyName }
             company { id name }
-            branches { id name type }
+            branches { id name type extraCharge }
           }
         }
     """
@@ -15,11 +15,11 @@ object GraphQlDocuments {
         query Me {
           me {
             userId companyId employeeId username firstName lastName companyName
-            branches { id name type }
+            branches { id name type extraCharge }
           }
         }
     """
-    const val BRANCHES = """query Branches { branches { id name type } }"""
+    const val BRANCHES = """query Branches { branches { id name type extraCharge } }"""
     const val PORTFOLIO = """
         query Portfolio(${'$'}branchId: Int!, ${'$'}first: Int!, ${'$'}after: String, ${'$'}snapshotCursor: String) {
           portfolio(branchId: ${'$'}branchId, first: ${'$'}first, after: ${'$'}after, snapshotCursor: ${'$'}snapshotCursor) {

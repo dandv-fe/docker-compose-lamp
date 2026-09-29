@@ -63,6 +63,16 @@ class OperationPayloadMapperTest {
         assertTrue("creditId" !in payload && "amount" !in payload)
     }
 
+    @Test fun anchoredCardCarriesReferenceForServerSideRouteOrdering() {
+        val payload = OperationPayloadMapper.createCredit(
+            "new-card", "42", "Prestamo", "1200", "Mensual", "12", "900",
+            "", "0", "2.5", "300", "", "0", "Comprobante", "A", "8",
+            "", "", "17", "source-card", "despues"
+        ).payload as JsonObject
+        assertEquals("source-card", payload.getValue("tarjetaReferenciaId").jsonPrimitive.content)
+        assertEquals("despues", payload.getValue("ubicacion").jsonPrimitive.content)
+    }
+
     @Test fun paymentUpdateUsesOpaquePaymentIdAndStrictNegativeFields() {
         val mapped = OperationPayloadMapper.updatePayment("payment/non-numeric", "9", "Ajuste")
         val payload = mapped.payload as JsonObject

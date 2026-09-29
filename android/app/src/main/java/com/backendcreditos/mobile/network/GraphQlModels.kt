@@ -102,7 +102,7 @@ data class UserWithBranchesDto(
 data class BranchesData(val branches: List<BranchDto>)
 
 @Serializable
-data class BranchDto(val id: Int, val name: String, val type: String? = null)
+data class BranchDto(val id: Int, val name: String, val type: String? = null, val extraCharge: String)
 
 @Serializable
 data class CustomerDto(

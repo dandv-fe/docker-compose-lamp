@@ -57,7 +57,8 @@ object OperationPayloadMapper {
         creditId: String, customerId: String, concept: String, value: String, mode: String,
         term: String, loan: String, description: String, initialPayment: String, item: String,
         profit: String, additionalNumber: String, additionalValue: String, receiptType: String,
-        series: String, receiptNumber: String, note: String, obligation: String, documentSequenceId: String
+        series: String, receiptNumber: String, note: String, obligation: String, documentSequenceId: String,
+        referenceCardId: String? = null, placement: String? = null
     ): MappedOperation {
         require(creditId.isNotBlank() && creditId.length <= 50)
         val customer = customerId.toIntOrNull()?.takeIf { it > 0 }
@@ -67,6 +68,12 @@ object OperationPayloadMapper {
         require(mode in FREQUENCIES) { "Selecciona una frecuencia válida." }
         val plazo = term.toIntOrNull()?.takeIf { it > 0 }
             ?: throw IllegalArgumentException("El plazo debe ser un entero positivo.")
+        require((referenceCardId == null) == (placement == null)) {
+            "La tarjeta de referencia y la ubicación deben viajar juntas."
+        }
+        require(placement == null || placement in setOf("antes", "despues")) {
+            "Ubicación de tarjeta inválida."
+        }
         val fields = buildJsonObject {
             require(concept.length <= 30 && description.length <= 65_535)
             require(additionalNumber.length <= 11 && receiptType.length <= 30)
@@ -92,6 +99,10 @@ object OperationPayloadMapper {
             put("nota", note)
             put("obligacion", obligation.takeIf(String::isNotBlank)?.let(::JsonPrimitive) ?: JsonNull)
             put("detalleDocumentoSucursalId", JsonPrimitive(sequence))
+            if (referenceCardId != null && placement != null) {
+                put("tarjetaReferenciaId", referenceCardId)
+                put("ubicacion", placement)
+            }
         }
         return MappedOperation(creditId, fields)
     }
