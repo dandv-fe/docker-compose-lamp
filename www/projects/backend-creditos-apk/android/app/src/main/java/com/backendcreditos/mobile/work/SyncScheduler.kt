@@ -15,6 +15,7 @@ import java.util.concurrent.TimeUnit
 object SyncScheduler {
     private const val PREFS_NAME = "sync_scheduler_prefs"
     private const val KEY_INTERVAL_MINUTES = "interval_minutes"
+    private const val KEY_PERIODIC_ENABLED = "periodic_enabled"
 
     // The user asked for a shorter cadence, but PeriodicWorkRequest enforces a 15-minute
     // floor at the OS level; a faster interval would require a persistent foreground
@@ -56,6 +57,23 @@ object SyncScheduler {
     fun readIntervalMinutes(context: Context): Long =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getLong(KEY_INTERVAL_MINUTES, DEFAULT_INTERVAL_MINUTES)
+
+    fun isPeriodicEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(KEY_PERIODIC_ENABLED, true)
+
+    /**
+     * Turns the background cadence on or off and persists the choice, so a collector who
+     * prefers to control data usage can sync only on demand. Turning it off cancels the
+     * periodic worker but never touches the offline queue: pending operations stay queued
+     * and are still sent by [enqueue], whether triggered by a manual sync or by saving.
+     */
+    fun setPeriodicEnabled(context: Context, accountKey: String, branchId: String, enabled: Boolean) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putBoolean(KEY_PERIODIC_ENABLED, enabled)
+            .apply()
+        if (enabled) schedulePeriodic(context, accountKey, branchId) else cancelPeriodic(context, accountKey)
+    }
 
     /**
      * (Re)schedules the periodic background sync for [accountKey]/[branchId] at

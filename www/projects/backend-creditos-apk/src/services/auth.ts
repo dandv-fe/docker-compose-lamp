@@ -150,12 +150,26 @@ export async function listBranches(user: AuthUser) {
       ? [[] as never, [] as never]
       : await pool.execute(
         `SELECT DISTINCT s.idsucursal AS id, s.str_codigo AS name, s.str_tipo AS type
-         FROM tbl_auth_sucursal a JOIN tbl_sucursal s ON s.idsucursal = a.idsucursal
-         WHERE a.idempleado = ? AND a.idglobal = ? AND a.str_estado <> 'inactivo'
-           AND s.idglobal = ? ORDER BY s.idsucursal`,
-        [user.employeeId, user.companyId, user.companyId],
+         FROM tbl_sucursal s
+         LEFT JOIN tbl_auth_sucursal a ON a.idsucursal = s.idsucursal
+           AND a.idglobal = s.idglobal AND a.idempleado = ? AND a.str_estado <> 'inactivo'
+         LEFT JOIN tbl_oficina o ON o.idoficina = s.idoficina AND o.idglobal = s.idglobal
+         WHERE s.idglobal = ? AND (a.idauth_sucursal IS NOT NULL OR o.idempleado_administrador = ?)
+         ORDER BY s.idsucursal`,
+        [user.employeeId, user.companyId, user.employeeId],
       );
   return rows;
+}
+
+export async function isOfficeAdministrator(user: AuthUser, branchId: number): Promise<boolean> {
+  if (user.employeeId == null) return false;
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT 1 FROM tbl_sucursal s
+     JOIN tbl_oficina o ON o.idoficina = s.idoficina AND o.idglobal = s.idglobal
+     WHERE s.idsucursal = ? AND s.idglobal = ? AND o.idempleado_administrador = ? LIMIT 1`,
+    [branchId, user.companyId, user.employeeId],
+  );
+  return rows.length > 0;
 }
 
 export async function assertBranchAccess(user: AuthUser, branchId: number): Promise<void> {
@@ -163,26 +177,30 @@ export async function assertBranchAccess(user: AuthUser, branchId: number): Prom
     fail('FORBIDDEN', 'Employee branch access is required');
   }
   const [rows] = await pool.execute(
-    `SELECT b.idglobal AS branchCompanyId, a.idauth_sucursal
+    `SELECT b.idglobal AS branchCompanyId, a.idauth_sucursal, o.idoficina AS administeredOfficeId
      FROM tbl_sucursal b
      LEFT JOIN tbl_auth_sucursal a ON a.idsucursal = b.idsucursal
        AND a.idglobal = b.idglobal AND a.str_estado <> 'inactivo' AND a.idempleado = ?
+     LEFT JOIN tbl_oficina o ON o.idoficina = b.idoficina AND o.idglobal = b.idglobal
+       AND o.idempleado_administrador = ?
      WHERE b.idsucursal = ? LIMIT 1`,
-    [user.employeeId ?? -1, branchId],
+    [user.employeeId ?? -1, user.employeeId ?? -1, branchId],
   );
-  const branch = (rows as Array<{ branchCompanyId: number; idauth_sucursal: number | null }>)[0];
+  const branch = (rows as Array<{
+    branchCompanyId: number; idauth_sucursal: number | null; administeredOfficeId: number | null;
+  }>)[0];
   if (!branch || !canAccessBranch(
     user.cargo,
     user.companyId,
     Number(branch.branchCompanyId),
-    branch.idauth_sucursal != null,
+    branch.idauth_sucursal != null || branch.administeredOfficeId != null,
   )) fail('FORBIDDEN', 'Branch is not available');
 }
 
-// Mirrors PHP's `isset($_SESSION['userEmpresa']) || in_array($permission, ...AUTHS)`: a
-// Super Administrador always passes, everyone else needs the named branch permission row.
+// Office administrators also bypass named permissions, limited to their office's branches.
 export async function hasPermission(user: AuthUser, branchId: number, permission: string): Promise<boolean> {
   if (user.cargo === 'Super Administrador') return true;
+  if (await isOfficeAdministrator(user, branchId)) return true;
   const [rows] = await pool.execute(
     `SELECT a.str_nombre FROM tbl_auth_sucursal s
      JOIN tbl_auths x ON x.idauth_sucursal = s.idauth_sucursal

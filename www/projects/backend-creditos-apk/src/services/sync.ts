@@ -110,10 +110,15 @@ export async function materializeSyncEvent(
     case 'payment':
       sql = `SELECT d.iddescripcion AS id,d.idtarjeta AS creditId,d.dec_abono AS amount,
                     d.str_descripcion AS description,d.str_estado AS state,
-                    d.created_at AS createdAt,d.updated_at AS updatedAt,d.iddetalleruta AS routeId
+                    d.created_at AS createdAt,d.updated_at AS updatedAt,d.iddetalleruta AS routeId,
+                    d.idusuario AS createdByUserId,d.str_origen AS origin,
+                    COALESCE(NULLIF(TRIM(CONCAT_WS(' ', p.str_nombres, p.str_apellidos)), ''), u.str_user_name)
+                        AS createdByUsername
              FROM tbl_descripcion d
              JOIN tbl_tarjetas t ON t.idtarjeta=d.idtarjeta AND t.idglobal=d.idglobal
                AND t.idsucursal=d.idsucursal
+             LEFT JOIN tbl_usuario u ON u.idusuario=d.idusuario AND u.idglobal=d.idglobal
+             LEFT JOIN tbl_persona p ON p.idpersona=u.idpersona AND p.idglobal=u.idglobal
              WHERE d.iddescripcion=? AND d.idglobal=? AND d.idsucursal=?
                AND t.idglobal=? AND t.idsucursal=? LIMIT 1`;
       params = [event.recordId, user.companyId, branchId, user.companyId, branchId];

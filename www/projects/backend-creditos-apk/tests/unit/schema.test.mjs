@@ -15,7 +15,9 @@ test('GraphQL exposes the stable login, query, and offline mutation contract', (
       me { userId }
       branches { id }
       portfolio(branchId: $branchId, first: 10, after: "0") {
-        snapshotCursor nextCursor hasNextPage nodes { id firstName }
+        snapshotCursor nextCursor hasNextPage nodes {
+          id firstName credits { id latestPayment { id amount description state } }
+        }
       }
       customerById(branchId: $branchId, id: 4) { id }
       customerByDocument(branchId: $branchId, documentType: "DNI", documentNumber: "x") { id }

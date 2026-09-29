@@ -21,7 +21,12 @@ object DatabaseProvider {
                 .addMigrations(
                     CreditDatabase.MIGRATION_1_2,
                     CreditDatabase.MIGRATION_2_3,
-                    CreditDatabase.MIGRATION_3_4
+                    CreditDatabase.MIGRATION_3_4,
+                    CreditDatabase.MIGRATION_4_5,
+                    CreditDatabase.MIGRATION_5_6,
+                    CreditDatabase.MIGRATION_6_7,
+                    CreditDatabase.MIGRATION_7_8,
+                    CreditDatabase.MIGRATION_8_9
                 )
                 .build()
                 .also { instance = it }

@@ -31,6 +31,7 @@ object GraphQlDocuments {
                 id companyId branchId customerId routeId saleId concept value frequency term principal balance
                 description sortOrder profit additionalNumber additionalValue receiptType receiptSeries receiptNumber
                 paymentSummary style note status createdEmployeeId agreementDate createdAt updatedAt
+                latestPayment { id creditId amount description state createdAt updatedAt routeId createdByUserId createdByUsername origin }
               }
               comments { id customerId comment type userId createdAt updatedAt }
             }
@@ -48,6 +49,7 @@ object GraphQlDocuments {
               id companyId branchId customerId routeId saleId concept value frequency term principal balance
               description sortOrder profit additionalNumber additionalValue receiptType receiptSeries receiptNumber
               paymentSummary style note status createdEmployeeId agreementDate createdAt updatedAt
+              latestPayment { id creditId amount description state createdAt updatedAt routeId createdByUserId createdByUsername origin }
             }
             comments { id customerId comment type userId createdAt updatedAt }
           }
@@ -63,6 +65,7 @@ object GraphQlDocuments {
               id companyId branchId customerId routeId saleId concept value frequency term principal balance
               description sortOrder profit additionalNumber additionalValue receiptType receiptSeries receiptNumber
               paymentSummary style note status createdEmployeeId agreementDate createdAt updatedAt
+              latestPayment { id creditId amount description state createdAt updatedAt routeId createdByUserId createdByUsername origin }
             }
             comments { id customerId comment type userId createdAt updatedAt }
           }
@@ -72,6 +75,7 @@ object GraphQlDocuments {
         query PaymentHistory(${'$'}branchId: Int!, ${'$'}creditId: ID!) {
           paymentHistory(branchId: ${'$'}branchId, creditId: ${'$'}creditId) {
             id creditId amount description state createdAt updatedAt routeId
+            createdByUserId createdByUsername origin
           }
         }
     """
@@ -91,6 +95,11 @@ object GraphQlDocuments {
     """
     const val BRANCH_PERMISSIONS = """
         query BranchPermissions(${'$'}branchId: Int!) { branchPermissions(branchId: ${'$'}branchId) }
+    """
+    const val RECEIPT_SEQUENCES = """
+        query ReceiptSequences(${'$'}branchId: Int!) {
+          receiptSequences(branchId: ${'$'}branchId) { id documentType series lastNumber }
+        }
     """
     const val DEFAULTERS_OF_PORTFOLIO = """
         query DefaultersOfPortfolio(${'$'}branchId: Int!) {

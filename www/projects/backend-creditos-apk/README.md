@@ -95,6 +95,7 @@ Queries:
 * `customerById(branchId: Int!, id: Int!)`
 * `customerByDocument(branchId: Int!, documentType: String!, documentNumber: String!)`
 * `paymentHistory(branchId: Int!, creditId: ID!)`
+* `receiptSequences(branchId: Int!)` — branch `Comprobante` counters (`id`, `series`, `lastNumber`, `documentType`) that feed the new-card form, mirroring `Cartera::GetTipoDocSerieNum`
 * `syncChanges(branchId: Int!, after: String!, first: Int)`
 
 Mutations:
@@ -122,7 +123,9 @@ strings: `Diario`, `Semanal`, `Quincenal`, `Mensual`. Credit creation requires
 the scoped `detalleDocumentoSucursalId` receipt-sequence row. The legacy `tbl_descripcion.dec_abono` convention stores balance-reducing
 payments as negative adjustments. `CREATE_PAYMENT` and `UPDATE_PAYMENT` accept
 that sign in `abono`; amount and resulting balance are checked against locked
-same-branch credit/payment rows inside the transaction.
+same-branch credit/payment rows inside the transaction. `UPDATE_PAYMENT` and
+`DELETE_PAYMENT` only accept movements still in `str_estado='created'`, the rule
+the legacy PHP already applied to deletions.
 
 Payload fields by kind (all undeclared fields are rejected):
 
@@ -164,10 +167,13 @@ cursor. Do not blindly retry with an old base version.
 
 Company administration is recognized only by the exact database value
 `tbl_empleado.str_cargo = 'Super Administrador'`; it grants access only to
-branches with that authenticated `idglobal`. Every other employee needs an
-active `tbl_auth_sucursal` row for the branch and company. Named permissions
-are reloaded through `tbl_auth_sucursal` → `tbl_auths` → `tbl_auth` for the
-authenticated employee. Never send employee, user, tenant, or permission IDs
+branches with that authenticated `idglobal`. The employee listed as
+`tbl_oficina.idempleado_administrador` can access and modify branches in that
+office without a `tbl_auth_sucursal` row or named grants. Other employees need
+an active branch/company grant; their named permissions are reloaded through
+`tbl_auth_sucursal` → `tbl_auths` → `tbl_auth`. Writes also require a valid
+open route and either a dispatched employee, this office administrator, or
+the Super Administrador. Never send employee, user, tenant, or permission IDs
 as authoritative values.
 
 The API enforces `crear cliente`, `editar cliente`, `nueva tarjeta`,
@@ -181,8 +187,9 @@ uniqueness, same-company related-person and sale IDs, open-route requirements,
 credit limits, receipt-sequence ownership, duplicate discount/interest
 prevention, and same-branch payment/credit scope. Payment balance is computed
 from locked authoritative rows inside the transaction. Deletes are allowed
-only for records in `created` state. Comments can be updated/deleted only by
-their creating user.
+only for records in `created` state, and payment edits are restricted the same
+way: once a payment leaves `created` it belongs to a closed route. Comments can
+be updated/deleted only by their creating user.
 
 These checks deliberately close server-side authorization gaps in legacy PHP
 flows. Cash closing, accounting, dispatch, and other non-mobile workflows are
@@ -207,6 +214,22 @@ an attempt to submit another alert for the same customer and user returns
 `icon/,color/,subject/,text`; the `/,` separator is removed from subject and
 text before storage, matching PHP behavior. The combined value must fit the
 legacy 255-character column.
+
+## Payment author migration
+
+`migrations/002_payment_author.sql` adds two NULLable columns to
+`tbl_descripcion`: `idusuario` (who registered the abono) and `str_origen`
+(`android`/`web`), plus index `ix_descripcion_usuario (idglobal, idusuario)`.
+It is additive and re-runnable (`IF NOT EXISTS`, MariaDB >= 10.0.2); historical
+rows stay NULL and are shown as "not recorded". **Apply it manually, after a
+backup, to every database used by the API or PHP web app before deploying
+either version**: the API writes the authenticated `userId` and `'android'`,
+while PHP writes its authenticated session user and `'web'` on new payment
+inserts. Neither can create payments without the new columns. The file contains
+a commented rollback. On large tables the index build can take a few minutes.
+Payment queries return the linked person's first and last names as
+`createdByUsername` (falling back to the login name if no person name is
+available), alongside `createdByUserId` for exact ownership checks in clients.
 
 ## Offline migration and synchronization
 

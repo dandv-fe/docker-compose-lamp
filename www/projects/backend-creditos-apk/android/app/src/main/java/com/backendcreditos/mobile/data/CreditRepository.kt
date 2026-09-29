@@ -29,6 +29,9 @@ class CreditRepository(
     suspend fun portfolio(accountKey: String, branchId: String): List<PortfolioRow> =
         dao.visiblePortfolio(accountKey, branchId).map { PortfolioRow(it, dao.customer(accountKey, branchId, it.customerId)) }
 
+    suspend fun paymentsForBranch(accountKey: String, branchId: String): List<PaymentEntity> =
+        dao.paymentsForBranch(accountKey, branchId)
+
     suspend fun searchCustomers(accountKey: String, branchId: String, text: String): List<CustomerEntity> =
         dao.searchCustomers(accountKey, branchId, text)
 
@@ -39,6 +42,7 @@ class CreditRepository(
                     ?: return ApiResult.Rejected("Cliente no disponible para esta sucursal.")
                 val entity = dto.toEntity(account, branchId)
                 dao.putCustomers(listOf(entity))
+                cacheLatestPayments(dto.credits, account, branchId)
                 dao.syncCursor(account.accountKey, branchId)?.let { cursor ->
                     dao.setRecordVersions(
                         listOf(RecordVersionEntity(account.accountKey, branchId, "customer", entity.id, cursor)) +
@@ -67,6 +71,7 @@ class CreditRepository(
                 else {
                     val entity = dto.toEntity(account, branchId)
                     dao.putCustomers(listOf(entity))
+                    cacheLatestPayments(dto.credits, account, branchId)
                     dao.syncCursor(account.accountKey, branchId)?.let { cursor ->
                         dao.setRecordVersions(
                             listOf(RecordVersionEntity(account.accountKey, branchId, "customer", entity.id, cursor)) +
@@ -90,11 +95,8 @@ class CreditRepository(
         account: StoredSession, branchId: String, creditId: String
     ): ApiResult<List<PaymentEntity>> = when (val response = api.paymentHistory(account.token, branchId, creditId)) {
         is ApiResult.Success -> {
-            val entities = response.value.paymentHistory.map {
-                PaymentEntity(
-                    account.accountKey, branchId, it.id, it.creditId, it.amount.toString(),
-                    it.description, it.state, it.createdAt, it.updatedAt, it.routeId
-                )
+            val entities = response.value.paymentHistory.map { dto ->
+                dto.toEntity(account, branchId).preservingLocalOrigin(account, branchId)
             }
             dao.putPayments(entities)
             val cursor = dao.syncCursor(account.accountKey, branchId)
@@ -125,6 +127,7 @@ class CreditRepository(
                         .filter { it.branchId.toString() == branchId }
                         .map { it.toEntity(account, branchId) }
                     dao.putCredits(credits)
+                    cacheLatestPayments(page.nodes.flatMap { it.credits }, account, branchId)
                     dao.setRecordVersions(
                         customers.map { RecordVersionEntity(account.accountKey, branchId, "customer", it.id, page.snapshotCursor) } +
                             credits.map { RecordVersionEntity(account.accountKey, branchId, "credit", it.id, page.snapshotCursor) } +
@@ -170,21 +173,23 @@ class CreditRepository(
                                         dao.putCustomers(listOf(dto.toEntity(account, branchId)))
                                         dao.putCredits(dto.credits.filter { it.branchId.toString() == branchId }
                                             .map { it.toEntity(account, branchId) })
+                                        cacheLatestPayments(dto.credits, account, branchId)
                                     }
                                     "CREDIT", "CARD" -> if (deleting) {
                                         dao.deletePaymentsForCredit(account.accountKey, branchId, recordId)
                                         dao.deleteCredit(account.accountKey, branchId, recordId)
                                     } else change.payload?.let { payload ->
-                                        dao.putCredits(listOf(
-                                            json.decodeFromJsonElement(com.backendcreditos.mobile.network.CreditDto.serializer(), payload)
-                                                .toEntity(account, branchId)
-                                        ))
+                                        val dto = json.decodeFromJsonElement(
+                                            com.backendcreditos.mobile.network.CreditDto.serializer(), payload
+                                        )
+                                        dao.putCredits(listOf(dto.toEntity(account, branchId)))
+                                        cacheLatestPayments(listOf(dto), account, branchId)
                                     }
                                     "PAYMENT", "DESCRIPTION" -> if (deleting) {
                                         dao.deletePayment(account.accountKey, branchId, recordId)
                                     } else change.payload?.let { payload ->
                                         val dto = json.decodeFromJsonElement(com.backendcreditos.mobile.network.PaymentDto.serializer(), payload)
-                                        dao.putPayments(listOf(dto.toEntity(account, branchId)))
+                                        dao.putPayments(listOf(dto.toEntity(account, branchId).preservingLocalOrigin(account, branchId)))
                                     }
                                 }
                                 val recordType = when (type) {
@@ -334,7 +339,11 @@ class CreditRepository(
         return operation
     }
 
-    suspend fun applyOptimisticCacheChange(operation: OfflineOperationEntity) {
+    suspend fun applyOptimisticCacheChange(
+        operation: OfflineOperationEntity,
+        creatorUsername: String? = null,
+        creatorUserId: Int? = null
+    ) {
         val payload = json.parseToJsonElement(operation.payload)
         when (operation.kind) {
             OperationKind.DELETE_CREDIT -> {
@@ -461,10 +470,19 @@ class CreditRepository(
                         dao.putPayments(listOf(
                             (existing ?: PaymentEntity(
                                 operation.accountKey, operation.branchId, paymentId, creditId, amount.toString(),
-                                null, "created", null, null, null
+                                fields["descripcion"].textOr(null), "created",
+                                // Device clock in epoch millis, the same shape the server sends, so
+                                // the row sorts and shows a real date before it is confirmed.
+                                System.currentTimeMillis().toString(), null, null,
+                                createdLocally = true,
+                                creatorUsername = creatorUsername,
+                                creatorUserId = creatorUserId
                             )).copy(
                                 amount = amount.toString(),
-                                description = fields["descripcion"].textOr(existing?.description)
+                                description = fields["descripcion"].textOr(existing?.description),
+                                createdLocally = existing?.createdLocally ?: true,
+                                creatorUsername = existing?.creatorUsername ?: creatorUsername,
+                                creatorUserId = existing?.creatorUserId ?: creatorUserId
                             )
                         ))
                         // Keep the cached credit balance in sync with the queued payment so the
@@ -515,10 +533,53 @@ class CreditRepository(
             dao.deletePaymentsOutsideBranch(accountKey, branchId)
             dao.deleteCursorsOutsideBranch(accountKey, branchId)
             dao.deleteRecordVersionsOutsideBranch(accountKey, branchId)
+            dao.deleteMarkedCreditsOutsideBranch(accountKey, branchId)
+            dao.deleteReceiptSequencesOutsideBranch(accountKey, branchId)
+        }
+    }
+
+    suspend fun markedCredits(accountKey: String, branchId: String): List<String> =
+        dao.markedCredits(accountKey, branchId)
+
+    suspend fun setCreditMarked(accountKey: String, branchId: String, creditId: String, marked: Boolean) {
+        if (marked) {
+            dao.markCredit(MarkedCreditEntity(accountKey, branchId, creditId, System.currentTimeMillis()))
+        } else {
+            dao.unmarkCredit(accountKey, branchId, creditId)
         }
     }
 
     suspend fun unresolvedCount(accountKey: String): Int = dao.unresolvedCount(accountKey)
+
+    suspend fun receiptSequences(accountKey: String, branchId: String) =
+        dao.receiptSequences(accountKey, branchId)
+
+    /**
+     * Refreshes the branch's receipt counters so a new card can be created offline with the
+     * right document sequence, series and next number. A failure is not fatal: the cached copy
+     * from the last sync keeps working, which is why the result is only the freshly stored list.
+     */
+    suspend fun syncReceiptSequences(account: StoredSession, branchId: String): ApiResult<Int> =
+        when (val response = api.receiptSequences(account.token, branchId)) {
+            is ApiResult.Success -> {
+                val sequences = response.value.receiptSequences.map {
+                    ReceiptSequenceEntity(
+                        accountKey = account.accountKey, branchId = branchId, id = it.id,
+                        documentType = it.documentType, series = it.series, lastNumber = it.lastNumber
+                    )
+                }
+                database.withTransaction {
+                    dao.deleteReceiptSequences(account.accountKey, branchId)
+                    dao.putReceiptSequences(sequences)
+                }
+                ApiResult.Success(sequences.size)
+            }
+            is ApiResult.AuthExpired -> response
+            is ApiResult.Conflict -> response
+            is ApiResult.PermissionRejected -> response
+            is ApiResult.Rejected -> response
+            is ApiResult.Retryable -> response
+        }
 
     suspend fun syncIsPaused(accountKey: String): Boolean = dao.syncControl(accountKey)?.paused == true
 
@@ -577,10 +638,13 @@ class CreditRepository(
                     val dto = server?.let {
                         runCatching { json.decodeFromJsonElement(com.backendcreditos.mobile.network.PaymentDto.serializer(), it) }.getOrNull()
                     }
-                    if (dto != null) dao.putPayments(listOf(PaymentEntity(
-                        operation.accountKey, operation.branchId, dto.id, dto.creditId, dto.amount.toString(),
-                        dto.description, dto.state, dto.createdAt, dto.updatedAt, dto.routeId
-                    ))) else dao.deletePayment(operation.accountKey, operation.branchId, operation.entityId)
+                    if (dto != null) {
+                        val localAccount = StoredSession(operation.accountKey, "", "")
+                        dao.putPayments(listOf(
+                            dto.toEntity(localAccount, operation.branchId)
+                                .preservingLocalOrigin(localAccount, operation.branchId)
+                        ))
+                    } else dao.deletePayment(operation.accountKey, operation.branchId, operation.entityId)
                 }
                 else -> Unit
             }
@@ -600,6 +664,8 @@ class CreditRepository(
             dao.deleteCustomers(accountKey)
             dao.deleteSyncCursors(accountKey)
             dao.deleteRecordVersions(accountKey)
+            dao.deleteMarkedCredits(accountKey)
+            dao.deleteAllReceiptSequences(accountKey)
             dao.deleteSyncControl(accountKey)
         }
     }
@@ -816,10 +882,11 @@ class CreditRepository(
                     } else operation.entityId
                     if (dto != null) {
                         if (dto.id != localPaymentId) dao.deletePayment(operation.accountKey, operation.branchId, localPaymentId)
-                        dao.putPayments(listOf(PaymentEntity(
-                            operation.accountKey, operation.branchId, dto.id, dto.creditId, dto.amount.toString(),
-                            dto.description, dto.state, dto.createdAt, dto.updatedAt, dto.routeId
-                        )))
+                        val localAccount = StoredSession(operation.accountKey, "", "")
+                        dao.putPayments(listOf(
+                            dto.toEntity(localAccount, operation.branchId)
+                                .preservingLocalOrigin(localAccount, operation.branchId)
+                        ))
                         appliedServerState = true
                     } else if (operation.kind == OperationKind.CREATE_PAYMENT) {
                         val local = dao.payment(operation.accountKey, operation.branchId, localPaymentId)
@@ -889,6 +956,29 @@ class CreditRepository(
         guarantorPersonId = guarantorPersonId?.toString()
     )
 
+    private suspend fun cacheLatestPayments(
+        credits: List<com.backendcreditos.mobile.network.CreditDto>,
+        account: StoredSession,
+        branchId: String
+    ) {
+        val payments = credits.mapNotNull { it.latestPayment }
+            .map { it.toEntity(account, branchId).preservingLocalOrigin(account, branchId) }
+        if (payments.isNotEmpty()) dao.putPayments(payments)
+    }
+
+    private suspend fun PaymentEntity.preservingLocalOrigin(
+        account: StoredSession,
+        branchId: String
+    ): PaymentEntity {
+        val existing = dao.payment(account.accountKey, branchId, id) ?: return this
+        return copy(
+            createdLocally = existing.createdLocally,
+            creatorUsername = creatorUsername ?: existing.creatorUsername,
+            origin = origin ?: existing.origin,
+            creatorUserId = creatorUserId ?: existing.creatorUserId
+        )
+    }
+
     private fun com.backendcreditos.mobile.network.CreditDto.toEntity(account: StoredSession, branchId: String) =
         CreditEntity(
             accountKey = account.accountKey,
@@ -927,7 +1017,10 @@ class CreditRepository(
             state = state,
             createdAt = createdAt,
             updatedAt = updatedAt,
-            routeId = routeId
+            routeId = routeId,
+            creatorUsername = createdByUsername,
+            origin = origin,
+            creatorUserId = createdByUserId
         )
 
     private fun JsonElement?.textOr(fallback: String?): String? = when (this) {

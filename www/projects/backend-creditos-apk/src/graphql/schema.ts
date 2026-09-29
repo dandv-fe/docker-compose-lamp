@@ -7,8 +7,8 @@ import { login, type AuthContext } from '../services/auth.js';
 import { applyOfflineOperation, type OfflineInput } from '../services/operations.js';
 import {
   branches, branchPermissions, cancelledCredits, customerByDocument, customerById,
-  defaultersOfPortfolio, me, paymentHistory, portfolio, portfolioClients, restoreCredit,
-  syncChanges, withdrawnOfPortfolio,
+  defaultersOfPortfolio, me, paymentHistory, portfolio, portfolioClients, receiptSequences,
+  restoreCredit, syncChanges, withdrawnOfPortfolio,
 } from '../services/queries.js';
 import { fail } from '../services/errors.js';
 import { z } from 'zod';
@@ -70,6 +70,28 @@ const AuthPayloadType = new GraphQLObjectType({
   },
 });
 
+const PaymentType = new GraphQLObjectType({
+  name: 'Payment',
+  fields: {
+    id: { type: new GraphQLNonNull(GraphQLID) }, creditId: { type: new GraphQLNonNull(GraphQLID) },
+    amount: { type: new GraphQLNonNull(GraphQLFloat) }, description: { type: GraphQLString },
+    state: { type: GraphQLString }, createdAt: { type: GraphQLString }, updatedAt: { type: GraphQLString },
+    routeId: { type: GraphQLInt },
+    createdByUserId: { type: GraphQLInt }, createdByUsername: { type: GraphQLString },
+    origin: { type: GraphQLString },
+  },
+});
+
+const ReceiptSequenceType = new GraphQLObjectType({
+  name: 'ReceiptSequence',
+  fields: {
+    id: { type: new GraphQLNonNull(GraphQLInt) },
+    documentType: { type: new GraphQLNonNull(GraphQLString) },
+    series: { type: GraphQLString },
+    lastNumber: { type: GraphQLString },
+  },
+});
+
 const CreditType = new GraphQLObjectType({
   name: 'Credit',
   fields: {
@@ -90,6 +112,7 @@ const CreditType = new GraphQLObjectType({
     note: { type: GraphQLString }, status: { type: GraphQLString },
     createdEmployeeId: { type: GraphQLInt }, agreementDate: { type: GraphQLString },
     createdAt: { type: GraphQLString }, updatedAt: { type: GraphQLString },
+    latestPayment: { type: PaymentType },
   },
 });
 
@@ -134,16 +157,6 @@ const PortfolioType = new GraphQLObjectType({
     snapshotCursor: { type: new GraphQLNonNull(GraphQLString) },
     nextCursor: { type: GraphQLString },
     hasNextPage: { type: new GraphQLNonNull(GraphQLBoolean) },
-  },
-});
-
-const PaymentType = new GraphQLObjectType({
-  name: 'Payment',
-  fields: {
-    id: { type: new GraphQLNonNull(GraphQLID) }, creditId: { type: new GraphQLNonNull(GraphQLID) },
-    amount: { type: new GraphQLNonNull(GraphQLFloat) }, description: { type: GraphQLString },
-    state: { type: GraphQLString }, createdAt: { type: GraphQLString }, updatedAt: { type: GraphQLString },
-    routeId: { type: GraphQLInt },
   },
 });
 
@@ -304,6 +317,12 @@ const Query = new GraphQLObjectType({
       args: { branchId: { type: new GraphQLNonNull(GraphQLInt) }, creditId: { type: new GraphQLNonNull(GraphQLID) } },
       resolve: (_source, args, context: { auth: AuthContext | null }) =>
         paymentHistory(auth(context), args.branchId, String(args.creditId)),
+    },
+    receiptSequences: {
+      type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(ReceiptSequenceType))),
+      args: { branchId: { type: new GraphQLNonNull(GraphQLInt) } },
+      resolve: (_source, args, context: { auth: AuthContext | null }) =>
+        receiptSequences(auth(context), args.branchId),
     },
     syncChanges: {
       type: new GraphQLNonNull(SyncPageType),

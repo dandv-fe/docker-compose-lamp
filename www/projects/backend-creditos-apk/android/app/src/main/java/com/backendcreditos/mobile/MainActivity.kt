@@ -4,6 +4,10 @@ import android.os.Bundle
 import androidx.activity.compose.setContent
 import androidx.biometric.BiometricPrompt
 import androidx.fragment.app.FragmentActivity
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -11,36 +15,60 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.backendcreditos.mobile.data.BranchEntity
@@ -49,6 +77,7 @@ import com.backendcreditos.mobile.data.OfflineOperationEntity
 import com.backendcreditos.mobile.data.OperationKind
 import com.backendcreditos.mobile.data.OperationPayloadMapper
 import com.backendcreditos.mobile.data.OperationStatus
+import com.backendcreditos.mobile.data.PaymentEntity
 import com.backendcreditos.mobile.data.PortfolioRow
 import com.backendcreditos.mobile.network.ApiResult
 import com.backendcreditos.mobile.security.StoredSession
@@ -57,8 +86,9 @@ import androidx.work.WorkManager
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
+import java.math.RoundingMode
 
-private enum class Screen { LOGIN, BRANCHES, HOME, CUSTOMER, CREDIT, QUEUE, COMPOSER, DEFAULTERS, WITHDRAWN, CANCELLED, PORTFOLIO_CLIENTS, SYNC_SETTINGS }
+private enum class Screen { LOGIN, BRANCHES, HOME, CUSTOMER, CREDIT, QUEUE, COMPOSER, DEFAULTERS, WITHDRAWN, CANCELLED, PORTFOLIO_CLIENTS, SYNC_SETTINGS, MARKED }
 
 class MainActivity : FragmentActivity() {
     fun unlockDevice(onResult: (Boolean, String?) -> Unit) {
@@ -155,7 +185,7 @@ private fun friendlyServerError(rawMessage: String?): String {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     val scope = rememberCoroutineScope()
@@ -167,9 +197,18 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     var password by remember { mutableStateOf("") }
     var branchList by remember { mutableStateOf(emptyList<BranchEntity>()) }
     var rows by remember { mutableStateOf(emptyList<PortfolioRow>()) }
+    var branchPayments by remember { mutableStateOf(emptyList<PaymentEntity>()) }
     var customerMatches by remember { mutableStateOf(emptyList<CustomerEntity>()) }
     var customer by remember { mutableStateOf<CustomerEntity?>(null) }
     var selectedCreditId by remember { mutableStateOf<String?>(null) }
+    // Portfolio pointer: the card the collector is standing on. It is saved so it also
+    // survives configuration changes and process death, not only screen changes.
+    var pointedCreditId by rememberSaveable { mutableStateOf<String?>(null) }
+    // Only a tap on the card itself arms the pointer; arrows and the marked list place it
+    // disarmed so the next tap selects instead of opening the payments screen.
+    var pointerArmed by rememberSaveable { mutableStateOf(false) }
+    var restorePointerScroll by rememberSaveable { mutableStateOf(false) }
+    val pointerRequester = remember { BringIntoViewRequester() }
     var paymentRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.data.PaymentEntity>()) }
     var operationRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.data.OfflineOperationEntity>()) }
     var syncControl by remember { mutableStateOf<com.backendcreditos.mobile.data.SyncControlEntity?>(null) }
@@ -245,6 +284,11 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     // Cartera sub-screens (webgoez "Créditos" submenu): Morosos, Retirados, Canceladas,
     // Clientes De Cartera, gated by the same permission names as the legacy PHP sidebar.
     var branchPermissionSet by remember { mutableStateOf(emptySet<String>()) }
+    var receiptSequences by remember {
+        mutableStateOf(emptyList<com.backendcreditos.mobile.data.ReceiptSequenceEntity>())
+    }
+    var draftCardPlacement by remember { mutableStateOf(CardPlacement.AFTER) }
+    var draftCost by remember { mutableStateOf("0") }
     var defaulterRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.network.DefaulterCreditDto>()) }
     var withdrawnRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.network.WithdrawnCreditDto>()) }
     var cancelledRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.network.CancelledCreditDto>()) }
@@ -252,6 +296,9 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     var cancelledDateFrom by remember { mutableStateOf("") }
     var cancelledDateTo by remember { mutableStateOf("") }
     var syncIntervalMinutes by remember { mutableStateOf(SyncScheduler.readIntervalMinutes(activity)) }
+    var syncAutoEnabled by remember { mutableStateOf(SyncScheduler.isPeriodicEnabled(activity)) }
+    var markedCreditIds by remember { mutableStateOf(emptySet<String>()) }
+    var showMoreMenu by remember { mutableStateOf(false) }
     val branchId = session?.selectedBranchId
     val account = session
 
@@ -259,8 +306,16 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         val current = session ?: return
         val branch = current.selectedBranchId ?: return
         rows = app.repository.portfolio(current.accountKey, branch)
+        branchPayments = app.repository.paymentsForBranch(current.accountKey, branch)
         customerMatches = app.repository.searchCustomers(current.accountKey, branch, search)
         operationRows = app.repository.queuedOperations(current)
+        markedCreditIds = app.repository.markedCredits(current.accountKey, branch).toSet()
+        receiptSequences = app.repository.receiptSequences(current.accountKey, branch)
+        // Keep the open card's movement list fresh too, so returning to it right after saving
+        // an abono shows the new row without waiting for a server round trip.
+        selectedCreditId?.let { creditId ->
+            paymentRows = app.database.localDao().payments(current.accountKey, branch, creditId)
+        }
         syncControl = app.database.localDao().syncControl(current.accountKey)
     }
 
@@ -321,6 +376,11 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             is ApiResult.Success -> branchPermissionSet = result.value.toSet()
             else -> report(result)
         }
+        // Receipt counters are refreshed alongside the permissions so creating a card works
+        // offline later. A failure here is silent on purpose: the previous cached copy stays
+        // valid and the create form is the only thing that needs it.
+        app.repository.syncReceiptSequences(current, branch)
+        receiptSequences = app.repository.receiptSequences(current.accountKey, branch)
     }
 
     suspend fun loadDefaulters() {
@@ -393,6 +453,18 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         current: StoredSession
     ) {
         SyncScheduler.enqueue(activity, current.accountKey, branch, expedited = online)
+        // Registering an abono has to feel instant in the street: the movement is already saved
+        // and queued on this device, so we go straight back to the card instead of blocking on
+        // the server. The queue badge in the bottom bar is what reports the outcome afterwards.
+        if (operation.kind == OperationKind.CREATE_PAYMENT || operation.kind == OperationKind.UPDATE_PAYMENT) {
+            notice = if (online) {
+                "Abono guardado en el teléfono · se está enviando solo. Revisa el contador de la cola."
+            } else {
+                "Sin conexión: el abono quedó guardado y se enviará al recuperar señal."
+            }
+            screen = if (selectedCreditId != null) Screen.CREDIT else Screen.HOME
+            return
+        }
         if (!online) {
             notice = "Sin conexión: la operación ${operation.operationId} quedó en la cola y se enviará automáticamente al recuperar señal."
             screen = Screen.QUEUE
@@ -444,6 +516,26 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                         "con este abono debería quedar restando ${"%.2f".format(expectedRemaining)}."
                 )
             }
+        }
+        if (operationKind == OperationKind.CREATE_CREDIT) {
+            if (draftDocumentSequenceId.isBlank()) {
+                throw IllegalArgumentException(
+                    "Esta sucursal no tiene consecutivo de comprobante guardado; sincroniza en línea antes de crear la tarjeta."
+                )
+            }
+            if (draftConcept.equals("Articulo", ignoreCase = true) && draftDescription.isBlank()) {
+                throw IllegalArgumentException("Un crédito de tipo Articulo necesita descripción.")
+            }
+            // The order is derived from the chosen placement instead of asking for a raw item
+            // number, and the loan/profit pair is computed like the legacy form does.
+            val origin = rows.firstOrNull { it.credit.id == selectedCreditId }
+            if (origin != null) {
+                val ordered = rows.mapNotNull { it.credit.sortOrder }.sorted()
+                val index = ordered.indexOf(origin.credit.sortOrder ?: 0.0)
+                draftSortOrder = placementSortOrder(ordered, index, draftCardPlacement).toString()
+            }
+            draftPrincipal = draftCost.ifBlank { "0" }
+            draftProfit = creditProfit(draftValue, draftCost)
         }
         fun customerPayload() = OperationPayloadMapper.customer(
             draftFirstName, draftLastName, draftSex, draftBirthDate.takeIf(String::isNotBlank),
@@ -519,7 +611,12 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                 draftBaseVersion.trim().ifBlank { null }
             )
         }
-        app.repository.applyOptimisticCacheChange(operation)
+        app.repository.applyOptimisticCacheChange(
+            operation,
+            creatorUsername = listOfNotNull(current.firstName, current.lastName)
+                .joinToString(" ").ifBlank { current.username }.takeIf { operationKind == OperationKind.CREATE_PAYMENT },
+            creatorUserId = current.userId.takeIf { operationKind == OperationKind.CREATE_PAYMENT }
+        )
         loadLocal()
         loadOperations()
         submitAndAwaitConfirmation(operation, branch, current)
@@ -534,15 +631,19 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             session = null
             online = false
             rows = emptyList()
+            branchPayments = emptyList()
             operationRows = emptyList()
             syncControl = null
             password = ""
+            pointedCreditId = null
+            pointerArmed = false
+            restorePointerScroll = false
             screen = Screen.LOGIN
             notice = "Se eliminó la caché local de la cuenta."
         }
     }
 
-    fun prepareComposer(kind: OperationKind, targetId: String = "") {
+    fun prepareComposer(kind: OperationKind, targetId: String = "", sourceCreditId: String? = null) {
         operationKind = kind
         entityId = targetId
         composerError = ""
@@ -615,25 +716,39 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         }
         if (kind == OperationKind.CREATE_CREDIT) {
             entityId = UUID.randomUUID().toString()
-            draftConcept = ""
+            draftConcept = "Prestamo"
             draftValue = ""
             draftFrequency = "Diario"
             draftTerm = "1"
             draftPrincipal = ""
+            draftCost = "0"
             draftBalance = ""
-            draftSortOrder = "0"
             draftAdditionalNumber = ""
             draftDescription = ""
             draftCreditStatus = ""
             draftInitialPayment = "0"
             draftProfit = "0"
             draftAdditionalValue = "0"
-            draftReceiptType = ""
-            draftSeries = ""
-            draftReceiptNumber = ""
             draftNote = ""
             draftObligation = ""
-            draftDocumentSequenceId = ""
+            draftCardPlacement = CardPlacement.AFTER
+            // The web form fills these from the branch's counter instead of asking for them;
+            // the cached sequence does the same here so the collector never types an internal ID.
+            val sequence = receiptSequences.firstOrNull()
+            draftDocumentSequenceId = sequence?.id?.toString().orEmpty()
+            draftReceiptType = sequence?.documentType.orEmpty()
+            draftSeries = sequence?.series.orEmpty()
+            draftReceiptNumber = nextReceiptNumber(sequence?.lastNumber)
+            // Creating from a card means the customer and the position are already known.
+            val origin = rows.firstOrNull { it.credit.id == sourceCreditId }
+            if (origin != null) {
+                draftCustomerId = origin.credit.customerId
+                customer = origin.customer
+                draftSortOrder = origin.credit.sortOrder?.toString() ?: "0"
+            } else {
+                draftCustomerId = ""
+                draftSortOrder = "0"
+            }
         }
         if (kind == OperationKind.CREATE_PAYMENT) {
             entityId = selectedCreditId.orEmpty()
@@ -659,25 +774,297 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         screen = Screen.COMPOSER
     }
 
+    // The portfolio keeps its own scroll state so leaving to any other screen (and its own
+    // scrolling) never moves the cartera; the remaining screens keep sharing one state, as before.
+    val portfolioScrollState = rememberScrollState()
+    val otherScreensScrollState = rememberScrollState()
+
+    // Hoisted out of the HOME branch because the bottom bar arrows and counter act on the
+    // same visible list the user sees, filter included.
+    val visibleRows = rows.filter { row ->
+        val name = "${row.customer?.firstName.orEmpty()} ${row.customer?.lastName.orEmpty()} " +
+            "${row.customer?.documentNumber.orEmpty()} ${row.credit.additionalNumber.orEmpty()}"
+        name.contains(search, ignoreCase = true)
+    }
+    val visibleCreditIds = visibleRows.map { it.credit.id }
+    val pointerIndex = pointerPosition(pointedCreditId, visibleCreditIds)
+    val onPortfolio = screen == Screen.HOME
+    val unresolvedBadge = operationRows.count {
+        it.status in setOf(
+            OperationStatus.PENDING, OperationStatus.IN_FLIGHT,
+            OperationStatus.CONFLICT, OperationStatus.REJECTED
+        )
+    }
+
+    fun movePointer(forward: Boolean) {
+        val target = pointerStep(pointedCreditId, visibleCreditIds, forward) ?: return
+        pointedCreditId = target
+        pointerArmed = false
+        restorePointerScroll = true
+    }
+
+    LaunchedEffect(screen) {
+        if (screen != Screen.HOME && pointedCreditId != null) restorePointerScroll = true
+    }
+    LaunchedEffect(rows) {
+        pointedCreditId = keepSelection(pointedCreditId, rows.map { it.credit.id })
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Créditos") },
-                actions = {
-                    if (account != null && screen !in setOf(Screen.LOGIN, Screen.BRANCHES)) {
-                        TextButton(onClick = {
-                            scope.launch {
-                                pendingLogoutCount = app.repository.unresolvedCount(account.accountKey)
-                                if (pendingLogoutCount > 0) showLogoutConfirmation = true else logout()
+                title = { Text("Créditos") }
+            )
+        },
+        bottomBar = {
+            if (account != null && branchId != null && screen !in setOf(Screen.LOGIN, Screen.BRANCHES)) {
+                Surface(tonalElevation = 3.dp) {
+                    Row(
+                        Modifier.fillMaxWidth()
+                            // Android 15 forces edge-to-edge, so without this the bar lands
+                            // underneath the system navigation buttons/gesture handle.
+                            .navigationBarsPadding()
+                            .padding(horizontal = 4.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Arrows walk the route card by card; they are dead outside the cartera
+                        // and at both ends of the visible list, like a browser's history arrows.
+                        val canGoBack = onPortfolio && pointerStep(pointedCreditId, visibleCreditIds, false) != null
+                        val canGoForward = onPortfolio && pointerStep(pointedCreditId, visibleCreditIds, true) != null
+                        IconButton(onClick = { movePointer(forward = false) }, enabled = canGoBack) {
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Tarjeta anterior")
+                        }
+                        IconButton(onClick = { movePointer(forward = true) }, enabled = canGoForward) {
+                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Tarjeta siguiente")
+                        }
+                        IconButton(onClick = {
+                            if (pointedCreditId != null) restorePointerScroll = true
+                            screen = Screen.HOME
+                        }) {
+                            Icon(Icons.Filled.Home, contentDescription = "Volver a la cartera")
+                        }
+                        BadgedBox(badge = {
+                            if (markedCreditIds.isNotEmpty()) Badge { Text(markedCreditIds.size.toString()) }
+                        }) {
+                            IconButton(onClick = {
+                                scope.launch { loadLocal() }
+                                screen = Screen.MARKED
+                            }) {
+                                Icon(Icons.Filled.Star, contentDescription = "Tarjetas marcadas")
                             }
-                        }) { Text("Cerrar sesión") }
+                        }
+                        IconButton(
+                            onClick = { restorePointerScroll = true; screen = Screen.HOME },
+                            enabled = pointerIndex != null
+                        ) {
+                            Box(
+                                Modifier.size(26.dp)
+                                    .border(
+                                        BorderStroke(2.dp, MaterialTheme.colorScheme.onSurfaceVariant),
+                                        RoundedCornerShape(6.dp)
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    pointerIndex?.toString() ?: "—",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Box {
+                            BadgedBox(badge = {
+                                if (unresolvedBadge > 0) Badge { Text(unresolvedBadge.toString()) }
+                            }) {
+                                IconButton(onClick = { showMoreMenu = true }) {
+                                    Icon(Icons.Filled.MoreVert, contentDescription = "Más opciones")
+                                }
+                            }
+                            DropdownMenu(showMoreMenu, onDismissRequest = { showMoreMenu = false }) {
+                                // Card actions live here too, so the payments screen keeps only the
+                                // button you press every day and the rest act on the open card.
+                                if (screen == Screen.CREDIT && selectedCreditId != null) {
+                                    if ("nueva tarjeta" in branchPermissionSet || branchPermissionSet.isEmpty()) {
+                                        DropdownMenuItem(
+                                            text = { Text("Crear otra tarjeta a este cliente") },
+                                            onClick = {
+                                                showMoreMenu = false
+                                                prepareComposer(
+                                                    OperationKind.CREATE_CREDIT,
+                                                    sourceCreditId = selectedCreditId
+                                                )
+                                            }
+                                        )
+                                        HorizontalDivider()
+                                    }
+                                    DropdownMenuItem(
+                                        text = { Text("Editar crédito") },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            prepareComposer(OperationKind.UPDATE_CREDIT, selectedCreditId.orEmpty())
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Cambiar estado") },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            prepareComposer(OperationKind.CHANGE_CREDIT_STATUS, selectedCreditId.orEmpty())
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Reordenar") },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            prepareComposer(OperationKind.REORDER_CREDIT, selectedCreditId.orEmpty())
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Aplicar descuento") },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            prepareComposer(OperationKind.APPLY_DISCOUNT, selectedCreditId.orEmpty())
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = { Text("Agregar interés") },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            prepareComposer(OperationKind.ADD_INTEREST, selectedCreditId.orEmpty())
+                                        }
+                                    )
+                                    if (online) DropdownMenuItem(
+                                        text = { Text("Actualizar pagos") },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            scope.launch {
+                                                val current = session ?: return@launch
+                                                val branch = current.selectedBranchId ?: return@launch
+                                                when (
+                                                    val result = app.repository.openPaymentHistory(
+                                                        current, branch, selectedCreditId.orEmpty()
+                                                    )
+                                                ) {
+                                                    is ApiResult.Success -> paymentRows = result.value
+                                                    else -> report(result)
+                                                }
+                                            }
+                                        }
+                                    )
+                                    DropdownMenuItem(
+                                        text = {
+                                            Text("Eliminar crédito", color = MaterialTheme.colorScheme.error)
+                                        },
+                                        // The server refuses to delete a credit that left the
+                                        // 'created' state or that already has settled payments.
+                                        enabled = rows.firstOrNull { it.credit.id == selectedCreditId }
+                                            ?.credit?.status == "created",
+                                        onClick = {
+                                            showMoreMenu = false
+                                            prepareComposer(OperationKind.DELETE_CREDIT, selectedCreditId.orEmpty())
+                                        }
+                                    )
+                                    HorizontalDivider()
+                                }
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(if (unresolvedBadge > 0) "Cola ($unresolvedBadge sin resolver)" else "Cola")
+                                    },
+                                    onClick = {
+                                        showMoreMenu = false
+                                        scope.launch { loadOperations(); screen = Screen.QUEUE }
+                                    }
+                                )
+                                HorizontalDivider()
+                                DropdownMenuItem(
+                                    text = { Text("Crear cliente") },
+                                    onClick = { showMoreMenu = false; prepareComposer(OperationKind.CREATE_CUSTOMER) }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Crear crédito") },
+                                    onClick = { showMoreMenu = false; prepareComposer(OperationKind.CREATE_CREDIT) }
+                                )
+                                if (online) DropdownMenuItem(
+                                    text = { Text("Buscar cliente por documento") },
+                                    onClick = { showMoreMenu = false; showDocumentLookup = true }
+                                )
+                                if (online) DropdownMenuItem(
+                                    text = { Text("Actualizar cartera") },
+                                    onClick = {
+                                        showMoreMenu = false
+                                        scope.launch {
+                                            val current = session ?: return@launch
+                                            val branch = current.selectedBranchId ?: return@launch
+                                            busy = true
+                                            when (val result = app.repository.syncPortfolio(current, branch)) {
+                                                is ApiResult.Success -> {
+                                                    app.repository.pullChanges(current, branch)
+                                                    loadLocal()
+                                                    notice = "Cartera actualizada."
+                                                }
+                                                else -> report(result)
+                                            }
+                                            busy = false
+                                        }
+                                    }
+                                )
+                                if (online && branchPermissionSet.isNotEmpty()) {
+                                    HorizontalDivider()
+                                    if ("ver morosos" in branchPermissionSet) DropdownMenuItem(
+                                        text = { Text("Morosos") },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            scope.launch { busy = true; loadDefaulters(); busy = false; screen = Screen.DEFAULTERS }
+                                        }
+                                    )
+                                    if ("ver retirados" in branchPermissionSet) DropdownMenuItem(
+                                        text = { Text("Retirados") },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            scope.launch { busy = true; loadWithdrawn(); busy = false; screen = Screen.WITHDRAWN }
+                                        }
+                                    )
+                                    if ("ver canceladas" in branchPermissionSet) DropdownMenuItem(
+                                        text = { Text("Canceladas") },
+                                        onClick = { showMoreMenu = false; screen = Screen.CANCELLED }
+                                    )
+                                    if ("ver clientes" in branchPermissionSet) DropdownMenuItem(
+                                        text = { Text("Clientes de cartera") },
+                                        onClick = {
+                                            showMoreMenu = false
+                                            scope.launch { busy = true; loadPortfolioClients(); busy = false; screen = Screen.PORTFOLIO_CLIENTS }
+                                        }
+                                    )
+                                }
+                                HorizontalDivider()
+                                if (online) DropdownMenuItem(
+                                    text = { Text("Cambiar sucursal") },
+                                    onClick = { showMoreMenu = false; screen = Screen.BRANCHES }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Sincronización automática") },
+                                    onClick = { showMoreMenu = false; screen = Screen.SYNC_SETTINGS }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Cerrar sesión") },
+                                    onClick = {
+                                        showMoreMenu = false
+                                        scope.launch {
+                                            pendingLogoutCount = app.repository.unresolvedCount(account.accountKey)
+                                            if (pendingLogoutCount > 0) showLogoutConfirmation = true else logout()
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
-            )
+            }
         }
     ) { padding ->
         Column(
-            Modifier.fillMaxSize().padding(padding).padding(16.dp).verticalScroll(rememberScrollState()),
+            Modifier.fillMaxSize().padding(padding).padding(16.dp)
+                .verticalScroll(if (screen == Screen.HOME) portfolioScrollState else otherScreensScrollState),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (notice.isNotBlank()) Text(notice, color = MaterialTheme.colorScheme.error)
@@ -708,7 +1095,11 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 when (val response = app.api.login(companyId, username.trim(), password)) {
                                     is ApiResult.Success -> {
                                         val login = response.value.login
-                                        val newSession = StoredSession(login.company.id.toString(), login.user.username, login.token)
+                                        val newSession = StoredSession(
+                                            login.company.id.toString(), login.user.username, login.token,
+                                            userId = login.user.userId,
+                                            firstName = login.user.firstName, lastName = login.user.lastName
+                                        )
                                         if (previous != null && previous.accountKey != newSession.accountKey) {
                                             val unresolved = app.repository.unresolvedCount(previous.accountKey)
                                             if (unresolved > 0) {
@@ -730,6 +1121,13 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                         syncControl = app.database.localDao().syncControl(newSession.accountKey)
                                         when (val me = app.api.me(newSession.token)) {
                                             is ApiResult.Success -> {
+                                                me.value.me?.let { user ->
+                                                    val refreshed = newSession.copy(
+                                                        userId = user.userId, firstName = user.firstName, lastName = user.lastName
+                                                    )
+                                                    session = refreshed
+                                                    app.vault.saveSession(refreshed)
+                                                }
                                                 when (val branches = app.api.branches(newSession.token)) {
                                                     is ApiResult.Success -> {
                                                         branchList = branches.value.branches.map { BranchEntity(it.id.toString(), it.name, it.type) }
@@ -769,6 +1167,13 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                         val me = current?.let { app.api.me(it.token) }
                                         when (me) {
                                             is ApiResult.Success -> {
+                                                me.value.me?.let { user ->
+                                                    val refreshed = current.copy(
+                                                        userId = user.userId, firstName = user.firstName, lastName = user.lastName
+                                                    )
+                                                    session = refreshed
+                                                    app.vault.saveSession(refreshed)
+                                                }
                                                 online = true
                                                 screen = Screen.HOME
                                                 loadLocal()
@@ -830,12 +1235,18 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             // them on screen while the new branch syncs; loadLocal() below repopulates
                             // them from this branch's own cache (may briefly be empty on first visit).
                             rows = emptyList()
+                            branchPayments = emptyList()
                             customerMatches = emptyList()
+                            pointedCreditId = null
+                            pointerArmed = false
+                            restorePointerScroll = false
                             scope.launch {
                                 busy = true
                                 loadLocal()
                                 loadBranchPermissions()
-                                SyncScheduler.schedulePeriodic(activity, selected.accountKey, branch.id, syncIntervalMinutes)
+                                if (syncAutoEnabled) {
+                                    SyncScheduler.schedulePeriodic(activity, selected.accountKey, branch.id, syncIntervalMinutes)
+                                }
                                 // Avoid throwing away and re-downloading a portfolio already cached on this
                                 // device: if this branch was synced before, only pull what changed since then.
                                 if (app.repository.hasCachedBranch(selected.accountKey, branch.id)) {
@@ -911,70 +1322,39 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             }
                         }) { Text("Cola") }
                     }
-                    OutlinedButton(onClick = {
-                        prepareComposer(OperationKind.CREATE_CUSTOMER)
-                    }) { Text("Crear cliente") }
-                    OutlinedButton(onClick = { prepareComposer(OperationKind.CREATE_CREDIT) }) {
-                        Text("Crear crédito")
-                    }
-                    // FlowRow instead of Row: with 3 buttons this wide, a plain Row overflows the
-                    // screen width and clips buttons off-screen instead of wrapping them.
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (online) OutlinedButton(onClick = { showDocumentLookup = true }) {
-                            Text("Buscar cliente por documento")
-                        }
-                        if (online) OutlinedButton(onClick = {
-                            scope.launch {
-                                val current = session ?: return@launch
-                                val branch = current.selectedBranchId ?: return@launch
-                                busy = true
-                                when (val result = app.repository.syncPortfolio(current, branch)) {
-                                    is ApiResult.Success -> {
-                                        app.repository.pullChanges(current, branch)
-                                        loadLocal()
-                                        notice = "Cartera actualizada."
-                                    }
-                                    else -> report(result)
-                                }
-                                busy = false
-                            }
-                        }) { Text("Actualizar cartera") }
-                        if (online) OutlinedButton(onClick = {
-                            // Only navigates back to the branch picker; keeps the session and the
-                            // local cache intact. Picking a branch already synced before will only
-                            // pull incremental changes instead of a full re-download (see hasCachedBranch).
-                            screen = Screen.BRANCHES
-                        }) { Text("Cambiar sucursal") }
-                    }
                     if (busy) Text("Trabajando…")
-                    if (online && branchPermissionSet.isNotEmpty()) {
-                        Text("Cartera · Gestión", style = MaterialTheme.typography.titleLarge)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if ("ver morosos" in branchPermissionSet) OutlinedButton(onClick = {
-                                scope.launch { busy = true; loadDefaulters(); busy = false; screen = Screen.DEFAULTERS }
-                            }) { Text("Morosos") }
-                            if ("ver retirados" in branchPermissionSet) OutlinedButton(onClick = {
-                                scope.launch { busy = true; loadWithdrawn(); busy = false; screen = Screen.WITHDRAWN }
-                            }) { Text("Retirados") }
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            if ("ver canceladas" in branchPermissionSet) OutlinedButton(onClick = {
-                                screen = Screen.CANCELLED
-                            }) { Text("Canceladas") }
-                            if ("ver clientes" in branchPermissionSet) OutlinedButton(onClick = {
-                                scope.launch { busy = true; loadPortfolioClients(); busy = false; screen = Screen.PORTFOLIO_CLIENTS }
-                            }) { Text("Clientes de cartera") }
-                        }
-                    }
-                    OutlinedButton(onClick = { screen = Screen.SYNC_SETTINGS }) { Text("Sincronización automática") }
                     Text("Cartera guardada", style = MaterialTheme.typography.titleLarge)
-                    val filtered = rows.filter { row ->
-                        val name = "${row.customer?.firstName.orEmpty()} ${row.customer?.lastName.orEmpty()} ${row.customer?.documentNumber.orEmpty()} ${row.credit.additionalNumber.orEmpty()}"
-                        name.contains(search, ignoreCase = true)
-                    }
+                    Text(
+                        "Un toque marca la tarjeta donde vas; otro toque la abre. Usa ‹ › de la barra para avanzar.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    val filtered = visibleRows
                     if (filtered.isEmpty()) Text("No hay resultados guardados. Sincroniza la sucursal o abre un cliente en línea.")
+                    LaunchedEffect(restorePointerScroll, pointedCreditId, filtered.size) {
+                        if (restorePointerScroll && filtered.any { it.credit.id == pointedCreditId }) {
+                            pointerRequester.bringIntoView()
+                            restorePointerScroll = false
+                        }
+                    }
                     filtered.forEach { row ->
-                        Card(Modifier.fillMaxWidth().clickable {
+                        val pointed = pointedCreditId == row.credit.id
+                        Card(Modifier.fillMaxWidth()
+                            .then(
+                                if (pointed) Modifier
+                                    .bringIntoViewRequester(pointerRequester)
+                                    .border(
+                                        BorderStroke(3.dp, MaterialTheme.colorScheme.primary),
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                else Modifier
+                            )
+                            .clickable {
+                            // First tap only moves the pointer; the second tap on the same card opens it.
+                            if (portfolioTap(pointedCreditId, row.credit.id, pointerArmed) == PortfolioTap.SELECT) {
+                                pointedCreditId = row.credit.id
+                                pointerArmed = true
+                                return@clickable
+                            }
                             selectedCreditId = row.credit.id
                             customer = row.customer
                             scope.launch {
@@ -982,7 +1362,10 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 val branch = current.selectedBranchId ?: return@launch
                                 if (online) {
                                     when (val result = app.repository.openPaymentHistory(current, branch, row.credit.id)) {
-                                        is ApiResult.Success -> paymentRows = result.value
+                                        is ApiResult.Success -> {
+                                            paymentRows = result.value
+                                            branchPayments = app.repository.paymentsForBranch(current.accountKey, branch)
+                                        }
                                         else -> report(result)
                                     }
                                 }
@@ -991,15 +1374,114 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             }
                         }) {
                             Column(Modifier.padding(16.dp)) {
-                                Text("${row.customer?.firstName.orEmpty()} ${row.customer?.lastName.orEmpty()}")
+                                if (pointed) Text(
+                                    "▶ Aquí vas · toca de nuevo para abrir",
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("${row.customer?.firstName.orEmpty()} ${row.customer?.lastName.orEmpty()}")
+                                    val marked = row.credit.id in markedCreditIds
+                                    IconButton(onClick = {
+                                        scope.launch {
+                                            val current = session ?: return@launch
+                                            val branch = current.selectedBranchId ?: return@launch
+                                            app.repository.setCreditMarked(current.accountKey, branch, row.credit.id, !marked)
+                                            markedCreditIds = app.repository.markedCredits(current.accountKey, branch).toSet()
+                                        }
+                                    }) {
+                                        Icon(
+                                            Icons.Filled.Star,
+                                            contentDescription = if (marked) "Quitar marca" else "Marcar para volver más tarde",
+                                            tint = if (marked) MaterialTheme.colorScheme.primary
+                                            else MaterialTheme.colorScheme.outlineVariant
+                                        )
+                                    }
+                                }
                                 Text("Crédito ${row.credit.additionalNumber ?: row.credit.id} · Saldo ${row.credit.balance ?: "—"}")
                                 Text("Estado: ${row.credit.status ?: "—"}")
+                                val cachedCreditPayments = branchPayments.filter { it.creditId == row.credit.id }
+                                val pendingLocalPayment = cachedCreditPayments.firstOrNull { payment ->
+                                    payment.createdLocally && operationRows.any { operation ->
+                                        operation.kind == OperationKind.CREATE_PAYMENT &&
+                                            operation.entityId == payment.creditId &&
+                                            operation.payload.contains("\"iddescripcion\":\"${payment.id}\"") &&
+                                            operation.status in setOf(
+                                                OperationStatus.PENDING, OperationStatus.IN_FLIGHT,
+                                                OperationStatus.CONFLICT, OperationStatus.REJECTED
+                                            )
+                                    }
+                                }
+                                val displayedPayment = pendingLocalPayment ?: cachedCreditPayments.firstOrNull()
+                                displayedPayment?.let { payment ->
+                                    val paymentOperation = if (payment.createdLocally) operationRows.firstOrNull { operation ->
+                                        operation.kind == OperationKind.CREATE_PAYMENT &&
+                                            operation.entityId == payment.creditId &&
+                                            operation.payload.contains("\"iddescripcion\":\"${payment.id}\"")
+                                    } else null
+                                    val amount = payment.amount?.toBigDecimalOrNull()
+                                        ?.abs()?.setScale(2, RoundingMode.HALF_UP)?.toPlainString() ?: "—"
+                                    val presentation = classifyPayment(
+                                        payment.description, payment.state,
+                                        session?.userId != null && payment.creatorUserId == session?.userId
+                                    )
+                                    val originLabel = when {
+                                        payment.createdLocally -> "Creado en este dispositivo"
+                                        payment.origin == "android" -> "Descargado del servidor · registrado desde la app"
+                                        payment.origin == "web" -> "Descargado del servidor · registrado desde la web"
+                                        else -> "Descargado del servidor · canal no registrado"
+                                    }
+                                    val syncLabel = when (paymentOperation?.status) {
+                                        OperationStatus.PENDING -> "Pendiente de sincronizar"
+                                        OperationStatus.IN_FLIGHT -> "Enviando al servidor"
+                                        OperationStatus.CONFLICT ->
+                                            "Conflicto: ${paymentOperation.lastError ?: "revisar Cola"}"
+                                        OperationStatus.REJECTED ->
+                                            "Rechazado: ${paymentOperation.lastError ?: "revisar Cola"}"
+                                        else -> if (payment.createdLocally) "Sincronizado con el servidor"
+                                            else "Disponible desde el servidor"
+                                    }
+                                    val stateLabel = when (payment.state) {
+                                        "saved" -> "Guardado"
+                                        "created" -> "Creado"
+                                        "entregando" -> "Entregando"
+                                        else -> payment.state ?: "No registrado"
+                                    }
+                                    Column(
+                                        Modifier.fillMaxWidth()
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(presentation.background)
+                                            .padding(12.dp)
+                                    ) {
+                                        Text("Último registro", color = presentation.foreground, fontWeight = FontWeight.Bold)
+                                        Text("${presentation.type} · $ $amount", color = presentation.foreground)
+                                        if (presentation.detail.isNotBlank()) {
+                                            Text("Detalle: ${presentation.detail}", color = presentation.foreground)
+                                        }
+                                        Text("Origen: $originLabel", color = presentation.foreground)
+                                        Text("Sincronización: $syncLabel", color = presentation.foreground)
+                                        payment.creatorUsername?.let {
+                                            Text("Creado por: ${formatPersonName(it)}", color = presentation.foreground)
+                                        } ?: if (!payment.createdLocally) {
+                                            Text("Usuario creador: no registrado (abono anterior a este control)", color = presentation.foreground)
+                                        } else Unit
+                                        Text("Estado: $stateLabel", color = presentation.foreground)
+                                        payment.createdAt?.let {
+                                            Text(formatPaymentMoment(it), color = presentation.foreground)
+                                        }
+                                    }
+                                }
                                 if (operationRows.any {
                                         it.branchId == row.credit.branchId &&
                                             it.entityId == row.credit.id &&
+                                            it.kind != OperationKind.CREATE_PAYMENT &&
                                             it.status in setOf(OperationStatus.PENDING, OperationStatus.IN_FLIGHT)
                                     }
-                                ) Text("Cambio optimista PENDING · sin confirmar", color = MaterialTheme.colorScheme.error)
+                                ) Text("Hay otros cambios pendientes de confirmar.", color = MaterialTheme.colorScheme.error)
                             }
                         }
                         if (row.customer != null) TextButton(onClick = {
@@ -1120,26 +1602,116 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     }
                     TextButton(onClick = { screen = Screen.HOME }) { Text("Volver") }
                 }
-                Screen.SYNC_SETTINGS -> {
-                    Text("Sincronización automática", style = MaterialTheme.typography.headlineSmall)
+                Screen.MARKED -> {
+                    Text("Tarjetas marcadas", style = MaterialTheme.typography.headlineSmall)
                     Text(
-                        "El sistema operativo obliga a un mínimo de 15 minutos entre sincronizaciones " +
-                            "en segundo plano; no es posible bajar de ese límite sin mantener la app " +
-                            "abierta en primer plano de forma permanente."
+                        "Marcas guardadas solo en este teléfono; nunca viajan al servidor.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    val markedRows = rows.filter { it.credit.id in markedCreditIds }
+                    if (markedRows.isEmpty()) Text("Todavía no marcaste ninguna tarjeta. Usa la estrella de la cartera.")
+                    markedRows.forEach { row ->
+                        Card(Modifier.fillMaxWidth().clickable {
+                            // Bookmarks only take you back to the card; opening payments still
+                            // needs a deliberate tap on the card itself in the portfolio.
+                            pointedCreditId = row.credit.id
+                            pointerArmed = false
+                            restorePointerScroll = true
+                            screen = Screen.HOME
+                        }) {
+                            Column(Modifier.padding(16.dp)) {
+                                Text("${row.customer?.firstName.orEmpty()} ${row.customer?.lastName.orEmpty()}")
+                                Text("Crédito ${row.credit.additionalNumber ?: row.credit.id} · Saldo ${row.credit.balance ?: "—"}")
+                                TextButton(onClick = {
+                                    scope.launch {
+                                        val current = session ?: return@launch
+                                        val branch = current.selectedBranchId ?: return@launch
+                                        app.repository.setCreditMarked(current.accountKey, branch, row.credit.id, false)
+                                        markedCreditIds = app.repository.markedCredits(current.accountKey, branch).toSet()
+                                    }
+                                }) { Text("Quitar marca") }
+                            }
+                        }
+                    }
+                    TextButton(onClick = { screen = Screen.HOME }) { Text("Volver a la cartera") }
+                }
+                Screen.SYNC_SETTINGS -> {
+                    Text("Sincronización", style = MaterialTheme.typography.headlineSmall)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text("Sincronización automática", style = MaterialTheme.typography.titleMedium)
+                        Switch(
+                            checked = syncAutoEnabled,
+                            onCheckedChange = { enabled ->
+                                val current = session ?: return@Switch
+                                val branch = current.selectedBranchId ?: return@Switch
+                                SyncScheduler.setPeriodicEnabled(activity, current.accountKey, branch, enabled)
+                                syncAutoEnabled = enabled
+                                notice = if (enabled) {
+                                    "Sincronización automática encendida cada $syncIntervalMinutes minutos."
+                                } else {
+                                    "Sincronización automática apagada. Lo guardado sigue en la cola; " +
+                                        "usa \"Sincronizar ahora\" cuando quieras enviarlo."
+                                }
+                            }
+                        )
+                    }
+                    Text(
+                        if (syncAutoEnabled) {
+                            "El sistema operativo obliga a un mínimo de 15 minutos entre sincronizaciones " +
+                                "en segundo plano; no es posible bajar de ese límite sin mantener la app " +
+                                "abierta en primer plano de forma permanente."
+                        } else {
+                            "Apagada: nada se envía ni se baja solo. Lo que guardes queda en la cola del " +
+                                "teléfono hasta que toques \"Sincronizar ahora\"."
+                        },
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Button(onClick = {
+                        val current = session ?: return@Button
+                        val branch = current.selectedBranchId ?: return@Button
+                        scope.launch {
+                            busy = true
+                            // Push the queue first so nothing registered in the street is lost,
+                            // then pull so the portfolio reflects what other collectors did.
+                            SyncScheduler.enqueue(activity, current.accountKey, branch, expedited = true)
+                            if (online) {
+                                when (val result = app.repository.pullChanges(current, branch)) {
+                                    is ApiResult.Success -> notice = "Cartera al día."
+                                    else -> report(result)
+                                }
+                            } else {
+                                notice = "Sin conexión: la cola se enviará sola al recuperar señal."
+                            }
+                            loadLocal()
+                            loadOperations()
+                            busy = false
+                        }
+                    }) { Text("Sincronizar ahora") }
+                    if (unresolvedBadge > 0) Text(
+                        "$unresolvedBadge operación(es) sin resolver en la cola.",
+                        color = MaterialTheme.colorScheme.error
                     )
                     OutlinedTextField(
                         syncIntervalMinutes.toString(),
                         { text -> text.toLongOrNull()?.let { syncIntervalMinutes = it } },
                         label = { Text("Intervalo en minutos (mínimo 15, recomendado 20-30)") },
+                        enabled = syncAutoEnabled,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Button(onClick = {
-                        val current = session ?: return@Button
-                        val branch = current.selectedBranchId ?: return@Button
-                        SyncScheduler.schedulePeriodic(activity, current.accountKey, branch, syncIntervalMinutes)
-                        syncIntervalMinutes = SyncScheduler.readIntervalMinutes(activity)
-                        notice = "Sincronización automática programada cada $syncIntervalMinutes minutos."
-                    }) { Text("Guardar") }
+                    Button(
+                        enabled = syncAutoEnabled,
+                        onClick = {
+                            val current = session ?: return@Button
+                            val branch = current.selectedBranchId ?: return@Button
+                            SyncScheduler.schedulePeriodic(activity, current.accountKey, branch, syncIntervalMinutes)
+                            syncIntervalMinutes = SyncScheduler.readIntervalMinutes(activity)
+                            notice = "Sincronización automática programada cada $syncIntervalMinutes minutos."
+                        }
+                    ) { Text("Guardar intervalo") }
                     TextButton(onClick = { screen = Screen.HOME }) { Text("Volver") }
                 }
                 Screen.CUSTOMER -> {
@@ -1183,8 +1755,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     Text("Crédito / tarjeta", style = MaterialTheme.typography.headlineSmall)
                     credit?.let { selectedCredit ->
                         Text("Crédito ${selectedCredit.additionalNumber ?: selectedCredit.id}")
-                        Text("Principal: ${selectedCredit.principal.orEmpty()} · Saldo: ${selectedCredit.balance.orEmpty()}")
-                        Text("Concepto: ${selectedCredit.concept.orEmpty()} · Valor: ${selectedCredit.value.orEmpty()}")
+                        Text("Principal: ${formatMoney(selectedCredit.principal)} · Saldo: ${formatMoney(selectedCredit.balance)}")
+                        Text("Concepto: ${selectedCredit.concept.orEmpty()} · Valor: ${formatMoney(selectedCredit.value)}")
                         Text("Estado: ${selectedCredit.status.orEmpty()} · Orden: ${selectedCredit.sortOrder ?: "—"}")
                         if (operationRows.any { operation ->
                                 operation.branchId == selectedCredit.branchId &&
@@ -1197,70 +1769,134 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     // solo puede existir un abono abierto (no liquidado) por crédito a la vez.
                     // Si ya hay uno, se debe editar en vez de crear uno nuevo.
                     val openPayment = paymentRows.firstOrNull { it.creditId == selectedCreditId && it.state != "saved" }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = { prepareComposer(OperationKind.CREATE_PAYMENT) },
-                            enabled = openPayment == null
-                        ) {
-                            Text("Registrar pago")
-                        }
-                        OutlinedButton(onClick = { prepareComposer(OperationKind.UPDATE_CREDIT, selectedCreditId.orEmpty()) }) {
-                            Text("Editar crédito")
-                        }
+                    Button(
+                        onClick = { prepareComposer(OperationKind.CREATE_PAYMENT) },
+                        enabled = openPayment == null
+                    ) {
+                        Text("Registrar pago")
                     }
+                    if ("nueva tarjeta" in branchPermissionSet || branchPermissionSet.isEmpty()) {
+                        OutlinedButton(onClick = {
+                            prepareComposer(OperationKind.CREATE_CREDIT, sourceCreditId = selectedCreditId)
+                        }) { Text("Crear otra tarjeta a este cliente") }
+                    }
+                    Text(
+                        "Editar, eliminar, cambiar estado, reordenar, descuento, interés y actualizar " +
+                            "pagos están en los tres punticos de abajo.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                     if (openPayment != null) Text(
-                        "Este crédito ya tiene un abono registrado hoy (sin liquidar). Usa \"Editar pago\" abajo si necesitas corregirlo.",
+                        if (openPayment.state == "created") {
+                            "Este crédito ya tiene un abono registrado hoy (sin liquidar). Usa \"Editar\" en ese movimiento si necesitas corregirlo."
+                        } else {
+                            "Este crédito ya tiene un abono en entrega. Solo se podrá registrar otro cuando se cierre la ruta."
+                        },
                         color = MaterialTheme.colorScheme.error
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = {
-                            prepareComposer(OperationKind.DELETE_CREDIT, selectedCreditId.orEmpty())
-                        }) { Text("Eliminar crédito") }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = {
-                            prepareComposer(OperationKind.CHANGE_CREDIT_STATUS, selectedCreditId.orEmpty())
-                        }) { Text("Cambiar estado") }
-                        OutlinedButton(onClick = {
-                            prepareComposer(OperationKind.REORDER_CREDIT, selectedCreditId.orEmpty())
-                        }) { Text("Reordenar") }
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = {
-                            prepareComposer(OperationKind.APPLY_DISCOUNT, selectedCreditId.orEmpty())
-                        }) { Text("Aplicar descuento") }
-                        OutlinedButton(onClick = {
-                            prepareComposer(OperationKind.ADD_INTEREST, selectedCreditId.orEmpty())
-                        }) { Text("Agregar interés") }
-                    }
-                    Text("Pagos", style = MaterialTheme.typography.titleMedium)
-                    paymentRows.forEach { payment ->
-                        val displayedAmount = payment.amount?.toDoubleOrNull()?.let { kotlin.math.abs(it).toString() } ?: "—"
-                        Text("Pago ${payment.id} · $displayedAmount · ${payment.createdAt ?: "—"} · ${payment.state.orEmpty()}")
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            TextButton(onClick = {
-                                prepareComposer(OperationKind.UPDATE_PAYMENT, payment.id)
-                                val originalAmount = kotlin.math.abs(payment.amount?.toDoubleOrNull() ?: 0.0).toString()
-                                draftPaymentAmount = originalAmount
-                                draftPaymentOriginalAmount = originalAmount
-                                draftPaymentDescription = payment.description.orEmpty()
-                                draftPaymentConfirmRemaining = ""
-                            }) { Text("Editar pago") }
-                            TextButton(onClick = {
-                                prepareComposer(OperationKind.DELETE_PAYMENT, payment.id)
-                            }) { Text("Eliminar pago") }
+                    Text("Movimientos", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "La resta es el saldo que quedó tras cada movimiento; se calcula en el " +
+                            "teléfono con lo que hay guardado.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    val creditPayments = paymentRows.filter { it.creditId == selectedCreditId }
+                    val balancesAfter = runningBalances(
+                        credit?.balance?.toBigDecimalOrNull(),
+                        creditPayments.map { it.amount?.toBigDecimalOrNull() }
+                    )
+                    if (creditPayments.isEmpty()) Text("Esta tarjeta todavía no tiene movimientos guardados.")
+                    creditPayments.forEachIndexed { index, payment ->
+                        val presentation = classifyPayment(
+                            payment.description, payment.state,
+                            session?.userId != null && payment.creatorUserId == session?.userId
+                        )
+                        val movementAmount = payment.amount?.toBigDecimalOrNull()?.abs()
+                        val stateLabel = when (payment.state) {
+                            "saved" -> "Guardado"
+                            "created" -> "Creado"
+                            "entregando" -> "Entregando"
+                            null -> "Sin estado"
+                            else -> payment.state.orEmpty()
                         }
-                    }
-                    if (online) OutlinedButton(onClick = {
-                        scope.launch {
-                            val current = session ?: return@launch
-                            val branch = current.selectedBranchId ?: return@launch
-                            when (val result = app.repository.openPaymentHistory(current, branch, selectedCreditId.orEmpty())) {
-                                is ApiResult.Success -> paymentRows = result.value
-                                else -> report(result)
+                        val pendingPayment = payment.createdLocally && operationRows.any { operation ->
+                            operation.kind == OperationKind.CREATE_PAYMENT &&
+                                operation.payload.contains("\"iddescripcion\":\"${payment.id}\"") &&
+                                operation.status in setOf(OperationStatus.PENDING, OperationStatus.IN_FLIGHT)
+                        }
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp)) {
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Column {
+                                        Text("Abono", style = MaterialTheme.typography.labelSmall)
+                                        Text(
+                                            movementAmount?.let { formatMoney(it) } ?: "—",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                    Column(horizontalAlignment = Alignment.End) {
+                                        Text("Resta", style = MaterialTheme.typography.labelSmall)
+                                        Text(
+                                            balancesAfter.getOrNull(index)?.let { formatMoney(it) } ?: "—",
+                                            style = MaterialTheme.typography.titleMedium
+                                        )
+                                    }
+                                }
+                                Text(formatPaymentMoment(payment.createdAt))
+                                Row(
+                                    Modifier.fillMaxWidth().padding(top = 4.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        presentation.type,
+                                        color = presentation.foreground,
+                                        style = MaterialTheme.typography.labelMedium,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(presentation.background)
+                                            .padding(horizontal = 8.dp, vertical = 2.dp)
+                                    )
+                                    Text(stateLabel, style = MaterialTheme.typography.labelMedium)
+                                }
+                                if (presentation.detail.isNotBlank()) Text(presentation.detail)
+                                if (pendingPayment) Text(
+                                    "Pendiente de enviar · sin confirmar",
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                                payment.creatorUsername?.let {
+                                    Text(
+                                        "Registró: ${formatPersonName(it)}",
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    // The server only lets a payment be rewritten or removed while
+                                    // it is still 'created'; afterwards it belongs to a closed route.
+                                    if (payment.state == "created") {
+                                        TextButton(onClick = {
+                                            prepareComposer(OperationKind.UPDATE_PAYMENT, payment.id)
+                                            val originalAmount = kotlin.math.abs(payment.amount?.toDoubleOrNull() ?: 0.0).toString()
+                                            draftPaymentAmount = originalAmount
+                                            draftPaymentOriginalAmount = originalAmount
+                                            draftPaymentDescription = payment.description.orEmpty()
+                                            draftPaymentConfirmRemaining = ""
+                                        }) { Text("Editar") }
+                                        TextButton(onClick = {
+                                            prepareComposer(OperationKind.DELETE_PAYMENT, payment.id)
+                                        }) { Text("Eliminar") }
+                                    } else Text(
+                                        "Ya liquidado · no se puede editar ni eliminar",
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
                             }
                         }
-                    }) { Text("Actualizar pagos") }
+                    }
                     TextButton(onClick = { screen = Screen.HOME }) { Text("Volver a cartera") }
                 }
                 Screen.QUEUE -> {
@@ -1337,25 +1973,67 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             OutlinedTextField(draftGuarantorPersonId, { draftGuarantorPersonId = it }, label = { Text("ID persona fiador (opcional)") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                         }
                         OperationKind.CREATE_CREDIT -> {
-                            OutlinedTextField(draftCustomerId, { draftCustomerId = it }, label = { Text("ID de cliente del servidor *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                            OutlinedTextField(draftDocumentSequenceId, { draftDocumentSequenceId = it }, label = { Text("ID de consecutivo de documento de sucursal *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                            Text("La ruta abierta la asigna el servidor; no se envía routeId.")
-                            OutlinedTextField(draftConcept, { draftConcept = it }, label = { Text("Concepto *") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(draftValue, { draftValue = it }, label = { Text("Valor *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                            OutlinedTextField(draftFrequency, { draftFrequency = it }, label = { Text("Modo (Diario/Semanal/Quincenal/Mensual) *") }, modifier = Modifier.fillMaxWidth())
+                            val originCredit = rows.firstOrNull { it.credit.id == selectedCreditId }
+                            Text(
+                                "Cliente: ${formatPersonName("${customer?.firstName.orEmpty()} ${customer?.lastName.orEmpty()}").ifBlank { "—" }}",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            if (draftCustomerId.isBlank()) {
+                                OutlinedTextField(draftCustomerId, { draftCustomerId = it }, label = { Text("ID de cliente del servidor *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                            }
+                            if (draftDocumentSequenceId.isBlank()) Text(
+                                "Esta sucursal no tiene consecutivo de comprobante guardado. Sincroniza en línea antes de crear la tarjeta.",
+                                color = MaterialTheme.colorScheme.error
+                            ) else Text(
+                                "Comprobante: ${draftReceiptType} ${draftSeries} N° ${draftReceiptNumber}",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                            if (originCredit != null) {
+                                Text("Posición respecto a la tarjeta abierta", style = MaterialTheme.typography.labelLarge)
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    for ((placement, label) in listOf(
+                                        CardPlacement.FIRST to "Primera", CardPlacement.BEFORE to "Antes",
+                                        CardPlacement.AFTER to "Después", CardPlacement.LAST to "Última"
+                                    )) {
+                                        FilterChip(
+                                            selected = draftCardPlacement == placement,
+                                            onClick = { draftCardPlacement = placement },
+                                            label = { Text(label) }
+                                        )
+                                    }
+                                }
+                            }
+                            Text("La ruta abierta la asigna el servidor; no se envía routeId.", style = MaterialTheme.typography.bodySmall)
+                            Text("Concepto", style = MaterialTheme.typography.labelLarge)
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                for (option in listOf("Prestamo", "Articulo")) {
+                                    FilterChip(
+                                        selected = draftConcept.equals(option, ignoreCase = true),
+                                        onClick = { draftConcept = option },
+                                        label = { Text(option) }
+                                    )
+                                }
+                            }
+                            OutlinedTextField(draftValue, { draftValue = it }, label = { Text("Valor a pagar *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                            OutlinedTextField(draftCost, { draftCost = it }, label = { Text("Costo *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                            Text("Utilidad calculada: ${formatMoney(creditProfit(draftValue, draftCost))}")
+                            Text("Modo de pago", style = MaterialTheme.typography.labelLarge)
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                for (option in listOf("Diario", "Semanal", "Quincenal", "Mensual")) {
+                                    FilterChip(
+                                        selected = draftFrequency.equals(option, ignoreCase = true),
+                                        onClick = { draftFrequency = option },
+                                        label = { Text(option) }
+                                    )
+                                }
+                            }
                             OutlinedTextField(draftTerm, { draftTerm = it }, label = { Text("Plazo *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                            OutlinedTextField(draftPrincipal, { draftPrincipal = it }, label = { Text("Préstamo *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                            OutlinedTextField(draftDescription, { draftDescription = it }, label = { Text("Descripción") }, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(draftDescription, { draftDescription = it }, label = { Text("Descripción (obligatoria en Articulo)") }, modifier = Modifier.fillMaxWidth())
                             OutlinedTextField(draftInitialPayment, { draftInitialPayment = it }, label = { Text("Cuota inicial") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                            OutlinedTextField(draftSortOrder, { draftSortOrder = it }, label = { Text("Orden / item *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                            OutlinedTextField(draftProfit, { draftProfit = it }, label = { Text("Utilidad *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                            OutlinedTextField(draftAdditionalNumber, { draftAdditionalNumber = it }, label = { Text("Número adicional *") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(draftAdditionalValue, { draftAdditionalValue = it }, label = { Text("Valor adicional *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                            OutlinedTextField(draftReceiptType, { draftReceiptType = it }, label = { Text("Tipo comprobante *") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(draftSeries, { draftSeries = it }, label = { Text("Serie *") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(draftReceiptNumber, { draftReceiptNumber = it }, label = { Text("Número comprobante *") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(draftNote, { draftNote = it }, label = { Text("Nota *") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(draftObligation, { draftObligation = it }, label = { Text("Obligación (opcional)") }, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(draftAdditionalValue, { draftAdditionalValue = it }, label = { Text("Seguro / valor boleta") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                            OutlinedTextField(draftAdditionalNumber, { draftAdditionalNumber = it }, label = { Text("Número de boleta") }, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(draftObligation, { draftObligation = it }, label = { Text("Obligación (opcional, reemplaza el N° de comprobante)") }, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(draftNote, { draftNote = it }, label = { Text("Nota") }, modifier = Modifier.fillMaxWidth())
                         }
                         OperationKind.UPDATE_CREDIT -> {
                             OutlinedTextField(draftConcept, { draftConcept = it }, label = { Text("Concepto *") }, modifier = Modifier.fillMaxWidth())
