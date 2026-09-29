@@ -164,7 +164,8 @@ data class CreditDto(
     val createdEmployeeId: Int? = null,
     val agreementDate: String? = null,
     val createdAt: String? = null,
-    val updatedAt: String? = null
+    val updatedAt: String? = null,
+    val latestPayment: PaymentDto? = null
 )
 
 @Serializable
@@ -204,7 +205,10 @@ data class PaymentDto(
     val state: String? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null,
-    val routeId: Int? = null
+    val routeId: Int? = null,
+    val createdByUserId: Int? = null,
+    val createdByUsername: String? = null,
+    val origin: String? = null
 )
 
 @Serializable
@@ -255,6 +259,17 @@ data class OfflineOperationInput(
 
 @Serializable
 data class BranchPermissionsData(val branchPermissions: List<String>)
+
+@Serializable
+data class ReceiptSequenceDto(
+    val id: Int,
+    val documentType: String,
+    val series: String? = null,
+    val lastNumber: String? = null
+)
+
+@Serializable
+data class ReceiptSequencesData(val receiptSequences: List<ReceiptSequenceDto>)
 
 @Serializable
 data class DefaulterCreditDto(

@@ -4,7 +4,7 @@ import {
   assertBaseVersion, assertPayloadMatch, operationPayloadSchemas, parseOperationPayload,
   centsToDecimal, decimalToCents, payloadDigest, stableJson, serializeAlert, rejectExistingAlert,
 } from '../../dist/services/validation.js';
-import { applyOfflineOperation } from '../../dist/services/operations.js';
+import { applyOfflineOperation, openRoute } from '../../dist/services/operations.js';
 import { mapTransactionError } from '../../dist/services/errors.js';
 
 test('idempotency payload comparison is key-order independent and rejects changed input', () => {
@@ -41,6 +41,38 @@ test('reserved credit states are rejected before any database access', async () 
     }),
     { extensions: { code: 'VALIDATION_ERROR' } },
   );
+});
+
+test('route writes allow dispatch, matching office administrator, or Super Administrador', async () => {
+  for (const authorizedBy of ['office', 'dispatch', 'none']) {
+    const calls = [];
+    const conn = {
+      async execute(sql, params) {
+        calls.push({ sql, params });
+        if (sql.includes('FROM tbl_detalle_ruta')) return [[{ iddetalleruta: 42 }]];
+        assert.match(sql, /o\.idoficina = s\.idoficina AND o\.idglobal = s\.idglobal/);
+        assert.match(sql, /id_detalle_ruta = \? AND idempleado = \?/);
+        return [authorizedBy === 'none' ? [] : [{ 1: 1 }]];
+      },
+    };
+    if (authorizedBy === 'none') {
+      await assert.rejects(openRoute(conn, 7, 9, 11, 'Cobrador'), {
+        extensions: { code: 'BUSINESS_RULE' },
+      });
+    } else {
+      assert.equal(await openRoute(conn, 7, 9, 11, 'Cobrador'), 42);
+    }
+    assert.deepEqual(calls[0].params, [7, 9]);
+    assert.deepEqual(calls[1].params, [9, 7, 11, 42, 11]);
+  }
+  const conn = { async execute(sql, params) {
+    assert.deepEqual(params, [7, 9]);
+    return [[{ iddetalleruta: 42 }]];
+  } };
+  assert.equal(await openRoute(conn, 7, 9, null, 'Super Administrador'), 42);
+  await assert.rejects(openRoute({
+    async execute() { return [[]]; },
+  }, 7, 9, null, 'Super Administrador'), { extensions: { code: 'BUSINESS_RULE' } });
 });
 
 test('deadlocked or timed-out transactions return a retryable conflict for the same operation ID', () => {

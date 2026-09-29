@@ -1,6 +1,6 @@
 import { pool } from '../db.js';
 import {
-  assertBranchAccess, assertRecordBranch, hasPermission, listBranches, requireAnyPermission,
+  assertBranchAccess, assertRecordBranch, hasPermission, isOfficeAdministrator, listBranches, requireAnyPermission,
   requirePermission, type AuthContext,
 } from './auth.js';
 import { fail } from './errors.js';
@@ -30,7 +30,9 @@ const KNOWN_BRANCH_PERMISSIONS = [
 export async function branchPermissions(context: AuthContext | null, branchId: number) {
   const user = requireAuth(context);
   await assertBranchAccess(user, branchId);
-  if (user.cargo === 'Super Administrador') return KNOWN_BRANCH_PERMISSIONS;
+  if (user.cargo === 'Super Administrador' || await isOfficeAdministrator(user, branchId)) {
+    return KNOWN_BRANCH_PERMISSIONS;
+  }
   const granted = new Set(
     context!.permissions.filter((p) => p.branchId === branchId).map((p) => p.name),
   );
@@ -91,6 +93,38 @@ async function addBranchCredits(
     const existing = creditsByCustomer.get(key) ?? [];
     existing.push(credit);
     creditsByCustomer.set(key, existing);
+  }
+  const creditIds = [...new Set((rows as Array<Record<string, unknown>>).map((credit) => String(credit.id)))];
+  if (creditIds.length) {
+    const paymentPlaceholders = creditIds.map(() => '?').join(',');
+    const [paymentRows] = await pool.execute(
+      `SELECT id, creditId, amount, description, state, createdAt, updatedAt, routeId,
+              createdByUserId, origin, createdByUsername
+       FROM (
+         SELECT d.iddescripcion AS id, d.idtarjeta AS creditId, d.dec_abono AS amount,
+                d.str_descripcion AS description, d.str_estado AS state,
+                d.created_at AS createdAt, d.updated_at AS updatedAt,
+                d.iddetalleruta AS routeId,
+                d.idusuario AS createdByUserId, d.str_origen AS origin,
+                COALESCE(NULLIF(TRIM(CONCAT_WS(' ', p.str_nombres, p.str_apellidos)), ''), u.str_user_name)
+                    AS createdByUsername,
+                ROW_NUMBER() OVER (
+                  PARTITION BY d.idtarjeta ORDER BY d.created_at DESC, d.iddescripcion DESC
+                ) AS paymentRank
+         FROM tbl_descripcion d
+         LEFT JOIN tbl_usuario u ON u.idusuario = d.idusuario AND u.idglobal = d.idglobal
+         LEFT JOIN tbl_persona p ON p.idpersona = u.idpersona AND p.idglobal = u.idglobal
+         WHERE d.idglobal = ? AND d.idsucursal = ? AND d.idtarjeta IN (${paymentPlaceholders})
+       ) latestPayments
+       WHERE paymentRank = 1`,
+      [companyId, branchId, ...creditIds],
+    );
+    const latestPaymentsByCredit = new Map(
+      (paymentRows as Array<Record<string, unknown>>).map((payment) => [String(payment.creditId), payment]),
+    );
+    for (const credit of rows as Array<Record<string, unknown>>) {
+      credit.latestPayment = latestPaymentsByCredit.get(String(credit.id)) ?? null;
+    }
   }
   for (const customer of customers) customer.credits = creditsByCustomer.get(Number(customer.id)) ?? [];
   return customers;
@@ -318,13 +352,35 @@ export async function paymentHistory(context: AuthContext | null, branchId: numb
     `SELECT d.iddescripcion AS id, d.idtarjeta AS creditId, d.dec_abono AS amount,
             d.str_descripcion AS description, d.str_estado AS state,
             d.created_at AS createdAt, d.updated_at AS updatedAt,
-            d.iddetalleruta AS routeId
+            d.iddetalleruta AS routeId,
+            d.idusuario AS createdByUserId, d.str_origen AS origin,
+            COALESCE(NULLIF(TRIM(CONCAT_WS(' ', p.str_nombres, p.str_apellidos)), ''), u.str_user_name)
+                AS createdByUsername
      FROM tbl_descripcion d
      JOIN tbl_tarjetas t ON t.idtarjeta = d.idtarjeta
+     LEFT JOIN tbl_usuario u ON u.idusuario = d.idusuario AND u.idglobal = d.idglobal
+     LEFT JOIN tbl_persona p ON p.idpersona = u.idpersona AND p.idglobal = u.idglobal
      WHERE d.idtarjeta = ? AND d.idsucursal = ? AND d.idglobal = ?
        AND t.idsucursal = ? AND t.idglobal = ?
      ORDER BY d.created_at, d.iddescripcion`,
     [creditId, branchId, user.companyId, branchId, user.companyId],
+  );
+  return rows;
+}
+
+export async function receiptSequences(context: AuthContext | null, branchId: number) {
+  const user = requireAuth(context);
+  await assertBranchAccess(user, branchId);
+  // Mirrors the legacy Cartera::GetTipoDocSerieNum: the branch's receipt counters feed the
+  // "Crear Tarjeta" form, which is why only 'Comprobante' document types are returned.
+  const [rows] = await pool.execute(
+    `SELECT dds.iddetalle_documento_sucursal AS id, dds.str_ultima_serie AS series,
+            dds.str_ultimo_numero AS lastNumber, td.str_nombre AS documentType
+     FROM tbl_detalle_documento_sucursal dds
+     JOIN tbl_tipo_documento td ON td.idtipo_documento = dds.idtipo_documento
+     WHERE td.str_operacion = 'Comprobante' AND dds.idsucursal = ? AND dds.idglobal = ?
+     ORDER BY dds.iddetalle_documento_sucursal`,
+    [branchId, user.companyId],
   );
   return rows;
 }

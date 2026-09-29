@@ -16,3 +16,13 @@ test('offline migration is additive and binds customer/comment events to branch 
   assert.doesNotMatch(migration, /^\s*(?:DROP|ALTER)\s+TABLE\b/im);
   assert.doesNotMatch(migration, /JSON_(?:OBJECT|ARRAY|EXTRACT)/i);
 });
+
+const authorMigration = await readFile(new URL('../../migrations/002_payment_author.sql', import.meta.url), 'utf8');
+
+test('payment author migration only adds nullable, re-runnable columns to tbl_descripcion', () => {
+  assert.match(authorMigration, /ADD COLUMN IF NOT EXISTS `idusuario` INT NULL/);
+  assert.match(authorMigration, /ADD COLUMN IF NOT EXISTS `str_origen` VARCHAR\(20\) NULL/);
+  assert.match(authorMigration, /ADD INDEX IF NOT EXISTS `ix_descripcion_usuario`/);
+  assert.doesNotMatch(authorMigration, /^\s*(?:DROP|UPDATE|DELETE|INSERT)\b/im);
+  assert.doesNotMatch(authorMigration, /NOT NULL/);
+});

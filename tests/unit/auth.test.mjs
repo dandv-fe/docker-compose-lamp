@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { assertPermissionGranted, canAccessBranch, legacyPasswordMatches } from '../../dist/services/auth.js';
+import { assertBranchAccess, assertPermissionGranted, canAccessBranch, hasPermission, legacyPasswordMatches, listBranches } from '../../dist/services/auth.js';
+import { pool } from '../../dist/db.js';
 import { assertCompanyScope } from '../../dist/services/validation.js';
 import { permissionForOperation } from '../../dist/services/operations.js';
 
@@ -38,4 +39,39 @@ test('named write permissions map to source permission names and reject missing 
     extensions: { code: 'FORBIDDEN' },
   });
   assert.doesNotThrow(() => assertPermissionGranted('Super Administrador', false, 'editar cliente'));
+});
+
+test('office administration grants branch access and permissions only within the same company and office', async () => {
+    const original = pool.execute;
+    const user = { companyId: 7, employeeId: 31, cargo: 'Cobrador' };
+    const queries = [];
+    pool.execute = async (sql, params) => {
+      queries.push({ sql, params });
+      if (sql.includes('SELECT DISTINCT s.idsucursal AS id')) {
+        assert.deepEqual(params, [31, 7, 31]);
+        assert.match(sql, /o\.idglobal = s\.idglobal/);
+        return [[{ id: 4, name: 'A' }], []];
+      }
+      if (sql.includes('SELECT b.idglobal AS branchCompanyId')) {
+        return [[params[2] === 4
+          ? { branchCompanyId: 7, idauth_sucursal: null, administeredOfficeId: 2 }
+          : { branchCompanyId: 7, idauth_sucursal: null, administeredOfficeId: null }], []];
+      }
+      if (sql.includes('SELECT 1 FROM tbl_sucursal s')) {
+        assert.deepEqual(params.slice(1), [7, 31]);
+        return [params[0] === 4 ? [{ 1: 1 }] : [], []];
+      }
+      if (sql.includes('SELECT a.str_nombre FROM tbl_auth_sucursal')) return [[], []];
+      throw new Error(`Unexpected query: ${sql}`);
+    };
+    try {
+      assert.deepEqual(await listBranches(user), [{ id: 4, name: 'A' }]);
+      await assertBranchAccess(user, 4);
+      assert.equal(await hasPermission(user, 4, 'crear cliente'), true);
+      await assert.rejects(assertBranchAccess(user, 5), { extensions: { code: 'FORBIDDEN' } });
+      assert.equal(await hasPermission(user, 5, 'crear cliente'), false);
+      assert.ok(queries.some(({ sql }) => sql.includes('o.idempleado_administrador = ?')));
+    } finally {
+      pool.execute = original;
+    }
 });

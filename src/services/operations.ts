@@ -74,6 +74,9 @@ export function permissionForOperation(kind: Kind, payload: Record<string, unkno
   return permissions[kind];
 }
 
+// Requires migrations/002_payment_author.sql (tbl_descripcion.idusuario/str_origen).
+const PAYMENT_ORIGIN = 'android';
+
 function requireAuth(context: AuthContext | null) {
   if (!context) fail('UNAUTHENTICATED', 'Authentication is required');
   return context.user;
@@ -95,12 +98,9 @@ function asMoneyNumber(cents: bigint) {
   return Number(centsToDecimal(cents));
 }
 
-// Mirrors the legacy PHP rule (model/Despachar.php, model/RecibeCuentas.php): a branch can have
-// an open route (tbl_detalle_ruta.str_estado='created'), but that alone doesn't mean *this*
-// employee may write against it — they must also be dispatched onto it via a
-// tbl_empleados_cobrando row. A Super Administrador (company owner) always bypasses this,
-// same as every other permission check in auth.ts.
-async function openRoute(
+// A valid open route is required; a dispatched employee, the branch office's
+// administrator, or the company Super Administrador can write against it.
+export async function openRoute(
   conn: SqlConnection, companyId: number, branchId: number, employeeId: number | null, cargo: string | null,
 ) {
   const [routes] = await conn.execute<RowDataPacket[]>(
@@ -114,12 +114,17 @@ async function openRoute(
   const routeId = Number(route.iddetalleruta);
   if (cargo !== 'Super Administrador') {
     if (employeeId == null) fail('FORBIDDEN', 'An employee identity is required for this action');
-    const [dispatched] = await conn.execute<RowDataPacket[]>(
-      `SELECT idempleadoscobrando FROM tbl_empleados_cobrando
-       WHERE id_detalle_ruta = ? AND idempleado = ? LIMIT 1`,
-      [routeId, employeeId],
+    const [authorized] = await conn.execute<RowDataPacket[]>(
+      `SELECT 1 FROM tbl_sucursal s
+       JOIN tbl_oficina o ON o.idoficina = s.idoficina AND o.idglobal = s.idglobal
+       WHERE s.idsucursal = ? AND s.idglobal = ? AND o.idempleado_administrador = ?
+       UNION ALL
+       SELECT 1 FROM tbl_empleados_cobrando
+       WHERE id_detalle_ruta = ? AND idempleado = ?
+       LIMIT 1`,
+      [branchId, companyId, employeeId, routeId, employeeId],
     );
-    if (!dispatched.length) fail('BUSINESS_RULE', 'You are not dispatched on the open route for this branch');
+    if (!authorized.length) fail('BUSINESS_RULE', 'You are neither dispatched on the open route nor the branch office administrator');
   }
   return routeId;
 }
@@ -339,8 +344,10 @@ async function executeOperation(
         await conn.execute(
           `INSERT INTO tbl_descripcion
            (iddescripcion,idglobal,idsucursal,idtarjeta,iddetalleruta,dec_abono,str_descripcion,
-            str_estado,created_at,updated_at) VALUES (?,?,?,?,?,?,'Inicial','created',NOW(),NOW())`,
-          [cryptoRandomId(), companyId, input.branchId, payload.idtarjeta, routeId, centsToDecimal(-initialCents)],
+            str_estado,idusuario,str_origen,created_at,updated_at)
+           VALUES (?,?,?,?,?,?,'Inicial','created',?,?,NOW(),NOW())`,
+          [cryptoRandomId(), companyId, input.branchId, payload.idtarjeta, routeId, centsToDecimal(-initialCents),
+            userId, PAYMENT_ORIGIN],
         );
         await conn.execute(
           'UPDATE tbl_tarjetas SET dec_resta = ? WHERE idtarjeta = ? AND idglobal = ? AND idsucursal = ?',
@@ -409,9 +416,10 @@ async function executeOperation(
       await conn.execute(
         `INSERT INTO tbl_descripcion
          (iddescripcion,idglobal,idsucursal,idtarjeta,iddetalleruta,dec_abono,str_descripcion,
-          str_estado,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'created',NOW(),NOW())`,
+          str_estado,idusuario,str_origen,created_at,updated_at)
+         VALUES (?,?,?,?,?,?,?,'created',?,?,NOW(),NOW())`,
         [payload.iddescripcion, companyId, input.branchId, credit.idtarjeta, routeId, centsToDecimal(amount),
-          payload.descripcion || 'Abono'],
+          payload.descripcion || 'Abono', userId, PAYMENT_ORIGIN],
       );
       await conn.execute(
         `UPDATE tbl_tarjetas SET dec_resta=?,updated_at=NOW()
@@ -429,6 +437,9 @@ async function executeOperation(
       );
       const payment = rows[0];
       if (!payment) fail('NOT_FOUND', 'Payment not found');
+      // Same rule DELETE_PAYMENT already enforces: once a payment is handed over or settled it
+      // belongs to a closed route and can no longer be rewritten.
+      if (payment.str_estado !== 'created') fail('BUSINESS_RULE', 'Only created payments can be edited');
       const credit = await loadCredit(conn, companyId, input.branchId, String(payment.idtarjeta));
       if (!creditAcceptsPayments(credit)) fail('BUSINESS_RULE', 'Payments require an open credit');
       const amount = decimalToCents(payload.abono as number);
@@ -507,9 +518,10 @@ async function executeOperation(
       await conn.execute(
         `INSERT INTO tbl_descripcion
          (iddescripcion,idglobal,idsucursal,idtarjeta,iddetalleruta,dec_abono,str_descripcion,
-          str_estado,created_at,updated_at) VALUES (?,?,?,?,?,?,?,'created',NOW(),NOW())`,
+          str_estado,idusuario,str_origen,created_at,updated_at)
+         VALUES (?,?,?,?,?,?,?,'created',?,?,NOW(),NOW())`,
         [cryptoRandomId(), companyId, input.branchId, input.entityId, routeId, centsToDecimal(amount),
-          `${label}: ${payload.descripcion ?? ''}`],
+          `${label}: ${payload.descripcion ?? ''}`, userId, PAYMENT_ORIGIN],
       );
       return { entityId: input.entityId, data: { id: input.entityId, remaining: asMoneyNumber(newBalance) }, recordType: 'credit', action: 'UPDATE', branchId: input.branchId, relatedId: String(credit.idcliente) };
     }

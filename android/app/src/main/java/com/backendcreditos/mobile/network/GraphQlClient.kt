@@ -223,6 +223,17 @@ class GraphQlApi(private val client: GraphQlClient) {
         )
     }
 
+    suspend fun receiptSequences(token: String, branchId: String): ApiResult<ReceiptSequencesData> {
+        val numericBranchId = branchId.toIntOrNull()
+            ?: return ApiResult.Rejected("La sucursal debe tener un ID numérico.")
+        return client.execute(
+            GraphQlDocuments.RECEIPT_SEQUENCES,
+            buildJsonObject { put("branchId", JsonPrimitive(numericBranchId)) },
+            ReceiptSequencesData.serializer(),
+            token
+        )
+    }
+
     suspend fun defaultersOfPortfolio(token: String, branchId: String): ApiResult<DefaultersOfPortfolioData> {
         val numericBranchId = branchId.toIntOrNull()
             ?: return ApiResult.Rejected("La sucursal debe tener un ID numérico.")

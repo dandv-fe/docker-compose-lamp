@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { pool } from '../../dist/db.js';
 import {
   portfolio, customerById, defaultersOfPortfolio, withdrawnOfPortfolio, cancelledCredits,
-  portfolioClients, restoreCredit, branchPermissions,
+  portfolioClients, restoreCredit, branchPermissions, receiptSequences,
 } from '../../dist/services/queries.js';
 
 const user = {
@@ -47,12 +47,23 @@ test('portfolio excludes credits with legacy-excluded statuses and hides custome
       ];
       return [allCredits.filter((credit) => !EXCLUDED_STATUSES.includes(credit.status)), []];
     }
+    if (sql.includes('FROM tbl_descripcion d')) {
+      assert.match(sql, /ROW_NUMBER\(\) OVER/);
+      return [[{
+        id: 'payment-1', creditId: 'credit-101-active', amount: -15,
+        description: 'Abono', state: 'created', createdAt: '2026-09-28 10:00:00',
+      }], []];
+    }
     if (sql.includes('FROM tbl_comentarios_cliente')) return [[], []];
     throw new Error(`Unexpected query: ${sql}`);
   }, async () => {
     const result = await portfolio(context, 4, 10, null, null);
     assert.deepEqual(result.nodes.map((node) => node.id), [101]);
     assert.deepEqual(result.nodes[0].credits.map((c) => c.id), ['credit-101-active']);
+    assert.deepEqual(result.nodes[0].credits[0].latestPayment, {
+      id: 'payment-1', creditId: 'credit-101-active', amount: -15,
+      description: 'Abono', state: 'created', createdAt: '2026-09-28 10:00:00',
+    });
   });
 
   const creditQuery = calls.find((call) => call.sql.includes('FROM tbl_tarjetas t'));
@@ -70,6 +81,7 @@ test('customerById keeps every credit regardless of status, mirroring buscarTarj
         { id: 'credit-100-cancelado', customerId: 100, status: 'cancelado' },
       ], []];
     }
+    if (sql.includes('FROM tbl_descripcion d')) return [[], []];
     if (sql.includes('FROM tbl_comentarios_cliente')) return [[], []];
     throw new Error(`Unexpected query: ${sql}`);
   }, async () => {
@@ -82,6 +94,7 @@ test('customerById keeps every credit regardless of status, mirroring buscarTarj
 
 function mockBranchAccess(sql) {
   if (sql.includes('FROM tbl_sucursal b')) return [[{ branchCompanyId: 7, idauth_sucursal: 1 }], []];
+  if (sql.includes('SELECT 1 FROM tbl_sucursal s')) return [[], []];
   return undefined;
 }
 
@@ -256,5 +269,53 @@ test('branchPermissions grants every known permission to a Super Administrador',
     const admin = { user: { ...user, cargo: 'Super Administrador' }, permissions: [] };
     const granted = await branchPermissions(admin, 4);
     assert.ok(granted.includes('ver morosos') && granted.includes('pasar activos retirados'));
+  });
+});
+
+test('branchPermissions grants the office administrator menu access without explicit permissions', async () => {
+    await withMockedPool(async (sql, params) => {
+      if (sql.includes('FROM tbl_sucursal b')) {
+        return [[{ branchCompanyId: 7, idauth_sucursal: null, administeredOfficeId: params[2] === 4 ? 2 : null }], []];
+      }
+      if (sql.includes('SELECT 1 FROM tbl_sucursal s')) {
+        assert.deepEqual(params.slice(1), [7, 31]);
+        return [params[0] === 4 ? [{ 1: 1 }] : [], []];
+      }
+      throw new Error(`Unexpected query: ${sql}`);
+    }, async () => {
+      const scoped = { user, permissions: [] };
+      const granted = await branchPermissions(scoped, 4);
+      assert.ok(granted.includes('ver morosos') && granted.includes('pasar activos retirados'));
+      await assert.rejects(branchPermissions(scoped, 5), { extensions: { code: 'FORBIDDEN' } });
+  });
+});
+
+test('receiptSequences returns only the branch Comprobante counters that feed the new-card form', async () => {
+  const calls = [];
+  await withMockedPool(async (sql, params) => {
+    const branchRow = mockBranchAccess(sql);
+    if (branchRow) return branchRow;
+    if (sql.includes('FROM tbl_detalle_documento_sucursal')) {
+      calls.push({ sql, params });
+      // Mirrors Cartera::GetTipoDocSerieNum: scoped to the branch and to the company.
+      assert.match(sql, /str_operacion = 'Comprobante'/);
+      assert.deepEqual(params, [4, 7]);
+      return [[{ id: 8, series: '2024', lastNumber: '7168', documentType: 'TICKET' }], []];
+    }
+    throw new Error(`Unexpected query: ${sql}`);
+  }, async () => {
+    const sequences = await receiptSequences(context, 4);
+    assert.deepEqual(sequences, [{ id: 8, series: '2024', lastNumber: '7168', documentType: 'TICKET' }]);
+    assert.equal(calls.length, 1);
+  });
+});
+
+test('receiptSequences refuses a branch the user cannot reach', async () => {
+  await withMockedPool(async (sql) => {
+    if (sql.includes('FROM tbl_sucursal b')) return [[{ branchCompanyId: 99, idauth_sucursal: null }], []];
+    if (sql.includes('SELECT 1 FROM tbl_sucursal s')) return [[], []];
+    throw new Error(`Unexpected query: ${sql}`);
+  }, async () => {
+    await assert.rejects(receiptSequences(context, 4), { extensions: { code: 'FORBIDDEN' } });
   });
 });

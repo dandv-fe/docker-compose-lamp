@@ -21,7 +21,10 @@ data class StoredSession(
     val companyId: String,
     val username: String,
     val token: String,
-    val selectedBranchId: String? = null
+    val selectedBranchId: String? = null,
+    val userId: Int? = null,
+    val firstName: String? = null,
+    val lastName: String? = null
 ) {
     val accountKey: String
         get() = MessageDigest.getInstance("SHA-256")

@@ -59,6 +59,9 @@ interface LocalDao {
     @Query("SELECT * FROM payments WHERE accountKey = :accountKey AND branchId = :branchId AND creditId = :creditId ORDER BY createdAt DESC")
     suspend fun payments(accountKey: String, branchId: String, creditId: String): List<PaymentEntity>
 
+    @Query("SELECT * FROM payments WHERE accountKey = :accountKey AND branchId = :branchId ORDER BY createdAt DESC")
+    suspend fun paymentsForBranch(accountKey: String, branchId: String): List<PaymentEntity>
+
     @Query("SELECT * FROM payments WHERE accountKey = :accountKey AND branchId = :branchId AND id = :id LIMIT 1")
     suspend fun payment(accountKey: String, branchId: String, id: String): PaymentEntity?
 
@@ -175,14 +178,45 @@ interface LocalDao {
 
     @Query("DELETE FROM sync_control WHERE accountKey = :accountKey")
     suspend fun deleteSyncControl(accountKey: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun markCredit(mark: MarkedCreditEntity)
+
+    @Query("DELETE FROM marked_credits WHERE accountKey = :accountKey AND branchId = :branchId AND creditId = :creditId")
+    suspend fun unmarkCredit(accountKey: String, branchId: String, creditId: String)
+
+    @Query("SELECT creditId FROM marked_credits WHERE accountKey = :accountKey AND branchId = :branchId ORDER BY markedAt")
+    suspend fun markedCredits(accountKey: String, branchId: String): List<String>
+
+    @Query("DELETE FROM marked_credits WHERE accountKey = :accountKey")
+    suspend fun deleteMarkedCredits(accountKey: String)
+
+    @Query("DELETE FROM marked_credits WHERE accountKey = :accountKey AND branchId != :activeBranchId")
+    suspend fun deleteMarkedCreditsOutsideBranch(accountKey: String, activeBranchId: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun putReceiptSequences(sequences: List<ReceiptSequenceEntity>)
+
+    @Query("SELECT * FROM receipt_sequences WHERE accountKey = :accountKey AND branchId = :branchId ORDER BY id")
+    suspend fun receiptSequences(accountKey: String, branchId: String): List<ReceiptSequenceEntity>
+
+    @Query("DELETE FROM receipt_sequences WHERE accountKey = :accountKey AND branchId = :branchId")
+    suspend fun deleteReceiptSequences(accountKey: String, branchId: String)
+
+    @Query("DELETE FROM receipt_sequences WHERE accountKey = :accountKey")
+    suspend fun deleteAllReceiptSequences(accountKey: String)
+
+    @Query("DELETE FROM receipt_sequences WHERE accountKey = :accountKey AND branchId != :activeBranchId")
+    suspend fun deleteReceiptSequencesOutsideBranch(accountKey: String, activeBranchId: String)
 }
 
 @Database(
     entities = [
         CustomerEntity::class, CreditEntity::class, PaymentEntity::class,
-        OfflineOperationEntity::class, SyncControlEntity::class, SyncCursorEntity::class, RecordVersionEntity::class
+        OfflineOperationEntity::class, SyncControlEntity::class, SyncCursorEntity::class, RecordVersionEntity::class,
+        MarkedCreditEntity::class, ReceiptSequenceEntity::class
     ],
-    version = 4,
+    version = 9,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)
@@ -282,6 +316,49 @@ abstract class CreditDatabase : RoomDatabase() {
                                  ON s.accountKey=r.accountKey AND s.branchId=r.branchId""".trimIndent()
                         )
                     }
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE payments ADD COLUMN createdLocally INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE payments ADD COLUMN creatorUsername TEXT")
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE payments ADD COLUMN origin TEXT")
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE payments ADD COLUMN creatorUserId INTEGER")
+            }
+        }
+
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS marked_credits (
+                        accountKey TEXT NOT NULL, branchId TEXT NOT NULL, creditId TEXT NOT NULL,
+                        markedAt INTEGER NOT NULL,
+                        PRIMARY KEY(accountKey, branchId, creditId)
+                    )""".trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS receipt_sequences (
+                        accountKey TEXT NOT NULL, branchId TEXT NOT NULL, id INTEGER NOT NULL,
+                        documentType TEXT NOT NULL, series TEXT, lastNumber TEXT,
+                        PRIMARY KEY(accountKey, branchId, id)
+                    )""".trimIndent()
+                )
             }
         }
     }

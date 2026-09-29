@@ -94,7 +94,11 @@ data class PaymentEntity(
     val state: String?,
     val createdAt: String?,
     val updatedAt: String?,
-    val routeId: Int?
+    val routeId: Int?,
+    val createdLocally: Boolean = false,
+    val creatorUsername: String? = null,
+    val origin: String? = null,
+    val creatorUserId: Int? = null
 )
 
 @Entity(
@@ -143,4 +147,26 @@ data class RecordVersionEntity(
     val recordType: String,
     val recordId: String,
     val cursor: String
+)
+
+// Device-local reminder ("volver más tarde"). It is never sent to the server and is
+// removed with the rest of the account cache on logout.
+@Entity(tableName = "marked_credits", primaryKeys = ["accountKey", "branchId", "creditId"])
+data class MarkedCreditEntity(
+    val accountKey: String,
+    val branchId: String,
+    val creditId: String,
+    val markedAt: Long
+)
+
+// The branch's receipt counter, cached so "Crear otra tarjeta" can prefill the document
+// sequence, series and next number while offline, exactly like the web form's hidden fields.
+@Entity(tableName = "receipt_sequences", primaryKeys = ["accountKey", "branchId", "id"])
+data class ReceiptSequenceEntity(
+    val accountKey: String,
+    val branchId: String,
+    val id: Int,
+    val documentType: String,
+    val series: String?,
+    val lastNumber: String?
 )
