@@ -256,11 +256,12 @@ test('branchPermissions filters the known cartera-menu permissions to the ones t
       permissions: [
         { branchId: 4, name: 'ver morosos' },
         { branchId: 4, name: 'ver clientes' },
+        { branchId: 4, name: 'nueva tarjeta' },
         { branchId: 9, name: 'ver retirados' }, // different branch, must not leak in
       ],
     };
     const granted = await branchPermissions(scoped, 4);
-    assert.deepEqual(granted.sort(), ['ver clientes', 'ver morosos']);
+    assert.deepEqual(granted.sort(), ['nueva tarjeta', 'ver clientes', 'ver morosos']);
   });
 });
 

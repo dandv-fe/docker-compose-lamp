@@ -24,7 +24,7 @@ export async function branches(context: AuthContext | null) {
 // sub-screens (see views/nav.html) and the document-masking checks inside them.
 const KNOWN_BRANCH_PERMISSIONS = [
   'ver morosos', 'ver retirados', 'ver canceladas', 'ver clientes',
-  'documento', 'ver documento', 'pasar activos', 'pasar activos retirados',
+  'documento', 'ver documento', 'pasar activos', 'pasar activos retirados', 'nueva tarjeta',
 ];
 
 export async function branchPermissions(context: AuthContext | null, branchId: number) {

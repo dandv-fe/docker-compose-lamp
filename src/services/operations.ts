@@ -94,6 +94,52 @@ function decimal(value: unknown) {
   return centsToDecimal(decimalToCents(value as number | string));
 }
 
+export function nextReceiptNumber(lastNumber: string): string {
+  const match = /^(.*?)(\d+)$/.exec(lastNumber.trim());
+  if (!match && lastNumber.trim()) fail('BUSINESS_RULE', 'Receipt counter has no numeric suffix');
+  if (!match) return '1';
+  const next = match[1] + (BigInt(match[2]) + 1n).toString().padStart(match[2].length, '0');
+  if (next.length > 10) fail('BUSINESS_RULE', 'Receipt counter has reached its column limit');
+  return next;
+}
+
+export function planPositionBesideCard(
+  cards: Array<{ id: string; item: number }>, anchorId: string, placement: 'antes' | 'despues',
+): { item: number; moved: Array<{ id: string; item: number }> } {
+  const index = cards.findIndex((card) => card.id === anchorId);
+  if (index < 0) fail('CONFLICT', 'The selected card is no longer in this branch; synchronize the portfolio');
+  if (cards.some((card) => !Number.isFinite(card.item))) {
+    fail('BUSINESS_RULE', 'The route contains an invalid position');
+  }
+  const anchor = cards[index].item;
+  const neighbor = cards[index + (placement === 'antes' ? -1 : 1)]?.item;
+  const value = Math.fround(neighbor === undefined
+    ? anchor + (placement === 'antes' ? -1.1 : 1.1)
+    : (anchor + neighbor) / 2);
+  const lower = placement === 'antes' ? neighbor : anchor;
+  const upper = placement === 'antes' ? anchor : neighbor;
+  if (Number.isFinite(value) && (lower === undefined || value > lower) &&
+      (upper === undefined || value < upper) && !cards.some((card) => card.item === value)) {
+    return { item: value, moved: [] };
+  }
+  const insertAt = index + (placement === 'despues' ? 1 : 0);
+  // Every integer up to 2^24 is exactly representable by MariaDB FLOAT.
+  if (cards.length + 1 > 2 ** 24) fail('BUSINESS_RULE', 'The route exceeds FLOAT precision');
+  return {
+    item: insertAt + 1,
+    moved: cards.flatMap((card, position) => {
+      const item = position + 1 + (position >= insertAt ? 1 : 0);
+      return card.item === item ? [] : [{ id: card.id, item }];
+    }),
+  };
+}
+
+export function positionBesideCard(
+  cards: Array<{ id: string; item: number }>, anchorId: string, placement: 'antes' | 'despues',
+): number {
+  return planPositionBesideCard(cards, anchorId, placement).item;
+}
+
 function asMoneyNumber(cents: bigint) {
   return Number(centsToDecimal(cents));
 }
@@ -153,6 +199,10 @@ function creditAcceptsPayments(credit: CreditRow): boolean {
   return credit.str_estado !== 'cancelado';
 }
 
+export function creditAcceptsAdditionalInterest(status: string): boolean {
+  return status !== 'created' && status !== 'entregando';
+}
+
 async function assertCustomerBranch(
   conn: SqlConnection, companyId: number, branchId: number, customerId: number,
 ): Promise<CustomerRow> {
@@ -166,6 +216,47 @@ async function assertCustomerBranch(
   const customer = rows[0];
   if (!customer) fail('NOT_FOUND', 'Customer not found in this branch');
   return customer;
+}
+
+export async function ensureCreditLimit(
+  conn: SqlConnection, user: ReturnType<typeof requireAuth>, branchId: number,
+  customer: CustomerRow, loanCents: bigint,
+) {
+  const maxCreditCents = decimalToCents(customer.dec_max_credito);
+  if (customer.str_estado === 'inactivo' && loanCents > maxCreditCents) {
+    fail('BUSINESS_RULE', 'El cliente inactivo supera su límite de crédito; edita el cliente antes de crear la tarjeta.');
+  }
+  const [debtRows] = await conn.execute<RowDataPacket[]>(
+    'SELECT COALESCE(SUM(dec_resta),0) AS debt FROM tbl_tarjetas WHERE idcliente = ? AND idglobal = ?',
+    [customer.idcliente, user.companyId],
+  );
+  const debtCents = decimalToCents(String(debtRows[0]?.debt ?? 0));
+  if (loanCents <= maxCreditCents - debtCents) return;
+
+  if (user.cargo !== 'Super Administrador') {
+    if (user.employeeId == null) fail('FORBIDDEN', 'No tienes permiso para aumentar el cupo de este cliente.');
+    const [grants] = await conn.execute<RowDataPacket[]>(
+      `SELECT 1 FROM tbl_sucursal s
+       JOIN tbl_oficina o ON o.idoficina=s.idoficina AND o.idglobal=s.idglobal
+       WHERE s.idsucursal=? AND s.idglobal=? AND o.idempleado_administrador=?
+       UNION ALL
+       SELECT 1 FROM tbl_auth_sucursal au
+       JOIN tbl_auths b ON b.idauth_sucursal=au.idauth_sucursal
+       JOIN tbl_auth a ON a.idauth=b.idauth
+       WHERE au.idempleado=? AND au.idsucursal=? AND au.idglobal=?
+         AND au.str_estado<>'inactivo'
+         AND a.str_nombre IN ('editar cliente','editar maximo del credito')
+       LIMIT 1`,
+      [branchId, user.companyId, user.employeeId, user.employeeId, branchId, user.companyId],
+    );
+    if (!grants.length) {
+      fail('BUSINESS_RULE', 'El crédito supera el cupo disponible. Solicita a un administrador o a un empleado autorizado que lo aumente.');
+    }
+  }
+  await conn.execute(
+    'UPDATE tbl_clientes SET dec_max_credito=?,update_at=NOW() WHERE idcliente=? AND idglobal=?',
+    [centsToDecimal(loanCents + debtCents), customer.idcliente, user.companyId],
+  );
 }
 
 async function ensureUniquePerson(
@@ -300,25 +391,40 @@ async function executeOperation(
       }
       const routeId = await openRoute(conn, companyId, input.branchId, employeeId, cargo);
       const customer = await assertCustomerBranch(conn, companyId, input.branchId, Number(payload.idcliente));
-      const loanCents = decimalToCents(payload.prestamo as number);
-      const maxCreditCents = decimalToCents(customer.dec_max_credito);
-      if (customer.str_estado === 'inactivo' && loanCents > maxCreditCents) {
-        fail('BUSINESS_RULE', 'Inactive customers cannot exceed their credit limit');
-      }
-      const [debtRows] = await conn.execute<RowDataPacket[]>(
-        'SELECT COALESCE(SUM(dec_resta),0) AS debt FROM tbl_tarjetas WHERE idcliente = ? AND idglobal = ?',
-        [customer.idcliente, companyId],
-      );
-      if (loanCents > maxCreditCents - decimalToCents(String(debtRows[0]?.debt ?? 0))) {
-        fail('BUSINESS_RULE', 'Credit exceeds the customer limit');
-      }
+      await ensureCreditLimit(conn, user, input.branchId, customer, decimalToCents(payload.prestamo as number));
       const [sequenceRows] = await conn.execute<RowDataPacket[]>(
-        `SELECT iddetalle_documento_sucursal FROM tbl_detalle_documento_sucursal
+        `SELECT str_ultimo_numero AS lastNumber FROM tbl_detalle_documento_sucursal
          WHERE iddetalle_documento_sucursal = ? AND idglobal = ? AND idsucursal = ? FOR UPDATE`,
         [payload.detalleDocumentoSucursalId, companyId, input.branchId],
       );
       if (!sequenceRows.length) fail('BUSINESS_RULE', 'Receipt sequence is not configured for this branch');
-      const receiptNumber = payload.obligacion || payload.numero;
+      const issuedNumber = nextReceiptNumber(String(sequenceRows[0].lastNumber));
+      const receiptNumber = payload.obligacion || issuedNumber;
+      let item = payload.item;
+      const referenceCardId = payload.tarjetaReferenciaId;
+      const placement = payload.ubicacion;
+      if (referenceCardId !== undefined || placement !== undefined) {
+        if (typeof referenceCardId !== 'string' || !referenceCardId ||
+            (placement !== 'antes' && placement !== 'despues')) {
+          fail('VALIDATION_ERROR', 'Both card reference and placement are required');
+        }
+        const [positionRows] = await conn.execute<RowDataPacket[]>(
+          `SELECT idtarjeta AS id, float_item AS item FROM tbl_tarjetas
+           WHERE idglobal=? AND idsucursal=? ORDER BY float_item,idtarjeta FOR UPDATE`,
+          [companyId, input.branchId],
+        );
+        const plan = planPositionBesideCard(
+          positionRows.map((row) => ({ id: String(row.id), item: Number(row.item) })),
+          referenceCardId, placement,
+        );
+        item = plan.item;
+        for (const moved of plan.moved) {
+          await conn.execute(
+            'UPDATE tbl_tarjetas SET float_item=?,updated_at=NOW() WHERE idtarjeta=? AND idglobal=? AND idsucursal=?',
+            [moved.item, moved.id, companyId, input.branchId],
+          );
+        }
+      }
       await conn.execute(
         `INSERT INTO tbl_tarjetas
          (idtarjeta,idglobal,idsucursal,idcliente,idventa,iddetalleruta,str_concepto,dec_valor,
@@ -328,14 +434,14 @@ async function executeOperation(
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,'','', 'created',?,NOW(),NOW())`,
         [payload.idtarjeta, companyId, input.branchId, customer.idcliente, payload.idventa ?? null,
           routeId, payload.concepto, decimal(payload.valor), payload.modo, payload.plazo, decimal(payload.prestamo),
-          decimal(payload.valor), payload.descripcion, payload.item, decimal(payload.utilidad), payload.adicionalNumero,
+          decimal(payload.valor), payload.descripcion, item, decimal(payload.utilidad), payload.adicionalNumero,
           decimal(payload.adicionalValor), payload.tipoComprobante, payload.serie, receiptNumber, payload.nota,
           employeeId],
       );
       await conn.execute(
         `UPDATE tbl_detalle_documento_sucursal SET str_ultimo_numero = ?
          WHERE iddetalle_documento_sucursal = ? AND idglobal = ? AND idsucursal = ?`,
-        [payload.numero, payload.detalleDocumentoSucursalId, companyId, input.branchId],
+        [issuedNumber, payload.detalleDocumentoSucursalId, companyId, input.branchId],
       );
       const valueCents = decimalToCents(payload.valor as number);
       const initialCents = decimalToCents((payload.cuotaInicial ?? 0) as number);
@@ -498,6 +604,9 @@ async function executeOperation(
     case 'ADD_INTEREST': {
       const routeId = await openRoute(conn, companyId, input.branchId, employeeId, cargo);
       const credit = await loadCredit(conn, companyId, input.branchId, input.entityId);
+      if (input.kind === 'ADD_INTEREST' && !creditAcceptsAdditionalInterest(credit.str_estado)) {
+        fail('BUSINESS_RULE', 'No se pueden cobrar más intereses mientras la tarjeta esté en estado created o entregando');
+      }
       const label = input.kind === 'APPLY_DISCOUNT' ? 'Descuento' : 'Intereses';
       const [duplicates] = await conn.execute<RowDataPacket[]>(
         `SELECT iddescripcion FROM tbl_descripcion WHERE idtarjeta=? AND idglobal=? AND idsucursal=?

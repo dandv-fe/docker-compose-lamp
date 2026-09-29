@@ -67,7 +67,7 @@ mutation Login($companyId: Int!, $username: String!, $password: String!) {
     token expiresIn
     user { userId companyId employeeId username firstName lastName companyName }
     company { id name }
-    branches { id name type }
+    branches { id name type extraCharge }
   }
 }
 
@@ -112,6 +112,31 @@ Mutations:
 `DELETE_PAYMENT`, `DELETE_CREDIT`, `APPLY_DISCOUNT`, `ADD_INTEREST`,
 `CHANGE_CREDIT_STATUS`, `REORDER_CREDIT`, `CREATE_COMMENT`, `UPDATE_COMMENT`,
 `DELETE_COMMENT`, `UPSERT_ALERT`.
+
+The branch list includes `extraCharge` from `tbl_sucursal.str_cobro_adicional`
+(`seguro`, `boleta`, `ninguno`) for the Android new-card form. A `CREATE_CREDIT`
+may provide `tarjetaReferenciaId` and `ubicacion` (`antes`/`despues`). In that
+case the backend locks the branch's cards and recalculates `float_item` beside
+the referenced card rather than trusting a possibly stale offline `item`. When
+legacy duplicates or FLOAT precision prevent an insertion between neighboring
+positions, it renumbers the branch in its current `float_item,idtarjeta` order
+within the transaction; the existing card-update triggers emit events for the moved cards.
+When a new card exceeds the customer's available cupo, the service follows
+`Cartera::Registrar`: an active customer can have `dec_max_credito` raised to
+the existing total debt plus the card's `dec_prestamo`, within the same
+transaction as card creation. This requires Super Administrador, administrator
+of the branch's office, or an active branch permission `editar cliente` /
+`editar maximo del credito`. Otherwise the operation is rejected in Spanish;
+the PHP rule for inactive customers remains in force. The card's actual
+starting debt is still `dec_valor` (minus any initial payment), not its cost.
+
+`ADD_INTEREST` reads the locked card before updating its balance and changing it
+to `refinanciada`; cards in `created` or `entregando` are rejected without
+writing the interest or changing their state. The same restriction applies to
+the PHP cartera interest action.
+Legacy requests without the reference still use `item`. The receipt sequence
+counter is also locked and incremented on the server; a number shown on the
+device before synchronization is only provisional.
 
 Strict per-kind payload schemas accept only observed business fields. Customer
 payload field names are `nombres`, `apellidos`, `sexo`, `fechaNacimiento`,

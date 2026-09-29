@@ -23,6 +23,7 @@ const creditFields = {
   item: number, utilidad: number, adicionalNumero: text(11), adicionalValor: number,
   tipoComprobante: text(30), serie: text(11), numero: text(11), nota: z.string().max(65_535),
   obligacion: nullableText(11), detalleDocumentoSucursalId: z.number().int(),
+  tarjetaReferenciaId: text(50).optional(), ubicacion: z.enum(['antes', 'despues']).optional(),
 };
 const paymentFields = {
   iddescripcion: z.string().min(1).max(50), abono: number, descripcion: text(255).optional(),
