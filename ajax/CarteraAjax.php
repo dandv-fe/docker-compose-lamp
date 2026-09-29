@@ -4,14 +4,51 @@ session_start();
 require_once "../method.php";
 
 require_once "../model/Cartera.php";
+require_once "../model/AutorizarDespachoCartera.php";
 
 $classCartera = new ClassCartera();
 $idglobal = $_SESSION['idglobal'];
 $createdEmpleadoId = $_SESSION['idempleado'];
 
+// Solo estas operaciones son de lectura; las demás requieren despacho.
+$accionesLectura = [
+   'buscarCliente', 'getDiferencia', 'listarRuta', 'listarDescripcion',
+   'valid', 'VerfCuentas', 'listarTarjetasCanceladas', 'usercreated'
+];
+if (!in_array($_GET['op'] ?? '', $accionesLectura, true)) {
+   $idsucursalDespacho = (int)($_SESSION['idsucursal'] ?? 0);
+   $iddetallerutaDespacho = null;
+   $estadosDespacho = ['created'];
+   if ($_GET['op'] === 'deleteGastoDetalleRuta') {
+      $consulta = db_prepare_execute(
+         $conexion,
+         'SELECT idsucursal, iddetalleruta FROM tbl_contabilidad_detalle WHERE idcontabilidad_detalle=? AND idglobal=? LIMIT 1',
+         'si',
+         [$_POST['id'] ?? '', (int)($idglobal ?? 0)]
+      );
+      $gasto = $consulta->get_result()->fetch_object();
+      $consulta->close();
+      $idsucursalDespacho = (int)($gasto->idsucursal ?? 0);
+      $iddetallerutaDespacho = (int)($gasto->iddetalleruta ?? 0);
+      $estadosDespacho = ['created', 'entregando'];
+   }
+   $error = errorDespachoCartera(
+      $conexion, $_SESSION, $idsucursalDespacho, $iddetallerutaDespacho, $estadosDespacho
+   );
+   if ($error !== null) {
+      echo $error;
+      return;
+   }
+}
+
 switch ($_GET["op"]) {
 
    case 'SaveOrUpdate':
+      $idusuario = (int)($_SESSION['idusuario'] ?? 0);
+      if ($idusuario <= 0) {
+         echo "ERROR: Inicie sesion para registrar el credito";
+         break;
+      }
       $errors = array();
       $permitidos = array('ninguno', 'boleta', 'seguro');
       $idsucursal = $_SESSION['idsucursal']; // de SESSION
@@ -83,7 +120,8 @@ switch ($_GET["op"]) {
             $str_nota,
             $createdEmpleadoId,
             $obligacion,
-            $iddetalle_documento_socursal
+            $iddetalle_documento_socursal,
+            $idusuario
          );
       } else {
          if ($classCartera->Modificar($idtarjeta, $idglobal, $idsucursal, $idcliente, $idventa, $consepto, $valor, $modo, $plazo, $prestamo, $descripcion, $item, $utilidad, $c_adicional_numero, $c_adicional_valor, $str_tipo_comprobante, $str_serie, $str_numero, $str_nota, $createdEmpleadoId)) {
@@ -109,6 +147,11 @@ switch ($_GET["op"]) {
       );
       break;
    case 'SaveOrUpdateAbono':
+      $idusuario = (int)($_SESSION['idusuario'] ?? 0);
+      if ($idusuario <= 0) {
+         echo "ERROR: Inicie sesion para registrar el abono";
+         break;
+      }
       $idsucursal = $_SESSION['idsucursal'];
 
       $iddescripcion = limpiar_cadena($_POST['textRefDexcripcionHidden']);
@@ -119,9 +162,9 @@ switch ($_GET["op"]) {
 
       if (empty($iddescripcion)) {
          $iddescripcion = uniqidReal();
-         $classCartera->saveCuota($iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $resta);
+         $classCartera->saveCuota($iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $resta, $idusuario);
       } else {
-         if (isset($_SESSION['userEmpresa']) || in_array('editar cuota', array_column($_SESSION['AUTHS'], 'nombre'))) {
+         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || in_array('editar cuota', array_column($_SESSION['AUTHS'], 'nombre'))) {
             $classCartera->updateCuota($iddescripcion, $idsucursal, $abono, $resta);
          } else {
             echo "ERROR: No estas authorizado para esta accion";
@@ -242,6 +285,11 @@ switch ($_GET["op"]) {
       $classCartera->moverOrdenar($idtarjeta, $item);
       break;
    case 'SaveDescuentoMaxInteres':
+      $idusuario = (int)($_SESSION['idusuario'] ?? 0);
+      if ($idusuario <= 0) {
+         echo "ERROR: Inicie sesion para registrar el ajuste";
+         break;
+      }
       $idsucursal = $_SESSION['idsucursal'];
 
       $operacion = limpiar_cadena($_POST['txtFormTipo']);
@@ -253,7 +301,7 @@ switch ($_GET["op"]) {
       $operacion != 'Descuento' || $abono = $abono * -1;
 
       $iddescripcion = uniqidReal();
-      $classCartera->saveDescripcionDescuentoOrMasInteres($operacion, $iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $descripcion, $plazo);
+      $classCartera->saveDescripcionDescuentoOrMasInteres($operacion, $iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $descripcion, $plazo, $idusuario);
       break;
    case 'listarDescripcion':
       $idtarjeta = limpiar_cadena($_GET['refTarjeta']);
@@ -344,7 +392,7 @@ switch ($_GET["op"]) {
       $classCartera->deleteGastoDetalleRuta($idcontabilidad_detalle, $createdEmpleadoId);
       break;
    case 'eliminarAbono':
-      if (isset($_SESSION['userEmpresa']) || in_array('eliminar cuota', array_column($_SESSION['AUTHS'], 'nombre'))) {
+      if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$_SESSION['idsucursal']) || in_array('eliminar cuota', array_column($_SESSION['AUTHS'], 'nombre'))) {
          $iddescripcion = limpiar_cadena($_POST['refDescripcion']);
          $classCartera->eliminarAbono($iddescripcion);
       } else {
@@ -352,7 +400,7 @@ switch ($_GET["op"]) {
       }
       break;
    case 'eliminarCredito':
-      if (isset($_SESSION['userEmpresa']) || in_array('eliminar credito', array_column($_SESSION['AUTHS'], 'nombre'))) {
+      if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$_SESSION['idsucursal']) || in_array('eliminar credito', array_column($_SESSION['AUTHS'], 'nombre'))) {
          $idtarjeta = limpiar_cadena($_POST['refTarjeta']);
          $classCartera->eliminarCredito($idtarjeta);
       } else {
@@ -376,7 +424,7 @@ switch ($_GET["op"]) {
       $data = array();
       $query = $classCartera->listTarjetasCanceladas($idsucursal, $desde, $hasta);
       while ($result = $query->fetch_object()) {
-         if (isset($_SESSION['userEmpresa']) || in_array('documento', array_column($_SESSION['AUTHS'], 'nombre'))) {
+         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || in_array('documento', array_column($_SESSION['AUTHS'], 'nombre'))) {
             $documento = $result->t_documento . ' => ' . $result->n_documento;
          }
          $data[] = array(

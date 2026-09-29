@@ -2,10 +2,42 @@
 session_start();
 require_once "../method.php";
 require_once "../model/RecibeCuentas.php";
+require_once "../model/AutorizarDespachoCartera.php";
 $objRecibeCuentas = new RecibeCuentas();
 $idglobal = $_SESSION['idglobal'];
 $userEmpleadoId = $_SESSION['idempleado'];
 $superadmin = $_SESSION['userEmpresa'];
+
+$operacion = $_GET['op'] ?? '';
+if (!in_array($operacion, ['list', 'listTipoContabilidadS', 'listNominas', 'deContabilidad'], true)) {
+   if ($operacion === 'SaveOrUpdateGastos') {
+      $idsucursalDespacho = (int)($_POST['txtrefSucursalHidden'] ?? 0);
+      $iddetallerutaDespacho = null;
+      $estadosDespacho = ['created'];
+   } else {
+      $iddetallerutaDespacho = (int)($_POST['params'] ?? $_POST['thNumAleatorio'] ?? 0);
+      $consulta = db_prepare_execute(
+         $conexion,
+         'SELECT idsucursal FROM tbl_detalle_ruta WHERE iddetalleruta=? AND idglobal=? LIMIT 1',
+         'ii',
+         [$iddetallerutaDespacho, (int)($idglobal ?? 0)]
+      );
+      $ruta = $consulta->get_result()->fetch_object();
+      $consulta->close();
+      $idsucursalDespacho = (int)($ruta->idsucursal ?? 0);
+      $estadosDespacho = $operacion === 'SaveOrUpdateDtaCobro' ? ['created'] : ['entregando'];
+      if ($operacion === 'manejarNotIncludeDetalleRuta') {
+         $estadosDespacho = ['created', 'entregando'];
+      }
+   }
+   $error = errorDespachoCartera(
+      $conexion, $_SESSION, $idsucursalDespacho, $iddetallerutaDespacho, $estadosDespacho
+   );
+   if ($error !== null) {
+      echo $error;
+      return;
+   }
+}
 
 switch ($_GET["op"]) {
    case "saveContabilidad":

@@ -72,6 +72,8 @@ if ($_SESSION['idsucursal'] > 0) {
    }
 }
 
+require_once "model/AutorizarDespachoCartera.php";
+$administraOficinaActual = administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal);
 
 include "views/header.html";
 include "views/nav.html";

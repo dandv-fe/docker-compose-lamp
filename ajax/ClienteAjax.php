@@ -6,7 +6,18 @@ require_once "../vendor/autoload.php";
 use PhpOffice\PhpSpreadsheet\IOFactory;
 
 require_once "../model/Cliente.php";
+require_once "../model/AutorizarDespachoCartera.php";
 $objCliente = new Cliente();
+if (!in_array($_GET['op'] ?? '', [
+   'listClientesDeCartera', 'listClientesMorososDeCartera', 'listClientesRetiradosDeCartera',
+   'lisComentarios', 'SearchAlerta', 'search'
+], true)) {
+   $error = errorDespachoCartera($conexion, $_SESSION, (int)($_SESSION['idsucursal'] ?? 0));
+   if ($error !== null) {
+      echo $error;
+      return;
+   }
+}
 switch ($_GET["op"]) {
    case 'SaveOrUpdate':
       $idglobal = $_SESSION['idglobal'];
@@ -339,7 +350,7 @@ switch ($_GET["op"]) {
       $documento = 'xxxx';
 
       while ($reg = $query->fetch_object()) {
-         if (isset($_SESSION['userEmpresa']) || in_array('ver documento', array_column($_SESSION['AUTHS'], 'nombre'))) {
+         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || in_array('ver documento', array_column($_SESSION['AUTHS'], 'nombre'))) {
             $documento = $reg->n_documento;
          }
          $data[] = array(
@@ -494,6 +505,7 @@ switch ($_GET["op"]) {
    case 'restaurarMoroso':
       if (
          isset($_SESSION['userEmpresa']) ||
+         administraOficinaCartera($conexion, $_SESSION, (int)$_SESSION['idsucursal']) ||
          in_array('pasar activos', array_column($_SESSION['AUTHS'], 'nombre')) ||
          in_array('pasar activos retirados', array_column($_SESSION['AUTHS'], 'nombre'))
       ) {

@@ -93,9 +93,17 @@
         });
 
         $("button#btnMAxInteres").click(function (e) {
+            const id = parseInt(sessionStorage.getItem('index'))
+            const tarjeta = ArrayTarjetas[id];
+            if (!tarjeta || ['created', 'entregando'].includes(tarjeta.estado)) {
+                Toast.fire({
+                    icon: 'error',
+                    title: 'No se pueden cobrar más intereses mientras la tarjeta esté en estado created o entregando'
+                });
+                return;
+            }
             $("#h4title").text('Cobrar Intereses');
             $("#txtFormTipo").val('Intereses');
-            const id = parseInt(sessionStorage.getItem('index'))
             $('#modal-descuento-or-masintereses').modal('show')
             $("#modaldivmaxintereses").show();
             $("#txtmodalFormModo").attr('required', true);
@@ -110,6 +118,16 @@
 
         $("form#formDescuentoOrMasIntereses").submit(function (e) {
             e.preventDefault();
+            if ($("#txtFormTipo").val() === 'Intereses') {
+                const tarjeta = ArrayTarjetas.find(t => t.refTarjeta === $("#txtRefTarjeta").val());
+                if (!tarjeta || ['created', 'entregando'].includes(tarjeta.estado)) {
+                    Toast.fire({
+                        icon: 'error',
+                        title: 'No se pueden cobrar más intereses mientras la tarjeta esté en estado created o entregando'
+                    });
+                    return;
+                }
+            }
 
             $.post("./ajax/UsuarioAjax.php", function (r) {
                 if (r === '0') {

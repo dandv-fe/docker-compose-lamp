@@ -75,7 +75,7 @@ class usuario
             $query = $conexion->query($sql);
             $infoAcceso = $query->fetch_object();
 
-            $sql = "SELECT 
+            $sql = "SELECT DISTINCT
                     s.idsucursal AS refSucursal,
                     s.str_tipo AS tipo,
                     s.str_codigo AS codigo,
@@ -138,11 +138,16 @@ class usuario
                     FROM tbl_auths b INNER JOIN tbl_auth a ON a.idauth=b.idauth
                         WHERE b.idauth_sucursal=au.idauth_sucursal
                                 ) AS  nameAuth
-             FROM  `tbl_auth_sucursal` au INNER JOIN 
-                tbl_sucursal s ON s.idsucursal=au.idsucursal INNER JOIN 
+             FROM tbl_sucursal s LEFT JOIN tbl_auth_sucursal au
+                 ON au.idsucursal=s.idsucursal AND au.idglobal=s.idglobal
+                 AND au.idempleado=$idempleado AND au.str_estado<>'inactivo'
+                LEFT JOIN tbl_oficina o ON o.idoficina=s.idoficina AND o.idglobal=s.idglobal
+                INNER JOIN
                 tbl_empleado e ON e.idempleado=s.idempleado INNER JOIN
                 tbl_persona p ON p.idpersona=e.idpersona
-             where au.str_estado<>'inactivo' AND au.idempleado=$idempleado order by au.idsucursal desc";
+             WHERE s.idglobal=$userIdEmpresa
+                 AND (au.idauth_sucursal IS NOT NULL OR o.idempleado_administrador=$idempleado)
+             ORDER BY s.idsucursal DESC";
          $query = $conexion->query($sql);
 
          while ($reg = $query->fetch_object()) {
@@ -157,11 +162,14 @@ class usuario
                $reg->n_documento,
                $reg->tel,
                $reg->foto,
-               explode(",", $reg->nameAuth),
+               $reg->nameAuth === null ? [] : explode(",", $reg->nameAuth),
                $reg->adicional
             );
-            array_push($au, ...explode(",", $reg->nameAuth));
+            if ($reg->nameAuth !== null) {
+               array_push($au, ...explode(",", $reg->nameAuth));
+            }
          }
+         $infoAcceso->actividades = count(array_unique(array_column($listSucursalesPermitidas, 0)));
          if ($_SESSION['idsucursal'] > 0) {
             $idsuc = $_SESSION['idsucursal'];
             $sql = "SELECT

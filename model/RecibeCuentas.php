@@ -1,5 +1,6 @@
 <?php
 require "Conexion.php";
+require_once "AutorizarDespachoCartera.php";
 
 class RecibeCuentas
 {
@@ -29,7 +30,7 @@ class RecibeCuentas
          $qry = $conexion->query($sql);
          $bloq = $qry->fetch_object();
 
-         if (isset($_SESSION['userEmpresa']) || isset($bloq->str_nombre)) {
+         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre)) {
          } else {
             echo "ERROR: No estas authorizado para esta accion";
             return;
@@ -282,7 +283,7 @@ class RecibeCuentas
 						 a.str_nombre='bloquear'";
          $qry = $conexion->query($sql);
          $bloq = $qry->fetch_object();
-         if (isset($_SESSION['userEmpresa']) || isset($bloq->str_nombre)) {
+         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre)) {
          } else {
             echo "ERROR: No estas authorizado para esta accion";
             return;
@@ -475,7 +476,7 @@ class RecibeCuentas
 					 GROUP BY au.idsucursal";
             $query = $conexion->query($sql);
             $res = $query->fetch_object();
-            if (isset($_SESSION['userEmpresa']) || isset($res->str_nombre)) {
+            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($res->str_nombre)) {
             } else {
                echo "ERROR: No estas authorizado para esta accion ot";
                return;
@@ -494,7 +495,7 @@ class RecibeCuentas
 					 GROUP BY au.idsucursal";
             $query = $conexion->query($sql);
             $res = $query->fetch_object();
-            if (isset($_SESSION['userEmpresa']) || isset($res->str_nombre)) {
+            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($res->str_nombre)) {
             } else {
                echo "ERROR: No estas authorizado para esta accions";
                return;
@@ -513,7 +514,7 @@ class RecibeCuentas
 					 GROUP BY au.idsucursal";
             $query = $conexion->query($sql);
             $res = $query->fetch_object();
-            if (isset($_SESSION['userEmpresa']) || isset($res->str_nombre)) {
+            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($res->str_nombre)) {
             } else {
                echo "ERROR: No estas authorizado para esta accion";
                return;
@@ -589,18 +590,25 @@ class RecibeCuentas
    public function ListContabilidadRecibir($idglobal, $superadmin, $userEmpleadoId)
    {
       global $conexion;
-      $idoficina = $_SESSION['idoficina'];
       $idsucursals = array();
       $query = null;
       if (empty($superadmin)) {
-         $sql = "SELECT refSucursal FROM view_auth_sucursal WHERE refEmpleado=$userEmpleadoId  AND nameAccion='ver recibir' AND estadoAuthSucursal='activo'";
+         $sql = "SELECT v.refSucursal FROM view_auth_sucursal v
+            INNER JOIN tbl_sucursal s ON s.idsucursal=v.refSucursal AND s.idglobal=$idglobal
+            WHERE v.refEmpleado=$userEmpleadoId AND v.nameAccion='ver recibir' AND v.estadoAuthSucursal='activo'
+            UNION SELECT s.idsucursal AS refSucursal FROM tbl_sucursal s
+            INNER JOIN tbl_oficina o ON o.idoficina=s.idoficina AND o.idglobal=s.idglobal
+            WHERE s.idglobal=$idglobal AND o.idempleado_administrador=$userEmpleadoId";
          $query = $conexion->query($sql);
       } else {
-         $sql = "SELECT idsucursal AS refSucursal FROM tbl_sucursal WHERE idglobal=$idglobal and idoficina=$idoficina";
+         $sql = "SELECT idsucursal AS refSucursal FROM tbl_sucursal WHERE idglobal=$idglobal";
          $query = $conexion->query($sql);
       }
       while ($req = $query->fetch_object()) {
          array_push($idsucursals, $req->refSucursal);
+      }
+      if (!$idsucursals) {
+         return $conexion->query("SELECT * FROM view_contabilidad_detalle_ruta WHERE 1=0");
       }
 
       $sql = "SELECT 
@@ -628,7 +636,10 @@ class RecibeCuentas
 		descripcion_salida,
 		entrada,
 		descripcion_entrada,
-		(SELECT
+		CASE WHEN EXISTS (SELECT 1 FROM tbl_sucursal s
+                 INNER JOIN tbl_oficina o ON o.idoficina=s.idoficina AND o.idglobal=s.idglobal
+                 WHERE s.idsucursal=refSucursal AND s.idglobal=$idglobal AND o.idempleado_administrador=$userEmpleadoId)
+            THEN 'ver cuentas detalladas' ELSE (SELECT
 			a.str_nombre
 			 FROM  `tbl_auth_sucursal` au INNER JOIN 
 					tbl_auths b ON b.idauth_sucursal=au.idauth_sucursal INNER JOIN 
@@ -636,7 +647,7 @@ class RecibeCuentas
 			 where au.str_estado<>'inactivo' AND 
 					 au.idempleado=$userEmpleadoId AND 
 					 au.idsucursal=refSucursal AND 
-					 a.str_nombre='ver cuentas detalladas') AS verCuentasDetalladas
+					 a.str_nombre='ver cuentas detalladas') END AS verCuentasDetalladas
 		 FROM view_contabilidad_detalle_ruta 
 		 WHERE refSucursal IN (" . implode(",", $idsucursals) . ") AND  estado<>'saved' AND refGlobal=$idglobal";
       $query = $conexion->query($sql);
@@ -663,7 +674,7 @@ class RecibeCuentas
 					 a.str_nombre='desbloquear'";
          $qry = $conexion->query($sql);
          $bloq = $qry->fetch_object();
-         if (isset($_SESSION['userEmpresa']) || isset($bloq->str_nombre)) {
+         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre)) {
          } else {
             echo "ERROR: No estas authorizado para esta accion";
             return;

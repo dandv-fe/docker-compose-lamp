@@ -120,7 +120,6 @@ jQuery(document).ready(function () {
                 location.reload(true);
             }
         });
-        let abono = parseFloat($("#txtAbono-credito").val()) * -1
         var formData = new FormData($("#formAddAbonoConfirma")[0]);
 
         $.ajax({
@@ -151,19 +150,11 @@ jQuery(document).ready(function () {
                         title: datos,
                         position: 'top',
                     })
-                    let id = parseInt(sessionStorage.getItem('index'))
-                    let resta = parseFloat(ArrayTarjetas[id].resta)
-                    ArrayTarjetas[id].recaudo = '' + abono
-                    resta += abono
-                    ArrayTarjetas[id].resta = '' + resta
-                    if (datos.indexOf("Cancelado") !== -1) {
-
-                        cargarDatosEnPanel()
-                    } else {
-
-                        ditetion('nex')
+                    let id = parseInt(sessionStorage.getItem('index')) || 0
+                    if (datos.indexOf("Cancelado") === -1) {
+                        id = Math.min(id + 1, ArrayTarjetas.length - 1)
                     }
-                    enviarSumarRecaudoCreditos()
+                    listarRuta(id)
                 }
 
             }
@@ -430,7 +421,7 @@ function changeEstadoRestaStylo(op) {
 }
 
 // listar la ruta
-function listarRuta() {
+function listarRuta(nextIndex) {
     $.post("./ajax/UsuarioAjax.php", function (r) {
         if (r === '0') {
             location.reload(true);
@@ -442,6 +433,9 @@ function listarRuta() {
             if (textStatus === 'success') {
                 ArrayTarjetas = data
 
+                if (Number.isInteger(nextIndex)) {
+                    sessionStorage.setItem('index', Math.min(nextIndex, Math.max(data.length - 1, 0)))
+                }
                 verFormPanel()
                 enviarSumarRecaudoCreditos()
             } else {
@@ -452,7 +446,12 @@ function listarRuta() {
             }
 
         }
-    );
+    ).fail(function () {
+        Toast.fire({
+            icon: 'error',
+            title: 'No se pudo actualizar la cartera; inténtelo de nuevo'
+        })
+    });
 
 }
 
@@ -494,6 +493,41 @@ function ditetion(op) {
     cargarDatosEnPanel()
 
 
+}
+
+function clasificarUltimoRegistro(descripcion, estado, esPropio = false) {
+    const texto = (descripcion || '').trim()
+    const activo = estado === 'created' || estado === 'entregando'
+    const verde = activo && esPropio ? (estado === 'entregando' ? '#1f5b2c' : '#4b965b') : '#343A40'
+    const fechaIntereses = texto.match(/^(\d{4}\/\d{2}\/\d{2})->Intereces$/i)
+    if (fechaIntereses) {
+        return { tipo: 'Intereses', detalle: fechaIntereses[1], fondo: '#6F42C1', color: '#FFFFFF' }
+    }
+
+    const tipos = [
+        [/^c-Inicial(?=$|\s|->|:)/i, 'c-Inicial', verde, '#FFFFFF'],
+        [/^Abono(?=$|\s|->|:)/i, 'Abono', verde, '#FFFFFF'],
+        [/^Inicial(?=$|\s|->|:)/i, 'Cuota inicial', '#FD7E14', '#000000'],
+        [/^Descuento(?=$|\s|->|:)/i, 'Descuento', '#FFC107', '#000000'],
+        [/^Inter(?:eses|eces|és)(?=$|\s|->|:)/i, 'Intereses', '#6F42C1', '#FFFFFF'],
+        [/^Saldo corregido(?=$|\s|->|:)/i, 'Saldo corregido', '#343A40', '#FFFFFF'],
+        [/^Pagado(?=$|\s|->|:)/i, 'Pagado', '#212529', '#FFFFFF'],
+        [/^Cancelado(?=$|\s|->|:)/i, 'Cancelado', '#DC3545', '#FFFFFF'],
+        [/^Cancelada(?=$|\s|->|:)/i, 'Cancelada', '#DC3545', '#FFFFFF']
+    ]
+    for (const [patron, tipo, fondo, color] of tipos) {
+        const coincidencia = texto.match(patron)
+        if (coincidencia) {
+            const detalle = texto.slice(coincidencia[0].length).replace(/^\s*(?:->|:)\s*/, '').trim()
+            return { tipo, detalle, fondo, color }
+        }
+    }
+    return { tipo: 'Movimiento', detalle: texto, fondo: '#DC3545', color: '#FFFFFF' }
+}
+
+function formatearNombrePersona(nombre) {
+    return (nombre || '').trim().toLocaleLowerCase('es')
+        .replace(/(^|[\s-])(\p{L})/gu, (_, separador, letra) => separador + letra.toLocaleUpperCase('es'))
 }
 
 function cargarDatosEnPanel() {
@@ -572,6 +606,40 @@ function cargarDatosEnPanel() {
     $("#bResultadoValoresSeguro").text(ArrayTarjetas[id].ut_adi_valor)
     $("#resta-cliente-panel").text(parseFloat(ArrayTarjetas[id].resta).toFixed(2))
     $("#txtClienteCalificacion").text(ArrayTarjetas[id].calificacion);
+
+    const ultimoAbono = ArrayTarjetas[id]
+    if (ultimoAbono.ultimo_abono === null || ultimoAbono.ultimo_abono === undefined) {
+        $("#ultimo-abono-panel").hide()
+    } else {
+        const idVisor = Number($("#ultimo-abono-panel").attr('data-viewer-user-id'))
+        const esPropio = idVisor > 0 && Number(ultimoAbono.ultimo_abono_idusuario) === idVisor
+        const registro = clasificarUltimoRegistro(
+            ultimoAbono.ultimo_abono_descripcion, ultimoAbono.ultimo_abono_estado, esPropio
+        )
+        $("#ultimo-abono-panel").css({ 'background-color': registro.fondo, color: registro.color })
+        $("#ultimo-abono-tipo").text(registro.tipo)
+        $("#ultimo-abono-descripcion").text(registro.detalle)
+        $("#ultimo-abono-detalle").toggle(Boolean(registro.detalle))
+        const origen = ultimoAbono.ultimo_abono_origen === 'android'
+            ? 'Registrado desde la app'
+            : ultimoAbono.ultimo_abono_origen === 'web'
+                ? 'Registrado desde la web'
+                : 'No registrado (abono anterior a este control)'
+        const estado = ultimoAbono.ultimo_abono_estado === 'saved'
+            ? 'Guardado'
+            : ultimoAbono.ultimo_abono_estado === 'created'
+                ? 'Creado'
+                : ultimoAbono.ultimo_abono_estado === 'entregando'
+                    ? 'Entregando'
+                : ultimoAbono.ultimo_abono_estado || 'No registrado'
+        $("#ultimo-abono-importe").text('$ ' + Math.abs(Number(ultimoAbono.ultimo_abono)).toFixed(2))
+        $("#ultimo-abono-origen").text(origen)
+        $("#ultimo-abono-sincronizacion").text('Guardado en el servidor')
+        $("#ultimo-abono-usuario").text(formatearNombrePersona(ultimoAbono.ultimo_abono_usuario) || 'No registrado')
+        $("#ultimo-abono-estado").text(estado)
+        $("#ultimo-abono-fecha").text(ultimoAbono.ultimo_abono_fecha || '')
+        $("#ultimo-abono-panel").show()
+    }
 
     if (screen.width < 700) {
         const textVal = 'V $'

@@ -1,5 +1,6 @@
 <?php
 require "Conexion.php";
+require_once "AutorizarDespachoCartera.php";
 
 class ClassCartera
 {
@@ -32,7 +33,8 @@ class ClassCartera
         $str_nota,
         $createdEmpleadoId,
         $obligacion,
-        $iddetalle_documento_socursal
+        $iddetalle_documento_socursal,
+        int $idusuario
 
     ) {
         global $conexion;
@@ -81,7 +83,7 @@ class ClassCartera
             $bloq = $qry->fetch_object();
 
 
-            if (isset($_SESSION['userEmpresa']) || isset($bloq->str_nombre)) {
+            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre)) {
                 if ($prestamo > $res->max_credito - $res->total_deuda_actual) {
                     $sql = "UPDATE tbl_clientes SET dec_max_credito=$prestamo+$res->total_deuda_actual WHERE idcliente=$idcliente";
                     $conexion->query($sql) or throw new Exception('error!');
@@ -132,11 +134,13 @@ class ClassCartera
                 dec_abono,
                 str_descripcion,
                 str_estado,
+                idusuario,
+                str_origen,
                 created_at,
                 updated_at
 
             )
-				VALUES ('$iddescripcion',$idglobal, $idsucursal, '$idtarjeta', $iddetalleruta, $cutaInicial*-1, 'Inicial', 'created','$dt','$dt')";
+				VALUES ('$iddescripcion',$idglobal, $idsucursal, '$idtarjeta', $iddetalleruta, $cutaInicial*-1, 'Inicial', 'created', $idusuario, 'web','$dt','$dt')";
                 $conexion->query($sql) or throw new Exception('error!');
                 $resta = $valor - $cutaInicial;
                 $sql = "UPDATE tbl_tarjetas SET dec_resta=$resta WHERE idtarjeta='$idtarjeta'";
@@ -259,7 +263,7 @@ class ClassCartera
         return $sw;
     }
 
-    public function saveCuota($iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $resta)
+    public function saveCuota($iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $resta, int $idusuario)
     {
         global $conexion;
         $conexion->autocommit(false);
@@ -326,11 +330,13 @@ class ClassCartera
                 dec_abono,
                 str_descripcion,
                 str_estado,
+                idusuario,
+                str_origen,
                 created_at,
                 updated_at
 
             )
-				VALUES ('$iddescripcion',$idglobal, $idsucursal, '$idtarjeta', $iddetalleruta, $abono, '$accion', 'created','$fecha','$fecha')";
+				VALUES ('$iddescripcion',$idglobal, $idsucursal, '$idtarjeta', $iddetalleruta, $abono, '$accion', 'created', $idusuario, 'web','$fecha','$fecha')";
             $conexion->query($sql) or throw new Exception('error!');
 
             $sql = "UPDATE tbl_tarjetas SET dec_resta=$resta WHERE idtarjeta='$idtarjeta'";
@@ -452,12 +458,22 @@ class ClassCartera
     public function listRuta($idsucursal)
     {
         global $conexion;
-        $sql = "SELECT * FROM view_ruta WHERE refSucursal=$idsucursal 
-        AND estado<>'cancelado' 
-        AND estado<>'inactiva' 
-        AND estado<>'moroso' 
-        AND estado<>'fallecio'
-        AND estado<>'discapacitado'
+        $sql = "SELECT r.*, d.dec_abono AS ultimo_abono, d.str_descripcion AS ultimo_abono_descripcion,
+            d.str_estado AS ultimo_abono_estado, d.str_origen AS ultimo_abono_origen,
+            d.created_at AS ultimo_abono_fecha, d.idusuario AS ultimo_abono_idusuario,
+            COALESCE(NULLIF(TRIM(CONCAT_WS(' ', p.str_nombres, p.str_apellidos)), ''), u.str_user_name)
+                AS ultimo_abono_usuario
+        FROM view_ruta r
+        LEFT JOIN tbl_descripcion d ON d.iddescripcion = (
+            SELECT pago.iddescripcion FROM tbl_descripcion pago
+            WHERE pago.idtarjeta = r.refTarjeta AND pago.idglobal = r.refGlobal
+              AND pago.idsucursal = r.refSucursal
+            ORDER BY pago.created_at DESC, pago.iddescripcion DESC LIMIT 1
+        )
+        LEFT JOIN tbl_usuario u ON u.idusuario = d.idusuario AND u.idglobal = d.idglobal
+        LEFT JOIN tbl_persona p ON p.idpersona = u.idpersona AND p.idglobal = u.idglobal
+        WHERE r.refSucursal=$idsucursal
+        AND r.estado NOT IN ('cancelado', 'inactiva', 'moroso', 'fallecio', 'discapacitado')
         ";
         $query = $conexion->query($sql);
         return $query;
@@ -496,7 +512,7 @@ class ClassCartera
         return $sw;
     }
 
-    public function saveDescripcionDescuentoOrMasInteres($operacion, $iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $descripcion, $plazo)
+    public function saveDescripcionDescuentoOrMasInteres($operacion, $iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $descripcion, $plazo, int $idusuario)
     {
         global $conexion;
         $conexion->autocommit(false);
@@ -510,6 +526,21 @@ class ClassCartera
             $resDR = $queryDR->fetch_object();
             $iddetalleruta = $resDR->iddetalleruta;
             if ($operacion === 'Intereses') {
+                $sqlEstado = "SELECT str_estado FROM tbl_tarjetas
+                    WHERE idtarjeta='$idtarjeta' AND idglobal=$idglobal AND idsucursal=$idsucursal
+                    FOR UPDATE";
+                $queryEstado = $conexion->query($sqlEstado) or throw new Exception('error!');
+                $tarjetaEstado = $queryEstado->fetch_object();
+                if (!$tarjetaEstado) {
+                    $conexion->rollback();
+                    echo "ERROR: Tarjeta no encontrada en esta sucursal";
+                    return false;
+                }
+                if (in_array($tarjetaEstado->str_estado, ['created', 'entregando'], true)) {
+                    $conexion->rollback();
+                    echo "ERROR: No se pueden cobrar más intereses mientras la tarjeta esté en estado created o entregando";
+                    return false;
+                }
                 
                 $sqlSelectAbono = "SELECT iddescripcion FROM tbl_descripcion 
                 WHERE 
@@ -566,10 +597,12 @@ class ClassCartera
                 dec_abono,
                 str_descripcion,
                 str_estado,
+                idusuario,
+                str_origen,
                 created_at,
                 updated_at
                 )
-               VALUES ('$iddescripcion', $idglobal, $idsucursal, '$idtarjeta', $iddetalleruta, $abono, CONCAT('$operacion',': ','$descripcion'), 'created', '$fecha','$fecha')";
+               VALUES ('$iddescripcion', $idglobal, $idsucursal, '$idtarjeta', $iddetalleruta, $abono, CONCAT('$operacion',': ','$descripcion'), 'created', $idusuario, 'web', '$fecha','$fecha')";
             $conexion->query($sql) or throw new Exception("error!");
 
 
@@ -628,7 +661,7 @@ class ClassCartera
         $qry = $conexion->query($sql);
         $vercaja = $qry->fetch_object();
 
-        if (isset($_SESSION['userEmpresa']) || isset($vercaja->str_nombre)) {
+        if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($vercaja->str_nombre)) {
             $sql = "SELECT 
             IFNULL(SUM(dec_total),0) As caja
             FROM tbl_contabilidad_detalle 
@@ -649,7 +682,7 @@ class ClassCartera
         $qry = $conexion->query($sql);
         $btn = $qry->fetch_object();
         $bool_ = false;
-        if (isset($_SESSION['userEmpresa']) || isset($btn->str_nombre)) {
+        if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($btn->str_nombre)) {
             $bool_ = true;
         }
 
@@ -757,7 +790,7 @@ class ClassCartera
                  GROUP BY au.idsucursal";
         $query = $conexion->query($sql);
         $reso = $query->fetch_object();
-        if (isset($_SESSION['userEmpresa']) || isset($reso->str_nombre)) {
+        if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$res->idsucursal) || isset($reso->str_nombre)) {
             $sql = "SELECT
                     dc.idcontabilidad_detalle AS refContabilidad_detalle,
                     dc.idtipo_contabilidad AS refCategoria_contabilidad,
@@ -825,7 +858,7 @@ class ClassCartera
                  GROUP BY au.idsucursal";
         $query = $conexion->query($sql);
         $ress = $query->fetch_object();
-        if (isset($_SESSION['userEmpresa']) || isset($ress->str_nombre)) {
+        if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$res->idsucursal) || isset($ress->str_nombre)) {
             $sql = "SELECT
             dc.idcontabilidad_detalle AS refContabilidad_detalle,
             dc.idtipo_contabilidad AS refCategoria_contabilidad,
@@ -880,7 +913,7 @@ class ClassCartera
                  GROUP BY au.idsucursal";
         $query = $conexion->query($sql);
         $rese = $query->fetch_object();
-        if (isset($_SESSION['userEmpresa']) || isset($rese->str_nombre)) {
+        if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$res->idsucursal) || isset($rese->str_nombre)) {
             $sql = "SELECT
             dc.idcontabilidad_detalle AS refContabilidad_detalle,
             dc.idtipo_contabilidad AS refCategoria_contabilidad,
@@ -945,7 +978,7 @@ class ClassCartera
                  GROUP BY au.idsucursal";
             $query = $conexion->query($sql);
             $resg = $query->fetch_object();
-            if (isset($_SESSION['userEmpresa']) || isset($resg->str_nombre)) {
+            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$res->idsucursal) || isset($resg->str_nombre)) {
 
             } else {
                 echo "ERROR: No estas authorizado para esta accion";
@@ -968,7 +1001,7 @@ class ClassCartera
                  GROUP BY au.idsucursal";
             $query = $conexion->query($sql);
             $ress = $query->fetch_object();
-            if (isset($_SESSION['userEmpresa']) || isset($ress->str_nombre)) {
+            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$res->idsucursal) || isset($ress->str_nombre)) {
 
             } else {
                 echo "ERROR: No estas authorizado para esta accion";
@@ -988,7 +1021,7 @@ class ClassCartera
                  GROUP BY au.idsucursal";
             $query = $conexion->query($sql);
             $rese = $query->fetch_object();
-            if (isset($_SESSION['userEmpresa']) || isset($rese->str_nombre)) {
+            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$res->idsucursal) || isset($rese->str_nombre)) {
 
             } else {
                 echo "ERROR: No estas authorizado para esta accion";

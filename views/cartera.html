@@ -15,7 +15,7 @@
 <script src="plugins/jquery-ui/jquery-ui.min.js"></script>
 <script src="plugins/moment/moment.min.js"></script>
 <script src="plugins/moment/locale/es.js"></script>
-<script type="text/javascript" src="dist/scripts/Cartera.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+<script type="text/javascript" src="dist/scripts/Cartera.js?v=<?php echo $infoSistemaCuentas['version']; ?>-autor-registro"></script>
 
 
 <style>
@@ -188,7 +188,7 @@ include "views/partials/modalNuevaContabilidad.html";
                   <span class="float-right text-muted text-sm">$<i class="txtSegurosSuma"></i></span>
                 </a>
                 <?PHP
-                  if(isset($_SESSION['userEmpresa']) || in_array('ver suma cartera', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+                  if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('ver suma cartera', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
                 <div class="dropdown-divider"></div>
                 <a href="#" class="dropdown-item">
                   <i class="fas fa-file mr-2"></i> Cartera
@@ -198,7 +198,7 @@ include "views/partials/modalNuevaContabilidad.html";
 
 
                 <?php
-                if(isset($_SESSION['userEmpresa']) || in_array('ver cuentas detalladas',
+                if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('ver cuentas detalladas',
                 array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
                 <div class="dropdown-divider"></div>
                 <button onclick="verformRecibirCuentas();" class="dropdown-item dropdown-footer">
@@ -246,34 +246,34 @@ include "views/partials/modalNuevaContabilidad.html";
                       Agregar Alerta
                     </button>
                     <?PHP
-                    if(isset($_SESSION['userEmpresa']) || in_array('ordenar', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+                    if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('ordenar', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
                     <button class="dropdown-item" data-toggle="modal" data-target="#modal-enrrutar">
                       Mover ordenar
                     </button>
                     <?php    } ?>
                     <?php
-                    if(isset($_SESSION['userEmpresa']) || in_array('descuento', array_column($_SESSION['AUTHS'],
+                    if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('descuento', array_column($_SESSION['AUTHS'],
                     'nombre'))){ ?>
                     <button id="btnShowModalDescuento" class="dropdown-item">
                       Descuento
                     </button>
                     <?php    } ?>
                     <?php
-                    if(isset($_SESSION['userEmpresa']) || in_array('cobrar intereser', array_column($_SESSION['AUTHS'],
+                    if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('cobrar intereser', array_column($_SESSION['AUTHS'],
                     'nombre'))){ ?>
                     <button id="btnMAxInteres" class="dropdown-item">
                       Mas Intereses
                     </button>
                     <?php    } ?>
                     <?php
-                    if(isset($_SESSION['userEmpresa']) || in_array('ver cuentas detalladas',
+                    if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('ver cuentas detalladas',
                     array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
                     <button onclick="verformRecibirCuentas();" class="dropdown-item">
                       Cuentas
                     </button>
                     <?php    } ?>
                     <?php
-                    if(isset($_SESSION['userEmpresa']) || in_array('imprimir', array_column($_SESSION['AUTHS'],
+                    if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('imprimir', array_column($_SESSION['AUTHS'],
                     'nombre'))){ ?>
                     <div class="dropdown-divider"></div>
                     <button onclick="verImprimir();" class="dropdown-item">
@@ -489,8 +489,18 @@ include "views/partials/modalNuevaContabilidad.html";
 
                 </div>
               </div>
-
               <!-- /.card-footer -->
+              <div id="ultimo-abono-panel" class="card-body py-2"
+                data-viewer-user-id="<?php echo (int)($_SESSION['idusuario'] ?? 0); ?>" style="display: none">
+                <strong>Último registro</strong>
+                <div><strong id="ultimo-abono-tipo"></strong> · <span id="ultimo-abono-importe"></span></div>
+                <div id="ultimo-abono-detalle">Detalle: <span id="ultimo-abono-descripcion"></span></div>
+                <div>Origen: <span id="ultimo-abono-origen"></span></div>
+                <div>Sincronización: <span id="ultimo-abono-sincronizacion"></span></div>
+                <div>Registrado por: <span id="ultimo-abono-usuario"></span></div>
+                <div>Estado: <span id="ultimo-abono-estado"></span></div>
+                <small id="ultimo-abono-fecha"></small>
+              </div>
               <?php include "views/partials/descripcionCredito.html"; ?>
               <div id="usuario_quien_creo"> </div>
               <?php include "views/partials/comentarios-cliente.html";?>
@@ -609,7 +619,7 @@ include "views/partials/modalNuevaContabilidad.html";
                 </ul>
 
                 <?PHP
-                if(isset($_SESSION['userEmpresa']) || in_array('nueva tarjeta', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+                if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('nueva tarjeta', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
                 <button class="btn btn-primary btn-block" data-toggle="modal" data-target="#modal-nuevo-credito">
                   <b>Crear Tarjeta</b>
                 </button>
@@ -628,7 +638,7 @@ include "views/partials/modalNuevaContabilidad.html";
                 <div class="card-tools">
                   <form id="formBuscarClienteEditar">
                     <?php
-                  if(isset($_SESSION['userEmpresa']) || in_array('crear cliente',
+                  if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('crear cliente',
                   array_column($_SESSION['AUTHS'], 'nombre')) || in_array('editar cliente',
                   array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
                     <button type="submit" class="btn btn-tool">

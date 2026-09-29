@@ -56,7 +56,7 @@ $privateDb = load_private_db_config();
 $HOST = $privateDb['host'] ?? env_or_default('DB_HOST', $isDocker ? 'database' : 'localhost');
 $USER = $privateDb['user'] ?? env_or_default('DB_USER', $isDocker ? 'root' : 'websdnco_user_webgoez');
 $PASS = $privateDb['pass'] ?? env_or_default('DB_PASS', env_or_default('MYSQL_ROOT_PASSWORD', $isDocker ? '' : ''));
-$DB = $privateDb['name'] ?? env_or_default('DB_NAME', 'websdnco_pro');
+$DB = $privateDb['name'] ?? env_or_default('DB_NAME', 'websdnco_db_webgoez');
 
 mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 $conexion = new mysqli($HOST, $USER, $PASS, $DB);
