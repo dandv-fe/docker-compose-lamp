@@ -19,6 +19,17 @@ import java.util.UUID
 
 data class PortfolioRow(val credit: CreditEntity, val customer: CustomerEntity?)
 
+internal fun initialCreditBalance(fields: JsonObject): String {
+    val value = (fields["valor"] as? JsonPrimitive)?.content?.toBigDecimalOrNull()
+        ?: throw IllegalArgumentException("Valor de tarjeta inválido.")
+    val initial = (fields["cuotaInicial"] as? JsonPrimitive)?.content?.toBigDecimalOrNull()
+        ?: throw IllegalArgumentException("Cuota inicial inválida.")
+    require(value > java.math.BigDecimal.ZERO && initial >= java.math.BigDecimal.ZERO && initial <= value) {
+        "La cuota inicial debe estar entre cero y el valor total de la tarjeta."
+    }
+    return value.subtract(initial).toPlainString()
+}
+
 class CreditRepository(
     private val database: CreditDatabase,
     private val api: GraphQlApi
@@ -323,7 +334,7 @@ class CreditRepository(
                 frequency = fields["modo"].textOr(null),
                 term = fields["plazo"].intOr(null),
                 principal = fields["prestamo"].textOr(null),
-                balance = fields["prestamo"].textOr(null),
+                balance = initialCreditBalance(fields),
                 description = fields["descripcion"].textOr(null),
                 sortOrder = fields["item"].doubleOr(null),
                 status = "created",
@@ -402,7 +413,7 @@ class CreditRepository(
                     val adjustedBalance = if (
                         adjustment != null && operation.kind in setOf(OperationKind.APPLY_DISCOUNT, OperationKind.ADD_INTEREST)
                     ) ((existing.balance?.toDoubleOrNull() ?: 0.0) + adjustment).toString()
-                    else fields["prestamo"].textOr(existing.balance)
+                    else existing.balance
                     val adjustedProfit = if (
                         adjustment != null && operation.kind in setOf(OperationKind.APPLY_DISCOUNT, OperationKind.ADD_INTEREST)
                     ) ((existing.profit?.toDoubleOrNull() ?: 0.0) + adjustment).toString()
@@ -444,7 +455,7 @@ class CreditRepository(
                     frequency = fields["modo"].textOr(null),
                     term = fields["plazo"].intOr(null),
                     principal = fields["prestamo"].textOr(null),
-                    balance = fields["prestamo"].textOr(null),
+                    balance = initialCreditBalance(fields),
                     description = fields["descripcion"].textOr(null),
                     sortOrder = fields["item"].doubleOr(null),
                     status = "created",

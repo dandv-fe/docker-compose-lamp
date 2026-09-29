@@ -88,7 +88,7 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import java.math.RoundingMode
 
-private enum class Screen { LOGIN, BRANCHES, HOME, CUSTOMER, CREDIT, QUEUE, COMPOSER, DEFAULTERS, WITHDRAWN, CANCELLED, PORTFOLIO_CLIENTS, SYNC_SETTINGS, MARKED }
+private enum class Screen { LOGIN, BRANCHES, HOME, CUSTOMER, CREDIT, CARD_ASSESSMENT, QUEUE, COMPOSER, DEFAULTERS, WITHDRAWN, CANCELLED, PORTFOLIO_CLIENTS, SYNC_SETTINGS, MARKED }
 
 class MainActivity : FragmentActivity() {
     fun unlockDevice(onResult: (Boolean, String?) -> Unit) {
@@ -168,6 +168,10 @@ private fun friendlyServerError(rawMessage: String?): String {
             "Todavía no hay una ruta abierta (despacho) para esta sucursal hoy."
         message.contains("An employee identity is required", ignoreCase = true) ->
             "Tu usuario no tiene un empleado asociado; no puedes registrar esta operación."
+        message.contains("Credit exceeds the customer limit", ignoreCase = true) ->
+            "El crédito supera el cupo disponible. Pide a un administrador o empleado autorizado que aumente el límite del cliente."
+        message.contains("Inactive customers cannot exceed their credit limit", ignoreCase = true) ->
+            "El cliente está inactivo y el crédito supera su límite. Edita el cliente antes de crear la tarjeta."
         message.contains("Payments require an open credit", ignoreCase = true) ->
             "Este crédito ya está totalmente pagado (cancelado). No se puede registrar más abonos sobre él."
         message.contains("already has an open payment for the current cycle", ignoreCase = true) ->
@@ -201,6 +205,14 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     var customerMatches by remember { mutableStateOf(emptyList<CustomerEntity>()) }
     var customer by remember { mutableStateOf<CustomerEntity?>(null) }
     var selectedCreditId by remember { mutableStateOf<String?>(null) }
+    var assessmentCreditId by remember { mutableStateOf<String?>(null) }
+    var assessmentCustomer by remember { mutableStateOf<com.backendcreditos.mobile.network.CustomerDto?>(null) }
+    var assessmentPayments by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.network.PaymentDto>()) }
+    var assessmentLocalCredits by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.data.CreditEntity>()) }
+    var assessmentLocalPayments by remember { mutableStateOf(emptyList<PaymentEntity>()) }
+    var assessmentMessage by remember { mutableStateOf("") }
+    var assessmentLoading by remember { mutableStateOf(false) }
+    var assessmentJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     // Portfolio pointer: the card the collector is standing on. It is saved so it also
     // survives configuration changes and process death, not only screen changes.
     var pointedCreditId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -317,6 +329,83 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             paymentRows = app.database.localDao().payments(current.accountKey, branch, creditId)
         }
         syncControl = app.database.localDao().syncControl(current.accountKey)
+    }
+
+    fun assessCard(creditId: String) {
+            assessmentJob?.cancel()
+            val origin = rows.firstOrNull { it.credit.id == creditId }
+            if (origin == null) {
+                notice = "La tarjeta seleccionada ya no está en la cartera. Actualiza la lista."
+                return
+            }
+            selectedCreditId = creditId
+            assessmentCreditId = creditId
+            customer = origin.customer
+            assessmentCustomer = null
+            assessmentPayments = emptyList()
+            assessmentLoading = online
+            assessmentLocalCredits = rows.filter { it.credit.customerId == origin.credit.customerId }.map { it.credit }
+            assessmentLocalPayments = branchPayments.filter { payment ->
+                assessmentLocalCredits.any { it.id == payment.creditId }
+            }
+            assessmentMessage = if (online) "Consultando el historial del servidor…" else
+                "Sin conexión: el análisis solo incluye datos guardados en este dispositivo."
+            screen = Screen.CARD_ASSESSMENT
+            assessmentJob = scope.launch {
+                val current = session ?: return@launch
+                val branch = current.selectedBranchId ?: return@launch
+                assessmentLocalCredits = app.database.localDao().portfolio(current.accountKey, branch)
+                    .filter { it.customerId == origin.credit.customerId }
+                assessmentLocalPayments = app.database.localDao().paymentsForBranch(current.accountKey, branch)
+                    .filter { payment -> assessmentLocalCredits.any { it.id == payment.creditId } }
+                if (!online) return@launch
+                val person = origin.customer
+                if (person?.documentType.isNullOrBlank() || person?.documentNumber.isNullOrBlank()) {
+                    assessmentMessage = "Falta el tipo o número de documento local: no se puede consultar el servidor."
+                    assessmentLoading = false
+                    return@launch
+                }
+                when (val result = app.api.customerByDocument(
+                    current.token, branch, person.documentType!!, person.documentNumber!!
+                )) {
+                    is ApiResult.Success -> {
+                        val found = result.value.customerByDocument
+                        if (found == null || found.id.toString() != origin.credit.customerId) {
+                            assessmentMessage = "La identidad consultada no coincide con la tarjeta; verifica el cliente antes de continuar."
+                        } else {
+                            assessmentCustomer = found
+                            assessmentMessage = "Historial consultado en el servidor para esta sucursal."
+                            val allPayments = mutableListOf<com.backendcreditos.mobile.network.PaymentDto>()
+                            for (credit in found.credits) {
+                                when (val history = app.api.paymentHistory(current.token, branch, credit.id)) {
+                                    is ApiResult.Success -> allPayments.addAll(history.value.paymentHistory)
+                                    else -> {
+                                        assessmentMessage = "No se pudo cargar todo el historial: ${when (history) {
+                                            is ApiResult.AuthExpired -> history.message
+                                            is ApiResult.PermissionRejected -> history.message
+                                            is ApiResult.Conflict -> history.message
+                                            is ApiResult.Rejected -> history.message
+                                            is ApiResult.Retryable -> history.message
+                                            is ApiResult.Success -> ""
+                                        }}. Consulta la cola o vuelve a intentar."
+                                        break
+                                    }
+                                }
+                            }
+                            assessmentPayments = allPayments
+                        }
+                    }
+                    else -> assessmentMessage = "No se pudo consultar al cliente en el servidor: ${when (result) {
+                        is ApiResult.AuthExpired -> result.message
+                        is ApiResult.PermissionRejected -> result.message
+                        is ApiResult.Conflict -> result.message
+                        is ApiResult.Rejected -> result.message
+                        is ApiResult.Retryable -> result.message
+                        is ApiResult.Success -> ""
+                    }}. El historial local sigue disponible."
+                }
+                assessmentLoading = false
+            }
     }
 
     suspend fun loadOperations() {
@@ -518,6 +607,38 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             }
         }
         if (operationKind == OperationKind.CREATE_CREDIT) {
+            val charge = extraChargeFields(draftConcept, session?.branchExtraCharges?.get(branch))
+            if (draftConcept == "Articulo") {
+                require(draftDescription.isNotBlank()) { "Describe el artículo." }
+                require(draftInitialPayment.toBigDecimalOrNull()?.let { it >= java.math.BigDecimal.ZERO } == true) {
+                    "El artículo necesita una cuota inicial válida."
+                }
+                require(draftInitialPayment.toBigDecimal() <=
+                    (draftValue.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO)) {
+                    "La cuota inicial no puede superar el valor a pagar."
+                }
+            } else if (charge == "boleta") {
+                require(draftAdditionalNumber.isNotBlank()) { "Ingresa el número de boleta." }
+                require(draftAdditionalValue.toBigDecimalOrNull()?.let { it > java.math.BigDecimal.ZERO } == true) {
+                    "Ingresa un valor de boleta positivo."
+                }
+            } else if (charge == "seguro") {
+                require(draftAdditionalValue.toBigDecimalOrNull()?.let { it > java.math.BigDecimal.ZERO } == true) {
+                    "Ingresa un valor de seguro positivo."
+                }
+            }
+            if (charge != "boleta") draftAdditionalNumber = ""
+            if (charge == "ninguno") draftAdditionalValue = "0"
+            if (draftConcept != "Articulo") {
+                draftInitialPayment = "0"
+                draftDescription = ""
+            }
+            require(installmentValue(draftValue, draftTerm) != null) {
+                "Valor a pagar y plazo deben ser positivos."
+            }
+            require(draftCost.toBigDecimalOrNull()?.let { it > java.math.BigDecimal.ZERO } == true) {
+                "El costo debe ser positivo."
+            }
             if (draftDocumentSequenceId.isBlank()) {
                 throw IllegalArgumentException(
                     "Esta sucursal no tiene consecutivo de comprobante guardado; sincroniza en línea antes de crear la tarjeta."
@@ -529,13 +650,23 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             // The order is derived from the chosen placement instead of asking for a raw item
             // number, and the loan/profit pair is computed like the legacy form does.
             val origin = rows.firstOrNull { it.credit.id == selectedCreditId }
-            if (origin != null) {
-                val ordered = rows.mapNotNull { it.credit.sortOrder }.sorted()
-                val index = ordered.indexOf(origin.credit.sortOrder ?: 0.0)
-                draftSortOrder = placementSortOrder(ordered, index, draftCardPlacement).toString()
+                ?: throw IllegalArgumentException("Selecciona la tarjeta de origen de este cliente.")
+            val cachedRoute = app.database.localDao().portfolio(current.accountKey, branch)
+                .sortedWith(compareBy<com.backendcreditos.mobile.data.CreditEntity> { it.sortOrder }.thenBy { it.id })
+            val ordered = cachedRoute.map {
+                it.sortOrder ?: throw IllegalArgumentException("Hay tarjetas sin posición; sincroniza la cartera.")
             }
+            val index = cachedRoute.indexOfFirst { it.id == origin.credit.id }
+            require(index >= 0) { "La tarjeta de origen ya no está en la ruta guardada; sincroniza antes de crear." }
+            draftSortOrder = placementSortOrder(ordered, index, draftCardPlacement).toString()
             draftPrincipal = draftCost.ifBlank { "0" }
             draftProfit = creditProfit(draftValue, draftCost)
+        }
+        if (operationKind == OperationKind.ADD_INTEREST) {
+            val creditStatus = rows.firstOrNull { it.credit.id == entityId }?.credit?.status
+            require(canAddInterest(creditStatus)) {
+                "No se pueden cobrar más intereses mientras la tarjeta esté en estado created o entregando. Actualiza la cartera si cambió su estado."
+            }
         }
         fun customerPayload() = OperationPayloadMapper.customer(
             draftFirstName, draftLastName, draftSex, draftBirthDate.takeIf(String::isNotBlank),
@@ -555,7 +686,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                 entityId, draftCustomerId, draftConcept, draftValue, draftFrequency, draftTerm,
                 draftPrincipal, draftDescription, draftInitialPayment, draftSortOrder, draftProfit,
                 draftAdditionalNumber, draftAdditionalValue, draftReceiptType, draftSeries,
-                draftReceiptNumber, draftNote, draftObligation, draftDocumentSequenceId
+                draftReceiptNumber, draftNote, draftObligation, draftDocumentSequenceId,
+                selectedCreditId, if (draftCardPlacement == CardPlacement.BEFORE) "antes" else "despues"
             )
             OperationKind.UPDATE_CREDIT -> OperationPayloadMapper.updateCredit(
                 entityId, draftConcept, draftValue, draftFrequency, draftTerm, draftPrincipal,
@@ -890,10 +1022,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                             text = { Text("Crear otra tarjeta a este cliente") },
                                             onClick = {
                                                 showMoreMenu = false
-                                                prepareComposer(
-                                                    OperationKind.CREATE_CREDIT,
-                                                    sourceCreditId = selectedCreditId
-                                                )
+                                                selectedCreditId?.let(::assessCard)
                                             }
                                         )
                                         HorizontalDivider()
@@ -928,6 +1057,9 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Agregar interés") },
+                                        enabled = canAddInterest(
+                                            rows.firstOrNull { it.credit.id == selectedCreditId }?.credit?.status
+                                        ),
                                         onClick = {
                                             showMoreMenu = false
                                             prepareComposer(OperationKind.ADD_INTEREST, selectedCreditId.orEmpty())
@@ -982,7 +1114,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Crear crédito") },
-                                    onClick = { showMoreMenu = false; prepareComposer(OperationKind.CREATE_CREDIT) }
+                                    enabled = pointedCreditId != null,
+                                    onClick = { showMoreMenu = false; pointedCreditId?.let(::assessCard) }
                                 )
                                 if (online) DropdownMenuItem(
                                     text = { Text("Buscar cliente por documento") },
@@ -1098,7 +1231,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                         val newSession = StoredSession(
                                             login.company.id.toString(), login.user.username, login.token,
                                             userId = login.user.userId,
-                                            firstName = login.user.firstName, lastName = login.user.lastName
+                                            firstName = login.user.firstName, lastName = login.user.lastName,
+                                            branchExtraCharges = login.branches.associate { it.id.toString() to it.extraCharge }
                                         )
                                         if (previous != null && previous.accountKey != newSession.accountKey) {
                                             val unresolved = app.repository.unresolvedCount(previous.accountKey)
@@ -1131,6 +1265,13 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                                 when (val branches = app.api.branches(newSession.token)) {
                                                     is ApiResult.Success -> {
                                                         branchList = branches.value.branches.map { BranchEntity(it.id.toString(), it.name, it.type) }
+                                                        val updated = (session ?: newSession).copy(
+                                                            branchExtraCharges = branches.value.branches.associate {
+                                                                it.id.toString() to it.extraCharge
+                                                            }
+                                                        )
+                                                        session = updated
+                                                        app.vault.saveSession(updated)
                                                         enqueuePendingBranches(newSession)
                                                         screen = Screen.BRANCHES
                                                     }
@@ -1182,10 +1323,18 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                                 // skips login's branch fetch), so "Cambiar sucursal"
                                                 // would open an empty list unless we refresh it here.
                                                 when (val branches = app.api.branches(current.token)) {
-                                                    is ApiResult.Success ->
+                                                    is ApiResult.Success -> {
                                                         branchList = branches.value.branches.map {
                                                             BranchEntity(it.id.toString(), it.name, it.type)
                                                         }
+                                                        val updated = (session ?: current).copy(
+                                                            branchExtraCharges = branches.value.branches.associate {
+                                                                it.id.toString() to it.extraCharge
+                                                            }
+                                                        )
+                                                        session = updated
+                                                        app.vault.saveSession(updated)
+                                                    }
                                                     else -> { /* keep whatever branchList had; branch switch will report the error if used */ }
                                                 }
                                                 notice = "Conectado: se validó la sesión con el servidor."
@@ -1379,6 +1528,11 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.Bold
                                 )
+                                if (pointed && ("nueva tarjeta" in branchPermissionSet || branchPermissionSet.isEmpty())) {
+                                    TextButton(onClick = { assessCard(row.credit.id) }) {
+                                        Text("Crear tarjeta para este cliente")
+                                    }
+                                }
                                 Row(
                                     Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -1527,7 +1681,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             Column(Modifier.padding(16.dp)) {
                                 Text(credit.customerName.orEmpty(), style = MaterialTheme.typography.titleMedium)
                                 Text("Documento: ${credit.documentType.orEmpty()} ${credit.documentNumber ?: "—"}")
-                                Text("Saldo: ${credit.balance ?: "—"} · Valor cuota: ${credit.value ?: "—"}")
+                                Text("Saldo: ${credit.balance ?: "—"} · Valor total: ${credit.value ?: "—"}")
                                 Text("Teléfono: ${credit.phone.orEmpty()} · Desde: ${credit.createdAt.orEmpty()}")
                                 if (canRestore) TextButton(onClick = {
                                     scope.launch { restoreAndRefresh(credit.id, Screen.DEFAULTERS) }
@@ -1755,7 +1909,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     Text("Crédito / tarjeta", style = MaterialTheme.typography.headlineSmall)
                     credit?.let { selectedCredit ->
                         Text("Crédito ${selectedCredit.additionalNumber ?: selectedCredit.id}")
-                        Text("Principal: ${formatMoney(selectedCredit.principal)} · Saldo: ${formatMoney(selectedCredit.balance)}")
+                        Text("Valor total: ${formatMoney(selectedCredit.value)} · Saldo actual: ${formatMoney(selectedCredit.balance)}")
+                        Text("Costo / capital entregado: ${formatMoney(selectedCredit.principal)}")
                         Text("Concepto: ${selectedCredit.concept.orEmpty()} · Valor: ${formatMoney(selectedCredit.value)}")
                         Text("Estado: ${selectedCredit.status.orEmpty()} · Orden: ${selectedCredit.sortOrder ?: "—"}")
                         if (operationRows.any { operation ->
@@ -1776,9 +1931,9 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                         Text("Registrar pago")
                     }
                     if ("nueva tarjeta" in branchPermissionSet || branchPermissionSet.isEmpty()) {
-                        OutlinedButton(onClick = {
-                            prepareComposer(OperationKind.CREATE_CREDIT, sourceCreditId = selectedCreditId)
-                        }) { Text("Crear otra tarjeta a este cliente") }
+                        OutlinedButton(onClick = { selectedCreditId?.let(::assessCard) }) {
+                            Text("Crear otra tarjeta a este cliente")
+                        }
                     }
                     Text(
                         "Editar, eliminar, cambiar estado, reordenar, descuento, interés y actualizar " +
@@ -1941,6 +2096,78 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     Text("Las operaciones sin conexión solo viven en este dispositivo y se perderán si desinstalas la app.")
                     TextButton(onClick = { screen = Screen.HOME }) { Text("Volver") }
                 }
+                Screen.CARD_ASSESSMENT -> {
+                    val origin = rows.firstOrNull { it.credit.id == assessmentCreditId }
+                    val person = origin?.customer
+                    Text("Análisis previo · nueva tarjeta", style = MaterialTheme.typography.headlineSmall)
+                    if (origin == null || person == null) {
+                        Text("No hay datos locales del cliente de esta tarjeta; sincroniza antes de decidir.",
+                            color = MaterialTheme.colorScheme.error)
+                    } else {
+                        Text("${formatPersonName("${person.firstName} ${person.lastName}")} · " +
+                            "${person.documentType.orEmpty()} ${person.documentNumber.orEmpty()}")
+                        Text("Estado del cliente: ${person.customerStatus.orEmpty()} · Cupo máximo: ${formatMoney(person.maxCredit)}")
+                        Text("Teléfono ${person.phone.orEmpty()} · Dirección ${person.city.orEmpty()}, " +
+                            "${person.neighborhood.orEmpty()} ${person.address.orEmpty()}")
+                        if (!person.customerNote.isNullOrBlank()) Text("Nota: ${person.customerNote}")
+                        val localCredits = assessmentLocalCredits
+                        val localDebt = localCredits.sumOf { it.balance?.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO }
+                        Text("Guardado en este teléfono (${branchId.orEmpty()}): ${localCredits.size} tarjetas · " +
+                            "saldo pendiente ${formatMoney(localDebt.toPlainString())} · " +
+                            "${assessmentLocalPayments.size} abonos")
+                        localCredits.forEach { credit ->
+                            val payments = assessmentLocalPayments.filter { it.creditId == credit.id }
+                            Text("Tarjeta ${credit.id} · ${credit.status.orEmpty()} · " +
+                                "saldo ${formatMoney(credit.balance)} · ${payments.size} abonos locales")
+                            payments.forEach { payment ->
+                                Text("  ${payment.createdAt.orEmpty()} · ${formatMoney(payment.amount)} · " +
+                                    "${payment.description.orEmpty()} (${payment.state.orEmpty()})",
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        Text(if (assessmentLoading) "Consultando…" else assessmentMessage)
+                        assessmentCustomer?.let { remote ->
+                            Text("${formatPersonName("${remote.firstName} ${remote.lastName}")} · " +
+                                "${remote.documentType.orEmpty()} ${remote.documentNumber.orEmpty()} · " +
+                                "teléfono ${remote.phone.orEmpty()} · ${remote.city.orEmpty()}, ${remote.neighborhood.orEmpty()} ${remote.street.orEmpty()}")
+                            Text("Servidor (solo sucursal autorizada): ${remote.credits.size} tarjetas · " +
+                                "cupo máximo ${formatMoney(remote.maxCredit?.toString())} · " +
+                                "estado ${remote.status.orEmpty()} · calificación ${remote.rating.orEmpty()} · " +
+                                "${assessmentPayments.size} abonos")
+                            if (!remote.note.isNullOrBlank()) Text("Nota: ${remote.note}")
+                            remote.comments.forEach { note -> Text("Comentario: ${note.comment}") }
+                            remote.credits.forEach { credit ->
+                                Text("Tarjeta ${credit.id} · ${credit.status.orEmpty()} · " +
+                                    "saldo ${formatMoney(credit.balance?.toString())} · " +
+                                    "valor ${formatMoney(credit.value?.toString())}")
+                                assessmentPayments.filter { it.creditId == credit.id }.forEach { payment ->
+                                    Text("  ${payment.createdAt.orEmpty()} · ${formatMoney(payment.amount?.toString())} · " +
+                                        "${payment.description.orEmpty()} (${payment.state.orEmpty()})",
+                                        style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+                        Text("Revisa los pagos y saldos antes de decidir. La aprobación la decide el empleado; " +
+                            "el servidor valida el cupo y la ruta al guardar.")
+                        if (receiptSequences.isEmpty()) Text(
+                            "No hay consecutivo de comprobante guardado para esta sucursal; sincroniza en línea.",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        if (session?.branchExtraCharges?.get(branchId) !in setOf("boleta", "seguro", "ninguno")) Text(
+                            "No se conoce el cobro adicional de esta sucursal; entra en línea para actualizarlo.",
+                            color = MaterialTheme.colorScheme.error
+                        )
+                        Button(
+                            enabled = !assessmentLoading && assessmentCreditId == selectedCreditId &&
+                                receiptSequences.isNotEmpty() &&
+                                (session?.branchExtraCharges?.get(branchId) in setOf("boleta", "seguro", "ninguno")),
+                            onClick = {
+                                prepareComposer(OperationKind.CREATE_CREDIT, sourceCreditId = assessmentCreditId)
+                            }
+                        ) { Text("Apto · abrir formulario") }
+                    }
+                    TextButton(onClick = { screen = Screen.HOME }) { Text("Volver a cartera") }
+                }
                 Screen.COMPOSER -> {
                     Text("Crear o editar", style = MaterialTheme.typography.headlineSmall)
                     Text("Formularios tipados disponibles; el servidor valida las reglas de negocio.")
@@ -1992,8 +2219,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 Text("Posición respecto a la tarjeta abierta", style = MaterialTheme.typography.labelLarge)
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     for ((placement, label) in listOf(
-                                        CardPlacement.FIRST to "Primera", CardPlacement.BEFORE to "Antes",
-                                        CardPlacement.AFTER to "Después", CardPlacement.LAST to "Última"
+                                        CardPlacement.BEFORE to "Antes", CardPlacement.AFTER to "Después"
                                     )) {
                                         FilterChip(
                                             selected = draftCardPlacement == placement,
@@ -2014,9 +2240,12 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                     )
                                 }
                             }
-                            OutlinedTextField(draftValue, { draftValue = it }, label = { Text("Valor a pagar *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                            OutlinedTextField(draftCost, { draftCost = it }, label = { Text("Costo *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                            OutlinedTextField(draftValue, { draftValue = it }, label = { Text("Valor total a pagar (deuda inicial) *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                            OutlinedTextField(draftCost, { draftCost = it }, label = { Text("Costo / capital entregado (no es la deuda) *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
                             Text("Utilidad calculada: ${formatMoney(creditProfit(draftValue, draftCost))}")
+                            val total = draftValue.toBigDecimalOrNull()
+                            val initial = if (draftConcept == "Articulo") draftInitialPayment.toBigDecimalOrNull() else java.math.BigDecimal.ZERO
+                            Text("Empieza debiendo: ${if (total != null && initial != null && total >= initial) formatMoney(total.subtract(initial)) else "—"}")
                             Text("Modo de pago", style = MaterialTheme.typography.labelLarge)
                             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 for (option in listOf("Diario", "Semanal", "Quincenal", "Mensual")) {
@@ -2028,12 +2257,22 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 }
                             }
                             OutlinedTextField(draftTerm, { draftTerm = it }, label = { Text("Plazo *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                            OutlinedTextField(draftDescription, { draftDescription = it }, label = { Text("Descripción (obligatoria en Articulo)") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(draftInitialPayment, { draftInitialPayment = it }, label = { Text("Cuota inicial") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                            OutlinedTextField(draftAdditionalValue, { draftAdditionalValue = it }, label = { Text("Seguro / valor boleta") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
-                            OutlinedTextField(draftAdditionalNumber, { draftAdditionalNumber = it }, label = { Text("Número de boleta") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(draftObligation, { draftObligation = it }, label = { Text("Obligación (opcional, reemplaza el N° de comprobante)") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(draftNote, { draftNote = it }, label = { Text("Nota") }, modifier = Modifier.fillMaxWidth())
+                            Text("Valor cuota: ${installmentValue(draftValue, draftTerm)?.let(::formatMoney) ?: "—"}")
+                            if (draftConcept == "Articulo") {
+                                OutlinedTextField(draftDescription, { draftDescription = it }, label = { Text("Descripción del artículo *") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
+                                OutlinedTextField(draftInitialPayment, { draftInitialPayment = it }, label = { Text("Cuota inicial *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                            } else {
+                                when (session?.branchExtraCharges?.get(branchId)) {
+                                    "boleta" -> {
+                                        OutlinedTextField(draftAdditionalNumber, { draftAdditionalNumber = it }, label = { Text("Número de boleta *") }, modifier = Modifier.fillMaxWidth())
+                                        OutlinedTextField(draftAdditionalValue, { draftAdditionalValue = it }, label = { Text("Valor boleta *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                                    }
+                                    "seguro" -> OutlinedTextField(draftAdditionalValue, { draftAdditionalValue = it }, label = { Text("Valor seguro *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                                    "ninguno" -> Unit
+                                    else -> Text("Falta conocer el cobro adicional de esta sucursal; actualiza en línea.",
+                                        color = MaterialTheme.colorScheme.error)
+                                }
+                            }
                         }
                         OperationKind.UPDATE_CREDIT -> {
                             OutlinedTextField(draftConcept, { draftConcept = it }, label = { Text("Concepto *") }, modifier = Modifier.fillMaxWidth())

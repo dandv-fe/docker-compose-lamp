@@ -18,10 +18,11 @@ class GraphQlContractTest {
         assertTrue(GraphQlDocuments.LOGIN.contains("company { id name }"))
         val result = json.decodeFromString(
             LoginData.serializer(),
-            """{"login":{"token":"opaque","expiresIn":3600,"user":{"userId":3,"companyId":17,"employeeId":9,"username":"operator","firstName":"A","lastName":"B","companyName":"Example"},"company":{"id":17,"name":"Example"},"branches":[{"id":4,"name":"North","type":"store"}]}}"""
+            """{"login":{"token":"opaque","expiresIn":3600,"user":{"userId":3,"companyId":17,"employeeId":9,"username":"operator","firstName":"A","lastName":"B","companyName":"Example"},"company":{"id":17,"name":"Example"},"branches":[{"id":4,"name":"North","type":"store","extraCharge":"boleta"}]}}"""
         ).login
         assertEquals(17, result.company.id)
         assertEquals(4, result.branches.single().id)
+        assertEquals("boleta", result.branches.single().extraCharge)
     }
 
     @Test fun portfolioIsCustomerNodesWithEmbeddedCreditsAndSchemaFields() {
