@@ -27,6 +27,7 @@ const BranchType = new GraphQLObjectType({
     id: { type: new GraphQLNonNull(GraphQLInt) },
     name: { type: new GraphQLNonNull(GraphQLString) },
     type: { type: GraphQLString },
+    extraCharge: { type: new GraphQLNonNull(GraphQLString) },
   },
 });
 

@@ -4,7 +4,7 @@ import {
   assertBaseVersion, assertPayloadMatch, operationPayloadSchemas, parseOperationPayload,
   centsToDecimal, decimalToCents, payloadDigest, stableJson, serializeAlert, rejectExistingAlert,
 } from '../../dist/services/validation.js';
-import { applyOfflineOperation, openRoute } from '../../dist/services/operations.js';
+import { applyOfflineOperation, creditAcceptsAdditionalInterest, ensureCreditLimit, nextReceiptNumber, openRoute, planPositionBesideCard, positionBesideCard } from '../../dist/services/operations.js';
 import { mapTransactionError } from '../../dist/services/errors.js';
 
 test('idempotency payload comparison is key-order independent and rejects changed input', () => {
@@ -59,6 +59,7 @@ test('route writes allow dispatch, matching office administrator, or Super Admin
       await assert.rejects(openRoute(conn, 7, 9, 11, 'Cobrador'), {
         extensions: { code: 'BUSINESS_RULE' },
       });
+
     } else {
       assert.equal(await openRoute(conn, 7, 9, 11, 'Cobrador'), 42);
     }
@@ -85,6 +86,64 @@ test('deadlocked or timed-out transactions return a retryable conflict for the s
   assert.equal(mapTransactionError(new Error('other')).message, 'other');
 });
 
+test('new cards increase the customer limit for authorized staff only', async () => {
+  const customer = { idcliente: 17, dec_max_credito: '100.00', str_estado: 'activo' };
+  const user = { companyId: 7, employeeId: 31, cargo: 'Cobrador' };
+  for (const permission of ['editar cliente', 'editar maximo del credito', 'office', 'none']) {
+    const calls = [];
+    const conn = { async execute(sql, params) {
+      calls.push({ sql, params });
+      if (sql.includes('SUM(dec_resta)')) return [[{ debt: '80.00' }]];
+      if (sql.includes('FROM tbl_sucursal s')) {
+        assert.match(sql, /au\.idsucursal=\? AND au\.idglobal=\?/);
+        assert.match(sql, /o\.idglobal=s\.idglobal/);
+        assert.match(sql, /au\.str_estado<>'inactivo'/);
+        assert.match(sql, /'editar cliente','editar maximo del credito'/);
+        assert.deepEqual(params, [4, 7, 31, 31, 4, 7]);
+        return [permission === 'none' ? [] : [{ 1: 1 }]];
+      }
+      if (sql.startsWith('UPDATE tbl_clientes')) return [{ affectedRows: 1 }];
+      throw new Error(`Unexpected query: ${sql}`);
+    } };
+    if (permission === 'none') {
+      await assert.rejects(ensureCreditLimit(conn, user, 4, customer, 5000n), {
+        extensions: { code: 'BUSINESS_RULE' },
+      });
+
+      test('additional interest cannot refinance cards still being created or handed over', () => {
+        assert.equal(creditAcceptsAdditionalInterest('created'), false);
+        assert.equal(creditAcceptsAdditionalInterest('entregando'), false);
+        assert.equal(creditAcceptsAdditionalInterest('saved'), true);
+        assert.equal(creditAcceptsAdditionalInterest('refinanciada'), true);
+      });
+      assert.equal(calls.some(({ sql }) => sql.startsWith('UPDATE tbl_clientes')), false);
+    } else {
+      await ensureCreditLimit(conn, user, 4, customer, 5000n);
+      assert.deepEqual(calls.at(-1).params, ['130.00', 17, 7]);
+    }
+  }
+});
+
+test('sufficient cupo needs no extra permission; admin increases it but inactive guard remains', async () => {
+  const customer = { idcliente: 17, dec_max_credito: '100.00', str_estado: 'activo' };
+  const user = { companyId: 7, employeeId: 31, cargo: 'Cobrador' };
+  const calls = [];
+  const conn = { async execute(sql, params) {
+    calls.push({ sql, params });
+    if (sql.includes('SUM(dec_resta)')) return [[{ debt: '80.00' }]];
+    if (sql.startsWith('UPDATE tbl_clientes')) return [{ affectedRows: 1 }];
+    throw new Error(`Unexpected query: ${sql}`);
+  } };
+  await ensureCreditLimit(conn, user, 4, customer, 2000n);
+  assert.equal(calls.length, 1);
+  await ensureCreditLimit(conn, { ...user, cargo: 'Super Administrador' }, 4, customer, 5000n);
+  assert.deepEqual(calls.at(-1).params, ['130.00', 17, 7]);
+  const before = calls.length;
+  await assert.rejects(ensureCreditLimit(conn, { ...user, cargo: 'Super Administrador' }, 4,
+    { ...customer, str_estado: 'inactivo' }, 10001n), { extensions: { code: 'BUSINESS_RULE' } });
+  assert.equal(calls.length, before);
+});
+
 test('credit payload uses observed Spanish frequency values and rejects client tenant IDs', () => {
   const base = {
     idtarjeta: '123e4567-e89b-42d3-a456-426614174000', idcliente: 1,
@@ -93,8 +152,46 @@ test('credit payload uses observed Spanish frequency values and rejects client t
     tipoComprobante: '', serie: '', numero: '10', nota: '', detalleDocumentoSucursalId: 2,
   };
   assert.equal(parseOperationPayload('CREATE_CREDIT', base).modo, 'Semanal');
+  assert.equal(parseOperationPayload('CREATE_CREDIT', {
+    ...base, tarjetaReferenciaId: 'source-card', ubicacion: 'antes',
+  }).ubicacion, 'antes');
+  assert.equal(operationPayloadSchemas.CREATE_CREDIT.safeParse({ ...base, ubicacion: 'primera' }).success, false);
   assert.equal(operationPayloadSchemas.CREATE_CREDIT.safeParse({ ...base, modo: 'Weekly' }).success, false);
   assert.equal(operationPayloadSchemas.CREATE_CREDIT.safeParse({ ...base, idglobal: 9 }).success, false);
+});
+
+test('server computes float placement from the current locked route instead of a stale device item', () => {
+  const cards = [{ id: 'previous', item: 1 }, { id: 'source', item: 2 }, { id: 'next', item: 3 }];
+  assert.equal(positionBesideCard(cards, 'source', 'antes'), 1.5);
+  assert.equal(positionBesideCard(cards, 'source', 'despues'), 2.5);
+  assert.ok(positionBesideCard(cards, 'previous', 'antes') < 1);
+  assert.ok(positionBesideCard(cards, 'next', 'despues') > 3);
+  assert.throws(() => positionBesideCard(cards, 'missing', 'antes'), { extensions: { code: 'CONFLICT' } });
+  assert.deepEqual(planPositionBesideCard([
+    { id: 'source', item: 1 }, { id: 'next', item: Math.fround(1 + 2 ** -23) },
+  ], 'source', 'despues'), {
+    item: 2, moved: [{ id: 'next', item: 3 }],
+  });
+  assert.deepEqual(planPositionBesideCard([
+    { id: 'earlier', item: 1 }, { id: 'source', item: 1 },
+    { id: 'next', item: 1 }, { id: 'last', item: 2 },
+  ], 'source', 'despues'), {
+    item: 3, moved: [
+      { id: 'source', item: 2 }, { id: 'next', item: 4 }, { id: 'last', item: 5 },
+    ],
+  });
+  assert.deepEqual(planPositionBesideCard([
+    { id: 'duplicate-a', item: 1 }, { id: 'duplicate-b', item: 1 },
+    { id: 'source', item: 3 }, { id: 'next', item: 4 },
+  ], 'source', 'despues'), { item: 3.5, moved: [] });
+});
+
+test('offline card receipts advance from the locked server counter, not the stale device estimate', () => {
+  assert.equal(nextReceiptNumber('0007'), '0008');
+  assert.equal(nextReceiptNumber('A-0099'), 'A-0100');
+  assert.equal(nextReceiptNumber(''), '1');
+  assert.throws(() => nextReceiptNumber('INVALID'), { extensions: { code: 'BUSINESS_RULE' } });
+  assert.throws(() => nextReceiptNumber('9999999999'), { extensions: { code: 'BUSINESS_RULE' } });
 });
 
 test('alert payloads preserve observed fields and serialize in PHP representation', () => {
