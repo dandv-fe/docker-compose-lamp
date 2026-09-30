@@ -39,6 +39,9 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -88,6 +91,8 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import com.backendcreditos.mobile.data.BranchEntity
 import com.backendcreditos.mobile.data.CustomerEntity
+import com.backendcreditos.mobile.data.ACTIVITY_LOG_MAX_ENTRIES
+import com.backendcreditos.mobile.data.ActivityLogEntity
 import com.backendcreditos.mobile.data.OfflineOperationEntity
 import com.backendcreditos.mobile.data.OperationKind
 import com.backendcreditos.mobile.data.OperationPayloadMapper
@@ -285,6 +290,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     var operationRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.data.OfflineOperationEntity>()) }
     var syncControl by remember { mutableStateOf<com.backendcreditos.mobile.data.SyncControlEntity?>(null) }
     var notice by remember { mutableStateOf("") }
+    var queueTab by rememberSaveable { mutableStateOf(0) }
+    var activityLogRows by remember { mutableStateOf(emptyList<ActivityLogEntity>()) }
     var busy by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
     var showLogoutConfirmation by remember { mutableStateOf(false) }
@@ -541,6 +548,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         val branch = current.selectedBranchId ?: return
         operationRows = app.repository.queuedOperations(current)
         syncControl = app.database.localDao().syncControl(current.accountKey)
+        activityLogRows = app.repository.activityLog(current.accountKey)
     }
 
     suspend fun enqueuePendingBranches(current: StoredSession) {
@@ -745,8 +753,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             return
         }
         if (!online) {
-            notice = "Sin conexión: la operación ${operation.operationId} quedó en la cola y se enviará automáticamente al recuperar señal."
-            screen = Screen.QUEUE
+            notice = "Sin conexión: «${operationDisplayName(operation.kind)}» quedó en la cola y se enviará automáticamente al recuperar señal."
+            queueTab = 0; screen = Screen.QUEUE
             return
         }
         notice = "Enviando al servidor…"
@@ -774,7 +782,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             pointerArmed = false
             restorePointerScroll = true
             screen = Screen.HOME
-        } else screen = Screen.QUEUE
+        } else { queueTab = 0; screen = Screen.QUEUE }
     }
 
     suspend fun saveTypedOperation(stayOnPortfolio: Boolean = false): OfflineOperationEntity {
@@ -1033,6 +1041,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             branchPayments = emptyList()
             operationRows = emptyList()
             syncControl = null
+            activityLogRows = emptyList()
             password = ""
             pointedCreditId = null
             pointerArmed = false
@@ -1245,8 +1254,17 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                 val message = if (messages.size == 1) messages.single()
                     else "${messages.size - failed} abonos confirmados; $failed con problemas. Revisa la Cola."
                 scope.launch {
-                    snackbarHostState.showSnackbar(message,
-                        duration = if (failed > 0) SnackbarDuration.Long else SnackbarDuration.Short)
+                    if (failed > 0) session?.let { app.repository.log(it.accountKey, message, problem = true) }
+                    val result = snackbarHostState.showSnackbar(
+                        message,
+                        actionLabel = if (failed > 0) "Ver Cola" else null,
+                        duration = if (failed > 0) SnackbarDuration.Long else SnackbarDuration.Short
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        loadOperations()
+                        queueTab = 0
+                        screen = Screen.QUEUE
+                    }
                 }
             }
         }
@@ -1265,6 +1283,30 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     }
     LaunchedEffect(rows) {
         pointedCreditId = keepSelection(pointedCreditId, rows.map { it.credit.id })
+    }
+
+    // Notices used to sit as red text above every screen, eating space. They are now a brief
+    // snackbar and are kept in Cola › Logs so the collector can read them later.
+    LaunchedEffect(notice) {
+        val message = notice
+        if (message.isBlank()) return@LaunchedEffect
+        notice = ""
+        val current = session
+        val problem = isProblemNotice(message)
+        scope.launch {
+            current?.let { app.repository.log(it.accountKey, message, problem) }
+            val result = snackbarHostState.showSnackbar(
+                message,
+                actionLabel = if (current?.selectedBranchId != null) "Logs" else null,
+                withDismissAction = true,
+                duration = if (problem) SnackbarDuration.Long else SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                loadOperations()
+                queueTab = 1
+                screen = Screen.QUEUE
+            }
+        }
     }
 
     Scaffold(
@@ -1338,7 +1380,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             IconButton(onClick = {
                                 scope.launch {
                                     loadOperations()
-                                    screen = Screen.QUEUE
+                                    queueTab = 0; screen = Screen.QUEUE
                                 }
                             }) {
                                 Icon(painterResource(R.drawable.ic_queue_transfers), contentDescription = "Abrir Cola")
@@ -1472,7 +1514,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                     },
                                     onClick = {
                                         showMoreMenu = false
-                                        scope.launch { loadOperations(); screen = Screen.QUEUE }
+                                        scope.launch { loadOperations(); queueTab = 0; screen = Screen.QUEUE }
                                     }
                                 )
                                 HorizontalDivider()
@@ -1576,8 +1618,6 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                 .then(if (screen == Screen.HOME) Modifier else Modifier.verticalScroll(otherScreensScrollState)),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (notice.isNotBlank()) Text(notice, color = MaterialTheme.colorScheme.error)
-            syncPausedBannerText()?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
             when (screen) {
                 Screen.LOGIN -> {
                     Text("Inicio de sesión en línea", style = MaterialTheme.typography.headlineSmall)
@@ -2783,24 +2823,90 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     TextButton(onClick = { screen = Screen.HOME }) { Text("Volver a cartera") }
                 }
                 Screen.QUEUE -> {
-                    Text("Operaciones locales", style = MaterialTheme.typography.headlineSmall)
-                    Text("PENDING e IN_FLIGHT se muestran como cambios pendientes. Solo una respuesta del servidor los confirma.")
+                    TabRow(selectedTabIndex = queueTab) {
+                        Tab(selected = queueTab == 0, onClick = { queueTab = 0 }, text = {
+                            Text(if (unresolvedBadge > 0) "Cola ($unresolvedBadge)" else "Cola")
+                        })
+                        Tab(selected = queueTab == 1, onClick = {
+                            queueTab = 1
+                            scope.launch { session?.let { activityLogRows = app.repository.activityLog(it.accountKey) } }
+                        }, text = { Text("Logs") })
+                    }
+                    if (queueTab == 1) {
+                        Text(
+                            "Avisos de los últimos 7 días (máximo $ACTIVITY_LOG_MAX_ENTRIES). Se borran al cerrar sesión.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        if (activityLogRows.isEmpty()) Text("No hay avisos registrados.")
+                        activityLogRows.forEach { entry ->
+                            Column(Modifier.fillMaxWidth()) {
+                                Text(
+                                    formatPaymentMoment(entry.createdAt.toString()),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    entry.message,
+                                    color = if (entry.problem) MaterialTheme.colorScheme.error
+                                        else MaterialTheme.colorScheme.onSurface
+                                )
+                                HorizontalDivider(Modifier.padding(top = 6.dp))
+                            }
+                        }
+                    } else {
+                    syncPausedBannerText()?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (operationRows.isEmpty()) Text("No hay operaciones en la cola.")
+                    Text(
+                        "«Esperando envío» y «Enviando…» aún no están confirmados; solo el servidor los confirma.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                     operationRows.forEach { operation ->
+                        val opCredit = rows.firstOrNull { it.credit.id == operation.entityId }
+                            ?: branchPayments.firstOrNull { it.id == operation.entityId }
+                                ?.let { payment -> rows.firstOrNull { it.credit.id == payment.creditId } }
+                        val opCustomer = opCredit?.customer
+                            ?: rows.firstOrNull { it.customer?.id == operation.entityId }?.customer
+                        val opBranch = branchList.find { it.id == operation.branchId }
+                        val summary = summarizeOperation(
+                            operation.kind,
+                            operation.payload,
+                            customerName = opCustomer?.let { formatPersonName("${it.firstName} ${it.lastName}") },
+                            cardLabel = opCredit?.credit?.let { cardLabel(it.concept, it.value, it.balance) },
+                            paymentAmount = branchPayments.firstOrNull { it.id == operation.entityId }?.amount
+                        )
                         Card(Modifier.fillMaxWidth()) {
                             Column(Modifier.padding(12.dp)) {
-                                Text("${operationDisplayName(operation.kind)} · ${operation.status}", style = MaterialTheme.typography.titleMedium)
-                                if (operation.status == OperationStatus.PENDING || operation.status == OperationStatus.IN_FLIGHT) {
-                                    Text("Cambio local pendiente · no confirmado por el servidor")
-                                }
+                                Text(operationDisplayName(operation.kind), style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    operationStatusLabel(operation.status),
+                                    color = when (operation.status) {
+                                        OperationStatus.CONFLICT, OperationStatus.REJECTED -> MaterialTheme.colorScheme.error
+                                        OperationStatus.CONFIRMED -> Color(0xFF2E7D32)
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                                summary.person?.let { Text(it, style = MaterialTheme.typography.bodyLarge) }
+                                summary.details.forEach { Text(it) }
+                                Text(
+                                    listOfNotNull(
+                                        formatPaymentMoment(operation.createdAt.toString()),
+                                        listOfNotNull(opBranch?.type, opBranch?.name).joinToString(" ").ifBlank { null }
+                                    ).joinToString(" · "),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                                 if (operation.status == OperationStatus.CONFLICT) {
-                                    Text("Conflicto del servidor: compara el estado actual y descarta o vuelve a crear deliberadamente.")
+                                    Text("Otra persona cambió este dato antes. Compara con el servidor y decide si descartas este cambio.")
                                 }
                                 if (operation.status == OperationStatus.REJECTED) {
-                                    Text("Operación rechazada (incluidos permisos o reglas del servidor); no se reintentará automáticamente.")
+                                    Text("No se reintentará solo (permisos o reglas del servidor).")
                                 }
-                                Text("ID de operación: ${operation.operationId}")
-                                Text("Entidad: ${operation.entityId} · sucursal ${operation.branchId}")
-                                operation.lastError?.let { Text(friendlyServerError(it), color = MaterialTheme.colorScheme.error) }
+                                operation.lastError?.takeIf {
+                                    operation.status == OperationStatus.CONFLICT || operation.status == OperationStatus.REJECTED
+                                }?.let { Text(friendlyServerError(it), color = MaterialTheme.colorScheme.error) }
                                 if (operation.kind == OperationKind.CREATE_CREDIT &&
                                     operation.status == OperationStatus.REJECTED
                                 ) {
@@ -2825,12 +2931,14 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                     }) { Text("Reintentar esta tarjeta después de corregir el cupo") }
                                 }
                                 if (operation.status == OperationStatus.CONFLICT || operation.status == OperationStatus.REJECTED) {
-                                    Text("Estado del servidor:")
-                                    Text(
-                                        operation.serverState
-                                            ?: "No se recibió una entidad actual. Al descartar se quitará este borrador de la caché para evitar mostrar datos optimistas como si fueran actuales."
+                                    var showServerData by remember(operation.operationId) { mutableStateOf(false) }
+                                    TextButton(onClick = { showServerData = !showServerData }) {
+                                        Text(if (showServerData) "Ocultar datos técnicos" else "Ver datos técnicos (soporte)")
+                                    }
+                                    if (showServerData) Text(
+                                        operation.serverState ?: "El servidor no envió el estado actual.",
+                                        style = MaterialTheme.typography.bodySmall
                                     )
-                                    Text("Revisa el estado del servidor antes de descartar este borrador. El estado devuelto queda visible arriba.")
                                     TextButton(onClick = {
                                         scope.launch {
                                             app.repository.discardResolvedOperation(operation.operationId, operation.accountKey)
@@ -2839,12 +2947,17 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                             screen = Screen.QUEUE
                                             notice = "Se descartó el borrador por decisión explícita."
                                         }
-                                    }) { Text("Descartar borrador y aplicar el estado del servidor disponible") }
+                                    }) { Text("Descartar mi cambio y quedarme con lo del servidor") }
                                 }
                             }
                         }
                     }
-                    Text("Las operaciones sin conexión solo viven en este dispositivo y se perderán si desinstalas la app.")
+                    Text(
+                        "Lo que está en la cola solo vive en este teléfono hasta que el servidor lo confirme; " +
+                            "si desinstalas la app se pierde.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    }
                     TextButton(onClick = { screen = Screen.HOME }) { Text("Volver") }
                 }
                 Screen.CARD_ASSESSMENT -> {

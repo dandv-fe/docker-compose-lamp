@@ -220,15 +220,31 @@ interface LocalDao {
 
     @Query("DELETE FROM receipt_sequences WHERE accountKey = :accountKey AND branchId != :activeBranchId")
     suspend fun deleteReceiptSequencesOutsideBranch(accountKey: String, activeBranchId: String)
+
+    @Insert
+    suspend fun insertActivityLog(entry: ActivityLogEntity)
+
+    @Query("SELECT * FROM activity_log WHERE accountKey = :accountKey ORDER BY createdAt DESC, id DESC")
+    suspend fun activityLog(accountKey: String): List<ActivityLogEntity>
+
+    @Query(
+        """DELETE FROM activity_log WHERE accountKey = :accountKey AND (createdAt < :cutoff OR id NOT IN (
+            SELECT id FROM activity_log WHERE accountKey = :accountKey ORDER BY createdAt DESC, id DESC LIMIT :keep
+        ))"""
+    )
+    suspend fun pruneActivityLog(accountKey: String, cutoff: Long, keep: Int)
+
+    @Query("DELETE FROM activity_log WHERE accountKey = :accountKey")
+    suspend fun deleteActivityLog(accountKey: String)
 }
 
 @Database(
     entities = [
         CustomerEntity::class, CreditEntity::class, PaymentEntity::class,
         OfflineOperationEntity::class, SyncControlEntity::class, SyncCursorEntity::class, RecordVersionEntity::class,
-        MarkedCreditEntity::class, ReceiptSequenceEntity::class
+        MarkedCreditEntity::class, ReceiptSequenceEntity::class, ActivityLogEntity::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)
@@ -370,6 +386,19 @@ abstract class CreditDatabase : RoomDatabase() {
                         documentType TEXT NOT NULL, series TEXT, lastNumber TEXT,
                         PRIMARY KEY(accountKey, branchId, id)
                     )""".trimIndent()
+                )
+            }
+        }
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS activity_log (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, accountKey TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL, message TEXT NOT NULL, problem INTEGER NOT NULL
+                    )""".trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_activity_log_accountKey_createdAt ON activity_log(accountKey, createdAt)"
                 )
             }
         }

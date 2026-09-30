@@ -603,7 +603,23 @@ class CreditRepository(
     suspend fun syncIsPaused(accountKey: String): Boolean = dao.syncControl(accountKey)?.paused == true
 
     suspend fun setSyncPaused(accountKey: String, reason: String?) {
+        val previous = dao.syncControl(accountKey)
         dao.setSyncControl(SyncControlEntity(accountKey, paused = reason != null, pauseReason = reason))
+        if (previous?.pauseReason != reason) {
+            if (reason != null) log(accountKey, syncPauseMessage(reason), problem = true)
+            else if (previous?.paused == true) log(accountKey, "Sincronización reanudada.", problem = false)
+        }
+    }
+
+    suspend fun log(accountKey: String, message: String, problem: Boolean, now: Long = System.currentTimeMillis()) {
+        if (message.isBlank()) return
+        dao.insertActivityLog(ActivityLogEntity(accountKey = accountKey, createdAt = now, message = message.trim(), problem = problem))
+        dao.pruneActivityLog(accountKey, now - ACTIVITY_LOG_RETENTION_MS, ACTIVITY_LOG_MAX_ENTRIES)
+    }
+
+    suspend fun activityLog(accountKey: String, now: Long = System.currentTimeMillis()): List<ActivityLogEntity> {
+        dao.pruneActivityLog(accountKey, now - ACTIVITY_LOG_RETENTION_MS, ACTIVITY_LOG_MAX_ENTRIES)
+        return dao.activityLog(accountKey)
     }
 
     suspend fun retryRejectedCredit(operationId: String, accountKey: String): OfflineOperationEntity {
@@ -707,6 +723,7 @@ class CreditRepository(
             dao.deleteMarkedCredits(accountKey)
             dao.deleteAllReceiptSequences(accountKey)
             dao.deleteSyncControl(accountKey)
+            dao.deleteActivityLog(accountKey)
         }
     }
 
@@ -1141,4 +1158,16 @@ class CreditRepository(
     companion object {
         const val PAGE_SIZE = 100
     }
+}
+
+// A week covers a full collection cycle for support questions; 300 rows is a few KB at most.
+const val ACTIVITY_LOG_MAX_ENTRIES = 300
+const val ACTIVITY_LOG_RETENTION_MS = 7L * 24 * 60 * 60 * 1000
+
+internal fun syncPauseMessage(reason: String): String = when (reason) {
+    "AUTH" -> "Sincronización pausada: la sesión del servidor venció. Vuelve a iniciar sesión."
+    "CONFLICT", "SYNC_CONFLICT" -> "Sincronización pausada por un conflicto; revisa la Cola."
+    "PERMISSION" -> "Sincronización pausada: el servidor rechazó una operación por permisos."
+    "REJECTED", "PROTOCOL", "SYNC_PROTOCOL" -> "Sincronización pausada: el servidor rechazó una operación."
+    else -> "Sincronización pausada."
 }

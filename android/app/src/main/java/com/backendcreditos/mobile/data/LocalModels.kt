@@ -149,6 +149,17 @@ data class RecordVersionEntity(
     val cursor: String
 )
 
+// What the app told the collector (notices, sync pauses). Stored in the encrypted database,
+// capped by CreditRepository to a few days and a few hundred rows, and wiped on logout.
+@Entity(tableName = "activity_log", indices = [Index(value = ["accountKey", "createdAt"])])
+data class ActivityLogEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val accountKey: String,
+    val createdAt: Long,
+    val message: String,
+    val problem: Boolean
+)
+
 // Device-local reminder ("volver más tarde"). It is never sent to the server and is
 // removed with the rest of the account cache on logout.
 @Entity(tableName = "marked_credits", primaryKeys = ["accountKey", "branchId", "creditId"])
