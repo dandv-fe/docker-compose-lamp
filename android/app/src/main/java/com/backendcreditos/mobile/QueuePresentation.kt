@@ -70,6 +70,7 @@ internal fun summarizeOperation(
             money("abono")?.let { details += "Abono $it" }
             text("descripcion")?.takeUnless { it.equals("Abono", ignoreCase = true) }?.let { details += it }
             bankTotal(data)?.let { details += "Por banco $it" }
+            money("vuelto")?.let { details += "Devuelto en efectivo $it" }
         }
         OperationKind.DELETE_PAYMENT -> {
             details += paymentAmount?.toBigDecimalOrNull()?.abs()

@@ -275,6 +275,9 @@ test('abonos and credits accept optional bank splits; cash stays the default', (
   assert.equal(operationPayloadSchemas.CREATE_PAYMENT.safeParse({ ...payment, bancos: [{ idbanco: 3, valor: -1 }] }).success, false);
   assert.equal(operationPayloadSchemas.CREATE_PAYMENT.safeParse({ ...payment, bancos: [{ idbanco: 3, valor: 1, idglobal: 9 }] }).success, false);
   assert.equal(operationPayloadSchemas.UPDATE_PAYMENT.safeParse({ abono: -1, descripcion: 'Abono', bancos: [] }).success, true);
+  assert.equal(parseOperationPayload('CREATE_PAYMENT', { ...payment, bancos: [{ idbanco: 3, valor: 70000 }], vuelto: 20000 }).vuelto, 20000);
+  assert.equal(operationPayloadSchemas.CREATE_PAYMENT.safeParse({ ...payment, vuelto: -1 }).success, false);
+  assert.equal(operationPayloadSchemas.CREATE_CREDIT.safeParse({ vuelto: 1 }).success, false);
 });
 
 test('bank splits replace previous rows, accept only accounts authorized in the branch and never exceed the amount', async () => {
@@ -296,6 +299,16 @@ test('bank splits replace previous rows, accept only accounts authorized in the 
     { extensions: { code: 'BUSINESS_RULE' } });
   await assert.rejects(saveBankSplits(conn, 'credit', 't1', 7, 4, 11, [{ idbanco: 3, valor: 1 }, { idbanco: 3, valor: 1 }], 5000n),
     { extensions: { code: 'VALIDATION_ERROR' } });
+  // Transfer bigger than the abono: only accepted when the declared cash change matches it.
+  await saveBankSplits(conn, 'payment', 'p1', 7, 4, 11, [{ idbanco: 3, valor: 500 }], 30000n, 20000n);
+  await assert.rejects(saveBankSplits(conn, 'payment', 'p1', 7, 4, 11, [{ idbanco: 3, valor: 500 }], 30000n),
+    { extensions: { code: 'BUSINESS_RULE' } });
+  await assert.rejects(saveBankSplits(conn, 'payment', 'p1', 7, 4, 11, [{ idbanco: 3, valor: 500 }], 30000n, 19000n),
+    { extensions: { code: 'BUSINESS_RULE' } });
+  await assert.rejects(saveBankSplits(conn, 'payment', 'p1', 7, 4, 11, [{ idbanco: 3, valor: 100 }], 30000n, 5n),
+    { extensions: { code: 'BUSINESS_RULE' } });
+  await assert.rejects(saveBankSplits(conn, 'payment', 'p1', 7, 4, 11, [], 30000n, 5n),
+    { extensions: { code: 'BUSINESS_RULE' } });
   const foreign = { async execute(sql) { return sql.includes('FROM tbl_banco') ? [[]] : [{}]; } };
   await assert.rejects(saveBankSplits(foreign, 'credit', 't1', 7, 4, 11, [{ idbanco: 9, valor: 1 }], 5000n),
     { extensions: { code: 'BUSINESS_RULE' } });

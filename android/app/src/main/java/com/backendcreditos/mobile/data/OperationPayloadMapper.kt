@@ -5,6 +5,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -153,7 +154,7 @@ object OperationPayloadMapper {
 
     fun createPayment(
         creditId: String, paymentId: String, amount: String, description: String,
-        banks: List<BankSplit> = emptyList()
+        banks: List<BankSplit> = emptyList(), changeConfirmed: Boolean = false
     ): MappedOperation {
         require(creditId.isNotBlank() && creditId.length <= 50)
         require(paymentId.isNotBlank() && paymentId.length <= 50)
@@ -164,11 +165,30 @@ object OperationPayloadMapper {
             put("iddescripcion", paymentId)
             put("abono", JsonPrimitive(-positiveAmount))
             put("descripcion", description.takeIf(String::isNotBlank) ?: "Abono")
-            if (banks.isNotEmpty()) put("bancos", bankSplits(banks, positiveAmount, "abono"))
+            if (banks.isNotEmpty()) {
+                put("bancos", bankSplits(banks, positiveAmount, "abono", allowChange = true))
+                putCashChange(banks, positiveAmount, changeConfirmed)
+            }
         })
     }
 
-    private fun bankSplits(banks: List<BankSplit>, total: Double, label: String): JsonArray {
+    // Si por banco entra más que el abono, la diferencia se devuelve en efectivo y viaja declarada.
+    fun cashChange(banks: List<BankSplit>, amount: Double): Double {
+        if (banks.isEmpty()) return 0.0
+        val extra = banks.sumOf { it.amount.replace(',', '.').trim().toDoubleOrNull() ?: 0.0 } - amount
+        return if (extra > 0.004) Math.round(extra * 100.0) / 100.0 else 0.0
+    }
+
+    private fun JsonObjectBuilder.putCashChange(banks: List<BankSplit>, amount: Double, confirmed: Boolean) {
+        val change = cashChange(banks, amount)
+        if (change <= 0.0) return
+        require(confirmed) { "Confirma el efectivo que devuelves." }
+        put("vuelto", JsonPrimitive(change))
+    }
+
+    private fun bankSplits(
+        banks: List<BankSplit>, total: Double, label: String, allowChange: Boolean = false
+    ): JsonArray {
         require(banks.size <= 5) { "Máximo 5 bancos por movimiento." }
         require(banks.map { it.bankId }.toSet().size == banks.size) { "No repitas el mismo banco." }
         val amounts = banks.map { split ->
@@ -176,7 +196,7 @@ object OperationPayloadMapper {
             require(split.reference.trim().length <= 50) { "La referencia admite máximo 50 caracteres." }
             number(split.amount, "Valor por banco").also { require(it > 0.0) { "El valor por banco debe ser mayor que cero." } }
         }
-        require(amounts.sum() <= total + 0.004) { "Lo pagado por banco supera el $label." }
+        require(allowChange || amounts.sum() <= total + 0.004) { "Lo pagado por banco supera el $label." }
         return buildJsonArray {
             banks.zip(amounts).forEach { (split, value) ->
                 add(buildJsonObject {
@@ -188,15 +208,22 @@ object OperationPayloadMapper {
         }
     }
 
-    fun updatePayment(id: String, amount: String, description: String) =
-        MappedOperation(id, buildJsonObject {
-            require(id.isNotBlank() && id.length <= 50)
-            require(description.length <= 255)
-            val positiveAmount = number(amount, "Abono")
-            require(positiveAmount > 0.0) { "Ingresa un abono mayor que cero." }
-            put("abono", JsonPrimitive(-positiveAmount))
-            put("descripcion", description)
-        })
+    // `banks` nulo deja el reparto por banco como estaba; una lista vacía lo borra y vuelve todo efectivo.
+    fun updatePayment(
+        id: String, amount: String, description: String,
+        banks: List<BankSplit>? = null, changeConfirmed: Boolean = false
+    ) = MappedOperation(id, buildJsonObject {
+        require(id.isNotBlank() && id.length <= 50)
+        require(description.length <= 255)
+        val positiveAmount = number(amount, "Abono")
+        require(positiveAmount > 0.0) { "Ingresa un abono mayor que cero." }
+        put("abono", JsonPrimitive(-positiveAmount))
+        put("descripcion", description)
+        if (banks != null) {
+            put("bancos", bankSplits(banks, positiveAmount, "abono", allowChange = true))
+            putCashChange(banks, positiveAmount, changeConfirmed)
+        }
+    })
 
     fun delete(id: String): MappedOperation {
         require(id.isNotBlank() && id.length <= 50)

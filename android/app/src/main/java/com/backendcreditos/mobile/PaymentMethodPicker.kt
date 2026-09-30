@@ -7,16 +7,19 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.backendcreditos.mobile.data.BankAccountEntity
 import com.backendcreditos.mobile.data.BankSplit
+import com.backendcreditos.mobile.data.OperationPayloadMapper
 
 /** "Ahorros 123 · Titular: Ana Ruiz · NIT/CC 900123" — what the customer needs to transfer. */
 internal fun bankAccountDetail(bank: BankAccountEntity): String = listOfNotNull(
@@ -30,12 +33,21 @@ internal fun bankAccountDetail(bank: BankAccountEntity): String = listOfNotNull(
 internal data class PaymentMethodDraft(
     val bankId: Int? = null,
     val bankAmount: String = "",
-    val reference: String = ""
+    val reference: String = "",
+    val changeConfirmed: Boolean = false,
+    /** False while editing means "leave the bank split as it was". */
+    val edited: Boolean = false
 ) {
     /** Bank split for the payload; a blank amount means the whole [total] went through the bank. */
     fun splits(total: String): List<BankSplit> {
         val id = bankId ?: return emptyList()
         return listOf(BankSplit(id, bankAmount.ifBlank { total }, reference))
+    }
+
+    /** Cash handed back when the transfer came in bigger than the operation. */
+    fun cashChange(total: String): Double {
+        val amount = total.replace(',', '.').trim().toDoubleOrNull() ?: return 0.0
+        return OperationPayloadMapper.cashChange(splits(total), amount)
     }
 }
 
@@ -50,7 +62,10 @@ internal fun PaymentMethodPicker(
     banks: List<BankAccountEntity>,
     draft: PaymentMethodDraft,
     onChange: (PaymentMethodDraft) -> Unit,
-    amountLabel: String
+    amountLabel: String,
+    total: String = "",
+    allowChange: Boolean = false,
+    allowKeep: Boolean = false
 ) {
     if (banks.isEmpty()) return
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -59,15 +74,20 @@ internal fun PaymentMethodPicker(
             Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            FilterChip(
-                selected = draft.bankId == null,
+            if (allowKeep) FilterChip(
+                selected = !draft.edited,
                 onClick = { onChange(PaymentMethodDraft()) },
+                label = { Text("Sin cambios") }
+            )
+            FilterChip(
+                selected = draft.bankId == null && (draft.edited || !allowKeep),
+                onClick = { onChange(PaymentMethodDraft(edited = true)) },
                 label = { Text("Efectivo") }
             )
             for (bank in banks) {
                 FilterChip(
                     selected = draft.bankId == bank.id,
-                    onClick = { onChange(draft.copy(bankId = bank.id)) },
+                    onClick = { onChange(draft.copy(bankId = bank.id, edited = true)) },
                     label = { Text(bank.name) }
                 )
             }
@@ -91,6 +111,15 @@ internal fun PaymentMethodPicker(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
+            val change = if (allowChange) draft.cashChange(total) else 0.0
+            if (change > 0.0) Row(verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(draft.changeConfirmed, { onChange(draft.copy(changeConfirmed = it)) })
+                Text(
+                    "Transfirió de más: le devuelves ${formatMoney(change.toString())} en efectivo",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
         }
     }
 }

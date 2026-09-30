@@ -973,10 +973,13 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             OperationKind.CREATE_PAYMENT -> OperationPayloadMapper.createPayment(
                 selectedCreditId ?: throw IllegalArgumentException("Selecciona un crédito."),
                 UUID.randomUUID().toString(), draftPaymentAmount, draftPaymentDescription,
-                draftPaymentMethod.splits(draftPaymentAmount)
+                draftPaymentMethod.splits(draftPaymentAmount), draftPaymentMethod.changeConfirmed
             )
-            OperationKind.UPDATE_PAYMENT ->
-                OperationPayloadMapper.updatePayment(entityId, draftPaymentAmount, draftPaymentDescription)
+            OperationKind.UPDATE_PAYMENT -> OperationPayloadMapper.updatePayment(
+                entityId, draftPaymentAmount, draftPaymentDescription,
+                draftPaymentMethod.splits(draftPaymentAmount).takeIf { draftPaymentMethod.edited },
+                draftPaymentMethod.changeConfirmed
+            )
             OperationKind.DELETE_CREDIT, OperationKind.DELETE_PAYMENT, OperationKind.DELETE_COMMENT ->
                 OperationPayloadMapper.delete(entityId)
             OperationKind.APPLY_DISCOUNT ->
@@ -2148,7 +2151,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                         )
                                         PaymentMethodPicker(
                                             bankAccounts, draftPaymentMethod, { draftPaymentMethod = it },
-                                            "¿Cuánto entró por banco?"
+                                            "¿Cuánto entró por banco?", draftPaymentAmount, allowChange = true
                                         )
                                         if (inlinePaymentError.isNotBlank()) {
                                             Text(inlinePaymentError, color = MaterialTheme.colorScheme.error)
@@ -3307,9 +3310,10 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 modifier = Modifier.fillMaxWidth(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             )
-                            if (operationKind == OperationKind.CREATE_PAYMENT) PaymentMethodPicker(
+                            if (operationKind in setOf(OperationKind.CREATE_PAYMENT, OperationKind.UPDATE_PAYMENT)) PaymentMethodPicker(
                                 bankAccounts, draftPaymentMethod, { draftPaymentMethod = it },
-                                "¿Cuánto entró por banco?"
+                                "¿Cuánto entró por banco?", draftPaymentAmount, allowChange = true,
+                                allowKeep = operationKind == OperationKind.UPDATE_PAYMENT
                             )
                         }
                         OperationKind.APPLY_DISCOUNT, OperationKind.ADD_INTEREST -> {

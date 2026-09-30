@@ -170,8 +170,8 @@ Payload fields by kind (all undeclared fields are rejected):
 | `CREATE_CREDIT` | `idtarjeta`, `idcliente`, `concepto`, `valor`, `modo`, `plazo`, `prestamo`, `descripcion`, `item`, `utilidad`, `adicionalNumero`, `adicionalValor`, `tipoComprobante`, `serie`, `numero`, `nota`, `detalleDocumentoSucursalId`; optional `idventa`, `cuotaInicial`, `obligacion`, `bancos` |
 | `UPDATE_CREDIT` | `concepto`, `valor`, `modo`, `plazo`, `prestamo`, `descripcion`, `item`, `utilidad`, `adicionalNumero`, `adicionalValor`, `tipoComprobante`, `serie`, `numero`, `nota` |
 | `UPDATE_CREDIT_TERMS` | `modo`, `plazo`, `numero`, `createdAt` |
-| `CREATE_PAYMENT` | `iddescripcion`, negative `abono`; optional `descripcion`, `bancos` |
-| `UPDATE_PAYMENT` | negative `abono`, `descripcion`; optional `bancos` |
+| `CREATE_PAYMENT` | `iddescripcion`, negative `abono`; optional `descripcion`, `bancos`, `vuelto` |
+| `UPDATE_PAYMENT` | negative `abono`, `descripcion`; optional `bancos`, `vuelto` |
 | `DELETE_PAYMENT`, `DELETE_CREDIT`, `DELETE_COMMENT` | `{}` |
 | `APPLY_DISCOUNT` | `amount`; optional `descripcion` |
 | `ADD_INTEREST` | `amount`, `plazo`; optional `descripcion` |
@@ -267,6 +267,14 @@ sum does not exceed the abono (or the credit's `prestamo`). On `UPDATE_PAYMENT`,
 sending `bancos` replaces the split; omitting it keeps it, and the update is
 rejected if the kept split would exceed the new amount. Payments expose
 `bankAmount` and credits `bankFunded` (sum of their bank rows).
+
+When the customer transfers **more** than the abono, the collector hands the
+difference back in cash. Abonos therefore accept `vuelto` (the excess, declared
+on purpose): the server requires `vuelto === bank total − abono` when there is
+an excess and rejects `vuelto` otherwise, so a mistyped transfer can never empty
+the collector's pocket silently. Credits stay strict (no `vuelto`). The pocket
+cash needs no extra column: `abonos − received by bank` simply turns negative by
+exactly the cash returned.
 
 `migrations/004_bank_holder_branches.sql` (apply after 003, before deploying)
 adds the holder as registered at the bank (`str_titular`), the holder's NIT or

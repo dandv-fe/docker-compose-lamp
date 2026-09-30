@@ -114,4 +114,31 @@ class OperationPayloadMapperTest {
             OperationPayloadMapper.createPayment("c", "p", "100", "Abono", listOf(BankSplit(3, "10"), BankSplit(3, "10")))
         }
     }
+
+    @Test fun cashChangeTravelsOnlyWhenTheCollectorConfirmsIt() {
+        val banks = listOf(BankSplit(3, "120"))
+        val confirmed = OperationPayloadMapper.createPayment(
+            "c", "p", "100", "Abono", banks, changeConfirmed = true
+        ).payload as JsonObject
+        assertEquals("20.0", confirmed.getValue("vuelto").jsonPrimitive.content)
+        assertThrows(IllegalArgumentException::class.java) {
+            OperationPayloadMapper.createPayment("c", "p", "100", "Abono", banks)
+        }
+        val exact = OperationPayloadMapper.createPayment(
+            "c", "p", "100", "Abono", listOf(BankSplit(3, "100")), changeConfirmed = true
+        ).payload as JsonObject
+        assertTrue("vuelto" !in exact)
+        assertEquals(0.0, OperationPayloadMapper.cashChange(emptyList(), 100.0), 0.0001)
+    }
+
+    @Test fun editingAPaymentKeepsTheBankSplitUnlessItIsSentAgain() {
+        val untouched = OperationPayloadMapper.updatePayment("p", "100", "Abono").payload as JsonObject
+        assertTrue("bancos" !in untouched)
+        val cleared = OperationPayloadMapper.updatePayment("p", "100", "Abono", emptyList()).payload as JsonObject
+        assertEquals(0, cleared.getValue("bancos").jsonArray.size)
+        val fixed = OperationPayloadMapper.updatePayment(
+            "p", "100", "Abono", listOf(BankSplit(3, "130")), changeConfirmed = true
+        ).payload as JsonObject
+        assertEquals("30.0", fixed.getValue("vuelto").jsonPrimitive.content)
+    }
 }

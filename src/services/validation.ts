@@ -31,9 +31,12 @@ const creditFields = {
   tarjetaReferenciaId: text(50).optional(), ubicacion: z.enum(['antes', 'despues']).optional(),
   bancos: bankSplits,
 };
+// When the transfer is bigger than the abono the collector hands the difference back in cash;
+// `vuelto` is that difference, sent on purpose so a mistyped transfer can never drain the pocket.
+const cashChange = number.nonnegative().optional();
 const paymentFields = {
   iddescripcion: z.string().min(1).max(50), abono: number, descripcion: text(255).optional(),
-  bancos: bankSplits,
+  bancos: bankSplits, vuelto: cashChange,
 };
 const commentFields = {
   idcliente: z.number().int(), comentario: text(255), tipo: text(30),
@@ -55,7 +58,7 @@ export const operationPayloadSchemas: Record<string, z.ZodTypeAny> = {
     numero: text(11), createdAt: text(19),
   }).strict(),
   CREATE_PAYMENT: z.object(paymentFields).strict(),
-  UPDATE_PAYMENT: z.object({ abono: number, descripcion: text(255), bancos: bankSplits }).strict(),
+  UPDATE_PAYMENT: z.object({ abono: number, descripcion: text(255), bancos: bankSplits, vuelto: cashChange }).strict(),
   DELETE_PAYMENT: z.object({}).strict(),
   DELETE_CREDIT: z.object({}).strict(),
   APPLY_DISCOUNT: z.object({ amount: number, descripcion: text(255).optional() }).strict(),

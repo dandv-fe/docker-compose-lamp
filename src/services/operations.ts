@@ -584,7 +584,7 @@ async function executeOperation(
           payload.descripcion || 'Abono', userId, PAYMENT_ORIGIN],
       );
       await saveBankSplits(conn, 'payment', String(payload.iddescripcion), companyId, input.branchId, userId,
-        payload.bancos as BankSplit[] | undefined, -amount);
+        payload.bancos as BankSplit[] | undefined, -amount, decimalToCents((payload.vuelto as number) ?? 0));
       await conn.execute(
         `UPDATE tbl_tarjetas SET dec_resta=?,updated_at=NOW()
          WHERE idtarjeta=? AND idglobal=? AND idsucursal=?`,
@@ -623,7 +623,7 @@ async function executeOperation(
       );
       if (payload.bancos !== undefined) {
         await saveBankSplits(conn, 'payment', input.entityId, companyId, input.branchId, userId,
-          payload.bancos as BankSplit[], -amount);
+          payload.bancos as BankSplit[], -amount, decimalToCents((payload.vuelto as number) ?? 0));
       } else {
         // An edit that does not mention banks keeps them, but can never leave more money
         // "in the bank" than the abono itself.
@@ -632,7 +632,7 @@ async function executeOperation(
           [input.entityId, companyId],
         );
         if (decimalToCents(String(bankRows[0]?.total ?? 0)) > -amount) {
-          fail('BUSINESS_RULE', 'Bank amounts exceed the operation amount');
+          fail('BUSINESS_RULE', 'Send the bank split again to declare the cash change for this abono');
         }
       }
       const balance = await recalculateBalance(conn, credit);
@@ -826,16 +826,26 @@ type BankSplit = { idbanco: number; valor: number; referencia?: string };
 // The rest of the amount is cash, which is what the collector must carry in the pocket.
 export async function saveBankSplits(
   conn: SqlConnection, target: 'payment' | 'credit', id: string, companyId: number, branchId: number,
-  userId: number, splits: BankSplit[] | undefined, maxCents: bigint,
+  userId: number, splits: BankSplit[] | undefined, maxCents: bigint, changeCents = 0n,
 ) {
   const table = target === 'payment' ? 'tbl_descripcion_pago' : 'tbl_tarjeta_pago';
   const column = target === 'payment' ? 'iddescripcion' : 'idtarjeta';
   await conn.execute(`DELETE FROM ${table} WHERE ${column}=? AND idglobal=?`, [id, companyId]);
-  if (!splits?.length) return;
+  if (!splits?.length) {
+    if (changeCents !== 0n) fail('BUSINESS_RULE', 'Cash change requires a bank transfer');
+    return;
+  }
   const bankIds = splits.map((split) => split.idbanco);
   if (new Set(bankIds).size !== bankIds.length) fail('VALIDATION_ERROR', 'Each bank account can appear only once');
   const total = splits.reduce((sum, split) => sum + decimalToCents(split.valor), 0n);
-  if (total > maxCents) fail('BUSINESS_RULE', 'Bank amounts exceed the operation amount');
+  // A transfer larger than the abono is valid only when the operator declared the cash change
+  // they handed back; the excess then leaves the collector's pocket instead of being ignored.
+  const excess = total > maxCents ? total - maxCents : 0n;
+  if (changeCents !== excess) {
+    fail('BUSINESS_RULE', excess > 0n
+      ? 'Declare the cash change to accept a transfer larger than the operation amount'
+      : 'Cash change is only possible when the bank amount exceeds the operation amount');
+  }
   const [banks] = await conn.execute<RowDataPacket[]>(
     `SELECT b.idbanco FROM tbl_banco b
      JOIN tbl_banco_sucursal bs ON bs.idbanco=b.idbanco AND bs.idglobal=b.idglobal AND bs.idsucursal=?

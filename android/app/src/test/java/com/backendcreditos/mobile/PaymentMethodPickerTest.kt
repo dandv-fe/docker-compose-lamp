@@ -18,4 +18,12 @@ class PaymentMethodPickerTest {
         assertEquals("100", PaymentMethodDraft(bankId = 3).splits("100").single().amount)
         assertEquals("40", PaymentMethodDraft(bankId = 3, bankAmount = "40").splits("100").single().amount)
     }
+
+    @Test
+    fun cashChangeAppearsOnlyWhenTheTransferIsBigger() {
+        assertEquals(0.0, PaymentMethodDraft(bankId = 3).cashChange("100"), 0.0001)
+        assertEquals(0.0, PaymentMethodDraft(bankId = 3, bankAmount = "40").cashChange("100"), 0.0001)
+        assertEquals(20.0, PaymentMethodDraft(bankId = 3, bankAmount = "120").cashChange("100"), 0.0001)
+        assertEquals(0.0, PaymentMethodDraft().cashChange("100"), 0.0001)
+    }
 }
