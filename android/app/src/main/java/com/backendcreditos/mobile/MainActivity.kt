@@ -39,6 +39,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
@@ -1874,6 +1875,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                 }
                 Screen.HOME -> {
                     if (!online) Text("El desbloqueo local no autentica ni renueva credenciales del servidor.")
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     OutlinedTextField(
                         search, {
                             search = it
@@ -1888,12 +1890,25 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                         }, label = { Text("Buscar en cartera y clientes guardados") },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    if (busy) Text("Trabajando…")
-                    Text("Cartera guardada", style = MaterialTheme.typography.titleLarge)
-                    Text(
-                        "Un toque marca «Aquí vas»; otro abre el abono en esa tarjeta. Usa ‹ › para avanzar.",
-                        style = MaterialTheme.typography.bodySmall
-                    )
+                    // Always 4dp tall so the list never jumps: it moves while the cartera loads or an
+                    // abono waits for the server, and otherwise shows how much of the route is collected.
+                    val waitingServer = busy || watchedPaymentOperationIds.isNotEmpty()
+                    val progressModifier = Modifier.fillMaxWidth().height(4.dp).semantics {
+                        contentDescription = if (waitingServer) "Trabajando" else
+                            "Avance de la ruta: ${routeSummary.cardsWithPayments} de ${routeSummary.totalCards} tarjetas con abono"
+                    }
+                    if (waitingServer) {
+                        LinearProgressIndicator(progressModifier)
+                    } else {
+                        LinearProgressIndicator(
+                            progress = {
+                                if (routeSummary.totalCards == 0) 0f
+                                else routeSummary.cardsWithPayments.toFloat() / routeSummary.totalCards
+                            },
+                            modifier = progressModifier
+                        )
+                    }
+                    }
                     val filtered = visibleRows
                     LaunchedEffect(restorePointerScroll, pointedCreditId, filtered) {
                         if (restorePointerScroll) {
