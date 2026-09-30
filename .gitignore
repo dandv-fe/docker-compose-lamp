@@ -7,3 +7,5 @@
 
 !.gitignore
 !.gitkeep
+# Proyecto con repositorio Git propio
+/www/projects/backend-creditos-apk/
