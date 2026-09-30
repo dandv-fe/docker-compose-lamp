@@ -1198,6 +1198,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         name.contains(search, ignoreCase = true)
     } }
     val paymentsByCredit = remember(branchPayments) { branchPayments.groupBy { it.creditId } }
+    val routeSummary = remember(rows, branchPayments) { routeTotals(rows.map { it.credit }, branchPayments) }
     val operationsByEntity = remember(operationRows) { operationRows.groupBy { it.entityId } }
     val visibleCreditIds = visibleRows.map { it.credit.id }
     val pointerIndex = pointerPosition(pointedCreditId, visibleCreditIds)
@@ -1618,6 +1619,20 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                 .then(if (screen == Screen.HOME) Modifier else Modifier.verticalScroll(otherScreensScrollState)),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (account != null && branchId != null && screen !in setOf(Screen.LOGIN, Screen.BRANCHES)) {
+                val totals = routeSummary
+                Text(
+                    "Abs: ${totals.cardsWithPayments}/${totals.totalCards} · " +
+                        "R: ${formatCompactMoney(totals.collected)} · C: ${formatCompactMoney(totals.newCredits)}",
+                    style = MaterialTheme.typography.labelLarge,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.semantics {
+                        contentDescription = "Abonos ${totals.cardsWithPayments} de ${totals.totalCards} tarjetas, " +
+                            "recaudo ${formatCompactMoney(totals.collected)}, créditos ${formatCompactMoney(totals.newCredits)}"
+                    }
+                )
+            }
             when (screen) {
                 Screen.LOGIN -> {
                     Text("Inicio de sesión en línea", style = MaterialTheme.typography.headlineSmall)
