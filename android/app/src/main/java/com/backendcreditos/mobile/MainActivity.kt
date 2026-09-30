@@ -61,7 +61,13 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -96,6 +102,16 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.UUID
 import java.math.RoundingMode
+
+private data class ConnectionStatus(val color: Color, val description: String)
+
+// Red: offline or automatic sync off/paused; orange: server session expired; green: online with
+// automatic sync running. The expired token wins because only a new login can fix it.
+private fun connectionStatus(authExpired: Boolean, online: Boolean, autoSync: Boolean): ConnectionStatus = when {
+    authExpired -> ConnectionStatus(Color(0xFFF57C00), "Sesión del servidor vencida")
+    online && autoSync -> ConnectionStatus(Color(0xFF2E7D32), "En línea con sincronización automática")
+    else -> ConnectionStatus(Color(0xFFC62828), "Sin conexión o sincronización automática detenida")
+}
 
 private enum class Screen { LOGIN, BRANCHES, HOME, CUSTOMER, CUSTOMER_LOOKUP, CREDIT, CARD_ASSESSMENT, QUEUE, COMPOSER, DEFAULTERS, WITHDRAWN, CANCELLED, PORTFOLIO_CLIENTS, SYNC_SETTINGS, MARKED }
 
@@ -566,7 +582,12 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             is ApiResult.Retryable -> "Sin conexión con el servidor: ${result.message}"
         }
         if (result is ApiResult.AuthExpired) {
-            session?.let { current -> scope.launch { app.repository.setSyncPaused(current.accountKey, "AUTH") } }
+            session?.let { current ->
+                scope.launch {
+                    app.repository.setSyncPaused(current.accountKey, "AUTH")
+                    syncControl = app.database.localDao().syncControl(current.accountKey)
+                }
+            }
         }
     }
 
@@ -1249,8 +1270,44 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
+            val branchChosen = account != null && branchId != null &&
+                screen !in setOf(Screen.LOGIN, Screen.BRANCHES)
             TopAppBar(
-                title = { Text("Créditos") }
+                title = {
+                    if (!branchChosen) {
+                        Text("Créditos")
+                    } else {
+                        // Branch type/code come from str_tipo/str_codigo (BranchDto.type/name);
+                        // the raw idsucursal is only a fallback until the branch list loads.
+                        val selectedBranch = branchList.find { it.id == branchId }
+                        val status = connectionStatus(
+                            authExpired = syncControl?.pauseReason == "AUTH",
+                            online = online && deviceConnected,
+                            autoSync = syncAutoEnabled && syncControl?.paused != true
+                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                Modifier
+                                    .size(14.dp)
+                                    .background(status.color, CircleShape)
+                                    .clickable(onClickLabel = "Abrir sincronización") {
+                                        screen = Screen.SYNC_SETTINGS
+                                    }
+                                    .semantics { contentDescription = status.description }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                listOfNotNull(
+                                    account?.username,
+                                    selectedBranch?.type,
+                                    selectedBranch?.name ?: branchId
+                                ).joinToString(" · "),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
             )
         },
         bottomBar = {
@@ -1761,19 +1818,6 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     }) { Text("Volver") }
                 }
                 Screen.HOME -> {
-                    // branchId (session.selectedBranchId) is the numeric idsucursal; show the
-                    // human-readable str_codigo (BranchDto.name) instead, looked up from the
-                    // last fetched branchList, falling back to the raw id if not found yet. The
-                    // label itself uses str_tipo (BranchDto.type) instead of a hardcoded word,
-                    // since branches can be typed differently (e.g. "Agencia", "Sucursal").
-                    val selectedBranch = branchList.find { it.id == branchId }
-                    val branchCode = selectedBranch?.name ?: branchId.orEmpty()
-                    val branchLabel = (selectedBranch?.type ?: "sucursal").lowercase()
-                    Text(
-                        if (online) "En línea · ${account?.username} · $branchLabel $branchCode"
-                        else "Sin conexión · caché de esta $branchLabel $branchCode",
-                        style = MaterialTheme.typography.titleMedium
-                    )
                     if (!online) Text("El desbloqueo local no autentica ni renueva credenciales del servidor.")
                     OutlinedTextField(
                         search, {
