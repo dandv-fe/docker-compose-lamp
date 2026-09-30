@@ -4,7 +4,7 @@ internal enum class PortfolioTap { SELECT, OPEN }
 
 // A card only opens when the pointer was placed by tapping that very card. Pointer moves coming
 // from the arrows or from the marked list leave it disarmed, so the next tap selects instead of
-// jumping straight into the payments screen.
+// opening the inline abono form.
 internal fun portfolioTap(
     selectedCreditId: String?, tappedCreditId: String, pointerArmed: Boolean = true,
 ): PortfolioTap =
