@@ -19,6 +19,13 @@ import java.util.UUID
 
 data class PortfolioRow(val credit: CreditEntity, val customer: CustomerEntity?)
 
+internal fun joinPortfolio(
+    credits: List<CreditEntity>, customers: List<CustomerEntity>
+): List<PortfolioRow> {
+    val byId = customers.associateBy { it.id }
+    return credits.map { PortfolioRow(it, byId[it.customerId]) }
+}
+
 internal fun initialCreditBalance(fields: JsonObject): String {
     val value = (fields["valor"] as? JsonPrimitive)?.content?.toBigDecimalOrNull()
         ?: throw IllegalArgumentException("Valor de tarjeta inválido.")
@@ -37,8 +44,10 @@ class CreditRepository(
     private val dao = database.localDao()
     private val json = Json { ignoreUnknownKeys = true }
 
-    suspend fun portfolio(accountKey: String, branchId: String): List<PortfolioRow> =
-        dao.visiblePortfolio(accountKey, branchId).map { PortfolioRow(it, dao.customer(accountKey, branchId, it.customerId)) }
+    suspend fun portfolio(accountKey: String, branchId: String): List<PortfolioRow> {
+        val credits = dao.visiblePortfolio(accountKey, branchId)
+        return joinPortfolio(credits, dao.customersForBranch(accountKey, branchId))
+    }
 
     suspend fun paymentsForBranch(accountKey: String, branchId: String): List<PaymentEntity> =
         dao.paymentsForBranch(accountKey, branchId)
@@ -369,8 +378,7 @@ class CreditRepository(
                 val removedAmount = existingPayment?.amount?.toDoubleOrNull()
                 val creditId = existingPayment?.creditId
                 if (removedAmount != null && creditId != null) {
-                    val existingCredit = dao.portfolio(operation.accountKey, operation.branchId)
-                        .firstOrNull { it.id == creditId }
+                    val existingCredit = dao.credit(operation.accountKey, operation.branchId, creditId)
                     if (existingCredit != null) {
                         val newBalance = (existingCredit.balance?.toDoubleOrNull() ?: 0.0) - removedAmount
                         dao.putCredits(listOf(existingCredit.copy(balance = newBalance.toString())))

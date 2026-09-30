@@ -26,11 +26,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -44,6 +45,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -254,11 +258,13 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     // Portfolio pointer: the card the collector is standing on. It is saved so it also
     // survives configuration changes and process death, not only screen changes.
     var pointedCreditId by rememberSaveable { mutableStateOf<String?>(null) }
-    // Only a tap on the card itself arms the pointer; arrows and the marked list place it
-    // disarmed so the next tap selects instead of opening the payments screen.
+    // Only a tap on the card itself arms the pointer; arrows and bookmarks leave it disarmed.
     var pointerArmed by rememberSaveable { mutableStateOf(false) }
     var restorePointerScroll by rememberSaveable { mutableStateOf(false) }
-    val pointerRequester = remember { BringIntoViewRequester() }
+    var inlinePaymentCreditId by remember { mutableStateOf<String?>(null) }
+    var inlinePaymentError by remember { mutableStateOf("") }
+    var watchedPaymentOperationIds by remember { mutableStateOf(emptySet<String>()) }
+    val snackbarHostState = remember { SnackbarHostState() }
     var paymentRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.data.PaymentEntity>()) }
     var operationRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.data.OfflineOperationEntity>()) }
     var syncControl by remember { mutableStateOf<com.backendcreditos.mobile.data.SyncControlEntity?>(null) }
@@ -679,19 +685,21 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     suspend fun submitAndAwaitConfirmation(
         operation: OfflineOperationEntity,
         branch: String,
-        current: StoredSession
+        current: StoredSession,
+        stayOnPortfolio: Boolean = false
     ) {
         SyncScheduler.enqueue(activity, current.accountKey, branch, expedited = online)
         // Registering an abono has to feel instant in the street: the movement is already saved
         // and queued on this device, so we go straight back to the card instead of blocking on
         // the server. The queue badge in the bottom bar is what reports the outcome afterwards.
         if (operation.kind == OperationKind.CREATE_PAYMENT || operation.kind == OperationKind.UPDATE_PAYMENT) {
-            notice = if (online) {
+            notice = if (stayOnPortfolio) "" else if (online) {
                 "Abono guardado en el teléfono · se está enviando solo. Revisa el contador de la cola."
             } else {
                 "Sin conexión: el abono quedó guardado y se enviará al recuperar señal."
             }
-            screen = if (selectedCreditId != null) Screen.CREDIT else Screen.HOME
+            screen = if (stayOnPortfolio) Screen.HOME
+                else if (selectedCreditId != null) Screen.CREDIT else Screen.HOME
             return
         }
         if (!online) {
@@ -719,10 +727,15 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     "hasta que cierres sesión y vuelvas a iniciar sesión; hazlo ahora para enviarla."
             else "La operación sigue pendiente de confirmación; revisa la Cola."
         }
-        screen = Screen.QUEUE
+        if (operation.kind == OperationKind.CREATE_CREDIT && latest.status == OperationStatus.CONFIRMED) {
+            pointedCreditId = operation.entityId
+            pointerArmed = false
+            restorePointerScroll = true
+            screen = Screen.HOME
+        } else screen = Screen.QUEUE
     }
 
-    suspend fun saveTypedOperation() {
+    suspend fun saveTypedOperation(stayOnPortfolio: Boolean = false): OfflineOperationEntity {
         var current = session ?: throw IllegalArgumentException("Inicia sesión para guardar cambios.")
         val branch = current.selectedBranchId ?: throw IllegalArgumentException("Selecciona una sucursal.")
         if (operationKind == OperationKind.CREATE_CUSTOMER) {
@@ -937,9 +950,33 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                 .joinToString(" ").ifBlank { current.username }.takeIf { operationKind == OperationKind.CREATE_PAYMENT },
             creatorUserId = current.userId.takeIf { operationKind == OperationKind.CREATE_PAYMENT }
         )
-        loadLocal()
-        loadOperations()
-        submitAndAwaitConfirmation(operation, branch, current)
+        if (operationKind == OperationKind.CREATE_PAYMENT) {
+            val dao = app.database.localDao()
+            val creditId = operation.entityId
+            dao.credit(current.accountKey, branch, creditId)?.let { updated ->
+                rows = rows.map { row ->
+                    if (row.credit.id == creditId) row.copy(credit = updated) else row
+                }
+            }
+            branchPayments = branchPayments.filterNot { it.creditId == creditId } +
+                dao.payments(current.accountKey, branch, creditId)
+            paymentRows = dao.payments(current.accountKey, branch, creditId)
+            operationRows = operationRows + operation
+        } else if (operationKind == OperationKind.CREATE_CREDIT) {
+            val dao = app.database.localDao()
+            dao.credit(current.accountKey, branch, operation.entityId)?.let { newCredit ->
+                val owner = rows.firstOrNull { it.credit.customerId == newCredit.customerId }?.customer
+                    ?: dao.customer(current.accountKey, branch, newCredit.customerId)
+                rows = (rows.filterNot { it.credit.id == newCredit.id } + PortfolioRow(newCredit, owner))
+                    .sortedWith(compareBy<PortfolioRow> { it.credit.sortOrder }.thenBy { it.credit.id })
+            }
+            operationRows = operationRows + operation
+        } else {
+            loadLocal()
+            loadOperations()
+        }
+        submitAndAwaitConfirmation(operation, branch, current, stayOnPortfolio)
+        return operation
     }
 
     fun logout() {
@@ -958,6 +995,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             pointedCreditId = null
             pointerArmed = false
             restorePointerScroll = false
+            inlinePaymentCreditId = null
+            watchedPaymentOperationIds = emptySet()
             screen = Screen.LOGIN
             notice = "Se eliminó la caché local de la cuenta."
         }
@@ -1097,16 +1136,18 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
 
     // The portfolio keeps its own scroll state so leaving to any other screen (and its own
     // scrolling) never moves the cartera; the remaining screens keep sharing one state, as before.
-    val portfolioScrollState = rememberScrollState()
+    val portfolioListState = rememberLazyListState()
     val otherScreensScrollState = rememberScrollState()
 
     // Hoisted out of the HOME branch because the bottom bar arrows and counter act on the
     // same visible list the user sees, filter included.
-    val visibleRows = rows.filter { row ->
+    val visibleRows = remember(rows, search) { rows.filter { row ->
         val name = "${row.customer?.firstName.orEmpty()} ${row.customer?.lastName.orEmpty()} " +
             "${row.customer?.documentNumber.orEmpty()} ${row.credit.additionalNumber.orEmpty()}"
         name.contains(search, ignoreCase = true)
-    }
+    } }
+    val paymentsByCredit = remember(branchPayments) { branchPayments.groupBy { it.creditId } }
+    val operationsByEntity = remember(operationRows) { operationRows.groupBy { it.entityId } }
     val visibleCreditIds = visibleRows.map { it.credit.id }
     val pointerIndex = pointerPosition(pointedCreditId, visibleCreditIds)
     val onPortfolio = screen == Screen.HOME
@@ -1116,11 +1157,64 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             OperationStatus.CONFLICT, OperationStatus.REJECTED
         )
     }
+    LaunchedEffect(watchedPaymentOperationIds, account?.accountKey, branchId) {
+        if (watchedPaymentOperationIds.isEmpty()) return@LaunchedEffect
+        val current = account ?: return@LaunchedEffect
+        val branch = branchId ?: return@LaunchedEffect
+        while (true) {
+            if (watchedPaymentOperationIds.isEmpty()) break
+            delay(if (deviceConnected) 1_500 else 5_000)
+            if (!deviceConnected) continue
+            val completed = mutableSetOf<String>()
+            val messages = mutableListOf<String>()
+            var failed = 0
+            val watched = watchedPaymentOperationIds
+            val dao = app.database.localDao()
+            val trackedOperations = buildList {
+                for (ids in watched.toList().chunked(400)) addAll(dao.operationsByIds(ids))
+            }
+            val removed = watched - trackedOperations.mapTo(mutableSetOf()) { it.operationId }
+            for (latest in trackedOperations) {
+                if (latest.status !in setOf(OperationStatus.CONFIRMED, OperationStatus.CONFLICT, OperationStatus.REJECTED)) {
+                    continue
+                }
+                if (session?.accountKey != current.accountKey || session?.selectedBranchId != branch) return@LaunchedEffect
+                operationRows = operationRows.filterNot { it.operationId == latest.operationId } + latest
+                dao.credit(current.accountKey, branch, latest.entityId)?.let { updated ->
+                    rows = rows.map { row ->
+                        if (row.credit.id == updated.id) row.copy(credit = updated) else row
+                    }
+                }
+                branchPayments = branchPayments.filterNot { it.creditId == latest.entityId } +
+                    dao.payments(current.accountKey, branch, latest.entityId)
+                completed.add(latest.operationId)
+                val message = when (latest.status) {
+                    OperationStatus.CONFIRMED -> "Abono confirmado por el servidor."
+                    OperationStatus.CONFLICT -> "Conflicto en el abono: ${friendlyServerError(latest.lastError)}. Revisa la Cola."
+                    else -> "Abono rechazado: ${friendlyServerError(latest.lastError)}. Revisa la Cola."
+                }
+                if (latest.status != OperationStatus.CONFIRMED) failed++
+                messages.add(message)
+            }
+            if (completed.isNotEmpty() || removed.isNotEmpty()) {
+                watchedPaymentOperationIds -= completed + removed
+            }
+            if (completed.isNotEmpty()) {
+                val message = if (messages.size == 1) messages.single()
+                    else "${messages.size - failed} abonos confirmados; $failed con problemas. Revisa la Cola."
+                scope.launch {
+                    snackbarHostState.showSnackbar(message,
+                        duration = if (failed > 0) SnackbarDuration.Long else SnackbarDuration.Short)
+                }
+            }
+        }
+    }
 
     fun movePointer(forward: Boolean) {
         val target = pointerStep(pointedCreditId, visibleCreditIds, forward) ?: return
         pointedCreditId = target
         pointerArmed = false
+        inlinePaymentCreditId = null
         restorePointerScroll = true
     }
 
@@ -1132,6 +1226,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Créditos") }
@@ -1395,7 +1490,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     ) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).padding(16.dp)
-                .verticalScroll(if (screen == Screen.HOME) portfolioScrollState else otherScreensScrollState),
+                .then(if (screen == Screen.HOME) Modifier else Modifier.verticalScroll(otherScreensScrollState)),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             if (notice.isNotBlank()) Text(notice, color = MaterialTheme.colorScheme.error)
@@ -1591,6 +1686,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             pointedCreditId = null
                             pointerArmed = false
                             restorePointerScroll = false
+                            inlinePaymentCreditId = null
+                            watchedPaymentOperationIds = emptySet()
                             scope.launch {
                                 busy = true
                                 loadLocal()
@@ -1655,6 +1752,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     OutlinedTextField(
                         search, {
                             search = it
+                            scope.launch { portfolioListState.scrollToItem(0) }
                             session?.selectedBranchId?.let { branch ->
                                 session?.let { current ->
                                     scope.launch {
@@ -1668,23 +1766,30 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     if (busy) Text("Trabajando…")
                     Text("Cartera guardada", style = MaterialTheme.typography.titleLarge)
                     Text(
-                        "Un toque marca la tarjeta donde vas; otro toque la abre. Usa ‹ › de la barra para avanzar.",
+                        "Un toque marca «Aquí vas»; otro abre el abono en esa tarjeta. Usa ‹ › para avanzar.",
                         style = MaterialTheme.typography.bodySmall
                     )
                     val filtered = visibleRows
-                    if (filtered.isEmpty()) Text("No hay resultados guardados. Sincroniza la sucursal o abre un cliente en línea.")
-                    LaunchedEffect(restorePointerScroll, pointedCreditId, filtered.size) {
-                        if (restorePointerScroll && filtered.any { it.credit.id == pointedCreditId }) {
-                            pointerRequester.bringIntoView()
+                    LaunchedEffect(restorePointerScroll, pointedCreditId, filtered) {
+                        if (restorePointerScroll) {
+                            val index = filtered.indexOfFirst { it.credit.id == pointedCreditId }
+                            if (index >= 0) portfolioListState.scrollToItem(index)
                             restorePointerScroll = false
                         }
                     }
-                    filtered.forEach { row ->
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        state = portfolioListState,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                    if (filtered.isEmpty()) item {
+                        Text("No hay resultados guardados. Sincroniza la sucursal o abre un cliente en línea.")
+                    }
+                    items(filtered, key = { it.credit.id }) { row ->
                         val pointed = pointedCreditId == row.credit.id
                         Card(Modifier.fillMaxWidth()
                             .then(
                                 if (pointed) Modifier
-                                    .bringIntoViewRequester(pointerRequester)
                                     .border(
                                         BorderStroke(3.dp, MaterialTheme.colorScheme.primary),
                                         RoundedCornerShape(12.dp)
@@ -1692,33 +1797,26 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 else Modifier
                             )
                             .clickable {
-                            // First tap only moves the pointer; the second tap on the same card opens it.
+                            // First tap selects; the second opens the inline payment form.
                             if (portfolioTap(pointedCreditId, row.credit.id, pointerArmed) == PortfolioTap.SELECT) {
                                 pointedCreditId = row.credit.id
                                 pointerArmed = true
+                                inlinePaymentCreditId = null
                                 return@clickable
                             }
                             selectedCreditId = row.credit.id
                             customer = row.customer
-                            scope.launch {
-                                val current = session ?: return@launch
-                                val branch = current.selectedBranchId ?: return@launch
-                                if (online) {
-                                    when (val result = app.repository.openPaymentHistory(current, branch, row.credit.id)) {
-                                        is ApiResult.Success -> {
-                                            paymentRows = result.value
-                                            branchPayments = app.repository.paymentsForBranch(current.accountKey, branch)
-                                        }
-                                        else -> report(result)
-                                    }
-                                }
-                                paymentRows = app.database.localDao().payments(current.accountKey, branch, row.credit.id)
-                                screen = Screen.CREDIT
-                            }
+                            operationKind = OperationKind.CREATE_PAYMENT
+                            draftBalance = row.credit.balance.orEmpty()
+                            draftPaymentOriginalAmount = "0"
+                            draftPaymentAmount = ""
+                            draftPaymentConfirmRemaining = ""
+                            inlinePaymentError = ""
+                            inlinePaymentCreditId = if (inlinePaymentCreditId == row.credit.id) null else row.credit.id
                         }) {
                             Column(Modifier.padding(16.dp)) {
                                 if (pointed) Text(
-                                    "▶ Aquí vas · toca de nuevo para abrir",
+                                    "▶ Aquí vas · toca de nuevo para abonar",
                                     color = MaterialTheme.colorScheme.primary,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -1752,8 +1850,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 }
                                 Text("Crédito ${row.credit.additionalNumber ?: row.credit.id} · Saldo ${row.credit.balance ?: "—"}")
                                 Text("Estado: ${row.credit.status ?: "—"}")
-                                operationRows.firstOrNull {
-                                    it.kind == OperationKind.CREATE_CREDIT && it.entityId == row.credit.id &&
+                                operationsByEntity[row.credit.id].orEmpty().firstOrNull {
+                                    it.kind == OperationKind.CREATE_CREDIT &&
                                         it.branchId == row.credit.branchId && it.status != OperationStatus.CONFIRMED
                                 }?.let { creation ->
                                     Text(
@@ -1767,9 +1865,9 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                         color = MaterialTheme.colorScheme.error
                                     )
                                 }
-                                val cachedCreditPayments = branchPayments.filter { it.creditId == row.credit.id }
+                                val cachedCreditPayments = paymentsByCredit[row.credit.id].orEmpty()
                                 val pendingLocalPayment = cachedCreditPayments.firstOrNull { payment ->
-                                    payment.createdLocally && operationRows.any { operation ->
+                                    payment.createdLocally && operationsByEntity[row.credit.id].orEmpty().any { operation ->
                                         operation.kind == OperationKind.CREATE_PAYMENT &&
                                             operation.entityId == payment.creditId &&
                                             operation.payload.contains("\"iddescripcion\":\"${payment.id}\"") &&
@@ -1781,7 +1879,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 }
                                 val displayedPayment = pendingLocalPayment ?: cachedCreditPayments.firstOrNull()
                                 displayedPayment?.let { payment ->
-                                    val paymentOperation = if (payment.createdLocally) operationRows.firstOrNull { operation ->
+                                    val paymentOperation = if (payment.createdLocally) operationsByEntity[row.credit.id].orEmpty().firstOrNull { operation ->
                                         operation.kind == OperationKind.CREATE_PAYMENT &&
                                             operation.entityId == payment.creditId &&
                                             operation.payload.contains("\"iddescripcion\":\"${payment.id}\"")
@@ -1838,14 +1936,87 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                         }
                                     }
                                 }
-                                if (operationRows.any {
+                                if (operationsByEntity[row.credit.id].orEmpty().any {
                                         it.branchId == row.credit.branchId &&
-                                            it.entityId == row.credit.id &&
                                             it.kind != OperationKind.CREATE_PAYMENT &&
                                             it.status in setOf(OperationStatus.PENDING, OperationStatus.IN_FLIGHT)
                                     }
                                 ) Text("Hay otros cambios pendientes de confirmar.", color = MaterialTheme.colorScheme.error)
+                                if (inlinePaymentCreditId == row.credit.id) {
+                                    val openPayment = cachedCreditPayments.firstOrNull { it.state != "saved" }
+                                    if (openPayment != null) {
+                                        Text("Ya hay un abono sin liquidar. Usa los movimientos para editarlo.",
+                                            color = MaterialTheme.colorScheme.error)
+                                    } else {
+                                        OutlinedTextField(
+                                            draftPaymentAmount, { draftPaymentAmount = it },
+                                            label = { Text("Abono *") }, modifier = Modifier.fillMaxWidth(),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                                        )
+                                        OutlinedTextField(
+                                            draftPaymentConfirmRemaining, { draftPaymentConfirmRemaining = it },
+                                            label = { Text("Confirma cuánto queda restando *") },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                                        )
+                                        if (inlinePaymentError.isNotBlank()) {
+                                            Text(inlinePaymentError, color = MaterialTheme.colorScheme.error)
+                                        }
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Button(enabled = !busy, onClick = {
+                                                scope.launch {
+                                                    busy = true
+                                                    inlinePaymentError = ""
+                                                    try {
+                                                        operationKind = OperationKind.CREATE_PAYMENT
+                                                        selectedCreditId = row.credit.id
+                                                        draftBalance = row.credit.balance.orEmpty()
+                                                        val saved = saveTypedOperation(stayOnPortfolio = true)
+                                                        inlinePaymentCreditId = null
+                                                        draftPaymentAmount = ""
+                                                        draftPaymentConfirmRemaining = ""
+                                                        watchedPaymentOperationIds += saved.operationId
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar(
+                                                                "Abono guardado en el teléfono; pendiente de confirmación del servidor.",
+                                                                duration = SnackbarDuration.Short
+                                                            )
+                                                        }
+                                                    } catch (error: IllegalArgumentException) {
+                                                        inlinePaymentError = error.message ?: "Abono inválido."
+                                                    } finally {
+                                                        busy = false
+                                                    }
+                                                }
+                                            }) { Text("Guardar abono") }
+                                            TextButton(onClick = {
+                                                inlinePaymentCreditId = null
+                                                inlinePaymentError = ""
+                                            }) { Text("Cancelar") }
+                                        }
+                                    }
+                                }
                             }
+                        }
+                        if (inlinePaymentCreditId == row.credit.id) {
+                            TextButton(onClick = {
+                                scope.launch {
+                                    val current = session ?: return@launch
+                                    val branch = current.selectedBranchId ?: return@launch
+                                    selectedCreditId = row.credit.id
+                                    paymentRows = app.database.localDao().payments(current.accountKey, branch, row.credit.id)
+                                    screen = Screen.CREDIT
+                                    if (online) {
+                                        when (val result = app.repository.openPaymentHistory(current, branch, row.credit.id)) {
+                                            is ApiResult.Success -> {
+                                                paymentRows = result.value
+                                                branchPayments = app.repository.paymentsForBranch(current.accountKey, branch)
+                                            }
+                                            else -> report(result)
+                                        }
+                                    }
+                                }
+                            }) { Text("Ver todos los movimientos / editar abono") }
                         }
                         if (row.customer != null) TextButton(onClick = {
                             scope.launch {
@@ -1865,8 +2036,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                         }) { Text("Ver cliente") }
                     }
                     if (search.isNotBlank()) {
-                        Text("Clientes guardados", style = MaterialTheme.typography.titleLarge)
-                        customerMatches.forEach { item ->
+                        item { Text("Clientes guardados", style = MaterialTheme.typography.titleLarge) }
+                        items(customerMatches, key = { "customer-${it.id}" }) { item ->
                             TextButton(onClick = {
                                 customer = item
                                 screen = Screen.CUSTOMER
@@ -1878,7 +2049,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             }
                         }
                     }
-                    Text("Este dispositivo conserva únicamente la cartera de la sucursal y los clientes que abras.")
+                    item { Text("Este dispositivo conserva únicamente la cartera de la sucursal y los clientes que abras.") }
+                    }
                 }
                 Screen.DEFAULTERS -> {
                     val canRestore = "pasar activos" in branchPermissionSet || "pasar activos retirados" in branchPermissionSet
@@ -1979,6 +2151,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             // needs a deliberate tap on the card itself in the portfolio.
                             pointedCreditId = row.credit.id
                             pointerArmed = false
+                            inlinePaymentCreditId = null
                             restorePointerScroll = true
                             screen = Screen.HOME
                         }) {

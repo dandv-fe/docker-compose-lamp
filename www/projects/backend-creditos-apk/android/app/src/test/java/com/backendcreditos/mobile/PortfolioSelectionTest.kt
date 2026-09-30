@@ -5,7 +5,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class PortfolioSelectionTest {
-    @Test fun firstTapSelectsAndSecondTapOnTheSameCardOpensIt() {
+    @Test fun firstTapSelectsAndSecondTapOnTheSameCardOpensInlinePayment() {
         assertEquals(PortfolioTap.SELECT, portfolioTap(null, "credit-1"))
         assertEquals(PortfolioTap.OPEN, portfolioTap("credit-1", "credit-1"))
         assertEquals(PortfolioTap.SELECT, portfolioTap("credit-1", "credit-2"))

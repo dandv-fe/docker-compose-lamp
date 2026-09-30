@@ -35,6 +35,9 @@ interface LocalDao {
     @Query("SELECT * FROM customers WHERE accountKey = :accountKey AND branchId = :branchId AND id = :id LIMIT 1")
     suspend fun customer(accountKey: String, branchId: String, id: String): CustomerEntity?
 
+    @Query("SELECT * FROM customers WHERE accountKey = :accountKey AND branchId = :branchId")
+    suspend fun customersForBranch(accountKey: String, branchId: String): List<CustomerEntity>
+
     @Query("DELETE FROM customers WHERE accountKey = :accountKey AND branchId = :branchId AND id = :id")
     suspend fun deleteCustomer(accountKey: String, branchId: String, id: String)
 
@@ -44,6 +47,9 @@ interface LocalDao {
 
     @Query("SELECT * FROM credits WHERE accountKey = :accountKey AND branchId = :branchId ORDER BY sortOrder, id")
     suspend fun portfolio(accountKey: String, branchId: String): List<CreditEntity>
+
+    @Query("SELECT * FROM credits WHERE accountKey = :accountKey AND branchId = :branchId AND id = :id LIMIT 1")
+    suspend fun credit(accountKey: String, branchId: String, id: String): CreditEntity?
 
     // Mirrors model/Cartera.php::listRuta(): hides credits in these statuses from the
     // main cartera list (a separate legacy screen exists for cancelled cards). Used only
@@ -85,6 +91,9 @@ interface LocalDao {
 
     @Query("SELECT * FROM offline_operations WHERE operationId = :operationId LIMIT 1")
     suspend fun operation(operationId: String): OfflineOperationEntity?
+
+    @Query("SELECT * FROM offline_operations WHERE operationId IN (:operationIds)")
+    suspend fun operationsByIds(operationIds: List<String>): List<OfflineOperationEntity>
 
     @Query("SELECT * FROM offline_operations WHERE accountKey = :accountKey AND companyId = :companyId AND branchId = :branchId ORDER BY createdAt")
     suspend fun operations(accountKey: String, companyId: String, branchId: String): List<OfflineOperationEntity>
