@@ -2,8 +2,11 @@ package com.backendcreditos.mobile.data
 
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -92,5 +95,23 @@ class OperationPayloadMapperTest {
         val alert = OperationPayloadMapper.upsertAlert("42", "alert-id", "i", "c", "a/,b", "m/,n")
         assertEquals("alert-id", alert.entityId)
         assertEquals("i/,c/,ab/,mn", (alert.payload as JsonObject).getValue("alerta").jsonPrimitive.content)
+    }
+
+    @Test fun bankSplitsTravelOnlyWhenChosenAndNeverExceedTheAmount() {
+        val cash = OperationPayloadMapper.createPayment("c", "p", "100", "Abono").payload as JsonObject
+        assertTrue("bancos" !in cash)
+        val mixed = OperationPayloadMapper.createPayment(
+            "c", "p", "100", "Abono", listOf(BankSplit(3, "60", " M-1 "))
+        ).payload as JsonObject
+        val split = mixed.getValue("bancos").jsonArray.single().jsonObject
+        assertEquals("3", split.getValue("idbanco").jsonPrimitive.content)
+        assertEquals("60.0", split.getValue("valor").jsonPrimitive.content)
+        assertEquals("M-1", split.getValue("referencia").jsonPrimitive.content)
+        assertThrows(IllegalArgumentException::class.java) {
+            OperationPayloadMapper.createPayment("c", "p", "100", "Abono", listOf(BankSplit(3, "101")))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            OperationPayloadMapper.createPayment("c", "p", "100", "Abono", listOf(BankSplit(3, "10"), BankSplit(3, "10")))
+        }
     }
 }

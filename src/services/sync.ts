@@ -102,7 +102,7 @@ export async function materializeSyncEvent(
                     t.str_tipo_comprobante AS receiptType,t.str_serie AS receiptSeries,
                     t.str_numero AS receiptNumber,t.str_nota AS note,t.str_abono AS paymentSummary,
                     t.str_style AS style,t.str_estado AS status,t.created_empleado_id AS createdEmployeeId,
-                    t.date_acuerdo AS agreementDate,t.created_at AS createdAt,t.updated_at AS updatedAt
+                    t.date_acuerdo AS agreementDate,t.created_at AS createdAt,t.updated_at AS updatedAt,(SELECT COALESCE(SUM(tp.dec_valor),0) FROM tbl_tarjeta_pago tp WHERE tp.idtarjeta=t.idtarjeta) AS bankFunded
              FROM tbl_tarjetas t
              WHERE t.idtarjeta=? AND t.idglobal=? AND t.idsucursal=? LIMIT 1`;
       params = [event.recordId, user.companyId, branchId];
@@ -112,6 +112,7 @@ export async function materializeSyncEvent(
                     d.str_descripcion AS description,d.str_estado AS state,
                     d.created_at AS createdAt,d.updated_at AS updatedAt,d.iddetalleruta AS routeId,
                     d.idusuario AS createdByUserId,d.str_origen AS origin,
+                    (SELECT COALESCE(SUM(dp.dec_valor),0) FROM tbl_descripcion_pago dp WHERE dp.iddescripcion=d.iddescripcion) AS bankAmount,
                     COALESCE(NULLIF(TRIM(CONCAT_WS(' ', p.str_nombres, p.str_apellidos)), ''), u.str_user_name)
                         AS createdByUsername
              FROM tbl_descripcion d
@@ -167,7 +168,7 @@ export async function materializeSyncEvent(
               t.str_tipo_comprobante AS receiptType,t.str_serie AS receiptSeries,
               t.str_numero AS receiptNumber,t.str_nota AS note,t.str_abono AS paymentSummary,
               t.str_style AS style,t.str_estado AS status,t.created_empleado_id AS createdEmployeeId,
-              t.date_acuerdo AS agreementDate,t.created_at AS createdAt,t.updated_at AS updatedAt
+              t.date_acuerdo AS agreementDate,t.created_at AS createdAt,t.updated_at AS updatedAt,(SELECT COALESCE(SUM(tp.dec_valor),0) FROM tbl_tarjeta_pago tp WHERE tp.idtarjeta=t.idtarjeta) AS bankFunded
        FROM tbl_tarjetas t
        WHERE t.idglobal=? AND t.idsucursal=? AND t.idcliente=?
        ORDER BY t.float_item,t.created_at`,

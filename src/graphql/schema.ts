@@ -7,7 +7,7 @@ import { login, type AuthContext } from '../services/auth.js';
 import { applyOfflineOperation, type OfflineInput } from '../services/operations.js';
 import {
   branches, branchPermissions, cancelledCredits, customerByDocument, customerById, customerCandidate, personDocumentTypes,
-  defaultersOfPortfolio, me, openRouteCash, paymentHistory, portfolio, portfolioClients, receiptSequences,
+  bankAccounts, defaultersOfPortfolio, me, openRouteCash, paymentHistory, portfolio, portfolioClients, receiptSequences,
   restoreCredit, syncChanges, withdrawnOfPortfolio,
 } from '../services/queries.js';
 import { fail } from '../services/errors.js';
@@ -85,6 +85,7 @@ const PaymentType = new GraphQLObjectType({
     routeId: { type: GraphQLInt },
     createdByUserId: { type: GraphQLInt }, createdByUsername: { type: GraphQLString },
     origin: { type: GraphQLString },
+    bankAmount: { type: GraphQLFloat },
   },
 });
 
@@ -95,6 +96,16 @@ const ReceiptSequenceType = new GraphQLObjectType({
     documentType: { type: new GraphQLNonNull(GraphQLString) },
     series: { type: GraphQLString },
     lastNumber: { type: GraphQLString },
+  },
+});
+
+const BankAccountType = new GraphQLObjectType({
+  name: 'BankAccount',
+  fields: {
+    id: { type: new GraphQLNonNull(GraphQLInt) },
+    name: { type: new GraphQLNonNull(GraphQLString) },
+    type: { type: GraphQLString },
+    number: { type: GraphQLString },
   },
 });
 
@@ -128,6 +139,7 @@ const CreditType = new GraphQLObjectType({
     note: { type: GraphQLString }, status: { type: GraphQLString },
     createdEmployeeId: { type: GraphQLInt }, agreementDate: { type: GraphQLString },
     createdAt: { type: GraphQLString }, updatedAt: { type: GraphQLString },
+    bankFunded: { type: GraphQLFloat },
     latestPayment: { type: PaymentType },
   },
 });
@@ -375,6 +387,12 @@ const Query = new GraphQLObjectType({
       args: { branchId: { type: new GraphQLNonNull(GraphQLInt) } },
       resolve: (_source, args, context: { auth: AuthContext | null }) =>
         receiptSequences(auth(context), args.branchId),
+    },
+    bankAccounts: {
+      type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(BankAccountType))),
+      args: { branchId: { type: new GraphQLNonNull(GraphQLInt) } },
+      resolve: (_source, args, context: { auth: AuthContext | null }) =>
+        bankAccounts(auth(context), args.branchId),
     },
     openRouteCash: {
       type: new GraphQLNonNull(RouteCashType),

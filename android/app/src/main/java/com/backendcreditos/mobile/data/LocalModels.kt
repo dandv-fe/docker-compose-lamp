@@ -75,7 +75,9 @@ data class CreditEntity(
     val receiptNumber: String? = null,
     val note: String? = null,
     val createdAt: String? = null,
-    val profit: String? = null
+    val profit: String? = null,
+    // Part of the loan paid out from a bank account (tbl_tarjeta_pago); the rest left in cash.
+    val bankFunded: String? = null
 )
 
 @Entity(
@@ -98,7 +100,9 @@ data class PaymentEntity(
     val createdLocally: Boolean = false,
     val creatorUsername: String? = null,
     val origin: String? = null,
-    val creatorUserId: Int? = null
+    val creatorUserId: Int? = null,
+    // Part of the abono received by bank transfer (tbl_descripcion_pago); the rest is cash.
+    val bankAmount: String? = null
 )
 
 @Entity(
@@ -176,6 +180,17 @@ data class RouteCashEntity(
 
 // Device-local reminder ("volver más tarde"). It is never sent to the server and is
 // removed with the rest of the account cache on logout.
+// Company bank accounts (tbl_banco) offered as payment methods besides cash.
+@Entity(tableName = "bank_accounts", primaryKeys = ["accountKey", "branchId", "id"])
+data class BankAccountEntity(
+    val accountKey: String,
+    val branchId: String,
+    val id: Int,
+    val name: String,
+    val type: String?,
+    val number: String?
+)
+
 @Entity(tableName = "marked_credits", primaryKeys = ["accountKey", "branchId", "creditId"])
 data class MarkedCreditEntity(
     val accountKey: String,

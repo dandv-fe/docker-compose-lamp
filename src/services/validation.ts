@@ -16,6 +16,11 @@ const clientFields = {
   maxCredito: number.nonnegative(), apodo: text(20), notaCliente: text(255),
   estadoCliente: text(15), fiadorPersonaId: z.number().int().nullable().optional(),
 };
+// Part of an abono received, or of a new credit paid out, through a company bank account
+// (tbl_banco). Whatever is not covered by these rows is cash.
+const bankSplits = z.array(z.object({
+  idbanco: z.number().int().positive(), valor: number.positive(), referencia: text(50).optional(),
+}).strict()).max(5).optional();
 const creditFields = {
   idtarjeta: z.string().min(1).max(50), idcliente: z.number().int(), idventa: z.number().int().nullable().optional(),
   concepto: text(30), valor: number, modo: z.enum(['Diario', 'Semanal', 'Quincenal', 'Mensual']),
@@ -24,9 +29,11 @@ const creditFields = {
   tipoComprobante: text(30), serie: text(11), numero: text(11), nota: z.string().max(65_535),
   obligacion: nullableText(11), detalleDocumentoSucursalId: z.number().int(),
   tarjetaReferenciaId: text(50).optional(), ubicacion: z.enum(['antes', 'despues']).optional(),
+  bancos: bankSplits,
 };
 const paymentFields = {
   iddescripcion: z.string().min(1).max(50), abono: number, descripcion: text(255).optional(),
+  bancos: bankSplits,
 };
 const commentFields = {
   idcliente: z.number().int(), comentario: text(255), tipo: text(30),
@@ -48,7 +55,7 @@ export const operationPayloadSchemas: Record<string, z.ZodTypeAny> = {
     numero: text(11), createdAt: text(19),
   }).strict(),
   CREATE_PAYMENT: z.object(paymentFields).strict(),
-  UPDATE_PAYMENT: z.object({ abono: number, descripcion: text(255) }).strict(),
+  UPDATE_PAYMENT: z.object({ abono: number, descripcion: text(255), bancos: bankSplits }).strict(),
   DELETE_PAYMENT: z.object({}).strict(),
   DELETE_CREDIT: z.object({}).strict(),
   APPLY_DISCOUNT: z.object({ amount: number, descripcion: text(255).optional() }).strict(),

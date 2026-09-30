@@ -198,6 +198,7 @@ data class CreditDto(
     val agreementDate: String? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null,
+    val bankFunded: Double? = null,
     val latestPayment: PaymentDto? = null
 )
 
@@ -241,7 +242,8 @@ data class PaymentDto(
     val routeId: Int? = null,
     val createdByUserId: Int? = null,
     val createdByUsername: String? = null,
-    val origin: String? = null
+    val origin: String? = null,
+    val bankAmount: Double? = null
 )
 
 @Serializable
@@ -300,6 +302,12 @@ data class ReceiptSequenceDto(
     val series: String? = null,
     val lastNumber: String? = null
 )
+
+@Serializable
+data class BankAccountDto(val id: Int, val name: String, val type: String? = null, val number: String? = null)
+
+@Serializable
+data class BankAccountsData(val bankAccounts: List<BankAccountDto>)
 
 @Serializable
 data class RouteCashDto(

@@ -379,6 +379,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     }
     var draftCardPlacement by remember { mutableStateOf(CardPlacement.AFTER) }
     var draftCost by remember { mutableStateOf("0") }
+    var draftPaymentMethod by remember { mutableStateOf(PaymentMethodDraft()) }
+    var bankAccounts by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.data.BankAccountEntity>()) }
     var defaulterRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.network.DefaulterCreditDto>()) }
     var withdrawnRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.network.WithdrawnCreditDto>()) }
     var cancelledRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.network.CancelledCreditDto>()) }
@@ -402,6 +404,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         markedCreditIds = app.repository.markedCredits(current.accountKey, branch).toSet()
         receiptSequences = app.repository.receiptSequences(current.accountKey, branch)
         routeCash = app.repository.routeCash(current.accountKey, branch)
+        bankAccounts = app.repository.bankAccounts(current.accountKey, branch)
         // Keep the open card's movement list fresh too, so returning to it right after saving
         // an abono shows the new row without waiting for a server round trip.
         selectedCreditId?.let { creditId ->
@@ -679,6 +682,9 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         // valid and the create form is the only thing that needs it.
         app.repository.syncReceiptSequences(current, branch)
         receiptSequences = app.repository.receiptSequences(current.accountKey, branch)
+        // Bank accounts change rarely; the cached list keeps the payment method picker offline.
+        app.repository.syncBankAccounts(current, branch)
+        bankAccounts = app.repository.bankAccounts(current.accountKey, branch)
         refreshRouteCash()
     }
 
@@ -953,7 +959,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                 draftPrincipal, draftDescription, draftInitialPayment, draftSortOrder, draftProfit,
                 draftAdditionalNumber, draftAdditionalValue, draftReceiptType, draftSeries,
                 draftReceiptNumber, draftNote, draftObligation, draftDocumentSequenceId,
-                selectedCreditId, if (draftCardPlacement == CardPlacement.BEFORE) "antes" else "despues"
+                selectedCreditId, if (draftCardPlacement == CardPlacement.BEFORE) "antes" else "despues",
+                draftPaymentMethod.splits(draftPrincipal)
             )
             OperationKind.UPDATE_CREDIT -> OperationPayloadMapper.updateCredit(
                 entityId, draftConcept, draftValue, draftFrequency, draftTerm, draftPrincipal,
@@ -965,7 +972,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             )
             OperationKind.CREATE_PAYMENT -> OperationPayloadMapper.createPayment(
                 selectedCreditId ?: throw IllegalArgumentException("Selecciona un crédito."),
-                UUID.randomUUID().toString(), draftPaymentAmount, draftPaymentDescription
+                UUID.randomUUID().toString(), draftPaymentAmount, draftPaymentDescription,
+                draftPaymentMethod.splits(draftPaymentAmount)
             )
             OperationKind.UPDATE_PAYMENT ->
                 OperationPayloadMapper.updatePayment(entityId, draftPaymentAmount, draftPaymentDescription)
@@ -1058,6 +1066,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             syncControl = null
             activityLogRows = emptyList()
             routeCash = null
+            bankAccounts = emptyList()
             password = ""
             pointedCreditId = null
             pointerArmed = false
@@ -1140,6 +1149,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             draftCustomerStatus = "activo"
             draftGuarantorPersonId = ""
         }
+        draftPaymentMethod = PaymentMethodDraft()
         if (kind == OperationKind.CREATE_CREDIT) {
             entityId = UUID.randomUUID().toString()
             draftConcept = "Prestamo"
@@ -1925,19 +1935,23 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                         )
                     }
                     val cash = pocketCash(routeSummary, routeCash?.base, routeCash?.otherIncome, routeCash?.expenses)
+                    val hasBank = cash.bankIn.signum() != 0 || cash.bankOut.signum() != 0
                     Text(
                         "Caja: ${formatCompactMoney(cash.total)} = B ${formatCompactMoney(cash.base)}" +
-                            " + R ${formatCompactMoney(cash.collected)} + O ${formatCompactMoney(cash.otherIncome)}" +
-                            " − G ${formatCompactMoney(cash.expenses)} − C ${formatCompactMoney(cash.newCredits)}" +
+                            " + R ${formatCompactMoney(cash.cashCollected)} + O ${formatCompactMoney(cash.otherIncome)}" +
+                            " − G ${formatCompactMoney(cash.expenses)} − C ${formatCompactMoney(cash.cashCredits)}" +
+                            (if (hasBank) " · Banco: +${formatCompactMoney(cash.bankIn)} −${formatCompactMoney(cash.bankOut)}" else "") +
                             if (routeCash == null) " · sin datos de base/gastos" else "",
                         style = MaterialTheme.typography.bodySmall,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.semantics {
                             contentDescription = "Caja de bolsillo ${formatCompactMoney(cash.total)}: base " +
-                                "${formatCompactMoney(cash.base)}, abonos ${formatCompactMoney(cash.collected)}, otro recaudo " +
+                                "${formatCompactMoney(cash.base)}, abonos en efectivo ${formatCompactMoney(cash.cashCollected)}, otro recaudo " +
                                 "${formatCompactMoney(cash.otherIncome)}, menos gastos ${formatCompactMoney(cash.expenses)} " +
-                                "y créditos ${formatCompactMoney(cash.newCredits)}"
+                                "y créditos en efectivo ${formatCompactMoney(cash.cashCredits)}" +
+                                if (hasBank) ". Por banco: recibido ${formatCompactMoney(cash.bankIn)}, " +
+                                    "pagado ${formatCompactMoney(cash.bankOut)}" else ""
                         }
                     )
                     }
@@ -1983,6 +1997,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             draftPaymentOriginalAmount = "0"
                             draftPaymentAmount = ""
                             draftPaymentConfirmRemaining = ""
+                            draftPaymentMethod = PaymentMethodDraft()
                             inlinePaymentError = ""
                             inlinePaymentCreditId = if (inlinePaymentCreditId == row.credit.id) null else row.credit.id
                         }) {
@@ -2131,6 +2146,10 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                             modifier = Modifier.fillMaxWidth(),
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                                         )
+                                        PaymentMethodPicker(
+                                            bankAccounts, draftPaymentMethod, { draftPaymentMethod = it },
+                                            "¿Cuánto entró por banco?"
+                                        )
                                         if (inlinePaymentError.isNotBlank()) {
                                             Text(inlinePaymentError, color = MaterialTheme.colorScheme.error)
                                         }
@@ -2147,6 +2166,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                                         inlinePaymentCreditId = null
                                                         draftPaymentAmount = ""
                                                         draftPaymentConfirmRemaining = ""
+                                                        draftPaymentMethod = PaymentMethodDraft()
                                                         watchedPaymentOperationIds += saved.operationId
                                                         scope.launch {
                                                             snackbarHostState.showSnackbar(
@@ -3211,6 +3231,10 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             }
                             OutlinedTextField(draftValue, { draftValue = it }, label = { Text("Valor total a pagar (deuda inicial) *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
                             OutlinedTextField(draftCost, { draftCost = it }, label = { Text("Costo / capital entregado (no es la deuda) *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                            PaymentMethodPicker(
+                                bankAccounts, draftPaymentMethod, { draftPaymentMethod = it },
+                                "¿Cuánto del costo salió del banco?"
+                            )
                             Text(
                                 if (session?.isSuperAdministrator == true)
                                     "Si se amplía el cupo del cliente, Super Administrador no tiene límite de empleado."
@@ -3282,6 +3306,10 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 label = { Text("Confirma cuánto queda restando *") },
                                 modifier = Modifier.fillMaxWidth(),
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                            )
+                            if (operationKind == OperationKind.CREATE_PAYMENT) PaymentMethodPicker(
+                                bankAccounts, draftPaymentMethod, { draftPaymentMethod = it },
+                                "¿Cuánto entró por banco?"
                             )
                         }
                         OperationKind.APPLY_DISCOUNT, OperationKind.ADD_INTEREST -> {

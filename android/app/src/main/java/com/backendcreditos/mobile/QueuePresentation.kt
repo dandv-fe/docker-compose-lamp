@@ -58,6 +58,7 @@ internal fun summarizeOperation(
             if (amounts.isNotEmpty()) details += amounts.joinToString(" · ")
             val plan = listOfNotNull(text("plazo")?.let { "$it cuotas" }, text("modo")).joinToString(" ")
             if (plan.isNotBlank()) details += "Plazo $plan"
+            bankTotal(data)?.let { details += "Pagado por banco $it" }
             money("cuotaInicial")?.takeIf { text("cuotaInicial")?.toBigDecimalOrNull()?.signum() != 0 }
                 ?.let { details += "Cuota inicial $it" }
         }
@@ -68,6 +69,7 @@ internal fun summarizeOperation(
         OperationKind.CREATE_PAYMENT, OperationKind.UPDATE_PAYMENT -> {
             money("abono")?.let { details += "Abono $it" }
             text("descripcion")?.takeUnless { it.equals("Abono", ignoreCase = true) }?.let { details += it }
+            bankTotal(data)?.let { details += "Por banco $it" }
         }
         OperationKind.DELETE_PAYMENT -> {
             details += paymentAmount?.toBigDecimalOrNull()?.abs()
@@ -92,6 +94,14 @@ internal fun summarizeOperation(
     }
     if (cardLabel != null && kind != OperationKind.CREATE_CREDIT) details.add(0, cardLabel)
     return OperationSummary(person?.takeIf(String::isNotBlank), details)
+}
+
+private fun bankTotal(data: JsonObject): String? {
+    val splits = data["bancos"] as? kotlinx.serialization.json.JsonArray ?: return null
+    val total = splits.sumOf {
+        ((it as? JsonObject)?.get("valor") as? JsonPrimitive)?.contentOrNull?.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO
+    }
+    return total.takeIf { it.signum() > 0 }?.let(::formatMoney)
 }
 
 /** The card as the collector knows it: concept, value and current balance. */

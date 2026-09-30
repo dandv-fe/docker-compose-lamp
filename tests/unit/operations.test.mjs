@@ -4,7 +4,7 @@ import {
   assertBaseVersion, assertPayloadMatch, operationPayloadSchemas, parseOperationPayload,
   centsToDecimal, decimalToCents, payloadDigest, stableJson, serializeAlert, rejectExistingAlert,
 } from '../../dist/services/validation.js';
-import { applyOfflineOperation, assertCustomerBranch, assertEmployeeCreditApproval, creditAcceptsAdditionalInterest, ensureCreditLimit, nextReceiptNumber, openRoute, planPositionBesideCard, positionBesideCard } from '../../dist/services/operations.js';
+import { applyOfflineOperation, saveBankSplits, assertCustomerBranch, assertEmployeeCreditApproval, creditAcceptsAdditionalInterest, ensureCreditLimit, nextReceiptNumber, openRoute, planPositionBesideCard, positionBesideCard } from '../../dist/services/operations.js';
 import { mapTransactionError } from '../../dist/services/errors.js';
 
 test('idempotency payload comparison is key-order independent and rejects changed input', () => {
@@ -264,4 +264,38 @@ test('existing alerts conflict rather than update', () => {
     () => rejectExistingAlert(true),
     { extensions: { code: 'CONFLICT' } },
   );
+});
+
+test('abonos and credits accept optional bank splits; cash stays the default', () => {
+  const payment = { iddescripcion: 'p1', abono: -50000 };
+  assert.equal(parseOperationPayload('CREATE_PAYMENT', payment).bancos, undefined);
+  assert.equal(parseOperationPayload('CREATE_PAYMENT', {
+    ...payment, bancos: [{ idbanco: 3, valor: 30000, referencia: 'M123' }],
+  }).bancos[0].valor, 30000);
+  assert.equal(operationPayloadSchemas.CREATE_PAYMENT.safeParse({ ...payment, bancos: [{ idbanco: 3, valor: -1 }] }).success, false);
+  assert.equal(operationPayloadSchemas.CREATE_PAYMENT.safeParse({ ...payment, bancos: [{ idbanco: 3, valor: 1, idglobal: 9 }] }).success, false);
+  assert.equal(operationPayloadSchemas.UPDATE_PAYMENT.safeParse({ abono: -1, descripcion: 'Abono', bancos: [] }).success, true);
+});
+
+test('bank splits replace previous rows, check company accounts and never exceed the amount', async () => {
+  const calls = [];
+  const conn = { async execute(sql, params) {
+    calls.push({ sql, params });
+    if (sql.includes('FROM tbl_banco')) return [[{ idbanco: 3 }]];
+    return [{ affectedRows: 1 }];
+  } };
+  await saveBankSplits(conn, 'payment', 'p1', 7, 11, [{ idbanco: 3, valor: 30000, referencia: ' M1 ' }], 5000000n);
+  assert.match(calls[0].sql, /DELETE FROM tbl_descripcion_pago WHERE iddescripcion=\? AND idglobal=\?/);
+  assert.match(calls[1].sql, /idglobal=\? AND str_estado='activo'/);
+  assert.deepEqual(calls[1].params, [7, 3]);
+  assert.match(calls[2].sql, /INSERT INTO tbl_descripcion_pago/);
+  assert.deepEqual(calls[2].params, [7, 'p1', 3, '30000.00', 'M1', 11]);
+
+  await assert.rejects(saveBankSplits(conn, 'credit', 't1', 7, 11, [{ idbanco: 3, valor: 60 }], 5000n),
+    { extensions: { code: 'BUSINESS_RULE' } });
+  await assert.rejects(saveBankSplits(conn, 'credit', 't1', 7, 11, [{ idbanco: 3, valor: 1 }, { idbanco: 3, valor: 1 }], 5000n),
+    { extensions: { code: 'VALIDATION_ERROR' } });
+  const foreign = { async execute(sql) { return sql.includes('FROM tbl_banco') ? [[]] : [{}]; } };
+  await assert.rejects(saveBankSplits(foreign, 'credit', 't1', 7, 11, [{ idbanco: 9, valor: 1 }], 5000n),
+    { extensions: { code: 'BUSINESS_RULE' } });
 });

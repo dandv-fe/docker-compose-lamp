@@ -492,6 +492,8 @@ async function executeOperation(
           decimal(payload.adicionalValor), payload.tipoComprobante, payload.serie, receiptNumber, payload.nota,
           employeeId],
       );
+      await saveBankSplits(conn, 'credit', String(payload.idtarjeta), companyId, userId,
+        payload.bancos as BankSplit[] | undefined, decimalToCents(payload.prestamo as number));
       await conn.execute(
         `UPDATE tbl_detalle_documento_sucursal SET str_ultimo_numero = ?
          WHERE iddetalle_documento_sucursal = ? AND idglobal = ? AND idsucursal = ?`,
@@ -581,6 +583,8 @@ async function executeOperation(
         [payload.iddescripcion, companyId, input.branchId, credit.idtarjeta, routeId, centsToDecimal(amount),
           payload.descripcion || 'Abono', userId, PAYMENT_ORIGIN],
       );
+      await saveBankSplits(conn, 'payment', String(payload.iddescripcion), companyId, userId,
+        payload.bancos as BankSplit[] | undefined, -amount);
       await conn.execute(
         `UPDATE tbl_tarjetas SET dec_resta=?,updated_at=NOW()
          WHERE idtarjeta=? AND idglobal=? AND idsucursal=?`,
@@ -617,6 +621,20 @@ async function executeOperation(
         'UPDATE tbl_descripcion SET dec_abono=?,str_descripcion=?,updated_at=NOW() WHERE iddescripcion=? AND idglobal=? AND idsucursal=?',
         [centsToDecimal(amount), payload.descripcion, input.entityId, companyId, input.branchId],
       );
+      if (payload.bancos !== undefined) {
+        await saveBankSplits(conn, 'payment', input.entityId, companyId, userId,
+          payload.bancos as BankSplit[], -amount);
+      } else {
+        // An edit that does not mention banks keeps them, but can never leave more money
+        // "in the bank" than the abono itself.
+        const [bankRows] = await conn.execute<RowDataPacket[]>(
+          'SELECT COALESCE(SUM(dec_valor),0) AS total FROM tbl_descripcion_pago WHERE iddescripcion=? AND idglobal=?',
+          [input.entityId, companyId],
+        );
+        if (decimalToCents(String(bankRows[0]?.total ?? 0)) > -amount) {
+          fail('BUSINESS_RULE', 'Bank amounts exceed the operation amount');
+        }
+      }
       const balance = await recalculateBalance(conn, credit);
       return { entityId: input.entityId, data: { id: input.entityId, creditId: credit.idtarjeta, remaining: balance }, recordType: 'payment', action: 'UPDATE', branchId: input.branchId, relatedId: credit.idtarjeta };
     }
@@ -798,6 +816,38 @@ async function executeOperation(
         relatedId: String(customer.idcliente),
       };
     }
+  }
+}
+
+type BankSplit = { idbanco: number; valor: number; referencia?: string };
+
+// Stores how much of an abono (tbl_descripcion_pago) or of a new credit (tbl_tarjeta_pago) went
+// through company bank accounts. Replaces any previous rows, so it also serves payment edits.
+// The rest of the amount is cash, which is what the collector must carry in the pocket.
+export async function saveBankSplits(
+  conn: SqlConnection, target: 'payment' | 'credit', id: string, companyId: number,
+  userId: number, splits: BankSplit[] | undefined, maxCents: bigint,
+) {
+  const table = target === 'payment' ? 'tbl_descripcion_pago' : 'tbl_tarjeta_pago';
+  const column = target === 'payment' ? 'iddescripcion' : 'idtarjeta';
+  await conn.execute(`DELETE FROM ${table} WHERE ${column}=? AND idglobal=?`, [id, companyId]);
+  if (!splits?.length) return;
+  const bankIds = splits.map((split) => split.idbanco);
+  if (new Set(bankIds).size !== bankIds.length) fail('VALIDATION_ERROR', 'Each bank account can appear only once');
+  const total = splits.reduce((sum, split) => sum + decimalToCents(split.valor), 0n);
+  if (total > maxCents) fail('BUSINESS_RULE', 'Bank amounts exceed the operation amount');
+  const [banks] = await conn.execute<RowDataPacket[]>(
+    `SELECT idbanco FROM tbl_banco WHERE idglobal=? AND str_estado='activo'
+     AND idbanco IN (${bankIds.map(() => '?').join(',')})`,
+    [companyId, ...bankIds],
+  );
+  if (banks.length !== bankIds.length) fail('BUSINESS_RULE', 'Bank account is inactive or outside the company');
+  for (const split of splits) {
+    await conn.execute(
+      `INSERT INTO ${table} (idglobal,${column},idbanco,dec_valor,str_referencia,idusuario,created_at)
+       VALUES (?,?,?,?,?,?,NOW())`,
+      [companyId, id, split.idbanco, decimal(split.valor), split.referencia?.trim() || null, userId],
+    );
   }
 }
 

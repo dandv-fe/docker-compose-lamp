@@ -96,6 +96,7 @@ Queries:
 * `customerByDocument(branchId: Int!, documentType: String!, documentNumber: String!)`
 * `paymentHistory(branchId: Int!, creditId: ID!)`
 * `receiptSequences(branchId: Int!)` — branch `Comprobante` counters (`id`, `series`, `lastNumber`, `documentType`) that feed the new-card form, mirroring `Cartera::GetTipoDocSerieNum`
+* `bankAccounts(branchId: Int!)` — active `tbl_banco` accounts of the company (`id`, `name`, `type`, `number`), ordered by `int_orden`, offered as payment methods besides cash
 * `openRouteCash(branchId: Int!)` — `routeId`, `base`, `otherIncome` and `expenses` (positive) of the branch's open, not yet saved `tbl_detalle_ruta`, summed from `tbl_contabilidad_detalle`: `base` rows, `entrada-*` except `recaudo`/`diferencia`, and `salida-*` except tipo 4 (prestamos/articulos); used by the APK pocket-cash line
 * `syncChanges(branchId: Int!, after: String!, first: Int)`
 
@@ -166,11 +167,11 @@ Payload fields by kind (all undeclared fields are rejected):
 | --- | --- |
 | `CREATE_CUSTOMER`, `UPDATE_CUSTOMER` | Customer fields above; `fechaNacimiento`, `fotoBase64`, and `fiadorPersonaId` may be omitted. |
 | `UPDATE_DOCUMENT` | `tipoDocumento`, `numeroDocumento` |
-| `CREATE_CREDIT` | `idtarjeta`, `idcliente`, `concepto`, `valor`, `modo`, `plazo`, `prestamo`, `descripcion`, `item`, `utilidad`, `adicionalNumero`, `adicionalValor`, `tipoComprobante`, `serie`, `numero`, `nota`, `detalleDocumentoSucursalId`; optional `idventa`, `cuotaInicial`, `obligacion` |
+| `CREATE_CREDIT` | `idtarjeta`, `idcliente`, `concepto`, `valor`, `modo`, `plazo`, `prestamo`, `descripcion`, `item`, `utilidad`, `adicionalNumero`, `adicionalValor`, `tipoComprobante`, `serie`, `numero`, `nota`, `detalleDocumentoSucursalId`; optional `idventa`, `cuotaInicial`, `obligacion`, `bancos` |
 | `UPDATE_CREDIT` | `concepto`, `valor`, `modo`, `plazo`, `prestamo`, `descripcion`, `item`, `utilidad`, `adicionalNumero`, `adicionalValor`, `tipoComprobante`, `serie`, `numero`, `nota` |
 | `UPDATE_CREDIT_TERMS` | `modo`, `plazo`, `numero`, `createdAt` |
-| `CREATE_PAYMENT` | `iddescripcion`, negative `abono`; optional `descripcion` |
-| `UPDATE_PAYMENT` | negative `abono`, `descripcion` |
+| `CREATE_PAYMENT` | `iddescripcion`, negative `abono`; optional `descripcion`, `bancos` |
+| `UPDATE_PAYMENT` | negative `abono`, `descripcion`; optional `bancos` |
 | `DELETE_PAYMENT`, `DELETE_CREDIT`, `DELETE_COMMENT` | `{}` |
 | `APPLY_DISCOUNT` | `amount`; optional `descripcion` |
 | `ADD_INTEREST` | `amount`, `plazo`; optional `descripcion` |
@@ -247,6 +248,25 @@ an attempt to submit another alert for the same customer and user returns
 `icon/,color/,subject/,text`; the `/,` separator is removed from subject and
 text before storage, matching PHP behavior. The combined value must fit the
 legacy 255-character column.
+
+## Payment methods migration
+
+`migrations/003_payment_methods.sql` improves the unused `tbl_banco` (adds
+`idglobal`, `str_estado` default `'activo'`, `int_orden`, timestamps and index
+`ix_banco_global_estado`) and creates two link tables: `tbl_descripcion_pago`
+(abono ↔ bank) and `tbl_tarjeta_pago` (credit/article paid out ↔ bank). An abono
+or credit **without rows is 100 % cash**, so `tbl_descripcion`/`tbl_tarjetas`
+are untouched and historical data stays valid; several rows allow mixed
+payments. It is re-runnable and has a commented rollback. **Apply it before
+deploying this API version**: payment and credit queries read the link tables.
+
+`CREATE_PAYMENT`, `UPDATE_PAYMENT` and `CREATE_CREDIT` accept optional
+`bancos: [{ idbanco, valor > 0, referencia? }]` (max 5, no repeated bank). The
+server checks that each bank is active and belongs to the company and that the
+sum does not exceed the abono (or the credit's `prestamo`). On `UPDATE_PAYMENT`,
+sending `bancos` replaces the split; omitting it keeps it, and the update is
+rejected if the kept split would exceed the new amount. Payments expose
+`bankAmount` and credits `bankFunded` (sum of their bank rows).
 
 ## Payment author migration
 

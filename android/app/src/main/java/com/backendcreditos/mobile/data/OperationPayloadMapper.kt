@@ -1,6 +1,9 @@
 package com.backendcreditos.mobile.data
 
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -8,6 +11,9 @@ import kotlinx.serialization.json.put
 import java.util.UUID
 
 data class MappedOperation(val entityId: String, val payload: JsonElement)
+
+/** Part of an abono (or of a loan paid out) that went through a bank account instead of cash. */
+data class BankSplit(val bankId: Int, val amount: String, val reference: String = "")
 
 object OperationPayloadMapper {
     fun customer(
@@ -59,7 +65,8 @@ object OperationPayloadMapper {
         term: String, loan: String, description: String, initialPayment: String, item: String,
         profit: String, additionalNumber: String, additionalValue: String, receiptType: String,
         series: String, receiptNumber: String, note: String, obligation: String, documentSequenceId: String,
-        referenceCardId: String? = null, placement: String? = null
+        referenceCardId: String? = null, placement: String? = null,
+        banks: List<BankSplit> = emptyList()
     ): MappedOperation {
         require(creditId.isNotBlank() && creditId.length <= 50)
         val customer = customerId.toIntOrNull()?.takeIf { it > 0 }
@@ -104,6 +111,7 @@ object OperationPayloadMapper {
                 put("tarjetaReferenciaId", referenceCardId)
                 put("ubicacion", placement)
             }
+            if (banks.isNotEmpty()) put("bancos", bankSplits(banks, number(loan, "Préstamo"), "préstamo"))
         }
         return MappedOperation(creditId, fields)
     }
@@ -143,7 +151,10 @@ object OperationPayloadMapper {
             put("createdAt", createdAt)
         })
 
-    fun createPayment(creditId: String, paymentId: String, amount: String, description: String): MappedOperation {
+    fun createPayment(
+        creditId: String, paymentId: String, amount: String, description: String,
+        banks: List<BankSplit> = emptyList()
+    ): MappedOperation {
         require(creditId.isNotBlank() && creditId.length <= 50)
         require(paymentId.isNotBlank() && paymentId.length <= 50)
         require(description.length <= 255)
@@ -153,7 +164,28 @@ object OperationPayloadMapper {
             put("iddescripcion", paymentId)
             put("abono", JsonPrimitive(-positiveAmount))
             put("descripcion", description.takeIf(String::isNotBlank) ?: "Abono")
+            if (banks.isNotEmpty()) put("bancos", bankSplits(banks, positiveAmount, "abono"))
         })
+    }
+
+    private fun bankSplits(banks: List<BankSplit>, total: Double, label: String): JsonArray {
+        require(banks.size <= 5) { "Máximo 5 bancos por movimiento." }
+        require(banks.map { it.bankId }.toSet().size == banks.size) { "No repitas el mismo banco." }
+        val amounts = banks.map { split ->
+            require(split.bankId > 0) { "Selecciona un banco válido." }
+            require(split.reference.trim().length <= 50) { "La referencia admite máximo 50 caracteres." }
+            number(split.amount, "Valor por banco").also { require(it > 0.0) { "El valor por banco debe ser mayor que cero." } }
+        }
+        require(amounts.sum() <= total + 0.004) { "Lo pagado por banco supera el $label." }
+        return buildJsonArray {
+            banks.zip(amounts).forEach { (split, value) ->
+                add(buildJsonObject {
+                    put("idbanco", JsonPrimitive(split.bankId))
+                    put("valor", JsonPrimitive(value))
+                    if (split.reference.isNotBlank()) put("referencia", split.reference.trim())
+                })
+            }
+        }
     }
 
     fun updatePayment(id: String, amount: String, description: String) =

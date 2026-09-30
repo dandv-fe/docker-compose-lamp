@@ -10,18 +10,29 @@ internal data class RouteTotals(
     val totalCards: Int,
     val collected: BigDecimal,
     val newCredits: BigDecimal,
-    val insurance: BigDecimal = BigDecimal.ZERO
+    val insurance: BigDecimal = BigDecimal.ZERO,
+    /** Part of [collected] received by bank transfer (never reaches the pocket). */
+    val collectedBank: BigDecimal = BigDecimal.ZERO,
+    /** Part of [newCredits] paid out from a bank account (never left the pocket). */
+    val creditsBank: BigDecimal = BigDecimal.ZERO
 )
 
-/** Pocket cash = base + abonos + other income (incl. seguros) − expenses − new credits. */
+/**
+ * Pocket cash = base + cash abonos + other income (incl. seguros) − expenses − credits paid in cash.
+ * Bank transfers are kept apart: [bankIn] abonos received by bank, [bankOut] credits paid by bank.
+ */
 internal data class PocketCash(
     val base: BigDecimal,
     val collected: BigDecimal,
     val otherIncome: BigDecimal,
     val expenses: BigDecimal,
-    val newCredits: BigDecimal
+    val newCredits: BigDecimal,
+    val bankIn: BigDecimal = BigDecimal.ZERO,
+    val bankOut: BigDecimal = BigDecimal.ZERO
 ) {
-    val total: BigDecimal get() = base + collected + otherIncome - expenses - newCredits
+    val cashCollected: BigDecimal get() = collected - bankIn
+    val cashCredits: BigDecimal get() = newCredits - bankOut
+    val total: BigDecimal get() = base + cashCollected + otherIncome - expenses - cashCredits
 }
 
 internal fun pocketCash(totals: RouteTotals, base: String?, otherIncome: String?, expenses: String?) = PocketCash(
@@ -29,7 +40,9 @@ internal fun pocketCash(totals: RouteTotals, base: String?, otherIncome: String?
     collected = totals.collected,
     otherIncome = (otherIncome?.toBigDecimalOrNull() ?: BigDecimal.ZERO) + totals.insurance,
     expenses = expenses?.toBigDecimalOrNull() ?: BigDecimal.ZERO,
-    newCredits = totals.newCredits
+    newCredits = totals.newCredits,
+    bankIn = totals.collectedBank,
+    bankOut = totals.creditsBank
 )
 
 private val openStates = setOf("created", "entregando")
@@ -42,15 +55,18 @@ private val collectedPattern = Regex("Abono|Inicial|Cancelado", RegexOption.IGNO
  * - cardsWithPayments: cards whose collected amount is above zero.
  * - newCredits: dec_prestamo ("costo") of cards created in the open route.
  * - insurance: dec_c_adicional_valor (seguros) of those cards, which webgoez adds to the recaudo.
+ * - collectedBank / creditsBank: the part of those abonos / loans that went through a bank.
  * One pass over each list, so it stays cheap with hundreds of cards.
  */
 internal fun routeTotals(credits: List<CreditEntity>, payments: List<PaymentEntity>): RouteTotals {
     val perCard = HashMap<String, BigDecimal>()
+    var collectedBank = BigDecimal.ZERO
     for (payment in payments) {
         if (payment.state !in openStates) continue
         if (!collectedPattern.containsMatchIn(payment.description.orEmpty())) continue
         val amount = payment.amount?.toBigDecimalOrNull() ?: continue
         perCard[payment.creditId] = (perCard[payment.creditId] ?: BigDecimal.ZERO).subtract(amount)
+        payment.bankAmount?.toBigDecimalOrNull()?.let { collectedBank = collectedBank.add(it) }
     }
     var collected = BigDecimal.ZERO
     var cardsWithPayments = 0
@@ -60,13 +76,15 @@ internal fun routeTotals(credits: List<CreditEntity>, payments: List<PaymentEnti
     }
     var newCredits = BigDecimal.ZERO
     var insurance = BigDecimal.ZERO
+    var creditsBank = BigDecimal.ZERO
     for (credit in credits) {
         if (credit.status in openStates) {
             credit.principal?.toBigDecimalOrNull()?.let { newCredits = newCredits.add(it) }
+            credit.bankFunded?.toBigDecimalOrNull()?.let { creditsBank = creditsBank.add(it) }
             credit.additionalValue?.toBigDecimalOrNull()?.let { insurance = insurance.add(it) }
         }
     }
-    return RouteTotals(cardsWithPayments, credits.size, collected, newCredits, insurance)
+    return RouteTotals(cardsWithPayments, credits.size, collected, newCredits, insurance, collectedBank, creditsBank)
 }
 
 private val compactLocale = Locale("es", "CO")

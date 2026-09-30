@@ -353,7 +353,8 @@ class CreditRepository(
                 receiptSeries = fields["serie"].textOr(null),
                 receiptNumber = fields["numero"].textOr(null),
                 note = fields["nota"].textOr(null),
-                profit = fields["utilidad"].textOr(null)
+                profit = fields["utilidad"].textOr(null),
+                bankFunded = bankSplitTotal(fields)
             )))
         }
         return operation
@@ -473,7 +474,8 @@ class CreditRepository(
                     receiptSeries = fields["serie"].textOr(null),
                     receiptNumber = fields["numero"].textOr(null),
                     note = fields["nota"].textOr(null),
-                    profit = fields["utilidad"].textOr(null)
+                    profit = fields["utilidad"].textOr(null),
+                    bankFunded = bankSplitTotal(fields)
                 )))
             }
             OperationKind.CREATE_PAYMENT, OperationKind.UPDATE_PAYMENT -> {
@@ -501,7 +503,8 @@ class CreditRepository(
                                 description = fields["descripcion"].textOr(existing?.description),
                                 createdLocally = existing?.createdLocally ?: true,
                                 creatorUsername = existing?.creatorUsername ?: creatorUsername,
-                                creatorUserId = existing?.creatorUserId ?: creatorUserId
+                                creatorUserId = existing?.creatorUserId ?: creatorUserId,
+                                bankAmount = bankSplitTotal(fields) ?: existing?.bankAmount
                             )
                         ))
                         // Keep the cached credit balance in sync with the queued payment so the
@@ -585,6 +588,25 @@ class CreditRepository(
                 )
                 dao.putRouteCash(entity)
                 ApiResult.Success(entity)
+            }
+            is ApiResult.AuthExpired -> response
+            is ApiResult.Conflict -> response
+            is ApiResult.PermissionRejected -> response
+            is ApiResult.Rejected -> response
+            is ApiResult.Retryable -> response
+        }
+
+    suspend fun bankAccounts(accountKey: String, branchId: String): List<BankAccountEntity> =
+        dao.bankAccounts(accountKey, branchId)
+
+    suspend fun syncBankAccounts(account: StoredSession, branchId: String): ApiResult<List<BankAccountEntity>> =
+        when (val response = api.bankAccounts(account.token, branchId)) {
+            is ApiResult.Success -> {
+                val accounts = response.value.bankAccounts.map {
+                    BankAccountEntity(account.accountKey, branchId, it.id, it.name, it.type, it.number)
+                }
+                dao.replaceBankAccounts(account.accountKey, branchId, accounts)
+                ApiResult.Success(accounts)
             }
             is ApiResult.AuthExpired -> response
             is ApiResult.Conflict -> response
@@ -748,6 +770,7 @@ class CreditRepository(
             dao.deleteSyncControl(accountKey)
             dao.deleteActivityLog(accountKey)
             dao.deleteRouteCash(accountKey)
+            dao.deleteBankAccounts(accountKey)
         }
     }
 
@@ -1084,7 +1107,8 @@ class CreditRepository(
             receiptNumber = receiptNumber,
             note = note,
             createdAt = createdAt,
-            profit = profit?.toString()
+            profit = profit?.toString(),
+            bankFunded = bankFunded?.toString()
         )
 
     private fun com.backendcreditos.mobile.network.PaymentDto.toEntity(account: StoredSession, branchId: String) =
@@ -1101,8 +1125,17 @@ class CreditRepository(
             routeId = routeId,
             creatorUsername = createdByUsername,
             origin = origin,
-            creatorUserId = createdByUserId
+            creatorUserId = createdByUserId,
+            bankAmount = bankAmount?.toString()
         )
+
+    /** Sum of the payload's `bancos` split, or null when the operation did not send one. */
+    private fun bankSplitTotal(fields: JsonObject): String? {
+        val splits = fields["bancos"] as? kotlinx.serialization.json.JsonArray ?: return null
+        return splits.sumOf { split ->
+            ((split as? JsonObject)?.get("valor") as? JsonPrimitive)?.content?.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO
+        }.toPlainString()
+    }
 
     private fun JsonElement?.textOr(fallback: String?): String? = when (this) {
         null -> fallback

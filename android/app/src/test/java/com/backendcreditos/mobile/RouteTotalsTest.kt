@@ -63,4 +63,24 @@ class RouteTotalsTest {
         val cash = pocketCash(routeTotals(listOf(credit("1", "created", "50000")), emptyList()), null, null, null)
         assertEquals(0, BigDecimal("-50000").compareTo(cash.total))
     }
+
+    @Test
+    fun bankTransfersStayOutOfThePocket() {
+        val credits = listOf(
+            credit("1", "created", "200000").copy(bankFunded = "150000"),
+            credit("2", "refinanciada", "1")
+        )
+        val payments = listOf(
+            payment("p1", "2", "-30000", "Abono", "created").copy(bankAmount = "20000"),
+            payment("p2", "1", "-5000", "Abono", "saved").copy(bankAmount = "5000")
+        )
+        val totals = routeTotals(credits, payments)
+        assertEquals(0, BigDecimal("20000").compareTo(totals.collectedBank))
+        assertEquals(0, BigDecimal("150000").compareTo(totals.creditsBank))
+        val cash = pocketCash(totals, base = "100000", otherIncome = "0", expenses = "0")
+        assertEquals(0, BigDecimal("10000").compareTo(cash.cashCollected))
+        assertEquals(0, BigDecimal("50000").compareTo(cash.cashCredits))
+        // 100.000 + 10.000 cash abono − 50.000 cash credit
+        assertEquals(0, BigDecimal("60000").compareTo(cash.total))
+    }
 }

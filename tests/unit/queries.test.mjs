@@ -4,7 +4,7 @@ import { pool } from '../../dist/db.js';
 import {
   portfolio, customerById, defaultersOfPortfolio, withdrawnOfPortfolio, cancelledCredits,
   portfolioClients, restoreCredit, branchPermissions, receiptSequences, customerCandidate, customerByDocument,
-  personDocumentTypes, openRouteCash,
+  personDocumentTypes, openRouteCash, bankAccounts,
 } from '../../dist/services/queries.js';
 
 const user = {
@@ -405,5 +405,21 @@ test('openRouteCash returns zeros when the branch has no open route', async () =
     throw new Error(`Unexpected query: ${sql}`);
   }, async () => {
     assert.deepEqual(await openRouteCash(context, 4), { routeId: null, base: 0, otherIncome: 0, expenses: 0 });
+  });
+});
+
+test('bankAccounts lists only active accounts of the company in display order', async () => {
+  await withMockedPool(async (sql, params) => {
+    const branchRow = mockBranchAccess(sql);
+    if (branchRow) return branchRow;
+    if (sql.includes('FROM tbl_banco')) {
+      assert.match(sql, /str_estado = 'activo'/);
+      assert.match(sql, /ORDER BY int_orden/);
+      assert.deepEqual(params, [7]);
+      return [[{ id: 3, name: 'Nequi', type: 'billetera', number: '3001234567' }], []];
+    }
+    throw new Error(`Unexpected query: ${sql}`);
+  }, async () => {
+    assert.deepEqual(await bankAccounts(context, 4), [{ id: 3, name: 'Nequi', type: 'billetera', number: '3001234567' }]);
   });
 });

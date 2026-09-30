@@ -81,7 +81,7 @@ async function addBranchCredits(
             t.str_numero AS receiptNumber,t.str_nota AS note,t.str_abono AS paymentSummary,
             t.str_style AS style,t.str_estado AS status,
             t.created_empleado_id AS createdEmployeeId,t.date_acuerdo AS agreementDate,
-            t.created_at AS createdAt,t.updated_at AS updatedAt
+            t.created_at AS createdAt,t.updated_at AS updatedAt,(SELECT COALESCE(SUM(tp.dec_valor),0) FROM tbl_tarjeta_pago tp WHERE tp.idtarjeta=t.idtarjeta) AS bankFunded
      FROM tbl_tarjetas t
      WHERE t.idglobal = ? AND t.idsucursal = ? AND t.idcliente IN (${placeholders})${statusFilter}
      ORDER BY t.float_item,t.created_at`,
@@ -99,13 +99,14 @@ async function addBranchCredits(
     const paymentPlaceholders = creditIds.map(() => '?').join(',');
     const [paymentRows] = await pool.execute(
       `SELECT id, creditId, amount, description, state, createdAt, updatedAt, routeId,
-              createdByUserId, origin, createdByUsername
+              createdByUserId, origin, bankAmount, createdByUsername
        FROM (
          SELECT d.iddescripcion AS id, d.idtarjeta AS creditId, d.dec_abono AS amount,
                 d.str_descripcion AS description, d.str_estado AS state,
                 d.created_at AS createdAt, d.updated_at AS updatedAt,
                 d.iddetalleruta AS routeId,
                 d.idusuario AS createdByUserId, d.str_origen AS origin,
+                (SELECT COALESCE(SUM(dp.dec_valor),0) FROM tbl_descripcion_pago dp WHERE dp.iddescripcion=d.iddescripcion) AS bankAmount,
                 COALESCE(NULLIF(TRIM(CONCAT_WS(' ', p.str_nombres, p.str_apellidos)), ''), u.str_user_name)
                     AS createdByUsername,
                 ROW_NUMBER() OVER (
@@ -391,6 +392,7 @@ export async function paymentHistory(context: AuthContext | null, branchId: numb
             d.created_at AS createdAt, d.updated_at AS updatedAt,
             d.iddetalleruta AS routeId,
             d.idusuario AS createdByUserId, d.str_origen AS origin,
+                (SELECT COALESCE(SUM(dp.dec_valor),0) FROM tbl_descripcion_pago dp WHERE dp.iddescripcion=d.iddescripcion) AS bankAmount,
             COALESCE(NULLIF(TRIM(CONCAT_WS(' ', p.str_nombres, p.str_apellidos)), ''), u.str_user_name)
                 AS createdByUsername
      FROM tbl_descripcion d
@@ -454,6 +456,20 @@ export async function openRouteCash(context: AuthContext | null, branchId: numbe
     otherIncome: Number(row.otherIncome),
     expenses: Number(row.expenses),
   };
+}
+
+// Active company bank accounts / wallets the collector can pick when an abono arrives by
+// transfer or a new credit is paid out from a bank. Cash is not a row: it is the default.
+export async function bankAccounts(context: AuthContext | null, branchId: number) {
+  const user = requireAuth(context);
+  await assertBranchAccess(user, branchId);
+  const [rows] = await pool.execute(
+    `SELECT idbanco AS id, str_banco AS name, str_tipo AS type, str_num_cueneta AS number
+     FROM tbl_banco WHERE idglobal = ? AND str_estado = 'activo'
+     ORDER BY int_orden, str_banco, idbanco`,
+    [user.companyId],
+  );
+  return rows;
 }
 
 export async function syncChanges(context: AuthContext | null, branchId: number, after: string, first = 100) {

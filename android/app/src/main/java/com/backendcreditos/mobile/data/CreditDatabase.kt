@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.RoomDatabase
+import androidx.room.Transaction
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
@@ -245,6 +246,24 @@ interface LocalDao {
 
     @Query("DELETE FROM route_cash WHERE accountKey = :accountKey")
     suspend fun deleteRouteCash(accountKey: String)
+
+    @Query("SELECT * FROM bank_accounts WHERE accountKey = :accountKey AND branchId = :branchId ORDER BY name")
+    suspend fun bankAccounts(accountKey: String, branchId: String): List<BankAccountEntity>
+
+    @Query("DELETE FROM bank_accounts WHERE accountKey = :accountKey AND branchId = :branchId")
+    suspend fun deleteBranchBankAccounts(accountKey: String, branchId: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun putBankAccounts(accounts: List<BankAccountEntity>)
+
+    @Transaction
+    suspend fun replaceBankAccounts(accountKey: String, branchId: String, accounts: List<BankAccountEntity>) {
+        deleteBranchBankAccounts(accountKey, branchId)
+        if (accounts.isNotEmpty()) putBankAccounts(accounts)
+    }
+
+    @Query("DELETE FROM bank_accounts WHERE accountKey = :accountKey")
+    suspend fun deleteBankAccounts(accountKey: String)
 }
 
 @Database(
@@ -252,9 +271,9 @@ interface LocalDao {
         CustomerEntity::class, CreditEntity::class, PaymentEntity::class,
         OfflineOperationEntity::class, SyncControlEntity::class, SyncCursorEntity::class, RecordVersionEntity::class,
         MarkedCreditEntity::class, ReceiptSequenceEntity::class, ActivityLogEntity::class,
-        RouteCashEntity::class
+        RouteCashEntity::class, BankAccountEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)
@@ -419,6 +438,19 @@ abstract class CreditDatabase : RoomDatabase() {
                         accountKey TEXT NOT NULL, branchId TEXT NOT NULL, routeId INTEGER,
                         base TEXT NOT NULL, otherIncome TEXT NOT NULL, expenses TEXT NOT NULL,
                         fetchedAt INTEGER NOT NULL, PRIMARY KEY(accountKey, branchId)
+                    )""".trimIndent()
+                )
+            }
+        }
+
+        val MIGRATION_11_12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE credits ADD COLUMN bankFunded TEXT")
+                db.execSQL("ALTER TABLE payments ADD COLUMN bankAmount TEXT")
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS bank_accounts (
+                        accountKey TEXT NOT NULL, branchId TEXT NOT NULL, id INTEGER NOT NULL,
+                        name TEXT NOT NULL, type TEXT, number TEXT, PRIMARY KEY(accountKey, branchId, id)
                     )""".trimIndent()
                 )
             }
