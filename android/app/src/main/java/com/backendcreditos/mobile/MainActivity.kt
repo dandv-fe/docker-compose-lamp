@@ -119,7 +119,7 @@ private fun connectionStatus(authExpired: Boolean, online: Boolean, autoSync: Bo
     else -> ConnectionStatus(Color(0xFFC62828), "Sin conexión o sincronización automática detenida")
 }
 
-private enum class Screen { LOGIN, BRANCHES, HOME, CUSTOMER, CUSTOMER_LOOKUP, CREDIT, CARD_ASSESSMENT, QUEUE, COMPOSER, DEFAULTERS, WITHDRAWN, CANCELLED, PORTFOLIO_CLIENTS, SYNC_SETTINGS, MARKED }
+private enum class Screen { LOGIN, BRANCHES, HOME, CUSTOMER, CUSTOMER_LOOKUP, CREDIT, CARD_ASSESSMENT, QUEUE, COMPOSER, DEFAULTERS, WITHDRAWN, CANCELLED, PORTFOLIO_CLIENTS, SYNC_SETTINGS, MARKED, SETTLEMENT }
 
 class MainActivity : FragmentActivity() {
     fun unlockDevice(onResult: (Boolean, String?) -> Unit) {
@@ -381,6 +381,9 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     var draftCost by remember { mutableStateOf("0") }
     var draftPaymentMethod by remember { mutableStateOf(PaymentMethodDraft()) }
     var bankAccounts by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.data.BankAccountEntity>()) }
+    var settlement by remember { mutableStateOf<com.backendcreditos.mobile.network.RouteSettlementDto?>(null) }
+    var cashCount by remember { mutableStateOf(CashCount()) }
+    var settlementError by remember { mutableStateOf("") }
     var defaulterRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.network.DefaulterCreditDto>()) }
     var withdrawnRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.network.WithdrawnCreditDto>()) }
     var cancelledRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.network.CancelledCreditDto>()) }
@@ -694,6 +697,22 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         val branch = current.selectedBranchId ?: return
         when (val result = app.repository.defaultersOfPortfolio(current, branch)) {
             is ApiResult.Success -> defaulterRows = result.value
+            else -> report(result)
+        }
+    }
+
+    suspend fun loadSettlement() {
+        val current = session ?: return
+        val branch = current.selectedBranchId ?: return
+        settlementError = ""
+        when (val result = app.repository.routeSettlement(current, branch)) {
+            is ApiResult.Success -> {
+                settlement = result.value
+                // The stored base is what the office already knows; the collector may correct it.
+                if (cashCount.base.isBlank() && result.value.base != 0.0) {
+                    cashCount = cashCount.copy(base = result.value.base.toBigDecimal().toPlainString())
+                }
+            }
             else -> report(result)
         }
     }
@@ -1587,6 +1606,19 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                                 else -> report(result)
                                             }
                                             busy = false
+                                        }
+                                    }
+                                )
+                                if (online) DropdownMenuItem(
+                                    text = { Text("Cuentas del día") },
+                                    onClick = {
+                                        showMoreMenu = false
+                                        scope.launch {
+                                            busy = true
+                                            loadOperations()
+                                            loadSettlement()
+                                            busy = false
+                                            screen = Screen.SETTLEMENT
                                         }
                                     }
                                 )
@@ -2909,6 +2941,55 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                         }
                     }
                     TextButton(onClick = { screen = Screen.HOME }) { Text("Volver a cartera") }
+                }
+                Screen.SETTLEMENT -> {
+                    SettlementScreen(
+                        summary = settlement,
+                        count = cashCount,
+                        onCountChange = { cashCount = it },
+                        blocker = settlementBlocker(settlement, creditOnline, unresolvedBadge),
+                        busy = busy,
+                        error = settlementError,
+                        onRefresh = {
+                            scope.launch { busy = true; loadOperations(); loadSettlement(); busy = false }
+                        },
+                        onSettle = {
+                            scope.launch {
+                                val current = session ?: return@launch
+                                val branch = current.selectedBranchId ?: return@launch
+                                val summary = settlement ?: return@launch
+                                busy = true
+                                settlementError = ""
+                                val difference = cashDifference(summary, cashCount)
+                                when (
+                                    val result = app.repository.settleRoute(
+                                        current, branch,
+                                        cashCount.amount(cashCount.base).toDouble(),
+                                        cashCount.amount(cashCount.cash).toDouble(),
+                                        cashCount.amount(cashCount.coins).toDouble(),
+                                        difference.toDouble()
+                                    )
+                                ) {
+                                    is ApiResult.Success -> {
+                                        settlement = result.value
+                                        cashCount = cashCount.copy(confirmed = false)
+                                        app.repository.pullChanges(current, branch)
+                                        loadLocal()
+                                        refreshRouteCash()
+                                        notice = "Cuentas entregadas. La ruta quedó en entregando."
+                                    }
+                                    else -> {
+                                        report(result)
+                                        settlementError = notice
+                                        notice = ""
+                                        loadSettlement()
+                                    }
+                                }
+                                busy = false
+                            }
+                        },
+                        onBack = { screen = Screen.HOME }
+                    )
                 }
                 Screen.QUEUE -> {
                     TabRow(selectedTabIndex = queueTab) {

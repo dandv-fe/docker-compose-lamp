@@ -1178,6 +1178,27 @@ class CreditRepository(
             is ApiResult.Retryable -> response
         }
 
+    suspend fun routeSettlement(account: StoredSession, branchId: String) =
+        when (val response = api.routeSettlement(account.token, branchId)) {
+            is ApiResult.Success -> ApiResult.Success(response.value.routeSettlement)
+            is ApiResult.AuthExpired -> response
+            is ApiResult.Conflict -> response
+            is ApiResult.PermissionRejected -> response
+            is ApiResult.Rejected -> response
+            is ApiResult.Retryable -> response
+        }
+
+    suspend fun settleRoute(
+        account: StoredSession, branchId: String, base: Double, cash: Double, coins: Double, difference: Double
+    ) = when (val response = api.settleRoute(account.token, branchId, base, cash, coins, difference)) {
+        is ApiResult.Success -> ApiResult.Success(response.value.settleRoute)
+        is ApiResult.AuthExpired -> response
+        is ApiResult.Conflict -> response
+        is ApiResult.PermissionRejected -> response
+        is ApiResult.Rejected -> response
+        is ApiResult.Retryable -> response
+    }
+
     suspend fun withdrawnOfPortfolio(account: StoredSession, branchId: String) =
         when (val response = api.withdrawnOfPortfolio(account.token, branchId)) {
             is ApiResult.Success -> ApiResult.Success(response.value.withdrawnOfPortfolio)

@@ -10,6 +10,7 @@ import {
   bankAccounts, defaultersOfPortfolio, me, openRouteCash, paymentHistory, portfolio, portfolioClients, receiptSequences,
   restoreCredit, syncChanges, withdrawnOfPortfolio,
 } from '../services/queries.js';
+import { routeSettlement, settleRoute } from '../services/settlement.js';
 import { fail } from '../services/errors.js';
 import { z } from 'zod';
 
@@ -108,6 +109,39 @@ const BankAccountType = new GraphQLObjectType({
     number: { type: GraphQLString },
     holderName: { type: GraphQLString },
     holderDocument: { type: GraphQLString },
+  },
+});
+
+const RouteMovementType = new GraphQLObjectType({
+  name: 'RouteMovement',
+  fields: {
+    id: { type: new GraphQLNonNull(GraphQLID) },
+    kind: { type: new GraphQLNonNull(GraphQLString) },
+    title: { type: new GraphQLNonNull(GraphQLString) },
+    detail: { type: GraphQLString },
+    amount: { type: new GraphQLNonNull(GraphQLFloat) },
+    bankAmount: { type: new GraphQLNonNull(GraphQLFloat) },
+    countsForCash: { type: new GraphQLNonNull(GraphQLBoolean) },
+    state: { type: GraphQLString },
+    createdAt: { type: GraphQLString },
+  },
+});
+
+const RouteSettlementType = new GraphQLObjectType({
+  name: 'RouteSettlement',
+  fields: {
+    routeId: { type: GraphQLInt },
+    state: { type: GraphQLString },
+    canSettle: { type: new GraphQLNonNull(GraphQLBoolean) },
+    base: { type: new GraphQLNonNull(GraphQLFloat) },
+    collected: { type: new GraphQLNonNull(GraphQLFloat) },
+    collectedBank: { type: new GraphQLNonNull(GraphQLFloat) },
+    otherCollected: { type: new GraphQLNonNull(GraphQLFloat) },
+    credits: { type: new GraphQLNonNull(GraphQLFloat) },
+    creditsBank: { type: new GraphQLNonNull(GraphQLFloat) },
+    expenses: { type: new GraphQLNonNull(GraphQLFloat) },
+    expectedCash: { type: new GraphQLNonNull(GraphQLFloat) },
+    movements: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(RouteMovementType))) },
   },
 });
 
@@ -396,6 +430,12 @@ const Query = new GraphQLObjectType({
       resolve: (_source, args, context: { auth: AuthContext | null }) =>
         bankAccounts(auth(context), args.branchId),
     },
+    routeSettlement: {
+      type: new GraphQLNonNull(RouteSettlementType),
+      args: { branchId: { type: new GraphQLNonNull(GraphQLInt) } },
+      resolve: (_source, args, context: { auth: AuthContext | null }) =>
+        routeSettlement(auth(context), args.branchId),
+    },
     openRouteCash: {
       type: new GraphQLNonNull(RouteCashType),
       args: { branchId: { type: new GraphQLNonNull(GraphQLInt) } },
@@ -473,6 +513,20 @@ const Mutation = new GraphQLObjectType({
       args: { input: { type: new GraphQLNonNull(OfflineInputType) } },
       resolve: (_source, args: { input: OfflineInput }, context: { auth: AuthContext | null }) =>
         applyOfflineOperation(auth(context), args.input),
+    },
+    settleRoute: {
+      type: new GraphQLNonNull(RouteSettlementType),
+      args: {
+        branchId: { type: new GraphQLNonNull(GraphQLInt) },
+        base: { type: new GraphQLNonNull(GraphQLFloat) },
+        cash: { type: new GraphQLNonNull(GraphQLFloat) },
+        coins: { type: new GraphQLNonNull(GraphQLFloat) },
+        difference: { type: new GraphQLNonNull(GraphQLFloat) },
+      },
+      resolve: (_source, args, context: { auth: AuthContext | null }) =>
+        settleRoute(auth(context), args.branchId, {
+          base: args.base, cash: args.cash, coins: args.coins, difference: args.difference,
+        }),
     },
     restoreCredit: {
       type: new GraphQLNonNull(RestoreCreditResultType),

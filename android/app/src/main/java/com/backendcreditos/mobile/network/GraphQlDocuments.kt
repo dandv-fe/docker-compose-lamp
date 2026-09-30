@@ -119,6 +119,23 @@ object GraphQlDocuments {
           openRouteCash(branchId: ${'$'}branchId) { routeId base otherIncome expenses }
         }
     """
+    private const val SETTLEMENT_FIELDS = """
+        routeId state canSettle base collected collectedBank otherCollected
+        credits creditsBank expenses expectedCash
+        movements { id kind title detail amount bankAmount countsForCash state createdAt }
+    """
+    val ROUTE_SETTLEMENT = """
+        query RouteSettlement(${'$'}branchId: Int!) {
+          routeSettlement(branchId: ${'$'}branchId) { $SETTLEMENT_FIELDS }
+        }
+    """
+    val SETTLE_ROUTE = """
+        mutation SettleRoute(${'$'}branchId: Int!, ${'$'}base: Float!, ${'$'}cash: Float!, ${'$'}coins: Float!, ${'$'}difference: Float!) {
+          settleRoute(branchId: ${'$'}branchId, base: ${'$'}base, cash: ${'$'}cash, coins: ${'$'}coins, difference: ${'$'}difference) {
+            $SETTLEMENT_FIELDS
+          }
+        }
+    """
     const val RECEIPT_SEQUENCES = """
         query ReceiptSequences(${'$'}branchId: Int!) {
           receiptSequences(branchId: ${'$'}branchId) { id documentType series lastNumber }

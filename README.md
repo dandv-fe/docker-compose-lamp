@@ -98,12 +98,14 @@ Queries:
 * `receiptSequences(branchId: Int!)` — branch `Comprobante` counters (`id`, `series`, `lastNumber`, `documentType`) that feed the new-card form, mirroring `Cartera::GetTipoDocSerieNum`
 * `bankAccounts(branchId: Int!)` — active `tbl_banco` accounts of the company **authorized in that branch** (`tbl_banco_sucursal`): `id`, `name`, `type`, `number`, `holderName`, `holderDocument` (NIT/CC of the holder), ordered by `int_orden`, offered as payment methods besides cash
 * `openRouteCash(branchId: Int!)` — `routeId`, `base`, `otherIncome` and `expenses` (positive) of the branch's open, not yet saved `tbl_detalle_ruta`, summed from `tbl_contabilidad_detalle`: `base` rows, `entrada-*` except `recaudo`/`diferencia`, and `salida-*` except tipo 4 (prestamos/articulos); used by the APK pocket-cash line
+* `routeSettlement(branchId: Int!)` — end-of-day accounting of the branch's open route (see *Route settlement* below)
 * `syncChanges(branchId: Int!, after: String!, first: Int)`
 
 Mutations:
 
 * `login(companyId: Int!, username: String!, password: String!): AuthPayload!`
 * `applyOfflineOperation(input: OfflineOperationInput!): OfflineOperationResult!`
+* `settleRoute(branchId: Int!, base: Float!, cash: Float!, coins: Float!, difference: Float!): RouteSettlement!` — hands the route over (see *Route settlement* below)
 
 `OfflineOperationInput` contains `operationId` (UUID), `branchId`, `kind`,
 `entityId`, `baseVersion` (decimal event-cursor string or null), and a JSON
@@ -249,6 +251,44 @@ an attempt to submit another alert for the same customer and user returns
 text before storage, matching PHP behavior. The combined value must fit the
 legacy 255-character column.
 
+## Route settlement
+
+`routeSettlement(branchId)` and `settleRoute(...)` (`src/services/settlement.ts`)
+replace the legacy `RecibeCuentas::RegistrarContabilidadDetalle` +
+`RecibirCuentasAjax` pair for the APK's *Cuentas del día* screen. The query
+returns the open (`str_estado='created'`) `tbl_detalle_ruta` of the branch, its
+`canSettle` flag, the day's totals and an ordered `movements` list (label,
+amount, `countsForCash`) so a non-technical user can read what happened.
+
+Totals and the expected cash follow the legacy formula:
+
+```
+expectedCash = base
+             + (collected - collectedBank)
+             + otherCollected
+             - (credits - creditsBank)
+             - expenses
+difference   = (cash + coins) - expectedCash
+```
+
+The `*Bank` terms are the improvement over the web totalizar, which still counts
+bank transfers as if they were cash. Only payments whose description starts with
+`Abono`, `Inicial` or `Cancelado` count as collected; `Intereses` and
+`Descuento` move debt, not money, so they appear with `countsForCash = false`.
+Following the branch-office convention, only route expenses
+(`salida-totalizar%`) are subtracted; contabilidad entries (tipo 9) and
+`salida-contabilidad` rows are listed but not counted, so the numbers match the
+office. The pocket-cash line does count them and may therefore differ.
+
+`settleRoute` requires `str_estado='created'`, recomputes the difference and
+rejects the call when it does not match the one sent. It writes or updates the
+four named rows `base`, `efectivo` and `efectivoMonedas` (tipo 8,
+`info-totalizar`) plus `diferencia` (tipo 7, `entrada-totalizar`), then moves
+every `created` row of `tbl_descripcion`, `tbl_tarjetas`,
+`tbl_contabilidad_detalle` and `tbl_detalle_ruta` of that branch to
+`entregando`. Permission mirrors the web: Super Administrador, the office
+administrator, or the `bloquear` permission on the branch.
+
 ## Payment methods migration
 
 `migrations/003_payment_methods.sql` improves the unused `tbl_banco` (adds
@@ -389,8 +429,8 @@ contain gaps.
 `npm test` builds TypeScript and runs DB-independent Node unit tests for the
 legacy digest comparison, exact admin/branch scope logic, operation payload
 idempotency/mismatch and conflict checks, strict payload rules, branch-scoped
-sync materialization/tombstones, migration additivity, and GraphQL schema
-validation. It does not connect to MariaDB.
+sync materialization/tombstones, route settlement totals and handover, migration
+additivity, and GraphQL schema validation. It does not connect to MariaDB.
 
 The discoverable `test:integration` script runs the isolated integration test:
 

@@ -328,6 +328,41 @@ data class RouteCashDto(
 data class OpenRouteCashData(val openRouteCash: RouteCashDto)
 
 @Serializable
+data class RouteMovementDto(
+    @Serializable(with = GraphQlIdSerializer::class) val id: String,
+    val kind: String = "",
+    val title: String = "",
+    val detail: String? = null,
+    val amount: Double = 0.0,
+    val bankAmount: Double = 0.0,
+    val countsForCash: Boolean = true,
+    val state: String? = null,
+    val createdAt: String? = null
+)
+
+@Serializable
+data class RouteSettlementDto(
+    val routeId: Int? = null,
+    val state: String? = null,
+    val canSettle: Boolean = false,
+    val base: Double = 0.0,
+    val collected: Double = 0.0,
+    val collectedBank: Double = 0.0,
+    val otherCollected: Double = 0.0,
+    val credits: Double = 0.0,
+    val creditsBank: Double = 0.0,
+    val expenses: Double = 0.0,
+    val expectedCash: Double = 0.0,
+    val movements: List<RouteMovementDto> = emptyList()
+)
+
+@Serializable
+data class RouteSettlementData(val routeSettlement: RouteSettlementDto)
+
+@Serializable
+data class SettleRouteData(val settleRoute: RouteSettlementDto)
+
+@Serializable
 data class ReceiptSequencesData(val receiptSequences: List<ReceiptSequenceDto>)
 
 @Serializable
