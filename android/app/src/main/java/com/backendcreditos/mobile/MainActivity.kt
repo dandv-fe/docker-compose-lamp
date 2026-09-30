@@ -1,6 +1,10 @@
 package com.backendcreditos.mobile
 
 import android.os.Bundle
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import androidx.activity.compose.setContent
 import androidx.biometric.BiometricPrompt
 import androidx.fragment.app.FragmentActivity
@@ -51,11 +55,11 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -66,6 +70,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.font.FontWeight
@@ -88,7 +93,7 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import java.math.RoundingMode
 
-private enum class Screen { LOGIN, BRANCHES, HOME, CUSTOMER, CREDIT, CARD_ASSESSMENT, QUEUE, COMPOSER, DEFAULTERS, WITHDRAWN, CANCELLED, PORTFOLIO_CLIENTS, SYNC_SETTINGS, MARKED }
+private enum class Screen { LOGIN, BRANCHES, HOME, CUSTOMER, CUSTOMER_LOOKUP, CREDIT, CARD_ASSESSMENT, QUEUE, COMPOSER, DEFAULTERS, WITHDRAWN, CANCELLED, PORTFOLIO_CLIENTS, SYNC_SETTINGS, MARKED }
 
 class MainActivity : FragmentActivity() {
     fun unlockDevice(onResult: (Boolean, String?) -> Unit) {
@@ -196,6 +201,38 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     var session by remember { mutableStateOf(app.vault.readSession()) }
     var screen by remember { mutableStateOf(Screen.LOGIN) }
     var online by remember { mutableStateOf(false) }
+    val connectivity = remember {
+        activity.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+    }
+    var deviceConnected by remember { mutableStateOf(
+        connectivity.getNetworkCapabilities(connectivity.activeNetwork)
+            ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+    ) }
+    DisposableEffect(connectivity) {
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                activity.runOnUiThread {
+                    deviceConnected = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
+                        ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+                }
+            }
+            override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
+                activity.runOnUiThread {
+                    deviceConnected = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
+                        ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+                }
+            }
+            override fun onLost(network: Network) {
+                activity.runOnUiThread {
+                    deviceConnected = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
+                        ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+                }
+            }
+        }
+        connectivity.registerDefaultNetworkCallback(callback)
+        onDispose { connectivity.unregisterNetworkCallback(callback) }
+    }
+    val creditOnline = online && deviceConnected
     var company by remember { mutableStateOf(session?.companyId.orEmpty()) }
     var username by remember { mutableStateOf(session?.username.orEmpty()) }
     var password by remember { mutableStateOf("") }
@@ -212,6 +249,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     var assessmentLocalPayments by remember { mutableStateOf(emptyList<PaymentEntity>()) }
     var assessmentMessage by remember { mutableStateOf("") }
     var assessmentLoading by remember { mutableStateOf(false) }
+    var assessmentComplete by remember { mutableStateOf(false) }
     var assessmentJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     // Portfolio pointer: the card the collector is standing on. It is saved so it also
     // survives configuration changes and process death, not only screen changes.
@@ -229,9 +267,18 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     var search by remember { mutableStateOf("") }
     var showLogoutConfirmation by remember { mutableStateOf(false) }
     var pendingLogoutCount by remember { mutableStateOf(0) }
-    var showDocumentLookup by remember { mutableStateOf(false) }
     var documentType by remember { mutableStateOf("") }
     var documentNumber by remember { mutableStateOf("") }
+    var personDocumentTypes by remember { mutableStateOf(emptyList<String>()) }
+    var showPersonDocumentMenu by remember { mutableStateOf(false) }
+    var customerCandidate by remember { mutableStateOf<com.backendcreditos.mobile.network.CustomerCandidateDto?>(null) }
+    var customerLookupVerified by remember { mutableStateOf(false) }
+    var lookupCustomer by remember { mutableStateOf<com.backendcreditos.mobile.network.CustomerDto?>(null) }
+    var lookupPayments by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.network.PaymentDto>()) }
+    var lookupAnchorId by remember { mutableStateOf<String?>(null) }
+    var lookupMessage by remember { mutableStateOf("") }
+    var lookupComplete by remember { mutableStateOf(false) }
+    var lookupSearched by remember { mutableStateOf(false) }
     var operationKind by remember { mutableStateOf(OperationKind.UPDATE_CUSTOMER) }
     var entityId by remember { mutableStateOf("") }
     var draftFirstName by remember { mutableStateOf("") }
@@ -331,8 +378,75 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         syncControl = app.database.localDao().syncControl(current.accountKey)
     }
 
+    suspend fun serverPaymentHistories(
+        remote: com.backendcreditos.mobile.network.CustomerDto, token: String, branch: String
+    ): Pair<List<com.backendcreditos.mobile.network.PaymentDto>, String?> {
+        val payments = mutableListOf<com.backendcreditos.mobile.network.PaymentDto>()
+        for (credit in remote.credits) {
+            when (val history = app.api.paymentHistory(token, branch, credit.id)) {
+                is ApiResult.Success -> payments.addAll(history.value.paymentHistory)
+                else -> return payments to when (history) {
+                    is ApiResult.AuthExpired -> history.message
+                    is ApiResult.PermissionRejected -> history.message
+                    is ApiResult.Conflict -> history.message
+                    is ApiResult.Rejected -> history.message
+                    is ApiResult.Retryable -> history.message
+                    is ApiResult.Success -> error("Handled above")
+                }
+            }
+        }
+        return payments to null
+    }
+
+    suspend fun showCustomerHistory(
+        remote: com.backendcreditos.mobile.network.CustomerDto, current: StoredSession, branch: String
+    ) {
+        lookupCustomer = remote
+        lookupAnchorId = null
+        val (payments, error) = serverPaymentHistories(remote, current.token, branch)
+        lookupPayments = payments
+        lookupComplete = error == null
+        lookupMessage = if (error == null)
+            "Historial completo del servidor para esta sucursal. Evalúa la cartera antes de continuar."
+        else "No se pudo cargar todo el historial: $error. Busca de nuevo."
+        if (error == null) {
+            val anchor = rows.firstOrNull { it.credit.id == pointedCreditId }
+            if (anchor == null || anchor.customer?.documentType.isNullOrBlank() ||
+                anchor.customer?.documentNumber.isNullOrBlank()) {
+                lookupMessage += " Selecciona una tarjeta «Aquí vas» en la cartera antes de abrir el crédito."
+            } else {
+                val confirmed = if (anchor.credit.customerId == remote.id.toString()) {
+                    remote.credits.any { it.id == anchor.credit.id }
+                } else {
+                    when (val reference = app.api.customerByDocument(
+                        current.token, branch, anchor.customer!!.documentType!!, anchor.customer!!.documentNumber!!
+                    )) {
+                        is ApiResult.Success -> reference.value.customerByDocument
+                            ?.credits?.any { it.id == anchor.credit.id } == true
+                        else -> {
+                            val reason = when (reference) {
+                                is ApiResult.AuthExpired -> reference.message
+                                is ApiResult.PermissionRejected -> reference.message
+                                is ApiResult.Conflict -> reference.message
+                                is ApiResult.Rejected -> reference.message
+                                is ApiResult.Retryable -> reference.message
+                                is ApiResult.Success -> error("Handled above")
+                            }
+                            lookupMessage += " No se pudo verificar «Aquí vas»: $reason."
+                            false
+                        }
+                    }
+                }
+                if (confirmed) lookupAnchorId = anchor.credit.id
+                else lookupMessage += " La tarjeta «Aquí vas» no está confirmada en el servidor; selecciona otra."
+            }
+        }
+    }
+
     fun assessCard(creditId: String) {
             assessmentJob?.cancel()
+            lookupCustomer = null
+            lookupAnchorId = null
             val origin = rows.firstOrNull { it.credit.id == creditId }
             if (origin == null) {
                 notice = "La tarjeta seleccionada ya no está en la cartera. Actualiza la lista."
@@ -343,12 +457,13 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             customer = origin.customer
             assessmentCustomer = null
             assessmentPayments = emptyList()
-            assessmentLoading = online
+            assessmentComplete = false
+            assessmentLoading = creditOnline
             assessmentLocalCredits = rows.filter { it.credit.customerId == origin.credit.customerId }.map { it.credit }
             assessmentLocalPayments = branchPayments.filter { payment ->
                 assessmentLocalCredits.any { it.id == payment.creditId }
             }
-            assessmentMessage = if (online) "Consultando el historial del servidor…" else
+            assessmentMessage = if (creditOnline) "Consultando el historial del servidor…" else
                 "Sin conexión: el análisis solo incluye datos guardados en este dispositivo."
             screen = Screen.CARD_ASSESSMENT
             assessmentJob = scope.launch {
@@ -358,7 +473,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     .filter { it.customerId == origin.credit.customerId }
                 assessmentLocalPayments = app.database.localDao().paymentsForBranch(current.accountKey, branch)
                     .filter { payment -> assessmentLocalCredits.any { it.id == payment.creditId } }
-                if (!online) return@launch
+                if (!creditOnline) return@launch
                 val person = origin.customer
                 if (person?.documentType.isNullOrBlank() || person?.documentNumber.isNullOrBlank()) {
                     assessmentMessage = "Falta el tipo o número de documento local: no se puede consultar el servidor."
@@ -372,27 +487,18 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                         val found = result.value.customerByDocument
                         if (found == null || found.id.toString() != origin.credit.customerId) {
                             assessmentMessage = "La identidad consultada no coincide con la tarjeta; verifica el cliente antes de continuar."
+                        } else if (!assessmentMatchesOrigin(origin.credit.customerId, origin.credit.id,
+                                found.id, found.credits.map { it.id })) {
+                            assessmentMessage = "La tarjeta seleccionada aún no existe en el servidor. " +
+                                "Resuelve su operación en la Cola antes de crear otra tarjeta junto a ella."
                         } else {
                             assessmentCustomer = found
-                            assessmentMessage = "Historial consultado en el servidor para esta sucursal."
-                            val allPayments = mutableListOf<com.backendcreditos.mobile.network.PaymentDto>()
-                            for (credit in found.credits) {
-                                when (val history = app.api.paymentHistory(current.token, branch, credit.id)) {
-                                    is ApiResult.Success -> allPayments.addAll(history.value.paymentHistory)
-                                    else -> {
-                                        assessmentMessage = "No se pudo cargar todo el historial: ${when (history) {
-                                            is ApiResult.AuthExpired -> history.message
-                                            is ApiResult.PermissionRejected -> history.message
-                                            is ApiResult.Conflict -> history.message
-                                            is ApiResult.Rejected -> history.message
-                                            is ApiResult.Retryable -> history.message
-                                            is ApiResult.Success -> ""
-                                        }}. Consulta la cola o vuelve a intentar."
-                                        break
-                                    }
-                                }
-                            }
-                            assessmentPayments = allPayments
+                            val (payments, error) = serverPaymentHistories(found, current.token, branch)
+                            assessmentPayments = payments
+                            assessmentComplete = error == null
+                            assessmentMessage = if (error == null)
+                                "Historial completo consultado en el servidor para esta sucursal."
+                            else "No se pudo cargar todo el historial: $error. Vuelve a consultar."
                         }
                     }
                     else -> assessmentMessage = "No se pudo consultar al cliente en el servidor: ${when (result) {
@@ -455,6 +561,40 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         }
         if (result is ApiResult.AuthExpired) {
             session?.let { current -> scope.launch { app.repository.setSyncPaused(current.accountKey, "AUTH") } }
+        }
+    }
+
+    fun openCustomerLookup() {
+        customerLookupVerified = false
+        customerCandidate = null
+        lookupCustomer = null
+        lookupPayments = emptyList()
+        lookupAnchorId = null
+        lookupComplete = false
+        lookupSearched = false
+        lookupMessage = ""
+        personDocumentTypes = emptyList()
+        documentType = ""
+        documentNumber = ""
+        if (!creditOnline) {
+            notice = "La búsqueda de clientes por documento requiere conexión con el servidor."
+            return
+        }
+        screen = Screen.CUSTOMER_LOOKUP
+        scope.launch {
+            val current = session ?: return@launch
+            val branch = current.selectedBranchId ?: return@launch
+            when (val result = app.api.personDocumentTypes(current.token, branch)) {
+                is ApiResult.Success -> {
+                    personDocumentTypes = result.value.personDocumentTypes.map { it.name }
+                    documentType = personDocumentTypes.firstOrNull {
+                        it.contains("cédula", ignoreCase = true) ||
+                            it.contains("cedula", ignoreCase = true)
+                    } ?: personDocumentTypes.firstOrNull().orEmpty()
+                    if (personDocumentTypes.isEmpty()) notice = "No hay tipos de documento configurados para personas."
+                }
+                else -> report(result)
+            }
         }
     }
 
@@ -583,8 +723,38 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     }
 
     suspend fun saveTypedOperation() {
-        val current = session ?: throw IllegalArgumentException("Inicia sesión para guardar cambios.")
+        var current = session ?: throw IllegalArgumentException("Inicia sesión para guardar cambios.")
         val branch = current.selectedBranchId ?: throw IllegalArgumentException("Selecciona una sucursal.")
+        if (operationKind == OperationKind.CREATE_CUSTOMER) {
+            require(creditOnline && customerLookupVerified &&
+                draftDocumentType == documentType && draftDocumentNumber == documentNumber) {
+                "Busca primero el documento en línea antes de crear el cliente."
+            }
+            when (val identity = app.api.me(current.token)) {
+                is ApiResult.Success -> {
+                    val user = identity.value.me
+                        ?: throw IllegalArgumentException("No se pudo verificar el empleado. Inicia sesión de nuevo.")
+                    current = current.copy(
+                        employeeMaxCredit = user.employeeMaxCredit?.toString(),
+                        isSuperAdministrator = user.isSuperAdministrator
+                    )
+                    session = current
+                    app.vault.saveSession(current)
+                }
+                else -> {
+                    report(identity)
+                    throw IllegalArgumentException("No se pudo comprobar tu cupo actual en línea. ${notice}")
+                }
+            }
+            val approved = draftMaxCredit.toBigDecimalOrNull()
+                ?: throw IllegalArgumentException("Ingresa un máximo cupo válido.")
+            require(approved >= java.math.BigDecimal.ZERO) { "El máximo cupo no puede ser negativo." }
+            if (!current.isSuperAdministrator) {
+                val maximum = current.employeeMaxCredit?.toBigDecimalOrNull()
+                    ?: throw IllegalArgumentException("No se conoce el cupo autorizado del empleado. Inicia sesión en línea.")
+                require(approved <= maximum) { "El cupo aprobado supera el máximo autorizado: $maximum." }
+            }
+        }
         if (operationKind == OperationKind.CREATE_PAYMENT || operationKind == OperationKind.UPDATE_PAYMENT) {
             // Mirrors the legacy PHP abono form: the abono and the confirmed remaining balance are
             // the only two editable fields, and the user must type the confirmation themselves.
@@ -607,6 +777,19 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             }
         }
         if (operationKind == OperationKind.CREATE_CREDIT) {
+            require(canOpenCreditForm(creditOnline, assessmentLoading, assessmentComplete) &&
+                assessmentCreditId == selectedCreditId) {
+                "Para crear una tarjeta consulta primero todo el historial del cliente en línea."
+            }
+            when (val connectivity = app.api.me(current.token)) {
+                is ApiResult.Success -> require(connectivity.value.me != null) {
+                    "No se pudo verificar tu sesión para crear la tarjeta."
+                }
+                else -> {
+                    report(connectivity)
+                    throw IllegalArgumentException("No se pudo verificar la conexión con el servidor. ${notice}")
+                }
+            }
             val charge = extraChargeFields(draftConcept, session?.branchExtraCharges?.get(branch))
             if (draftConcept == "Articulo") {
                 require(draftDescription.isNotBlank()) { "Describe el artículo." }
@@ -650,14 +833,19 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             // The order is derived from the chosen placement instead of asking for a raw item
             // number, and the loan/profit pair is computed like the legacy form does.
             val origin = rows.firstOrNull { it.credit.id == selectedCreditId }
-                ?: throw IllegalArgumentException("Selecciona la tarjeta de origen de este cliente.")
+            require(origin != null &&
+                (origin.credit.customerId == draftCustomerId ||
+                    (lookupAnchorId == selectedCreditId && pointedCreditId == selectedCreditId &&
+                        lookupCustomer?.id?.toString() == draftCustomerId))) {
+                "La tarjeta «Aquí vas» cambió o no corresponde a la búsqueda. Busca de nuevo."
+            }
             val cachedRoute = app.database.localDao().portfolio(current.accountKey, branch)
                 .sortedWith(compareBy<com.backendcreditos.mobile.data.CreditEntity> { it.sortOrder }.thenBy { it.id })
+            val index = cachedRoute.indexOfFirst { it.id == selectedCreditId }
+            require(index >= 0) { "La tarjeta «Aquí vas» ya no está en la ruta guardada; sincroniza." }
             val ordered = cachedRoute.map {
                 it.sortOrder ?: throw IllegalArgumentException("Hay tarjetas sin posición; sincroniza la cartera.")
             }
-            val index = cachedRoute.indexOfFirst { it.id == origin.credit.id }
-            require(index >= 0) { "La tarjeta de origen ya no está en la ruta guardada; sincroniza antes de crear." }
             draftSortOrder = placementSortOrder(ordered, index, draftCardPlacement).toString()
             draftPrincipal = draftCost.ifBlank { "0" }
             draftProfit = creditProfit(draftValue, draftCost)
@@ -871,11 +1059,12 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             draftReceiptType = sequence?.documentType.orEmpty()
             draftSeries = sequence?.series.orEmpty()
             draftReceiptNumber = nextReceiptNumber(sequence?.lastNumber)
-            // Creating from a card means the customer and the position are already known.
+            // The reference is always the pointed portfolio card, even for a different customer.
             val origin = rows.firstOrNull { it.credit.id == sourceCreditId }
             if (origin != null) {
-                draftCustomerId = origin.credit.customerId
-                customer = origin.customer
+                draftCustomerId = lookupCustomer?.takeIf { lookupAnchorId == sourceCreditId }
+                    ?.id?.toString() ?: origin.credit.customerId
+                if (lookupCustomer == null) customer = origin.customer
                 draftSortOrder = origin.credit.sortOrder?.toString() ?: "0"
             } else {
                 draftCustomerId = ""
@@ -970,11 +1159,17 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                         IconButton(onClick = { movePointer(forward = true) }, enabled = canGoForward) {
                             Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Tarjeta siguiente")
                         }
-                        IconButton(onClick = {
-                            if (pointedCreditId != null) restorePointerScroll = true
-                            screen = Screen.HOME
+                        BadgedBox(badge = {
+                            if (unresolvedBadge > 0) Badge { Text(unresolvedBadge.toString()) }
                         }) {
-                            Icon(Icons.Filled.Home, contentDescription = "Volver a la cartera")
+                            IconButton(onClick = {
+                                scope.launch {
+                                    loadOperations()
+                                    screen = Screen.QUEUE
+                                }
+                            }) {
+                                Icon(painterResource(R.drawable.ic_queue_transfers), contentDescription = "Abrir Cola")
+                            }
                         }
                         BadgedBox(badge = {
                             if (markedCreditIds.isNotEmpty()) Badge { Text(markedCreditIds.size.toString()) }
@@ -1110,16 +1305,19 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 HorizontalDivider()
                                 DropdownMenuItem(
                                     text = { Text("Crear cliente") },
-                                    onClick = { showMoreMenu = false; prepareComposer(OperationKind.CREATE_CUSTOMER) }
+                                    onClick = {
+                                        showMoreMenu = false
+                                        openCustomerLookup()
+                                    }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Crear crédito") },
-                                    enabled = pointedCreditId != null,
+                                    enabled = creditOnline && pointedCreditId != null,
                                     onClick = { showMoreMenu = false; pointedCreditId?.let(::assessCard) }
                                 )
-                                if (online) DropdownMenuItem(
+                                if (creditOnline) DropdownMenuItem(
                                     text = { Text("Buscar cliente por documento") },
-                                    onClick = { showMoreMenu = false; showDocumentLookup = true }
+                                    onClick = { showMoreMenu = false; openCustomerLookup() }
                                 )
                                 if (online) DropdownMenuItem(
                                     text = { Text("Actualizar cartera") },
@@ -1232,7 +1430,9 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                             login.company.id.toString(), login.user.username, login.token,
                                             userId = login.user.userId,
                                             firstName = login.user.firstName, lastName = login.user.lastName,
-                                            branchExtraCharges = login.branches.associate { it.id.toString() to it.extraCharge }
+                                            branchExtraCharges = login.branches.associate { it.id.toString() to it.extraCharge },
+                                            employeeMaxCredit = login.user.employeeMaxCredit?.toString(),
+                                            isSuperAdministrator = login.user.isSuperAdministrator
                                         )
                                         if (previous != null && previous.accountKey != newSession.accountKey) {
                                             val unresolved = app.repository.unresolvedCount(previous.accountKey)
@@ -1257,7 +1457,9 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                             is ApiResult.Success -> {
                                                 me.value.me?.let { user ->
                                                     val refreshed = newSession.copy(
-                                                        userId = user.userId, firstName = user.firstName, lastName = user.lastName
+                                                        userId = user.userId, firstName = user.firstName, lastName = user.lastName,
+                                                        employeeMaxCredit = user.employeeMaxCredit?.toString(),
+                                                        isSuperAdministrator = user.isSuperAdministrator
                                                     )
                                                     session = refreshed
                                                     app.vault.saveSession(refreshed)
@@ -1463,14 +1665,6 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                         }, label = { Text("Buscar en cartera y clientes guardados") },
                         modifier = Modifier.fillMaxWidth()
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedButton(onClick = {
-                            scope.launch {
-                                loadOperations()
-                                screen = Screen.QUEUE
-                            }
-                        }) { Text("Cola") }
-                    }
                     if (busy) Text("Trabajando…")
                     Text("Cartera guardada", style = MaterialTheme.typography.titleLarge)
                     Text(
@@ -1558,6 +1752,21 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 }
                                 Text("Crédito ${row.credit.additionalNumber ?: row.credit.id} · Saldo ${row.credit.balance ?: "—"}")
                                 Text("Estado: ${row.credit.status ?: "—"}")
+                                operationRows.firstOrNull {
+                                    it.kind == OperationKind.CREATE_CREDIT && it.entityId == row.credit.id &&
+                                        it.branchId == row.credit.branchId && it.status != OperationStatus.CONFIRMED
+                                }?.let { creation ->
+                                    Text(
+                                        when (creation.status) {
+                                            OperationStatus.REJECTED ->
+                                                "NO APROBADA POR EL SERVIDOR · borrador local. Revisa la Cola para corregir el cupo y reintentar o descartar."
+                                            OperationStatus.CONFLICT ->
+                                                "Conflicto con el servidor · borrador local. Revisa la Cola."
+                                            else -> "Solo en este teléfono · aún no confirmada por el servidor."
+                                        },
+                                        color = MaterialTheme.colorScheme.error
+                                    )
+                                }
                                 val cachedCreditPayments = branchPayments.filter { it.creditId == row.credit.id }
                                 val pendingLocalPayment = cachedCreditPayments.firstOrNull { payment ->
                                     payment.createdLocally && operationRows.any { operation ->
@@ -1868,6 +2077,297 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     ) { Text("Guardar intervalo") }
                     TextButton(onClick = { screen = Screen.HOME }) { Text("Volver") }
                 }
+                Screen.CUSTOMER_LOOKUP -> {
+                    Text("Buscar por documento · cliente o tarjeta",
+                        style = MaterialTheme.typography.headlineSmall)
+                    Text("Si existe un cliente, revisa su historial y crea otra tarjeta. " +
+                        "Si no existe, abre el formulario para registrarlo. Se requiere conexión.")
+                    if (personDocumentTypes.isEmpty()) Text(
+                        "No se cargaron los tipos de documento del servidor. Vuelve a abrir esta pantalla con conexión.",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    Box {
+                        OutlinedButton(
+                            enabled = personDocumentTypes.isNotEmpty(),
+                            onClick = { showPersonDocumentMenu = true }
+                        ) { Text("Tipo de documento: ${documentType.ifBlank { "Seleccionar" }} ▾") }
+                        DropdownMenu(
+                            expanded = showPersonDocumentMenu,
+                            onDismissRequest = { showPersonDocumentMenu = false }
+                        ) {
+                            personDocumentTypes.forEach { type ->
+                                DropdownMenuItem(
+                                    text = { Text(type) },
+                                    onClick = {
+                                        documentType = type
+                                        showPersonDocumentMenu = false
+                                        lookupSearched = false
+                                        lookupComplete = false
+                                        lookupAnchorId = null
+                                        customerLookupVerified = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                    OutlinedTextField(
+                        documentNumber, {
+                            documentNumber = it.trim()
+                            lookupSearched = false
+                            lookupComplete = false
+                            lookupAnchorId = null
+                            customerLookupVerified = false
+                        },
+                        label = { Text("Número de documento *") }, modifier = Modifier.fillMaxWidth()
+                    )
+                    Button(
+                        enabled = !busy && creditOnline && documentType in personDocumentTypes && documentNumber.isNotBlank(),
+                        onClick = {
+                            scope.launch {
+                                val current = session ?: return@launch
+                                val branch = current.selectedBranchId ?: return@launch
+                                busy = true
+                                lookupSearched = false
+                                lookupComplete = false
+                                customerLookupVerified = false
+                                customerCandidate = null
+                                lookupCustomer = null
+                                lookupPayments = emptyList()
+                                lookupAnchorId = null
+                                lookupMessage = "Consultando identidad e historial en el servidor…"
+                                try {
+                                    when (val result = app.api.customerCandidate(
+                                        current.token, branch, documentType, documentNumber
+                                    )) {
+                                        is ApiResult.Success -> {
+                                            val existing = result.value.customerCandidate
+                                            customerCandidate = existing
+                                            lookupSearched = true
+                                            if (existing?.customerId != null) {
+                                                when (val history = app.api.customerByDocument(
+                                                    current.token, branch, documentType, documentNumber
+                                                )) {
+                                                    is ApiResult.Success -> {
+                                                        val remote = history.value.customerByDocument
+                                                        if (remote == null || remote.id != existing.customerId) {
+                                                            lookupMessage = "Cliente registrado en la empresa sin historial visible en esta sucursal. " +
+                                                                "No se puede crear otro cliente con el mismo documento."
+                                                        } else {
+                                                            showCustomerHistory(remote, current, branch)
+                                                        }
+                                                    }
+                                                    is ApiResult.Rejected -> {
+                                                        report(history)
+                                                        lookupMessage = if (history.message == "Customer not found")
+                                                            "Cliente registrado en la empresa sin tarjeta visible en esta sucursal. " +
+                                                                "No se puede crear otro cliente con el mismo documento."
+                                                        else "No se pudo consultar la cartera de este cliente: $notice"
+                                                    }
+                                                    else -> {
+                                                        report(history)
+                                                        lookupMessage = "No se pudo consultar la cartera de este cliente: $notice"
+                                                    }
+                                                }
+                                            } else {
+                                                lookupComplete = true
+                                                lookupMessage = if (existing == null)
+                                                    "No existe una persona ni un cliente con este documento en la empresa."
+                                                else "Persona existente sin cliente asociado: no hay historial de tarjetas en la empresa."
+                                                lookupMessage += if ("crear cliente" in branchPermissionSet)
+                                                    " Puedes crear el cliente."
+                                                else " No tienes permiso para crear clientes."
+                                            }
+                                        }
+                                        is ApiResult.PermissionRejected -> {
+                                            when (val history = app.api.customerByDocument(
+                                                current.token, branch, documentType, documentNumber
+                                            )) {
+                                                is ApiResult.Success -> {
+                                                    lookupSearched = true
+                                                    val remote = history.value.customerByDocument
+                                                    if (remote != null) showCustomerHistory(remote, current, branch)
+                                                    else lookupMessage = "No se encontró el cliente. No tienes permiso para crear clientes."
+                                                }
+                                                is ApiResult.Rejected -> {
+                                                    report(history)
+                                                    lookupMessage = if (history.message == "Customer not found")
+                                                        "No se encontró un cliente accesible con ese documento. " +
+                                                            "No tienes permiso para crear clientes."
+                                                    else "No se pudo consultar el historial: $notice"
+                                                }
+                                                else -> {
+                                                    report(history)
+                                                    lookupMessage = "No se pudo consultar el historial: $notice"
+                                                }
+                                            }
+                                        }
+                                        else -> {
+                                            report(result)
+                                            lookupMessage = "No se pudo consultar la identidad: $notice"
+                                        }
+                                    }
+                                } finally {
+                                    busy = false
+                                }
+                            }
+                        }
+                    ) { Text("Buscar") }
+                    if (lookupMessage.isNotBlank()) Text(lookupMessage)
+                    if (lookupSearched) {
+                        val existing = customerCandidate
+                        if (existing != null) Text(
+                            "${formatPersonName("${existing.firstName.orEmpty()} ${existing.lastName.orEmpty()}")} · " +
+                                "${existing.documentType.orEmpty()} ${existing.documentNumber.orEmpty()} · " +
+                                "teléfono ${existing.phone.orEmpty()} · ${existing.city.orEmpty()} ${existing.street.orEmpty()}"
+                        )
+                        lookupCustomer?.let { remote ->
+                            Text("Servidor (sucursal autorizada): ${remote.credits.size} tarjetas · " +
+                                "cupo ${formatMoney(remote.maxCredit?.toString())} · estado ${remote.status.orEmpty()} · " +
+                                "${lookupPayments.size} movimientos")
+                            if (!remote.note.isNullOrBlank()) Text("Nota: ${remote.note}")
+                            remote.comments.forEach { note -> Text("Comentario: ${note.comment}") }
+                            remote.credits.forEach { credit ->
+                                Text("Tarjeta ${credit.id} · ${credit.status.orEmpty()} · " +
+                                    "saldo ${formatMoney(credit.balance?.toString())} · " +
+                                    "valor ${formatMoney(credit.value?.toString())}")
+                                lookupPayments.filter { it.creditId == credit.id }.forEach { payment ->
+                                    Text("  ${payment.createdAt.orEmpty()} · ${formatMoney(payment.amount?.toString())} · " +
+                                        "${payment.description.orEmpty()} (${payment.state.orEmpty()})",
+                                        style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                            Text("Tarjeta de referencia para el orden: «Aquí vas» " +
+                                (lookupAnchorId?.let { "($it)" } ?: "(sin confirmar)."),
+                                style = MaterialTheme.typography.bodySmall)
+                            if (receiptSequences.isEmpty()) Text(
+                                "No hay consecutivo de comprobante de esta sucursal; sincroniza antes de crear.",
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            if (session?.branchExtraCharges?.get(branchId) !in setOf("boleta", "seguro", "ninguno")) Text(
+                                "No se conoce el cobro adicional de esta sucursal; vuelve a iniciar sesión en línea.",
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            Button(
+                                enabled = canOpenLookedUpCreditForm(creditOnline, busy, lookupComplete,
+                                    lookupAnchorId, pointedCreditId) &&
+                                    ("nueva tarjeta" in branchPermissionSet || branchPermissionSet.isEmpty()) &&
+                                    receiptSequences.isNotEmpty() &&
+                                    session?.branchExtraCharges?.get(branchId) in setOf("boleta", "seguro", "ninguno"),
+                                onClick = {
+                                    scope.launch {
+                                        val current = session ?: return@launch
+                                        val branch = current.selectedBranchId ?: return@launch
+                                        val anchor = lookupAnchorId ?: return@launch
+                                        busy = true
+                                        try {
+                                            when (val verified = app.api.me(current.token)) {
+                                                is ApiResult.Success -> {
+                                                    if (verified.value.me == null || !creditOnline) {
+                                                        lookupComplete = false
+                                                        lookupMessage = "Se perdió la conexión o la sesión. Busca de nuevo."
+                                                    } else when (val opened = app.repository.openCustomerByDocument(
+                                                        current, branch, documentType, documentNumber
+                                                    )) {
+                                                        is ApiResult.Success -> {
+                                                            if (opened.value.id != remote.id.toString() ||
+                                                                anchor != pointedCreditId ||
+                                                                rows.none { it.credit.id == anchor }) {
+                                                                lookupComplete = false
+                                                                lookupMessage = "El cliente o la tarjeta cambió. Busca de nuevo."
+                                                            } else {
+                                                                customer = opened.value
+                                                                selectedCreditId = anchor
+                                                                assessmentCreditId = anchor
+                                                                assessmentCustomer = remote
+                                                                assessmentPayments = lookupPayments
+                                                                assessmentComplete = true
+                                                                assessmentLoading = false
+                                                                prepareComposer(OperationKind.CREATE_CREDIT, sourceCreditId = anchor)
+                                                            }
+                                                        }
+                                                        else -> {
+                                                            report(opened)
+                                                            lookupComplete = false
+                                                            lookupMessage = "No se pudo confirmar el cliente: $notice. Busca de nuevo."
+                                                        }
+                                                    }
+                                                }
+                                                else -> {
+                                                    report(verified)
+                                                    lookupComplete = false
+                                                    lookupMessage = "No se pudo confirmar la conexión: $notice. Busca de nuevo."
+                                                }
+                                            }
+                                        } finally {
+                                            busy = false
+                                        }
+                                    }
+                                }
+                            ) { Text("Apto · abrir formulario de nueva tarjeta") }
+                            OutlinedButton(enabled = lookupComplete && !busy && creditOnline, onClick = {
+                                scope.launch {
+                                    val current = session ?: return@launch
+                                    val branch = current.selectedBranchId ?: return@launch
+                                    when (val opened = app.repository.openCustomerByDocument(
+                                        current, branch, documentType, documentNumber
+                                    )) {
+                                        is ApiResult.Success -> {
+                                            customer = opened.value
+                                            screen = Screen.CUSTOMER
+                                        }
+                                        else -> report(opened)
+                                    }
+                                }
+                            }) { Text("Abrir cliente existente (no duplicar)") }
+                        }
+                        if (existing?.customerId == null && lookupCustomer == null) {
+                            Button(enabled = canOpenCreditForm(creditOnline, busy, lookupComplete) &&
+                                "crear cliente" in branchPermissionSet, onClick = {
+                                scope.launch {
+                                    val current = session ?: return@launch
+                                    busy = true
+                                    try {
+                                        when (val verified = app.api.me(current.token)) {
+                                            is ApiResult.Success -> {
+                                                if (verified.value.me == null) {
+                                                    lookupComplete = false
+                                                    lookupMessage = "No se pudo verificar la sesión. Busca de nuevo."
+                                                } else {
+                                                    prepareComposer(OperationKind.CREATE_CUSTOMER)
+                                                    draftDocumentType = documentType
+                                                    draftDocumentNumber = documentNumber
+                                                    if (existing != null) {
+                                                        draftFirstName = existing.firstName.orEmpty()
+                                                        draftLastName = existing.lastName.orEmpty()
+                                                        draftSex = existing.sex.orEmpty()
+                                                        draftBirthDate = existing.birthDate.orEmpty()
+                                                        draftPhone = existing.phone.orEmpty()
+                                                        draftEmail = existing.email.orEmpty()
+                                                        draftOccupation = existing.occupation.orEmpty()
+                                                        draftPersonNote = existing.personNote.orEmpty()
+                                                        draftDepartment = existing.department.orEmpty()
+                                                        draftCity = existing.city.orEmpty()
+                                                        draftNeighborhood = existing.neighborhood.orEmpty()
+                                                        draftAddress = existing.street.orEmpty()
+                                                    }
+                                                    customerLookupVerified = true
+                                                }
+                                            }
+                                            else -> {
+                                                report(verified)
+                                                lookupComplete = false
+                                                lookupMessage = "Se perdió la conexión: $notice. Busca de nuevo."
+                                            }
+                                        }
+                                    } finally {
+                                        busy = false
+                                    }
+                                }
+                            }) { Text("Apto · abrir formulario") }
+                        }
+                    }
+                    TextButton(onClick = { screen = Screen.HOME }) { Text("Volver") }
+                }
                 Screen.CUSTOMER -> {
                     Text("Cliente", style = MaterialTheme.typography.headlineSmall)
                     customer?.let { selectedCustomer ->
@@ -2073,6 +2573,29 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 Text("ID de operación: ${operation.operationId}")
                                 Text("Entidad: ${operation.entityId} · sucursal ${operation.branchId}")
                                 operation.lastError?.let { Text(friendlyServerError(it), color = MaterialTheme.colorScheme.error) }
+                                if (operation.kind == OperationKind.CREATE_CREDIT &&
+                                    operation.status == OperationStatus.REJECTED
+                                ) {
+                                    Text("Esta tarjeta solo existe en este teléfono. Corrige primero el cupo del cliente o pide autorización. " +
+                                        "Después podrás reenviar la misma creación; no crees otra tarjeta igual.")
+                                    Button(enabled = !busy && online, onClick = {
+                                        scope.launch {
+                                            busy = true
+                                            try {
+                                                val retried = app.repository.retryRejectedCredit(
+                                                    operation.operationId, operation.accountKey
+                                                )
+                                                loadOperations()
+                                                submitAndAwaitConfirmation(retried, retried.branchId,
+                                                    requireNotNull(session))
+                                            } catch (error: IllegalArgumentException) {
+                                                notice = error.message ?: "No se pudo reintentar la tarjeta."
+                                            } finally {
+                                                busy = false
+                                            }
+                                        }
+                                    }) { Text("Reintentar esta tarjeta después de corregir el cupo") }
+                                }
                                 if (operation.status == OperationStatus.CONFLICT || operation.status == OperationStatus.REJECTED) {
                                     Text("Estado del servidor:")
                                     Text(
@@ -2126,6 +2649,11 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             }
                         }
                         Text(if (assessmentLoading) "Consultando…" else assessmentMessage)
+                        if (!assessmentLoading && !assessmentComplete && creditOnline) {
+                            OutlinedButton(onClick = { assessCard(assessmentCreditId.orEmpty()) }) {
+                                Text("Volver a consultar el historial")
+                            }
+                        }
                         assessmentCustomer?.let { remote ->
                             Text("${formatPersonName("${remote.firstName} ${remote.lastName}")} · " +
                                 "${remote.documentType.orEmpty()} ${remote.documentNumber.orEmpty()} · " +
@@ -2158,13 +2686,39 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             color = MaterialTheme.colorScheme.error
                         )
                         Button(
-                            enabled = !assessmentLoading && assessmentCreditId == selectedCreditId &&
+                            enabled = canOpenCreditForm(creditOnline, assessmentLoading, assessmentComplete) &&
+                                assessmentCreditId == selectedCreditId &&
                                 receiptSequences.isNotEmpty() &&
                                 (session?.branchExtraCharges?.get(branchId) in setOf("boleta", "seguro", "ninguno")),
                             onClick = {
-                                prepareComposer(OperationKind.CREATE_CREDIT, sourceCreditId = assessmentCreditId)
+                                scope.launch {
+                                    assessmentLoading = true
+                                    try {
+                                        val current = session ?: return@launch
+                                        when (val verified = app.api.me(current.token)) {
+                                            is ApiResult.Success -> {
+                                                if (verified.value.me != null && creditOnline) {
+                                                    prepareComposer(OperationKind.CREATE_CREDIT,
+                                                        sourceCreditId = assessmentCreditId)
+                                                } else {
+                                                    assessmentComplete = false
+                                                    assessmentMessage = "Se perdió la conexión o la sesión. Vuelve a consultar el historial."
+                                                }
+                                            }
+                                            else -> {
+                                                report(verified)
+                                                assessmentComplete = false
+                                                assessmentMessage = "No se pudo confirmar la conexión: $notice. Vuelve a consultar."
+                                            }
+                                        }
+                                    } finally {
+                                        assessmentLoading = false
+                                    }
+                                }
                             }
                         ) { Text("Apto · abrir formulario") }
+                        if (!creditOnline) Text("Sin conexión: no se puede abrir el formulario de nueva tarjeta.",
+                            color = MaterialTheme.colorScheme.error)
                     }
                     TextButton(onClick = { screen = Screen.HOME }) { Text("Volver a cartera") }
                 }
@@ -2179,12 +2733,17 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             if (operationKind == OperationKind.UPDATE_CUSTOMER && customer?.locallyCreated == true) {
                                 Text("La edición requiere el ID numérico asignado por el servidor.")
                             }
+                            if (operationKind == OperationKind.CREATE_CUSTOMER) {
+                                Text(if (customerCandidate != null)
+                                    "Persona encontrada en la empresa: verifica sus datos antes de vincularla como cliente y aprobar su cupo."
+                                else "Documento sin persona registrada: completa sus datos para crear el cliente.")
+                            }
                             OutlinedTextField(draftFirstName, { draftFirstName = it }, label = { Text("Nombres *") }, modifier = Modifier.fillMaxWidth())
                             OutlinedTextField(draftLastName, { draftLastName = it }, label = { Text("Apellidos *") }, modifier = Modifier.fillMaxWidth())
                             OutlinedTextField(draftSex, { draftSex = it }, label = { Text("Sexo") }, modifier = Modifier.fillMaxWidth())
                             OutlinedTextField(draftBirthDate, { draftBirthDate = it }, label = { Text("Fecha de nacimiento") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(draftDocumentType, { draftDocumentType = it }, label = { Text("Tipo de documento *") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(draftDocumentNumber, { draftDocumentNumber = it }, label = { Text("Número de documento *") }, modifier = Modifier.fillMaxWidth())
+                            OutlinedTextField(draftDocumentType, { draftDocumentType = it }, label = { Text("Tipo de documento *") }, modifier = Modifier.fillMaxWidth(), readOnly = operationKind == OperationKind.CREATE_CUSTOMER)
+                            OutlinedTextField(draftDocumentNumber, { draftDocumentNumber = it }, label = { Text("Número de documento *") }, modifier = Modifier.fillMaxWidth(), readOnly = operationKind == OperationKind.CREATE_CUSTOMER)
                             OutlinedTextField(draftPhone, { draftPhone = it }, label = { Text("Teléfono") }, modifier = Modifier.fillMaxWidth())
                             OutlinedTextField(draftEmail, { draftEmail = it }, label = { Text("Correo") }, modifier = Modifier.fillMaxWidth())
                             OutlinedTextField(draftOccupation, { draftOccupation = it }, label = { Text("Ocupación") }, modifier = Modifier.fillMaxWidth())
@@ -2193,14 +2752,18 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             OutlinedTextField(draftCity, { draftCity = it }, label = { Text("Ciudad") }, modifier = Modifier.fillMaxWidth())
                             OutlinedTextField(draftNeighborhood, { draftNeighborhood = it }, label = { Text("Barrio") }, modifier = Modifier.fillMaxWidth())
                             OutlinedTextField(draftAddress, { draftAddress = it }, label = { Text("Calle") }, modifier = Modifier.fillMaxWidth())
-                            OutlinedTextField(draftMaxCredit, { draftMaxCredit = it }, label = { Text("Límite de crédito *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                            OutlinedTextField(draftMaxCredit, { draftMaxCredit = it }, label = { Text(if (operationKind == OperationKind.CREATE_CUSTOMER) "Máximo cupo que apruebo *" else "Límite de crédito *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                            if (operationKind == OperationKind.CREATE_CUSTOMER) Text(
+                                if (session?.isSuperAdministrator == true) "Super Administrador: sin límite de empleado."
+                                else "Máximo autorizado del empleado: ${session?.employeeMaxCredit ?: "desconocido; inicia sesión en línea"}"
+                            )
                             OutlinedTextField(draftNickname, { draftNickname = it }, label = { Text("Apodo") }, modifier = Modifier.fillMaxWidth())
                             OutlinedTextField(draftCustomerNote, { draftCustomerNote = it }, label = { Text("Nota de cliente") }, modifier = Modifier.fillMaxWidth())
                             OutlinedTextField(draftCustomerStatus, { draftCustomerStatus = it }, label = { Text("Estado de cliente") }, modifier = Modifier.fillMaxWidth())
                             OutlinedTextField(draftGuarantorPersonId, { draftGuarantorPersonId = it }, label = { Text("ID persona fiador (opcional)") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                         }
                         OperationKind.CREATE_CREDIT -> {
-                            val originCredit = rows.firstOrNull { it.credit.id == selectedCreditId }
+                            val originCredit = rows.firstOrNull { it.credit.id == selectedCreditId }?.credit
                             Text(
                                 "Cliente: ${formatPersonName("${customer?.firstName.orEmpty()} ${customer?.lastName.orEmpty()}").ifBlank { "—" }}",
                                 style = MaterialTheme.typography.titleMedium
@@ -2216,7 +2779,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 style = MaterialTheme.typography.bodySmall
                             )
                             if (originCredit != null) {
-                                Text("Posición respecto a la tarjeta abierta", style = MaterialTheme.typography.labelLarge)
+                                Text("Posición respecto a «Aquí vas»", style = MaterialTheme.typography.labelLarge)
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     for ((placement, label) in listOf(
                                         CardPlacement.BEFORE to "Antes", CardPlacement.AFTER to "Después"
@@ -2242,6 +2805,11 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             }
                             OutlinedTextField(draftValue, { draftValue = it }, label = { Text("Valor total a pagar (deuda inicial) *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
                             OutlinedTextField(draftCost, { draftCost = it }, label = { Text("Costo / capital entregado (no es la deuda) *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                            Text(
+                                if (session?.isSuperAdministrator == true)
+                                    "Si se amplía el cupo del cliente, Super Administrador no tiene límite de empleado."
+                                else "Si hace falta ampliar el cupo, el servidor verificará tus permisos y que la deuda existente más este capital no exceda tu máximo autorizado (${session?.employeeMaxCredit ?: "desconocido"})."
+                            )
                             Text("Utilidad calculada: ${formatMoney(creditProfit(draftValue, draftCost))}")
                             val total = draftValue.toBigDecimalOrNull()
                             val initial = if (draftConcept == "Articulo") draftInitialPayment.toBigDecimalOrNull() else java.math.BigDecimal.ZERO
@@ -2454,35 +3022,4 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         )
     }
 
-    if (showDocumentLookup) {
-        AlertDialog(
-            onDismissRequest = { showDocumentLookup = false },
-            title = { Text("Buscar cliente en el servidor") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(documentType, { documentType = it }, label = { Text("Tipo de documento") })
-                    OutlinedTextField(documentNumber, { documentNumber = it }, label = { Text("Número de documento") })
-                    Text("Solo se guarda localmente el cliente que abras mediante esta búsqueda.")
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    scope.launch {
-                        val current = session ?: return@launch
-                        val branch = current.selectedBranchId ?: return@launch
-                        when (val result = app.repository.openCustomerByDocument(current, branch, documentType, documentNumber)) {
-                            is ApiResult.Success -> {
-                                customer = result.value
-                                showDocumentLookup = false
-                                screen = Screen.CUSTOMER
-                                notice = "Cliente abierto y guardado para acceso sin conexión."
-                            }
-                            else -> report(result)
-                        }
-                    }
-                }) { Text("Buscar") }
-            },
-            dismissButton = { TextButton(onClick = { showDocumentLookup = false }) { Text("Cancelar") } }
-        )
-    }
 }

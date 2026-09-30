@@ -598,6 +598,27 @@ class CreditRepository(
         dao.setSyncControl(SyncControlEntity(accountKey, paused = reason != null, pauseReason = reason))
     }
 
+    suspend fun retryRejectedCredit(operationId: String, accountKey: String): OfflineOperationEntity {
+        database.withTransaction {
+            val operation = requireNotNull(dao.operation(operationId)) { "No se encontró la operación." }
+            require(operation.accountKey == accountKey &&
+                com.backendcreditos.mobile.queue.OperationTransitions.canManuallyRetryRejectedCredit(
+                    operation.kind, operation.status
+                )
+            ) { "Solo se puede reintentar una creación de tarjeta rechazada de esta cuenta." }
+            require(dao.blockingOperationCount(accountKey) == 1 &&
+                dao.syncControl(accountKey)?.pauseReason in setOf(null, "REJECTED", "PERMISSION")
+            ) { "Resuelve primero los otros rechazos o conflictos de la cola; después reintenta la tarjeta." }
+            require(dao.retryRejectedCredit(operationId, accountKey) == 1) {
+                "La operación cambió de estado; actualiza la cola antes de reintentar."
+            }
+            if (dao.syncControl(accountKey)?.pauseReason in setOf("REJECTED", "PERMISSION")) {
+                setSyncPaused(accountKey, null)
+            }
+        }
+        return requireNotNull(dao.operation(operationId))
+    }
+
     suspend fun discardResolvedOperation(operationId: String, accountKey: String) {
         val operation = requireNotNull(dao.operation(operationId))
         require(operation.accountKey == accountKey)

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { pool } from '../../dist/db.js';
 import {
   portfolio, customerById, defaultersOfPortfolio, withdrawnOfPortfolio, cancelledCredits,
-  portfolioClients, restoreCredit, branchPermissions, receiptSequences,
+  portfolioClients, restoreCredit, branchPermissions, receiptSequences, customerCandidate, customerByDocument,
+  personDocumentTypes,
 } from '../../dist/services/queries.js';
 
 const user = {
@@ -20,6 +21,64 @@ function withMockedPool(execute, run) {
 
 // Matches model/Cartera.php::listRuta(), the legacy query behind the main cartera listing.
 const EXCLUDED_STATUSES = ['cancelado', 'inactiva', 'moroso', 'fallecio', 'discapacitado'];
+
+test('new-customer lookup uses company document and configured person types', async () => {
+  const admin = { user: { ...user, cargo: 'Super Administrador' } };
+  await withMockedPool(async (sql, params) => {
+    if (sql.includes('FROM tbl_sucursal b')) return [[{ branchCompanyId: 7 }], []];
+    if (sql.includes('FROM tbl_tipo_documento')) {
+      assert.match(sql, /str_operacion='Persona'/);
+      return [[{ name: 'Cédula' }], []];
+    }
+    if (sql.includes('FROM tbl_persona p')) {
+      assert.match(sql, /p\.idglobal=\? AND p\.str_tipo_documento=\? AND p\.str_num_documento=\?/);
+      assert.deepEqual(params, [7, 'Cédula', '123']);
+      return [[{ personId: 12, customerId: null, firstName: 'Ana' }], []];
+    }
+    throw new Error(`Unexpected query: ${sql}`);
+  }, async () => {
+    assert.deepEqual(await personDocumentTypes(admin, 4), [{ name: 'Cédula' }]);
+    assert.deepEqual(await customerCandidate(admin, 4, 'Cédula', '123'),
+      { personId: 12, customerId: null, firstName: 'Ana' });
+  });
+  await withMockedPool(async (sql) => {
+    if (sql.includes('FROM tbl_sucursal b')) return [[{ branchCompanyId: 7, idauth_sucursal: 1 }], []];
+    if (sql.includes('FROM tbl_tipo_documento')) return [[{ name: 'Cédula' }], []];
+    throw new Error(`Unexpected query: ${sql}`);
+  }, async () => {
+    assert.deepEqual(await personDocumentTypes(context, 4), [{ name: 'Cédula' }]);
+  });
+});
+
+test('credit-authorized employee can find a company customer with no cards in this branch', async () => {
+  await withMockedPool(async (sql, params) => {
+    if (sql.includes('FROM tbl_sucursal b')) return [[{ branchCompanyId: 7, idauth_sucursal: 1 }], []];
+    if (sql.includes('JOIN tbl_oficina o')) return [[], []];
+    if (sql.includes('FROM tbl_auth_sucursal s') && sql.includes('a.str_nombre = ?')) {
+      return [params[3] === 'nueva tarjeta' ? [{ str_nombre: 'nueva tarjeta' }] : [], []];
+    }
+    if (sql.includes('FROM tbl_persona p')) {
+      assert.deepEqual(params, [7, 'Cédula', '123']);
+      return [[{ personId: 12, customerId: 55, firstName: 'Ana' }], []];
+    }
+    if (sql.includes('FROM tbl_clientes c')) {
+      assert.doesNotMatch(sql, /EXISTS \(SELECT 1 FROM tbl_tarjetas t2/);
+      assert.deepEqual(params, [7, 'Cédula', '123']);
+      return [[{ id: 55, companyId: 7 }], []];
+    }
+    if (sql.includes('FROM tbl_tarjetas t')) {
+      assert.deepEqual(params, [7, 4, 55]);
+      return [[], []];
+    }
+    if (sql.includes('FROM tbl_comentarios_cliente')) return [[], []];
+    throw new Error(`Unexpected query: ${sql}`);
+  }, async () => {
+    assert.equal((await customerCandidate(context, 4, 'Cédula', '123')).customerId, 55);
+    const found = await customerByDocument(context, 4, 'Cédula', '123');
+    assert.equal(found.id, 55);
+    assert.deepEqual(found.credits, []);
+  });
+});
 
 test('portfolio excludes credits with legacy-excluded statuses and hides customers left with none', async () => {
   const calls = [];

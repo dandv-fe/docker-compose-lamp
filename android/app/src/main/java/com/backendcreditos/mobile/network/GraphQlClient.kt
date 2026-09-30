@@ -109,6 +109,30 @@ class GraphQlApi(private val client: GraphQlClient) {
     suspend fun me(token: String): ApiResult<MeData> =
         client.execute(GraphQlDocuments.ME, buildJsonObject { }, MeData.serializer(), token)
 
+    suspend fun personDocumentTypes(token: String, branchId: String): ApiResult<PersonDocumentTypesData> {
+        val id = branchId.toIntOrNull() ?: return ApiResult.Rejected("La sucursal debe tener un ID numérico.")
+        return client.execute(
+            GraphQlDocuments.PERSON_DOCUMENT_TYPES,
+            buildJsonObject { put("branchId", JsonPrimitive(id)) },
+            PersonDocumentTypesData.serializer(), token
+        )
+    }
+
+    suspend fun customerCandidate(
+        token: String, branchId: String, documentType: String, documentNumber: String
+    ): ApiResult<CustomerCandidateData> {
+        val id = branchId.toIntOrNull() ?: return ApiResult.Rejected("La sucursal debe tener un ID numérico.")
+        return client.execute(
+            GraphQlDocuments.CUSTOMER_CANDIDATE,
+            buildJsonObject {
+                put("branchId", JsonPrimitive(id))
+                put("documentType", JsonPrimitive(documentType))
+                put("documentNumber", JsonPrimitive(documentNumber))
+            },
+            CustomerCandidateData.serializer(), token
+        )
+    }
+
     suspend fun portfolio(
         token: String, branchId: String, first: Int, after: String?, snapshotCursor: String?
     ): ApiResult<PortfolioData> {

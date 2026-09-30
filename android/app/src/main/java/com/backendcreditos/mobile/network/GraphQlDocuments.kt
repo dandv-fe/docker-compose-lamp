@@ -5,7 +5,7 @@ object GraphQlDocuments {
         mutation Login(${'$'}companyId: Int!, ${'$'}username: String!, ${'$'}password: String!) {
           login(companyId: ${'$'}companyId, username: ${'$'}username, password: ${'$'}password) {
             token expiresIn
-            user { userId companyId employeeId username firstName lastName companyName }
+            user { userId companyId employeeId employeeMaxCredit isSuperAdministrator username firstName lastName companyName }
             company { id name }
             branches { id name type extraCharge }
           }
@@ -14,12 +14,25 @@ object GraphQlDocuments {
     const val ME = """
         query Me {
           me {
-            userId companyId employeeId username firstName lastName companyName
+            userId companyId employeeId employeeMaxCredit isSuperAdministrator username firstName lastName companyName
             branches { id name type extraCharge }
           }
         }
     """
     const val BRANCHES = """query Branches { branches { id name type extraCharge } }"""
+    const val PERSON_DOCUMENT_TYPES = """
+        query PersonDocumentTypes(${'$'}branchId: Int!) {
+          personDocumentTypes(branchId: ${'$'}branchId) { name }
+        }
+    """
+    const val CUSTOMER_CANDIDATE = """
+        query CustomerCandidate(${'$'}branchId: Int!, ${'$'}documentType: String!, ${'$'}documentNumber: String!) {
+          customerCandidate(branchId: ${'$'}branchId, documentType: ${'$'}documentType, documentNumber: ${'$'}documentNumber) {
+            personId customerId firstName lastName sex birthDate documentType documentNumber
+            phone email occupation personNote department city neighborhood street
+          }
+        }
+    """
     const val PORTFOLIO = """
         query Portfolio(${'$'}branchId: Int!, ${'$'}first: Int!, ${'$'}after: String, ${'$'}snapshotCursor: String) {
           portfolio(branchId: ${'$'}branchId, first: ${'$'}first, after: ${'$'}after, snapshotCursor: ${'$'}snapshotCursor) {

@@ -6,7 +6,7 @@ import {
 import { login, type AuthContext } from '../services/auth.js';
 import { applyOfflineOperation, type OfflineInput } from '../services/operations.js';
 import {
-  branches, branchPermissions, cancelledCredits, customerByDocument, customerById,
+  branches, branchPermissions, cancelledCredits, customerByDocument, customerById, customerCandidate, personDocumentTypes,
   defaultersOfPortfolio, me, paymentHistory, portfolio, portfolioClients, receiptSequences,
   restoreCredit, syncChanges, withdrawnOfPortfolio,
 } from '../services/queries.js';
@@ -35,6 +35,11 @@ const userFields = {
     userId: { type: new GraphQLNonNull(GraphQLInt) },
     companyId: { type: new GraphQLNonNull(GraphQLInt) },
     employeeId: { type: GraphQLInt },
+    employeeMaxCredit: { type: GraphQLFloat },
+    isSuperAdministrator: {
+      type: new GraphQLNonNull(GraphQLBoolean),
+      resolve: (user: { cargo: string | null }) => user.cargo === 'Super Administrador',
+    },
     username: { type: new GraphQLNonNull(GraphQLString) },
     firstName: { type: new GraphQLNonNull(GraphQLString) },
     lastName: { type: new GraphQLNonNull(GraphQLString) },
@@ -149,6 +154,26 @@ const CustomerType = new GraphQLObjectType({
     credits: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(CreditType))) },
     comments: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(CommentType))) },
   },
+});
+
+const CustomerCandidateType = new GraphQLObjectType({
+  name: 'CustomerCandidate',
+  fields: {
+    personId: { type: new GraphQLNonNull(GraphQLInt) },
+    customerId: { type: GraphQLInt },
+    firstName: { type: GraphQLString }, lastName: { type: GraphQLString },
+    sex: { type: GraphQLString }, birthDate: { type: GraphQLString },
+    documentType: { type: GraphQLString }, documentNumber: { type: GraphQLString },
+    phone: { type: GraphQLString }, email: { type: GraphQLString },
+    occupation: { type: GraphQLString }, personNote: { type: GraphQLString },
+    department: { type: GraphQLString }, city: { type: GraphQLString },
+    neighborhood: { type: GraphQLString }, street: { type: GraphQLString },
+  },
+});
+
+const PersonDocumentType = new GraphQLObjectType({
+  name: 'PersonDocumentType',
+  fields: { name: { type: new GraphQLNonNull(GraphQLString) } },
 });
 
 const PortfolioType = new GraphQLObjectType({
@@ -312,6 +337,22 @@ const Query = new GraphQLObjectType({
       },
       resolve: (_source, args, context: { auth: AuthContext | null }) =>
         customerByDocument(auth(context), args.branchId, args.documentType, args.documentNumber),
+    },
+    customerCandidate: {
+      type: CustomerCandidateType,
+      args: {
+        branchId: { type: new GraphQLNonNull(GraphQLInt) },
+        documentType: { type: new GraphQLNonNull(GraphQLString) },
+        documentNumber: { type: new GraphQLNonNull(GraphQLString) },
+      },
+      resolve: (_source, args, context: { auth: AuthContext | null }) =>
+        customerCandidate(auth(context), args.branchId, args.documentType, args.documentNumber),
+    },
+    personDocumentTypes: {
+      type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(PersonDocumentType))),
+      args: { branchId: { type: new GraphQLNonNull(GraphQLInt) } },
+      resolve: (_source, args, context: { auth: AuthContext | null }) =>
+        personDocumentTypes(auth(context), args.branchId),
     },
     paymentHistory: {
       type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(PaymentType))),

@@ -20,6 +20,7 @@ object OperationPayloadMapper {
         require(firstName.isNotBlank() && lastName.isNotBlank()) { "Nombres y apellidos son obligatorios." }
         require(firstName.length <= 100 && lastName.length <= 100)
         val max = number(maxCredit, "Límite de crédito")
+        require(max >= 0) { "El máximo cupo no puede ser negativo." }
         require(sex.length <= 20 && documentType.length <= 45 && documentNumber.length <= 45)
         require(phone.length <= 15 && email.length <= 100 && occupation.length <= 100)
         require(personNote.length <= 255 && department.length <= 50 && city.length <= 50)

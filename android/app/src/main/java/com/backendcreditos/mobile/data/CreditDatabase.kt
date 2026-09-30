@@ -107,6 +107,9 @@ interface LocalDao {
     @Query("UPDATE offline_operations SET status = 'PENDING', lastError = :error WHERE operationId = :operationId AND status = 'IN_FLIGHT'")
     suspend fun returnToPending(operationId: String, error: String)
 
+    @Query("UPDATE offline_operations SET status = 'PENDING', lastError = NULL, serverState = NULL WHERE operationId = :operationId AND accountKey = :accountKey AND kind = 'CREATE_CREDIT' AND status = 'REJECTED'")
+    suspend fun retryRejectedCredit(operationId: String, accountKey: String): Int
+
     @Query("UPDATE offline_operations SET status = 'PENDING', lastError = 'Retry after process interruption' WHERE accountKey = :accountKey AND status = 'IN_FLIGHT'")
     suspend fun recoverInFlightOperations(accountKey: String)
 

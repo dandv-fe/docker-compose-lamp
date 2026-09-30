@@ -13,7 +13,7 @@ const personFields = {
   fotoBase64: text(15_000_000).optional(),
 };
 const clientFields = {
-  maxCredito: number, apodo: text(20), notaCliente: text(255),
+  maxCredito: number.nonnegative(), apodo: text(20), notaCliente: text(255),
   estadoCliente: text(15), fiadorPersonaId: z.number().int().nullable().optional(),
 };
 const creditFields = {

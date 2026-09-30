@@ -126,7 +126,14 @@ When a new card exceeds the customer's available cupo, the service follows
 the existing total debt plus the card's `dec_prestamo`, within the same
 transaction as card creation. This requires Super Administrador, administrator
 of the branch's office, or an active branch permission `editar cliente` /
-`editar maximo del credito`. Otherwise the operation is rejected in Spanish;
+`editar maximo del credito`. An employee other than Super Administrador cannot
+approve a new or increased client limit above their own
+`tbl_empleado.dec_max_credito`, including an automatic increase during card
+creation. The server verifies this at synchronization time. `login` and `me`
+provide the employee's maximum and administrator status for UI guidance;
+`personDocumentTypes` and `customerCandidate` support online identification
+before registering a client, including reuse of an existing person without
+duplicating their document. Otherwise the operation is rejected in Spanish;
 the PHP rule for inactive customers remains in force. The card's actual
 starting debt is still `dec_valor` (minus any initial payment), not its cost.
 

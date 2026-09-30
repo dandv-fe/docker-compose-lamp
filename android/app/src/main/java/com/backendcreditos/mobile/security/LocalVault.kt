@@ -25,7 +25,9 @@ data class StoredSession(
     val userId: Int? = null,
     val firstName: String? = null,
     val lastName: String? = null,
-    val branchExtraCharges: Map<String, String> = emptyMap()
+    val branchExtraCharges: Map<String, String> = emptyMap(),
+    val employeeMaxCredit: String? = null,
+    val isSuperAdministrator: Boolean = false
 ) {
     val accountKey: String
         get() = MessageDigest.getInstance("SHA-256")

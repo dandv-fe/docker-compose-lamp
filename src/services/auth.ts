@@ -11,6 +11,7 @@ export interface AuthUser {
   companyId: number;
   employeeId: number | null;
   cargo: string | null;
+  employeeMaxCredit: number | string | null;
   username: string;
   firstName: string;
   lastName: string;
@@ -54,12 +55,13 @@ type UserRow = RowDataPacket & {
   idusuario: number; idglobal: number; idpersona: number; str_user_name: string;
   str_password: string; str_nombres: string; str_apellidos: string; str_razon_social: string;
   idempleado: number | null; str_cargo: string | null; str_estado: string;
+  employeeMaxCredit: number | string | null;
 };
 
 const USER_SELECT = `
  SELECT u.idusuario, u.idglobal, u.idpersona, u.str_user_name, u.str_password,
         p.str_nombres, p.str_apellidos, g.str_razon_social,
-        e.idempleado, e.str_cargo, u.str_estado
+        e.idempleado, e.str_cargo, e.dec_max_credito AS employeeMaxCredit, u.str_estado
  FROM tbl_usuario u
  JOIN tbl_persona p ON p.idpersona = u.idpersona AND p.idglobal = u.idglobal
  JOIN tbl_global g ON g.idglobal = u.idglobal
@@ -71,6 +73,7 @@ function asAuthUser(row: UserRow): AuthUser {
     companyId: Number(row.idglobal),
     employeeId: row.idempleado == null ? null : Number(row.idempleado),
     cargo: row.str_cargo,
+    employeeMaxCredit: row.employeeMaxCredit,
     username: row.str_user_name,
     firstName: row.str_nombres,
     lastName: row.str_apellidos,
