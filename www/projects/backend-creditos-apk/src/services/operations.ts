@@ -203,19 +203,38 @@ export function creditAcceptsAdditionalInterest(status: string): boolean {
   return status !== 'created' && status !== 'entregando';
 }
 
-async function assertCustomerBranch(
+export async function assertCustomerBranch(
   conn: SqlConnection, companyId: number, branchId: number, customerId: number,
+  allowCompanyCustomer = false,
 ): Promise<CustomerRow> {
   const [rows] = await conn.execute<CustomerRow[]>(
     `SELECT c.idcliente, c.idpersona, c.idglobal, c.dec_max_credito, c.str_estado,
             p.str_email, p.str_num_documento, p.str_tipo_documento
      FROM tbl_clientes c JOIN tbl_persona p ON p.idpersona = c.idpersona AND p.idglobal = c.idglobal
-     WHERE c.idcliente = ? AND c.idglobal = ? AND ${branchScopeExists('c')} FOR UPDATE`,
-    [customerId, companyId, branchId, branchId, branchId],
+     WHERE c.idcliente = ? AND c.idglobal = ?
+       ${allowCompanyCustomer ? '' : `AND ${branchScopeExists('c')}`} FOR UPDATE`,
+    [customerId, companyId, ...(allowCompanyCustomer ? [] : [branchId, branchId, branchId])],
   );
   const customer = rows[0];
-  if (!customer) fail('NOT_FOUND', 'Customer not found in this branch');
+  if (!customer) fail('NOT_FOUND', allowCompanyCustomer
+    ? 'Customer not found in this company' : 'Customer not found in this branch');
   return customer;
+}
+
+export async function assertEmployeeCreditApproval(
+  conn: SqlConnection, user: ReturnType<typeof requireAuth>, requestedCents: bigint,
+) {
+  if (requestedCents < 0n) fail('BUSINESS_RULE', 'El máximo cupo aprobado no puede ser negativo.');
+  if (user.cargo === 'Super Administrador') return;
+  if (user.employeeId == null) fail('FORBIDDEN', 'Tu usuario no tiene un empleado asociado.');
+  const [rows] = await conn.execute<RowDataPacket[]>(
+    'SELECT dec_max_credito AS maxCredit FROM tbl_empleado WHERE idempleado=? AND idglobal=? LIMIT 1 FOR UPDATE',
+    [user.employeeId, user.companyId],
+  );
+  if (!rows.length) fail('FORBIDDEN', 'No se encontró el cupo autorizado del empleado.');
+  if (requestedCents > decimalToCents(rows[0].maxCredit)) {
+    fail('BUSINESS_RULE', 'El máximo cupo aprobado supera el cupo que puede otorgar el empleado.');
+  }
 }
 
 export async function ensureCreditLimit(
@@ -253,9 +272,11 @@ export async function ensureCreditLimit(
       fail('BUSINESS_RULE', 'El crédito supera el cupo disponible. Solicita a un administrador o a un empleado autorizado que lo aumente.');
     }
   }
+  const approvedCents = loanCents + debtCents;
+  await assertEmployeeCreditApproval(conn, user, approvedCents);
   await conn.execute(
     'UPDATE tbl_clientes SET dec_max_credito=?,update_at=NOW() WHERE idcliente=? AND idglobal=?',
-    [centsToDecimal(loanCents + debtCents), customer.idcliente, user.companyId],
+    [centsToDecimal(approvedCents), customer.idcliente, user.companyId],
   );
 }
 
@@ -309,20 +330,49 @@ async function executeOperation(
   switch (input.kind) {
     case 'CREATE_CUSTOMER': {
       if (employeeId == null) fail('FORBIDDEN', 'An employee identity is required for this action');
+      await assertEmployeeCreditApproval(conn, user, decimalToCents(payload.maxCredito as number));
       await assertPersonInCompany(conn, companyId, payload.fiadorPersonaId as number | null | undefined);
-      const photo = await savePhoto(payload.fotoBase64 as string | undefined);
-      if (photo) createdFiles.push(photo);
-      await ensureUniquePerson(conn, companyId, String(payload.numeroDocumento), String(payload.email));
-      const [personResult] = await conn.execute<ResultSetHeader>(
-        `INSERT INTO tbl_persona
-         (idglobal,str_nombres,str_apellidos,str_sexo,str_fecha_nacimiento,str_tipo_documento,
-          str_num_documento,str_telefono,str_email,str_foto,str_ocupacion,str_estado,str_nota,
-          str_direccion_departamento,str_direccion_ciudad,str_direccion_barrio,str_direccion_calle,
-          str_email_verificado,created_at,update_at)
-         VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW())`,
-        personValues(payload, photo, companyId),
+      const [existingPeople] = await conn.execute<RowDataPacket[]>(
+        `SELECT p.idpersona, p.str_email, c.idcliente FROM tbl_persona p
+         LEFT JOIN tbl_clientes c ON c.idpersona=p.idpersona AND c.idglobal=p.idglobal
+         WHERE p.idglobal=? AND p.str_num_documento=? LIMIT 1 FOR UPDATE`,
+        [companyId, payload.numeroDocumento],
       );
-      const personId = personResult.insertId;
+      if (existingPeople[0]?.idcliente != null) {
+        fail('CONFLICT', 'Ya existe un cliente con este documento en la empresa.');
+      }
+      let personId: number;
+      let photo = '';
+      if (existingPeople.length) {
+        personId = Number(existingPeople[0].idpersona);
+        await ensureUniquePerson(conn, companyId, String(payload.numeroDocumento), String(payload.email), personId);
+        await conn.execute(
+          `UPDATE tbl_persona SET str_nombres=?,str_apellidos=?,str_sexo=?,str_fecha_nacimiento=?,
+           str_tipo_documento=?,str_num_documento=?,str_telefono=?,str_email=?,str_ocupacion=?,
+           str_nota=?,str_direccion_departamento=?,str_direccion_ciudad=?,str_direccion_barrio=?,
+           str_direccion_calle=?,str_email_verificado=IF(?,'0',str_email_verificado),
+           update_at=NOW() WHERE idpersona=? AND idglobal=?`,
+          [payload.nombres, payload.apellidos, payload.sexo, payload.fechaNacimiento ?? null,
+            payload.tipoDocumento, payload.numeroDocumento, payload.telefono, payload.email,
+            payload.ocupacion, payload.notaPersona, payload.departamento, payload.ciudad,
+            payload.barrio, payload.calle, existingPeople[0].str_email !== payload.email ? 1 : 0,
+            personId, companyId],
+        );
+      } else {
+        photo = await savePhoto(payload.fotoBase64 as string | undefined);
+        if (photo) createdFiles.push(photo);
+        await ensureUniquePerson(conn, companyId, String(payload.numeroDocumento), String(payload.email));
+        const [personResult] = await conn.execute<ResultSetHeader>(
+          `INSERT INTO tbl_persona
+           (idglobal,str_nombres,str_apellidos,str_sexo,str_fecha_nacimiento,str_tipo_documento,
+            str_num_documento,str_telefono,str_email,str_foto,str_ocupacion,str_estado,str_nota,
+            str_direccion_departamento,str_direccion_ciudad,str_direccion_barrio,str_direccion_calle,
+            str_email_verificado,created_at,update_at)
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW())`,
+          personValues(payload, photo, companyId),
+        );
+        personId = personResult.insertId;
+      }
       const [clientResult] = await conn.execute<ResultSetHeader>(
         `INSERT INTO tbl_clientes
          (idglobal,idpersona,dec_max_credito,str_apodo,str_nota,str_estado,str_calificacion,
@@ -336,6 +386,10 @@ async function executeOperation(
     case 'UPDATE_CUSTOMER': {
       await assertPersonInCompany(conn, companyId, payload.fiadorPersonaId as number | null | undefined);
       const customer = await assertCustomerBranch(conn, companyId, input.branchId, Number(input.entityId));
+      const proposedMax = decimalToCents(payload.maxCredito as number);
+      if (proposedMax > decimalToCents(customer.dec_max_credito)) {
+        await assertEmployeeCreditApproval(conn, user, proposedMax);
+      }
       await ensureUniquePerson(conn, companyId, String(payload.numeroDocumento), String(payload.email), customer.idpersona);
       const photo = await savePhoto(payload.fotoBase64 as string | undefined);
       if (photo) createdFiles.push(photo);
@@ -390,7 +444,7 @@ async function executeOperation(
         if (!saleRows.length) fail('FORBIDDEN', 'Sale is outside the authenticated company');
       }
       const routeId = await openRoute(conn, companyId, input.branchId, employeeId, cargo);
-      const customer = await assertCustomerBranch(conn, companyId, input.branchId, Number(payload.idcliente));
+      const customer = await assertCustomerBranch(conn, companyId, input.branchId, Number(payload.idcliente), true);
       await ensureCreditLimit(conn, user, input.branchId, customer, decimalToCents(payload.prestamo as number));
       const [sequenceRows] = await conn.execute<RowDataPacket[]>(
         `SELECT str_ultimo_numero AS lastNumber FROM tbl_detalle_documento_sucursal

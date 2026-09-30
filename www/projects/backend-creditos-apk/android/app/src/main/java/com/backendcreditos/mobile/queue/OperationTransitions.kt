@@ -1,5 +1,6 @@
 package com.backendcreditos.mobile.queue
 
+import com.backendcreditos.mobile.data.OperationKind
 import com.backendcreditos.mobile.data.OperationStatus
 
 object OperationTransitions {
@@ -18,6 +19,9 @@ object OperationTransitions {
     fun dependencyIsReady(status: OperationStatus?): Boolean = status == OperationStatus.CONFIRMED
 
     fun shouldRetry(result: RetryDecision): Boolean = result == RetryDecision.TRANSIENT_FAILURE
+
+    fun canManuallyRetryRejectedCredit(kind: OperationKind, status: OperationStatus): Boolean =
+        kind == OperationKind.CREATE_CREDIT && status == OperationStatus.REJECTED
 }
 
 enum class RetryDecision { ACKNOWLEDGED, AUTH_EXPIRED, PERMISSION_REJECTED, CONFLICT, REJECTED, TRANSIENT_FAILURE }

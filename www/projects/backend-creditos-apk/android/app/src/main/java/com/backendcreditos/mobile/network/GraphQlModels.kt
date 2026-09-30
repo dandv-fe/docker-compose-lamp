@@ -77,6 +77,8 @@ data class UserDto(
     val userId: Int,
     val companyId: Int,
     val employeeId: Int? = null,
+    val employeeMaxCredit: Double? = null,
+    val isSuperAdministrator: Boolean = false,
     val username: String,
     val firstName: String,
     val lastName: String,
@@ -91,6 +93,8 @@ data class UserWithBranchesDto(
     val userId: Int,
     val companyId: Int,
     val employeeId: Int? = null,
+    val employeeMaxCredit: Double? = null,
+    val isSuperAdministrator: Boolean = false,
     val username: String,
     val firstName: String,
     val lastName: String,
@@ -103,6 +107,35 @@ data class BranchesData(val branches: List<BranchDto>)
 
 @Serializable
 data class BranchDto(val id: Int, val name: String, val type: String? = null, val extraCharge: String)
+
+@Serializable
+data class PersonDocumentTypesData(val personDocumentTypes: List<PersonDocumentTypeDto>)
+
+@Serializable
+data class PersonDocumentTypeDto(val name: String)
+
+@Serializable
+data class CustomerCandidateData(val customerCandidate: CustomerCandidateDto?)
+
+@Serializable
+data class CustomerCandidateDto(
+    val personId: Int,
+    val customerId: Int? = null,
+    val firstName: String? = null,
+    val lastName: String? = null,
+    val sex: String? = null,
+    val birthDate: String? = null,
+    val documentType: String? = null,
+    val documentNumber: String? = null,
+    val phone: String? = null,
+    val email: String? = null,
+    val occupation: String? = null,
+    val personNote: String? = null,
+    val department: String? = null,
+    val city: String? = null,
+    val neighborhood: String? = null,
+    val street: String? = null
+)
 
 @Serializable
 data class CustomerDto(

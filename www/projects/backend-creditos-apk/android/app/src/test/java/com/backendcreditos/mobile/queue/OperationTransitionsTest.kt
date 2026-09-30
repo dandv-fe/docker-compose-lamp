@@ -38,6 +38,22 @@ class OperationTransitionsTest {
         assertFalse(OperationTransitions.shouldRetry(RetryDecision.REJECTED))
     }
 
+    @Test fun rejectedCreditCanOnlyBeRetriedDeliberately() {
+        assertTrue(OperationTransitions.canManuallyRetryRejectedCredit(
+            OperationKind.CREATE_CREDIT, OperationStatus.REJECTED
+        ))
+        assertFalse(OperationTransitions.canManuallyRetryRejectedCredit(
+            OperationKind.CREATE_CREDIT, OperationStatus.CONFIRMED
+        ))
+        assertFalse(OperationTransitions.canManuallyRetryRejectedCredit(
+            OperationKind.CREATE_CREDIT, OperationStatus.PENDING
+        ))
+        assertFalse(OperationTransitions.canManuallyRetryRejectedCredit(
+            OperationKind.CREATE_PAYMENT, OperationStatus.REJECTED
+        ))
+        assertFalse(OperationTransitions.shouldRetry(RetryDecision.REJECTED))
+    }
+
     @Test fun transientRetryKeepsTheSameIdempotencyKeyAndAccountBinding() {
         val queued = OfflineOperationEntity(
             operationId = "stable-operation-key",

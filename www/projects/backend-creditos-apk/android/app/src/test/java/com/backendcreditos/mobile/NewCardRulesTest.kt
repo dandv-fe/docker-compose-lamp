@@ -6,6 +6,31 @@ import org.junit.Test
 
 class NewCardRulesTest {
     @Test
+    fun `new credit needs complete online assessment before opening form`() {
+        assertEquals(false, canOpenCreditForm(false, false, true))
+        assertEquals(false, canOpenCreditForm(true, true, true))
+        assertEquals(false, canOpenCreditForm(true, false, false))
+        assertEquals(true, canOpenCreditForm(true, false, true))
+    }
+
+    @Test
+    fun `unconfirmed local card cannot anchor another credit`() {
+        assertEquals(true, assessmentMatchesOrigin("7", "confirmed", 7, listOf("confirmed")))
+        assertEquals(false, assessmentMatchesOrigin("7", "local-draft", 7, listOf("confirmed")))
+        assertEquals(false, assessmentMatchesOrigin("7", "confirmed", 8, listOf("confirmed")))
+    }
+
+    @Test
+    fun `document lookup needs complete history and a confirmed reference card`() {
+        assertEquals(true, canOpenLookedUpCreditForm(true, false, true, "card", "card"))
+        assertEquals(false, canOpenLookedUpCreditForm(false, false, true, "card", "card"))
+        assertEquals(false, canOpenLookedUpCreditForm(true, true, true, "card", "card"))
+        assertEquals(false, canOpenLookedUpCreditForm(true, false, false, "card", "card"))
+        assertEquals(false, canOpenLookedUpCreditForm(true, false, true, null, "card"))
+        assertEquals(false, canOpenLookedUpCreditForm(true, false, true, "card", "different-card"))
+    }
+
+    @Test
     fun `additional interest cannot refinance a card being created or delivered`() {
         assertEquals(false, canAddInterest("created"))
         assertEquals(false, canAddInterest("entregando"))

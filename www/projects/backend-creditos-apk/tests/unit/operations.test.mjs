@@ -4,7 +4,7 @@ import {
   assertBaseVersion, assertPayloadMatch, operationPayloadSchemas, parseOperationPayload,
   centsToDecimal, decimalToCents, payloadDigest, stableJson, serializeAlert, rejectExistingAlert,
 } from '../../dist/services/validation.js';
-import { applyOfflineOperation, creditAcceptsAdditionalInterest, ensureCreditLimit, nextReceiptNumber, openRoute, planPositionBesideCard, positionBesideCard } from '../../dist/services/operations.js';
+import { applyOfflineOperation, assertCustomerBranch, assertEmployeeCreditApproval, creditAcceptsAdditionalInterest, ensureCreditLimit, nextReceiptNumber, openRoute, planPositionBesideCard, positionBesideCard } from '../../dist/services/operations.js';
 import { mapTransactionError } from '../../dist/services/errors.js';
 
 test('idempotency payload comparison is key-order independent and rejects changed input', () => {
@@ -76,6 +76,23 @@ test('route writes allow dispatch, matching office administrator, or Super Admin
   }, 7, 9, null, 'Super Administrador'), { extensions: { code: 'BUSINESS_RULE' } });
 });
 
+test('credit creation can reuse a company customer without a card in this branch', async () => {
+  const conn = { async execute(sql, params) {
+    assert.match(sql, /c\.idcliente = \? AND c\.idglobal = \?/);
+    assert.doesNotMatch(sql, /EXISTS \(SELECT 1 FROM tbl_tarjetas t2/);
+    assert.deepEqual(params, [55, 7]);
+    return [[{ idcliente: 55, idglobal: 7, dec_max_credito: '1000', str_estado: 'activo' }]];
+  } };
+  assert.equal((await assertCustomerBranch(conn, 7, 4, 55, true)).idcliente, 55);
+  await assert.rejects(assertCustomerBranch({
+    async execute(sql, params) {
+      assert.match(sql, /EXISTS \(SELECT 1 FROM tbl_tarjetas t2/);
+      assert.deepEqual(params, [55, 7, 4, 4, 4]);
+      return [[]];
+    },
+  }, 7, 4, 55), { extensions: { code: 'NOT_FOUND' } });
+});
+
 test('deadlocked or timed-out transactions return a retryable conflict for the same operation ID', () => {
   for (const code of ['ER_LOCK_DEADLOCK', 'ER_LOCK_WAIT_TIMEOUT']) {
     const error = mapTransactionError({ code });
@@ -94,6 +111,10 @@ test('new cards increase the customer limit for authorized staff only', async ()
     const conn = { async execute(sql, params) {
       calls.push({ sql, params });
       if (sql.includes('SUM(dec_resta)')) return [[{ debt: '80.00' }]];
+      if (sql.includes('FROM tbl_empleado')) {
+        assert.deepEqual(params, [31, 7]);
+        return [[{ maxCredit: '150.00' }]];
+      }
       if (sql.includes('FROM tbl_sucursal s')) {
         assert.match(sql, /au\.idsucursal=\? AND au\.idglobal=\?/);
         assert.match(sql, /o\.idglobal=s\.idglobal/);
@@ -142,6 +163,36 @@ test('sufficient cupo needs no extra permission; admin increases it but inactive
   await assert.rejects(ensureCreditLimit(conn, { ...user, cargo: 'Super Administrador' }, 4,
     { ...customer, str_estado: 'inactivo' }, 10001n), { extensions: { code: 'BUSINESS_RULE' } });
   assert.equal(calls.length, before);
+});
+
+test('new customer and increased card cupo respect employee approval limit', async () => {
+  const user = { companyId: 7, employeeId: 31, cargo: 'Cobrador' };
+  const conn = { async execute(sql, params) {
+    assert.match(sql, /FROM tbl_empleado/);
+    assert.deepEqual(params, [31, 7]);
+    return [[{ maxCredit: '130.00' }]];
+  } };
+  await assertEmployeeCreditApproval(conn, user, 13000n);
+  await assert.rejects(assertEmployeeCreditApproval(conn, user, 13001n), {
+    extensions: { code: 'BUSINESS_RULE' },
+  });
+  await assert.rejects(assertEmployeeCreditApproval(conn, user, -1n), {
+    extensions: { code: 'BUSINESS_RULE' },
+  });
+  await assertEmployeeCreditApproval(conn, { ...user, cargo: 'Super Administrador' }, 999999n);
+  const customer = { idcliente: 17, dec_max_credito: '100.00', str_estado: 'activo' };
+  const calls = [];
+  const cardConn = { async execute(sql, params) {
+    calls.push(sql);
+    if (sql.includes('SUM(dec_resta)')) return [[{ debt: '80.00' }]];
+    if (sql.includes('FROM tbl_sucursal s')) return [[{ 1: 1 }]];
+    if (sql.includes('FROM tbl_empleado')) return [[{ maxCredit: '129.99' }]];
+    throw new Error('No se debe aumentar el cupo');
+  } };
+  await assert.rejects(ensureCreditLimit(cardConn, user, 4, customer, 5000n), {
+    extensions: { code: 'BUSINESS_RULE' },
+  });
+  assert.equal(calls.some((sql) => sql.startsWith('UPDATE tbl_clientes')), false);
 });
 
 test('credit payload uses observed Spanish frequency values and rejects client tenant IDs', () => {

@@ -24,7 +24,7 @@ export async function branches(context: AuthContext | null) {
 // sub-screens (see views/nav.html) and the document-masking checks inside them.
 const KNOWN_BRANCH_PERMISSIONS = [
   'ver morosos', 'ver retirados', 'ver canceladas', 'ver clientes',
-  'documento', 'ver documento', 'pasar activos', 'pasar activos retirados', 'nueva tarjeta',
+  'documento', 'ver documento', 'pasar activos', 'pasar activos retirados', 'nueva tarjeta', 'crear cliente',
 ];
 
 export async function branchPermissions(context: AuthContext | null, branchId: number) {
@@ -227,17 +227,54 @@ export async function customerByDocument(
 ) {
   const user = requireAuth(context);
   await assertBranchAccess(user, branchId);
+  const canLookUpCompanyCustomer = await hasPermission(user, branchId, 'nueva tarjeta');
   const [rows] = await pool.execute(
     `SELECT ${CUSTOMER_FIELDS} ${CUSTOMER_FROM}
      WHERE c.idglobal = ? AND p.str_tipo_documento = ? AND p.str_num_documento = ?
-       AND ${branchScopeExists('c')} LIMIT 1`,
-    [user.companyId, documentType, documentNumber, branchId, branchId, branchId],
+       ${canLookUpCompanyCustomer ? '' : `AND ${branchScopeExists('c')}`} LIMIT 1`,
+    [user.companyId, documentType, documentNumber,
+      ...(canLookUpCompanyCustomer ? [] : [branchId, branchId, branchId])],
   );
   const customer = (rows as Array<Record<string, unknown>>)[0];
   if (!customer) fail('NOT_FOUND', 'Customer not found');
   await addBranchCredits(user.companyId, branchId, [customer]);
   await addCustomerComments([customer]);
   return customer;
+}
+
+export async function customerCandidate(
+  context: AuthContext | null, branchId: number, documentType: string, documentNumber: string,
+) {
+  const user = requireAuth(context);
+  await assertBranchAccess(user, branchId);
+  if (!await hasPermission(user, branchId, 'crear cliente') &&
+      !await hasPermission(user, branchId, 'nueva tarjeta')) {
+    fail('FORBIDDEN', 'No tienes permiso para buscar clientes para una nueva tarjeta o crear clientes.');
+  }
+  const [rows] = await pool.execute(
+    `SELECT p.idpersona AS personId, c.idcliente AS customerId,
+            p.str_nombres AS firstName, p.str_apellidos AS lastName,
+            p.str_sexo AS sex, p.str_fecha_nacimiento AS birthDate,
+            p.str_tipo_documento AS documentType, p.str_num_documento AS documentNumber,
+            p.str_telefono AS phone, p.str_email AS email, p.str_ocupacion AS occupation,
+            p.str_nota AS personNote, p.str_direccion_departamento AS department,
+            p.str_direccion_ciudad AS city, p.str_direccion_barrio AS neighborhood,
+            p.str_direccion_calle AS street
+     FROM tbl_persona p
+     LEFT JOIN tbl_clientes c ON c.idpersona=p.idpersona AND c.idglobal=p.idglobal
+     WHERE p.idglobal=? AND p.str_tipo_documento=? AND p.str_num_documento=? LIMIT 1`,
+    [user.companyId, documentType, documentNumber],
+  );
+  return (rows as Array<Record<string, unknown>>)[0] ?? null;
+}
+
+export async function personDocumentTypes(context: AuthContext | null, branchId: number) {
+  const user = requireAuth(context);
+  await assertBranchAccess(user, branchId);
+  const [rows] = await pool.execute(
+    "SELECT str_nombre AS name FROM tbl_tipo_documento WHERE str_operacion='Persona' ORDER BY str_nombre",
+  );
+  return rows;
 }
 
 // --- Cartera sub-screens (webgoez views/nav.html "Créditos" submenu) ---

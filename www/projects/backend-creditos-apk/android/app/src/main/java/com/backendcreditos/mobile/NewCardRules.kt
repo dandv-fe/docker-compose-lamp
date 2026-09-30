@@ -9,6 +9,19 @@ internal enum class CardPlacement { FIRST, BEFORE, AFTER, LAST }
 internal fun canAddInterest(status: String?): Boolean =
     status != null && status != "created" && status != "entregando"
 
+internal fun canOpenCreditForm(online: Boolean, loading: Boolean, historyComplete: Boolean): Boolean =
+    online && !loading && historyComplete
+
+internal fun canOpenLookedUpCreditForm(
+    online: Boolean, loading: Boolean, historyComplete: Boolean,
+    confirmedAnchorId: String?, pointedCreditId: String?
+): Boolean = canOpenCreditForm(online, loading, historyComplete) &&
+    confirmedAnchorId != null && confirmedAnchorId == pointedCreditId
+
+internal fun assessmentMatchesOrigin(
+    customerId: String, creditId: String, serverCustomerId: Int?, serverCreditIds: List<String>
+): Boolean = serverCustomerId?.toString() == customerId && creditId in serverCreditIds
+
 /**
  * Next receipt number, replicating the legacy PHP in `ajax/CarteraAjax.php`:
  * the numeric tail is incremented while any leading zero padding is preserved,
