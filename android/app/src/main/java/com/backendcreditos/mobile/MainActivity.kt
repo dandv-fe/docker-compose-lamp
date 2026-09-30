@@ -570,6 +570,27 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         }
     }
 
+    fun openFullPayments(creditId: String) {
+        scope.launch {
+            val current = session ?: return@launch
+            val branch = current.selectedBranchId ?: return@launch
+            inlinePaymentCreditId = null
+            inlinePaymentError = ""
+            selectedCreditId = creditId
+            paymentRows = app.database.localDao().payments(current.accountKey, branch, creditId)
+            screen = Screen.CREDIT
+            if (online) {
+                when (val result = app.repository.openPaymentHistory(current, branch, creditId)) {
+                    is ApiResult.Success -> {
+                        paymentRows = result.value
+                        branchPayments = app.repository.paymentsForBranch(current.accountKey, branch)
+                    }
+                    else -> report(result)
+                }
+            }
+        }
+    }
+
     fun openCustomerLookup() {
         customerLookupVerified = false
         customerCandidate = null
@@ -1405,6 +1426,11 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                         openCustomerLookup()
                                     }
                                 )
+                                if (screen == Screen.HOME) DropdownMenuItem(
+                                    text = { Text("Abonos e historial completo") },
+                                    enabled = pointedCreditId != null,
+                                    onClick = { showMoreMenu = false; pointedCreditId?.let(::openFullPayments) }
+                                )
                                 DropdownMenuItem(
                                     text = { Text("Crear crédito") },
                                     enabled = creditOnline && pointedCreditId != null,
@@ -1999,24 +2025,9 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             }
                         }
                         if (inlinePaymentCreditId == row.credit.id) {
-                            TextButton(onClick = {
-                                scope.launch {
-                                    val current = session ?: return@launch
-                                    val branch = current.selectedBranchId ?: return@launch
-                                    selectedCreditId = row.credit.id
-                                    paymentRows = app.database.localDao().payments(current.accountKey, branch, row.credit.id)
-                                    screen = Screen.CREDIT
-                                    if (online) {
-                                        when (val result = app.repository.openPaymentHistory(current, branch, row.credit.id)) {
-                                            is ApiResult.Success -> {
-                                                paymentRows = result.value
-                                                branchPayments = app.repository.paymentsForBranch(current.accountKey, branch)
-                                            }
-                                            else -> report(result)
-                                        }
-                                    }
-                                }
-                            }) { Text("Ver todos los movimientos / editar abono") }
+                            TextButton(onClick = { openFullPayments(row.credit.id) }) {
+                                Text("Ver todos los movimientos / editar abono")
+                            }
                         }
                         if (row.customer != null) TextButton(onClick = {
                             scope.launch {
