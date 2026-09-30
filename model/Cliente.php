@@ -11,25 +11,9 @@ class Cliente
    public function errorCupoNuevoCliente($max_credito, $created_empleado_id, $idglobal)
    {
       global $conexion;
-      if (!is_finite((float)$max_credito) || $max_credito < 0) {
-         return "ERROR: El máximo cupo que apruebo debe ser un valor válido mayor o igual a cero.";
-      }
-      if ((int)($_SESSION['userEmpresa'] ?? 0) === (int)$idglobal) {
-         return null;
-      }
-      $empleado = db_fetch_object(
-         $conexion,
-         "SELECT dec_max_credito FROM tbl_empleado WHERE idempleado=? AND idglobal=? LIMIT 1",
-         "ii",
-         [(int)$created_empleado_id, (int)$idglobal]
+      return errorCupoAprobadoCartera(
+         $conexion, $_SESSION, $max_credito, (int)$created_empleado_id, (int)$idglobal
       );
-      if ($empleado === null) {
-         return "ERROR: No se encontró el cupo autorizado del empleado.";
-      }
-      if ($max_credito > (float)$empleado->dec_max_credito) {
-         return "ERROR: El máximo cupo aprobado supera el cupo que puede otorgar el empleado.";
-      }
-      return null;
    }
 
    public function Registrar(
@@ -252,6 +236,24 @@ class Cliente
             if ($errorCupo !== null) {
                $conexion->rollback();
                return $errorCupo;
+            }
+         } else {
+            $actual = db_fetch_object(
+               $conexion,
+               "SELECT dec_max_credito FROM tbl_clientes WHERE idcliente=? AND idglobal=? LIMIT 1 FOR UPDATE",
+               "ii",
+               [(int)$idcliente, (int)$idglobal]
+            );
+            if ($actual === null) {
+               $conexion->rollback();
+               return "ERROR: Cliente no encontrado en esta empresa.";
+            }
+            if ((float)$max_credito > (float)$actual->dec_max_credito) {
+               $errorCupo = $this->errorCupoNuevoCliente($max_credito, $created_empleado_id, $idglobal);
+               if ($errorCupo !== null) {
+                  $conexion->rollback();
+                  return $errorCupo;
+               }
             }
          }
 

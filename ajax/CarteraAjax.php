@@ -4,16 +4,36 @@ session_start();
 require_once "../method.php";
 
 require_once "../model/Cartera.php";
+require_once "../model/Banco.php";
 require_once "../model/AutorizarDespachoCartera.php";
 
 $classCartera = new ClassCartera();
+$objBancoPago = new Banco();
 $idglobal = $_SESSION['idglobal'];
 $createdEmpleadoId = $_SESSION['idempleado'];
+
+function leerPagoBancoDesdePost($sufijo, $maximo)
+{
+   $idbanco = intval($_POST['cboBancoPago' . $sufijo] ?? 0);
+   if ($idbanco <= 0) {
+      return array();
+   }
+   $valorTexto = trim((string)($_POST['txtValorBancoPago' . $sufijo] ?? ''));
+   $valor = $valorTexto === '' ? floatval($maximo) : floatval($valorTexto);
+   $referencia = trim((string)($_POST['txtReferenciaBancoPago' . $sufijo] ?? ''));
+   $referencia = strip_tags($referencia);
+   return array(array(
+      'idbanco' => $idbanco,
+      'valor' => $valor,
+      'referencia' => $referencia
+   ));
+}
+
 
 // Solo estas operaciones son de lectura; las demás requieren despacho.
 $accionesLectura = [
    'buscarCliente', 'getDiferencia', 'listarRuta', 'listarDescripcion',
-   'valid', 'VerfCuentas', 'listarTarjetasCanceladas', 'usercreated'
+   'valid', 'VerfCuentas', 'listarTarjetasCanceladas', 'usercreated', 'listarBancosPago'
 ];
 if (!in_array($_GET['op'] ?? '', $accionesLectura, true)) {
    $idsucursalDespacho = (int)($_SESSION['idsucursal'] ?? 0);
@@ -42,6 +62,21 @@ if (!in_array($_GET['op'] ?? '', $accionesLectura, true)) {
 }
 
 switch ($_GET["op"]) {
+
+
+   case 'listarBancosPago':
+      $queryBancoPago = $objBancoPago->ListarActivos($idglobal);
+      $bancos = array();
+      while ($banco = $queryBancoPago->fetch_object()) {
+         $bancos[] = array(
+            'idbanco' => intval($banco->idbanco),
+            'nombre' => $banco->str_banco,
+            'tipo' => $banco->str_tipo,
+            'numero' => $banco->str_num_cueneta
+         );
+      }
+      echo json_encode(array('ok' => true, 'data' => $bancos));
+      break;
 
    case 'SaveOrUpdate':
       $idusuario = (int)($_SESSION['idusuario'] ?? 0);
@@ -97,6 +132,7 @@ switch ($_GET["op"]) {
 
       if (empty($idtarjeta)) {
          $idtarjeta = uniqidReal();
+         $pagoBancoCredito = leerPagoBancoDesdePost('Credito', $prestamo);
          $classCartera->Registrar(
             $idtarjeta,
             $idglobal,
@@ -121,7 +157,8 @@ switch ($_GET["op"]) {
             $createdEmpleadoId,
             $obligacion,
             $iddetalle_documento_socursal,
-            $idusuario
+            $idusuario,
+            $pagoBancoCredito
          );
       } else {
          if ($classCartera->Modificar($idtarjeta, $idglobal, $idsucursal, $idcliente, $idventa, $consepto, $valor, $modo, $plazo, $prestamo, $descripcion, $item, $utilidad, $c_adicional_numero, $c_adicional_valor, $str_tipo_comprobante, $str_serie, $str_numero, $str_nota, $createdEmpleadoId)) {
@@ -157,12 +194,13 @@ switch ($_GET["op"]) {
       $iddescripcion = limpiar_cadena($_POST['textRefDexcripcionHidden']);
       $idtarjeta = limpiar_cadena($_POST['txtrefTarjetaHidden']);
       $abono = floatval($_POST['txtCuotaHidden']) * -1;
+      $pagoBancoAbono = leerPagoBancoDesdePost('Abono', abs($abono));
 
       $resta = floatval($_POST['txtconfirma-credito']);
 
       if (empty($iddescripcion)) {
          $iddescripcion = uniqidReal();
-         $classCartera->saveCuota($iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $resta, $idusuario);
+         $classCartera->saveCuota($iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $resta, $idusuario, $pagoBancoAbono);
       } else {
          if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || in_array('editar cuota', array_column($_SESSION['AUTHS'], 'nombre'))) {
             $classCartera->updateCuota($iddescripcion, $idsucursal, $abono, $resta);

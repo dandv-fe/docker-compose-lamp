@@ -1,5 +1,27 @@
 <?php
 
+function errorCupoAprobadoCartera(mysqli $conexion, array $sesion, $maxCredito, int $idempleado, int $idglobal): ?string
+{
+   if (!is_numeric($maxCredito) || !is_finite((float)$maxCredito) || (float)$maxCredito < 0) {
+      return 'ERROR: El máximo cupo que apruebo debe ser un valor válido mayor o igual a cero.';
+   }
+   if ((int)($sesion['userEmpresa'] ?? 0) === $idglobal) {
+      return null;
+   }
+   $empleado = db_fetch_object(
+      $conexion,
+      'SELECT dec_max_credito FROM tbl_empleado WHERE idempleado=? AND idglobal=? LIMIT 1 FOR UPDATE',
+      'ii',
+      [$idempleado, $idglobal]
+   );
+   if ($empleado === null) {
+      return 'ERROR: No se encontró el cupo autorizado del empleado.';
+   }
+   return (float)$maxCredito > (float)$empleado->dec_max_credito
+      ? 'ERROR: El máximo cupo aprobado supera el cupo que puede otorgar el empleado.'
+      : null;
+}
+
 function administraOficinaCartera(mysqli $conexion, array $sesion, int $idsucursal): bool
 {
    $idglobal = (int)($sesion['idglobal'] ?? 0);

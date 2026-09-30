@@ -55,4 +55,8 @@ no el importe de una tarjeta. El servidor exige que no supere
 Solo el Super Administrador puede aprobar un cupo sin ese límite. El formulario
 muestra el máximo del empleado como ayuda, pero la comprobación del servidor
 es obligatoria aunque se modifique la petición desde el navegador. La edición
-de clientes existentes conserva su flujo y permisos anteriores.
+de clientes existentes conserva su flujo y permisos anteriores, pero un aumento
+del cupo también respeta el máximo del empleado. Al crear una tarjeta, incluso
+si quien la registra puede ampliar el cupo del cliente por permisos de oficina,
+la nueva suma de deuda más el capital entregado no puede superar su propio
+`tbl_empleado.dec_max_credito`; solo Super Administrador queda exceptuado.

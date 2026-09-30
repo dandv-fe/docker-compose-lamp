@@ -34,7 +34,8 @@ class ClassCartera
         $createdEmpleadoId,
         $obligacion,
         $iddetalle_documento_socursal,
-        int $idusuario
+        int $idusuario,
+        array $pagosBanco = array()
 
     ) {
         global $conexion;
@@ -43,6 +44,7 @@ class ClassCartera
         $dt = date('Y-m-d H:i:s');
         $deudatotal = 0;
         $realnumero = $obligacion ? $obligacion : $str_numero;
+        $errorMensaje = '';
 
         try {
             $sql = "SELECT 
@@ -85,8 +87,20 @@ class ClassCartera
 
             if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre)) {
                 if ($prestamo > $res->max_credito - $res->total_deuda_actual) {
-                    $sql = "UPDATE tbl_clientes SET dec_max_credito=$prestamo+$res->total_deuda_actual WHERE idcliente=$idcliente";
-                    $conexion->query($sql) or throw new Exception('error!');
+                    $nuevoCupo = (float)$prestamo + (float)$res->total_deuda_actual;
+                    $errorCupo = errorCupoAprobadoCartera(
+                        $conexion, $_SESSION, $nuevoCupo, (int)$createdEmpleadoId, (int)$idglobal
+                    );
+                    if ($errorCupo !== null) {
+                        echo $errorCupo;
+                        return false;
+                    }
+                    db_execute(
+                        $conexion,
+                        "UPDATE tbl_clientes SET dec_max_credito=?,update_at=NOW() WHERE idcliente=? AND idglobal=?",
+                        "dii",
+                        [$nuevoCupo, (int)$idcliente, (int)$idglobal]
+                    );
                 }
             } else {
                 if ($prestamo > $res->max_credito - $res->total_deuda_actual) {
@@ -122,6 +136,7 @@ class ClassCartera
                         )";
 
             $conexion->query($sql) or throw new Exception('error!');
+            $this->guardarPagosBanco('tbl_tarjeta_pago', 'idtarjeta', $idtarjeta, $idglobal, $idusuario, $pagosBanco, $prestamo);
 
             if ($cutaInicial > 0) {
                 $iddescripcion = uniqidReal();
@@ -151,6 +166,7 @@ class ClassCartera
             $conexion->query($sql_detalle_doc) or throw new Exception('error!');
         } catch (Exception $e) {
             $sw = false;
+            $errorMensaje = $e->getMessage();
             $conexion->rollback();
         }
         $conexion->commit();
@@ -158,7 +174,7 @@ class ClassCartera
 
             $conexion->close();
         }
-        $mensaje = $sw ? "Tarjeta Registrada" : "ERROR: Tarjeta no registrada";
+        $mensaje = $sw ? "Tarjeta Registrada" : ($errorMensaje && strpos($errorMensaje, 'ERROR:') === 0 ? $errorMensaje : "ERROR: Tarjeta no registrada");
         echo $mensaje;
         return $sw;
     }
@@ -263,13 +279,14 @@ class ClassCartera
         return $sw;
     }
 
-    public function saveCuota($iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $resta, int $idusuario)
+    public function saveCuota($iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $resta, int $idusuario, array $pagosBanco = array())
     {
         global $conexion;
         $conexion->autocommit(false);
         $fecha = date('Y-m-d H:i:s');
         $sw = true;
         $accion = 'Abono';
+        $errorMensaje = '';
         try {
             $sqlSelectAbono = "SELECT iddescripcion FROM tbl_descripcion 
             WHERE 
@@ -338,19 +355,21 @@ class ClassCartera
             )
 				VALUES ('$iddescripcion',$idglobal, $idsucursal, '$idtarjeta', $iddetalleruta, $abono, '$accion', 'created', $idusuario, 'web','$fecha','$fecha')";
             $conexion->query($sql) or throw new Exception('error!');
+            $this->guardarPagosBanco('tbl_descripcion_pago', 'iddescripcion', $iddescripcion, $idglobal, $idusuario, $pagosBanco, abs($abono));
 
             $sql = "UPDATE tbl_tarjetas SET dec_resta=$resta WHERE idtarjeta='$idtarjeta'";
             $conexion->query($sql) or throw new Exception("error!");
         } catch (Exception $e) {
 
             $sw = false;
+            $errorMensaje = $e->getMessage();
             $conexion->rollback();
         }
         $conexion->commit();
         if ($conexion != null) {
             $conexion->close();
         }
-        $mensaje = $sw ? $accion . " ¡Correctamente!" : "¡ERROR: Inesperado!";
+        $mensaje = $sw ? $accion . " ¡Correctamente!" : ($errorMensaje && strpos($errorMensaje, 'ERROR:') === 0 ? $errorMensaje : "¡ERROR: Inesperado!");
         echo $mensaje;
         return $sw;
     }
@@ -402,6 +421,79 @@ class ClassCartera
         $mensaje = $sw ? $accion . " ¡Correctamente!" : "¡ERROR: Inesperado!";
         echo $mensaje;
         return $sw;
+    }
+
+
+    private function dineroACentavos($valor)
+    {
+        return (int)round(floatval($valor) * 100);
+    }
+
+    private function guardarPagosBanco($tabla, $columna, $id, $idglobal, $idusuario, array $pagosBanco, $maximo)
+    {
+        global $conexion;
+        if (!in_array($tabla, array('tbl_descripcion_pago', 'tbl_tarjeta_pago'), true) || !in_array($columna, array('iddescripcion', 'idtarjeta'), true)) {
+            throw new Exception('ERROR: Configuración de pago inválida');
+        }
+
+        db_execute($conexion, "DELETE FROM $tabla WHERE $columna=? AND idglobal=?", "si", [(string)$id, intval($idglobal)]);
+        if (count($pagosBanco) === 0) {
+            return true;
+        }
+        if (count($pagosBanco) > 5) {
+            throw new Exception('ERROR: Máximo 5 métodos de pago por operación');
+        }
+
+        $idsBanco = array();
+        $totalCentavos = 0;
+        foreach ($pagosBanco as $pago) {
+            $idbanco = intval($pago['idbanco'] ?? 0);
+            $valor = floatval($pago['valor'] ?? 0);
+            $referencia = trim((string)($pago['referencia'] ?? ''));
+            if ($idbanco <= 0) {
+                throw new Exception('ERROR: Método de pago inválido');
+            }
+            if ($valor <= 0) {
+                throw new Exception('ERROR: El valor por banco debe ser mayor que cero');
+            }
+            if (strlen($referencia) > 50) {
+                throw new Exception('ERROR: La referencia no puede superar 50 caracteres');
+            }
+            $idsBanco[] = $idbanco;
+            $totalCentavos += $this->dineroACentavos($valor);
+        }
+
+        if (count(array_unique($idsBanco)) !== count($idsBanco)) {
+            throw new Exception('ERROR: No repita el mismo banco en la operación');
+        }
+        if ($totalCentavos > $this->dineroACentavos($maximo)) {
+            throw new Exception('ERROR: El valor por banco supera el valor de la operación');
+        }
+
+        $placeholders = implode(',', array_fill(0, count($idsBanco), '?'));
+        $params = array_merge([intval($idglobal)], $idsBanco);
+        $stmt = db_prepare_execute(
+            $conexion,
+            "SELECT idbanco FROM tbl_banco WHERE idglobal=? AND str_estado='activo' AND idbanco IN ($placeholders)",
+            str_repeat('i', count($params)),
+            $params
+        );
+        $bancosValidos = $stmt->get_result()->num_rows;
+        $stmt->close();
+        if ($bancosValidos !== count($idsBanco)) {
+            throw new Exception('ERROR: El banco está inactivo o no pertenece a la empresa');
+        }
+
+        foreach ($pagosBanco as $pago) {
+            $referencia = trim((string)($pago['referencia'] ?? ''));
+            db_execute(
+                $conexion,
+                "INSERT INTO $tabla (idglobal, $columna, idbanco, dec_valor, str_referencia, idusuario, created_at) VALUES (?, ?, ?, ?, ?, ?, NOW())",
+                "isidsi",
+                [intval($idglobal), (string)$id, intval($pago['idbanco']), floatval($pago['valor']), $referencia === '' ? null : $referencia, intval($idusuario)]
+            );
+        }
+        return true;
     }
 
     public function buscarCliente($idpersona)

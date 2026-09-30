@@ -41,6 +41,23 @@ jQuery(document).ready(function () {
     getDifefencia()
     listarRuta();
 
+    cargarBancosPagoCartera()
+    $("#cboBancoPagoAbono").on('change', function () {
+        const usaBanco = parseInt($(this).val() || '0') > 0
+        $(".divDetallePagoBancoAbono").toggleClass('hide', !usaBanco)
+        if (!usaBanco) {
+            $("#txtValorBancoPagoAbono").val('')
+            $("#txtReferenciaBancoPagoAbono").val('')
+        }
+    })
+    $(document).on('change', "#cboBancoPagoCredito", function () {
+        const usaBanco = parseInt($(this).val() || '0') > 0
+        $(".divDetallePagoBancoCredito").toggleClass('hide', !usaBanco)
+        if (!usaBanco) {
+            $("#txtValorBancoPagoCredito").val('')
+            $("#txtReferenciaBancoPagoCredito").val('')
+        }
+    })
 
 
     $("#btnCancelarForm").click(function (e) {
@@ -495,6 +512,40 @@ function ditetion(op) {
 
 }
 
+
+function cargarBancosPagoCartera() {
+    $.ajax({
+        url: './ajax/CarteraAjax.php?op=listarBancosPago',
+        dataType: 'json',
+        success: function (resp) {
+            const bancos = resp && resp.ok && Array.isArray(resp.data) ? resp.data : []
+            llenarSelectBancoPago('#cboBancoPagoAbono', bancos)
+            llenarSelectBancoPago('#cboBancoPagoCredito', bancos)
+            $('#divPagoBancoAbono').toggleClass('hide', bancos.length === 0)
+            $('#divPagoBancoCredito').toggleClass('hide', bancos.length === 0)
+        },
+        error: function () {
+            $('#divPagoBancoAbono').addClass('hide')
+            $('#divPagoBancoCredito').addClass('hide')
+        }
+    })
+}
+
+function llenarSelectBancoPago(selector, bancos) {
+    const select = $(selector)
+    if (!select.length) return
+    const actual = select.val() || '0'
+    const opciones = ['<option value="0">Efectivo</option>']
+    bancos.forEach(function (banco) {
+        const texto = $('<div>').text(banco.nombre + ' - ' + banco.tipo + ' (' + banco.numero + ')').html()
+        opciones.push('<option value="' + banco.idbanco + '">' + texto + '</option>')
+    })
+    select.html(opciones.join(''))
+    select.val(actual)
+    if (!select.val()) select.val('0')
+    select.trigger('change')
+}
+
 function clasificarUltimoRegistro(descripcion, estado, esPropio = false) {
     const texto = (descripcion || '').trim()
     const activo = estado === 'created' || estado === 'entregando'
@@ -541,6 +592,7 @@ function cargarDatosEnPanel() {
 
     $("#formAddAbono").trigger('reset')
     $("#formAddAbonoConfirma").trigger('reset')
+    $("#cboBancoPagoAbono").val('0').trigger('change')
     let id = sessionStorage.getItem('index');
 
     if (!id) {

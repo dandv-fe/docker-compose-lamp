@@ -151,6 +151,35 @@
             </div>
           </div>
 
+          <div id="divPagoBancoCredito" class="row hide">
+            <div class="col pr-0">
+              <div class="divForNuevoCredito">
+                <label class="labelForNuevoCredito" for="cboBancoPagoCredito">
+                  <span class="spanForNuevoCredito top badge-success">Método de pago</span>
+                  <select id="cboBancoPagoCredito" name="cboBancoPagoCredito" class="form-control inputForNuevoCredito">
+                    <option value="0">Efectivo</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div class="col px-1 divDetallePagoBancoCredito hide">
+              <div class="divForNuevoCredito">
+                <label class="labelForNuevoCredito" for="txtValorBancoPagoCredito">
+                  <span class="spanForNuevoCredito top badge-success">¿Cuánto del costo salió del banco?</span>
+                  <input id="txtValorBancoPagoCredito" type="number" step="0.01" min="0" maxlength="12" name="txtValorBancoPagoCredito" class="form-control inputForNuevoCredito" />
+                </label>
+              </div>
+            </div>
+            <div class="col pl-1 divDetallePagoBancoCredito hide">
+              <div class="divForNuevoCredito">
+                <label class="labelForNuevoCredito" for="txtReferenciaBancoPagoCredito">
+                  <span class="spanForNuevoCredito top badge-success">Referencia</span>
+                  <input id="txtReferenciaBancoPagoCredito" type="text" maxlength="50" name="txtReferenciaBancoPagoCredito" class="form-control inputForNuevoCredito" />
+                </label>
+              </div>
+            </div>
+          </div>
+
           <div class="row <?PHP echo $sucursal->str_cobro_adicional=='ninguno'? 'hide': ''; ?>">
             <div class="divSeguroFormNuevoCredito col pr-0">
               <div class="divForNuevoCredito">
@@ -277,6 +306,7 @@
     $('#modal-nuevo-credito').on('hidden.bs.modal', function (e) {
       $("#formSaveNewCredit button").attr('disabled', false);
       $('#formSaveNewCredit').trigger("reset");
+      $("#cboBancoPagoCredito").val('0').trigger('change');
     })
 
   });
