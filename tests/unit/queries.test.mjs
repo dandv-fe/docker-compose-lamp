@@ -408,14 +408,15 @@ test('openRouteCash returns zeros when the branch has no open route', async () =
   });
 });
 
-test('bankAccounts lists only active accounts of the company in display order', async () => {
+test('bankAccounts lists only active company accounts authorized in the branch, with the holder', async () => {
   await withMockedPool(async (sql, params) => {
     const branchRow = mockBranchAccess(sql);
     if (branchRow) return branchRow;
     if (sql.includes('FROM tbl_banco')) {
-      assert.match(sql, /str_estado = 'activo'/);
-      assert.match(sql, /ORDER BY int_orden/);
-      assert.deepEqual(params, [7]);
+      assert.match(sql, /JOIN tbl_banco_sucursal bs ON bs.idbanco = b.idbanco AND bs.idglobal = b.idglobal AND bs.idsucursal = \?/);
+      assert.match(sql, /b.str_estado = 'activo'/);
+      assert.match(sql, /ORDER BY b.int_orden/);
+      assert.deepEqual(params, [4, 7]);
       return [[{ id: 3, name: 'Nequi', type: 'billetera', number: '3001234567' }], []];
     }
     throw new Error(`Unexpected query: ${sql}`);

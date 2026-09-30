@@ -492,7 +492,7 @@ async function executeOperation(
           decimal(payload.adicionalValor), payload.tipoComprobante, payload.serie, receiptNumber, payload.nota,
           employeeId],
       );
-      await saveBankSplits(conn, 'credit', String(payload.idtarjeta), companyId, userId,
+      await saveBankSplits(conn, 'credit', String(payload.idtarjeta), companyId, input.branchId, userId,
         payload.bancos as BankSplit[] | undefined, decimalToCents(payload.prestamo as number));
       await conn.execute(
         `UPDATE tbl_detalle_documento_sucursal SET str_ultimo_numero = ?
@@ -583,7 +583,7 @@ async function executeOperation(
         [payload.iddescripcion, companyId, input.branchId, credit.idtarjeta, routeId, centsToDecimal(amount),
           payload.descripcion || 'Abono', userId, PAYMENT_ORIGIN],
       );
-      await saveBankSplits(conn, 'payment', String(payload.iddescripcion), companyId, userId,
+      await saveBankSplits(conn, 'payment', String(payload.iddescripcion), companyId, input.branchId, userId,
         payload.bancos as BankSplit[] | undefined, -amount);
       await conn.execute(
         `UPDATE tbl_tarjetas SET dec_resta=?,updated_at=NOW()
@@ -622,7 +622,7 @@ async function executeOperation(
         [centsToDecimal(amount), payload.descripcion, input.entityId, companyId, input.branchId],
       );
       if (payload.bancos !== undefined) {
-        await saveBankSplits(conn, 'payment', input.entityId, companyId, userId,
+        await saveBankSplits(conn, 'payment', input.entityId, companyId, input.branchId, userId,
           payload.bancos as BankSplit[], -amount);
       } else {
         // An edit that does not mention banks keeps them, but can never leave more money
@@ -825,7 +825,7 @@ type BankSplit = { idbanco: number; valor: number; referencia?: string };
 // through company bank accounts. Replaces any previous rows, so it also serves payment edits.
 // The rest of the amount is cash, which is what the collector must carry in the pocket.
 export async function saveBankSplits(
-  conn: SqlConnection, target: 'payment' | 'credit', id: string, companyId: number,
+  conn: SqlConnection, target: 'payment' | 'credit', id: string, companyId: number, branchId: number,
   userId: number, splits: BankSplit[] | undefined, maxCents: bigint,
 ) {
   const table = target === 'payment' ? 'tbl_descripcion_pago' : 'tbl_tarjeta_pago';
@@ -837,11 +837,13 @@ export async function saveBankSplits(
   const total = splits.reduce((sum, split) => sum + decimalToCents(split.valor), 0n);
   if (total > maxCents) fail('BUSINESS_RULE', 'Bank amounts exceed the operation amount');
   const [banks] = await conn.execute<RowDataPacket[]>(
-    `SELECT idbanco FROM tbl_banco WHERE idglobal=? AND str_estado='activo'
-     AND idbanco IN (${bankIds.map(() => '?').join(',')})`,
-    [companyId, ...bankIds],
+    `SELECT b.idbanco FROM tbl_banco b
+     JOIN tbl_banco_sucursal bs ON bs.idbanco=b.idbanco AND bs.idglobal=b.idglobal AND bs.idsucursal=?
+     WHERE b.idglobal=? AND b.str_estado='activo'
+     AND b.idbanco IN (${bankIds.map(() => '?').join(',')})`,
+    [branchId, companyId, ...bankIds],
   );
-  if (banks.length !== bankIds.length) fail('BUSINESS_RULE', 'Bank account is inactive or outside the company');
+  if (banks.length !== bankIds.length) fail('BUSINESS_RULE', 'Bank account is inactive or not authorized in this branch');
   for (const split of splits) {
     await conn.execute(
       `INSERT INTO ${table} (idglobal,${column},idbanco,dec_valor,str_referencia,idusuario,created_at)

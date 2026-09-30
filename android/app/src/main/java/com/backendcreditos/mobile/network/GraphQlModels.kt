@@ -304,7 +304,14 @@ data class ReceiptSequenceDto(
 )
 
 @Serializable
-data class BankAccountDto(val id: Int, val name: String, val type: String? = null, val number: String? = null)
+data class BankAccountDto(
+    val id: Int,
+    val name: String,
+    val type: String? = null,
+    val number: String? = null,
+    val holderName: String? = null,
+    val holderDocument: String? = null
+)
 
 @Serializable
 data class BankAccountsData(val bankAccounts: List<BankAccountDto>)

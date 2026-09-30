@@ -96,7 +96,7 @@ Queries:
 * `customerByDocument(branchId: Int!, documentType: String!, documentNumber: String!)`
 * `paymentHistory(branchId: Int!, creditId: ID!)`
 * `receiptSequences(branchId: Int!)` — branch `Comprobante` counters (`id`, `series`, `lastNumber`, `documentType`) that feed the new-card form, mirroring `Cartera::GetTipoDocSerieNum`
-* `bankAccounts(branchId: Int!)` — active `tbl_banco` accounts of the company (`id`, `name`, `type`, `number`), ordered by `int_orden`, offered as payment methods besides cash
+* `bankAccounts(branchId: Int!)` — active `tbl_banco` accounts of the company **authorized in that branch** (`tbl_banco_sucursal`): `id`, `name`, `type`, `number`, `holderName`, `holderDocument` (NIT/CC of the holder), ordered by `int_orden`, offered as payment methods besides cash
 * `openRouteCash(branchId: Int!)` — `routeId`, `base`, `otherIncome` and `expenses` (positive) of the branch's open, not yet saved `tbl_detalle_ruta`, summed from `tbl_contabilidad_detalle`: `base` rows, `entrada-*` except `recaudo`/`diferencia`, and `salida-*` except tipo 4 (prestamos/articulos); used by the APK pocket-cash line
 * `syncChanges(branchId: Int!, after: String!, first: Int)`
 
@@ -267,6 +267,15 @@ sum does not exceed the abono (or the credit's `prestamo`). On `UPDATE_PAYMENT`,
 sending `bancos` replaces the split; omitting it keeps it, and the update is
 rejected if the kept split would exceed the new amount. Payments expose
 `bankAmount` and credits `bankFunded` (sum of their bank rows).
+
+`migrations/004_bank_holder_branches.sql` (apply after 003, before deploying)
+adds the holder as registered at the bank (`str_titular`), the holder's NIT or
+ID (`str_documento_titular`) and the owning office (`idoficina`, NULL =
+company-level) to `tbl_banco`, plus `tbl_banco_sucursal`: the accounts each
+sucursal (ruta) may use. The office administrator authorizes accounts for the
+sucursales of their office in webgoez (`bancos_pago.php`). Both `bankAccounts`
+and the `bancos` validation only accept accounts linked to the operation's
+branch, so accounts existing before 004 must be authorized to be usable.
 
 ## Payment author migration
 

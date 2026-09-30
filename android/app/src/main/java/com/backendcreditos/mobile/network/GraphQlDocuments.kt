@@ -111,7 +111,7 @@ object GraphQlDocuments {
     """
     const val BANK_ACCOUNTS = """
         query BankAccounts(${'$'}branchId: Int!) {
-          bankAccounts(branchId: ${'$'}branchId) { id name type number }
+          bankAccounts(branchId: ${'$'}branchId) { id name type number holderName holderDocument }
         }
     """
     const val OPEN_ROUTE_CASH = """

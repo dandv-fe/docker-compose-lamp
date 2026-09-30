@@ -18,6 +18,14 @@ import androidx.compose.ui.unit.dp
 import com.backendcreditos.mobile.data.BankAccountEntity
 import com.backendcreditos.mobile.data.BankSplit
 
+/** "Ahorros 123 · Titular: Ana Ruiz · NIT/CC 900123" — what the customer needs to transfer. */
+internal fun bankAccountDetail(bank: BankAccountEntity): String = listOfNotNull(
+    listOfNotNull(bank.type?.trim()?.takeIf(String::isNotEmpty), bank.number?.trim()?.takeIf(String::isNotEmpty))
+        .joinToString(" ").takeIf(String::isNotEmpty),
+    bank.holderName?.trim()?.takeIf(String::isNotEmpty)?.let { "Titular: $it" },
+    bank.holderDocument?.trim()?.takeIf(String::isNotEmpty)?.let { "NIT/CC $it" }
+).joinToString(" · ")
+
 /** Payment method chosen in a form: cash when [bankId] is null. */
 internal data class PaymentMethodDraft(
     val bankId: Int? = null,
@@ -34,7 +42,8 @@ internal data class PaymentMethodDraft(
 /**
  * «Efectivo» plus one chip per company bank account. Choosing a bank reveals how much went
  * through it (blank = all of it, less = mixed payment, the rest in cash) and an optional reference.
- * Hidden when the company has no accounts, so cash-only offices see no extra fields.
+ * Only accounts the office authorized for this branch are listed; hidden when there are none,
+ * so cash-only rutas see no extra fields.
  */
 @Composable
 internal fun PaymentMethodPicker(
@@ -63,7 +72,12 @@ internal fun PaymentMethodPicker(
                 )
             }
         }
-        if (draft.bankId != null) {
+        val selected = banks.firstOrNull { it.id == draft.bankId }
+        if (selected != null) {
+            Text(
+                bankAccountDetail(selected),
+                style = MaterialTheme.typography.bodySmall
+            )
             OutlinedTextField(
                 draft.bankAmount, { onChange(draft.copy(bankAmount = it)) },
                 label = { Text(amountLabel) },

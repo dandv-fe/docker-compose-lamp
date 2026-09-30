@@ -603,7 +603,10 @@ class CreditRepository(
         when (val response = api.bankAccounts(account.token, branchId)) {
             is ApiResult.Success -> {
                 val accounts = response.value.bankAccounts.map {
-                    BankAccountEntity(account.accountKey, branchId, it.id, it.name, it.type, it.number)
+                    BankAccountEntity(
+                        account.accountKey, branchId, it.id, it.name, it.type, it.number,
+                        it.holderName, it.holderDocument
+                    )
                 }
                 dao.replaceBankAccounts(account.accountKey, branchId, accounts)
                 ApiResult.Success(accounts)

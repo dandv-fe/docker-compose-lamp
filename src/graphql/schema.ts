@@ -106,6 +106,8 @@ const BankAccountType = new GraphQLObjectType({
     name: { type: new GraphQLNonNull(GraphQLString) },
     type: { type: GraphQLString },
     number: { type: GraphQLString },
+    holderName: { type: GraphQLString },
+    holderDocument: { type: GraphQLString },
   },
 });
 

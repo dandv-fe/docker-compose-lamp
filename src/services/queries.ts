@@ -464,10 +464,13 @@ export async function bankAccounts(context: AuthContext | null, branchId: number
   const user = requireAuth(context);
   await assertBranchAccess(user, branchId);
   const [rows] = await pool.execute(
-    `SELECT idbanco AS id, str_banco AS name, str_tipo AS type, str_num_cueneta AS number
-     FROM tbl_banco WHERE idglobal = ? AND str_estado = 'activo'
-     ORDER BY int_orden, str_banco, idbanco`,
-    [user.companyId],
+    `SELECT b.idbanco AS id, b.str_banco AS name, b.str_tipo AS type, b.str_num_cueneta AS number,
+            b.str_titular AS holderName, b.str_documento_titular AS holderDocument
+     FROM tbl_banco b
+     JOIN tbl_banco_sucursal bs ON bs.idbanco = b.idbanco AND bs.idglobal = b.idglobal AND bs.idsucursal = ?
+     WHERE b.idglobal = ? AND b.str_estado = 'activo'
+     ORDER BY b.int_orden, b.str_banco, b.idbanco`,
+    [branchId, user.companyId],
   );
   return rows;
 }

@@ -273,7 +273,7 @@ interface LocalDao {
         MarkedCreditEntity::class, ReceiptSequenceEntity::class, ActivityLogEntity::class,
         RouteCashEntity::class, BankAccountEntity::class
     ],
-    version = 12,
+    version = 13,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)
@@ -453,6 +453,15 @@ abstract class CreditDatabase : RoomDatabase() {
                         name TEXT NOT NULL, type TEXT, number TEXT, PRIMARY KEY(accountKey, branchId, id)
                     )""".trimIndent()
                 )
+            }
+        }
+
+        val MIGRATION_12_13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE bank_accounts ADD COLUMN holderName TEXT")
+                db.execSQL("ALTER TABLE bank_accounts ADD COLUMN holderDocument TEXT")
+                // The list is now per-branch authorization; drop the old company-wide cache.
+                db.execSQL("DELETE FROM bank_accounts")
             }
         }
     }

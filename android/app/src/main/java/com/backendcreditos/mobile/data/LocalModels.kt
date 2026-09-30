@@ -180,7 +180,7 @@ data class RouteCashEntity(
 
 // Device-local reminder ("volver más tarde"). It is never sent to the server and is
 // removed with the rest of the account cache on logout.
-// Company bank accounts (tbl_banco) offered as payment methods besides cash.
+// Bank accounts (tbl_banco) authorized in the branch (tbl_banco_sucursal), offered besides cash.
 @Entity(tableName = "bank_accounts", primaryKeys = ["accountKey", "branchId", "id"])
 data class BankAccountEntity(
     val accountKey: String,
@@ -188,7 +188,9 @@ data class BankAccountEntity(
     val id: Int,
     val name: String,
     val type: String?,
-    val number: String?
+    val number: String?,
+    val holderName: String? = null,
+    val holderDocument: String? = null
 )
 
 @Entity(tableName = "marked_credits", primaryKeys = ["accountKey", "branchId", "creditId"])
