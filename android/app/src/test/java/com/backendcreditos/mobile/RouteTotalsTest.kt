@@ -7,8 +7,9 @@ import org.junit.Test
 import java.math.BigDecimal
 
 class RouteTotalsTest {
-    private fun credit(id: String, status: String, principal: String?) = CreditEntity(
-        "a", "1", id, "c", null, null, null, null, null, null, principal, null, null, null, status
+    private fun credit(id: String, status: String, principal: String?, insurance: String? = null) = CreditEntity(
+        "a", "1", id, "c", null, null, null, null, null, null, principal, null, null, null, status,
+        additionalValue = insurance
     )
 
     private fun payment(id: String, creditId: String, amount: String, description: String, state: String) =
@@ -45,5 +46,21 @@ class RouteTotalsTest {
         val totals = routeTotals(credits, payments)
         assertEquals(500, totals.cardsWithPayments)
         assertEquals(0, BigDecimal("50000").compareTo(totals.collected))
+    }
+
+    @Test
+    fun pocketCashAddsBaseCollectedIncomeAndInsuranceMinusExpensesAndCredits() {
+        val credits = listOf(credit("1", "created", "200000", insurance = "4000"), credit("2", "refinanciada", "1"))
+        val payments = listOf(payment("p1", "2", "-11250", "Abono", "created"))
+        val cash = pocketCash(routeTotals(credits, payments), base = "700000", otherIncome = "20000", expenses = "96000")
+        assertEquals(0, BigDecimal("24000").compareTo(cash.otherIncome))
+        // 700.000 + 11.250 + 24.000 − 96.000 − 200.000
+        assertEquals(0, BigDecimal("439250").compareTo(cash.total))
+    }
+
+    @Test
+    fun pocketCashWithoutServerFiguresUsesOnlyLocalCards() {
+        val cash = pocketCash(routeTotals(listOf(credit("1", "created", "50000")), emptyList()), null, null, null)
+        assertEquals(0, BigDecimal("-50000").compareTo(cash.total))
     }
 }

@@ -109,6 +109,11 @@ object GraphQlDocuments {
     const val BRANCH_PERMISSIONS = """
         query BranchPermissions(${'$'}branchId: Int!) { branchPermissions(branchId: ${'$'}branchId) }
     """
+    const val OPEN_ROUTE_CASH = """
+        query OpenRouteCash(${'$'}branchId: Int!) {
+          openRouteCash(branchId: ${'$'}branchId) { routeId base otherIncome expenses }
+        }
+    """
     const val RECEIPT_SEQUENCES = """
         query ReceiptSequences(${'$'}branchId: Int!) {
           receiptSequences(branchId: ${'$'}branchId) { id documentType series lastNumber }

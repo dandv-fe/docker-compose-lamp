@@ -160,6 +160,20 @@ data class ActivityLogEntity(
     val problem: Boolean
 )
 
+// Server-side pocket-cash inputs of the open route day (base, other income, expenses), cached so
+// the "Caja" line still shows the last known figures offline. Abonos and credits come from the
+// card cache instead, so they update instantly.
+@Entity(tableName = "route_cash", primaryKeys = ["accountKey", "branchId"])
+data class RouteCashEntity(
+    val accountKey: String,
+    val branchId: String,
+    val routeId: Int?,
+    val base: String,
+    val otherIncome: String,
+    val expenses: String,
+    val fetchedAt: Long
+)
+
 // Device-local reminder ("volver más tarde"). It is never sent to the server and is
 // removed with the rest of the account cache on logout.
 @Entity(tableName = "marked_credits", primaryKeys = ["accountKey", "branchId", "creditId"])

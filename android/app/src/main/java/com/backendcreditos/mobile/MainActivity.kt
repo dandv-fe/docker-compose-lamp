@@ -293,6 +293,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     var notice by remember { mutableStateOf("") }
     var queueTab by rememberSaveable { mutableStateOf(0) }
     var activityLogRows by remember { mutableStateOf(emptyList<ActivityLogEntity>()) }
+    var routeCash by remember { mutableStateOf<com.backendcreditos.mobile.data.RouteCashEntity?>(null) }
     var busy by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
     var showLogoutConfirmation by remember { mutableStateOf(false) }
@@ -400,6 +401,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         operationRows = app.repository.queuedOperations(current)
         markedCreditIds = app.repository.markedCredits(current.accountKey, branch).toSet()
         receiptSequences = app.repository.receiptSequences(current.accountKey, branch)
+        routeCash = app.repository.routeCash(current.accountKey, branch)
         // Keep the open card's movement list fresh too, so returning to it right after saving
         // an abono shows the new row without waiting for a server round trip.
         selectedCreditId?.let { creditId ->
@@ -655,6 +657,16 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         }
     }
 
+    // Base, gastos and other income are entered on the web during the day, so they are re-read
+    // whenever the cartera is refreshed. Failures keep the cached figures silently.
+    suspend fun refreshRouteCash() {
+        val current = session ?: return
+        val branch = current.selectedBranchId ?: return
+        if (!online) return
+        app.repository.syncRouteCash(current, branch)
+        routeCash = app.repository.routeCash(current.accountKey, branch)
+    }
+
     suspend fun loadBranchPermissions() {
         val current = session ?: return
         val branch = current.selectedBranchId ?: return
@@ -667,7 +679,9 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         // valid and the create form is the only thing that needs it.
         app.repository.syncReceiptSequences(current, branch)
         receiptSequences = app.repository.receiptSequences(current.accountKey, branch)
+        refreshRouteCash()
     }
+
 
     suspend fun loadDefaulters() {
         val current = session ?: return
@@ -1043,6 +1057,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
             operationRows = emptyList()
             syncControl = null
             activityLogRows = emptyList()
+            routeCash = null
             password = ""
             pointedCreditId = null
             pointerArmed = false
@@ -1553,6 +1568,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                                 is ApiResult.Success -> {
                                                     app.repository.pullChanges(current, branch)
                                                     loadLocal()
+                                                    refreshRouteCash()
                                                     notice = "Cartera actualizada."
                                                 }
                                                 else -> report(result)
@@ -1908,6 +1924,22 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             modifier = progressModifier
                         )
                     }
+                    val cash = pocketCash(routeSummary, routeCash?.base, routeCash?.otherIncome, routeCash?.expenses)
+                    Text(
+                        "Caja: ${formatCompactMoney(cash.total)} = B ${formatCompactMoney(cash.base)}" +
+                            " + R ${formatCompactMoney(cash.collected)} + O ${formatCompactMoney(cash.otherIncome)}" +
+                            " − G ${formatCompactMoney(cash.expenses)} − C ${formatCompactMoney(cash.newCredits)}" +
+                            if (routeCash == null) " · sin datos de base/gastos" else "",
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.semantics {
+                            contentDescription = "Caja de bolsillo ${formatCompactMoney(cash.total)}: base " +
+                                "${formatCompactMoney(cash.base)}, abonos ${formatCompactMoney(cash.collected)}, otro recaudo " +
+                                "${formatCompactMoney(cash.otherIncome)}, menos gastos ${formatCompactMoney(cash.expenses)} " +
+                                "y créditos ${formatCompactMoney(cash.newCredits)}"
+                        }
+                    )
                     }
                     val filtered = visibleRows
                     LaunchedEffect(restorePointerScroll, pointedCreditId, filtered) {
@@ -2341,7 +2373,10 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             SyncScheduler.enqueue(activity, current.accountKey, branch, expedited = true)
                             if (online) {
                                 when (val result = app.repository.pullChanges(current, branch)) {
-                                    is ApiResult.Success -> notice = "Cartera al día."
+                                    is ApiResult.Success -> {
+                                        refreshRouteCash()
+                                        notice = "Cartera al día."
+                                    }
                                     else -> report(result)
                                 }
                             } else {

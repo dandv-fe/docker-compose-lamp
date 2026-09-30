@@ -302,6 +302,17 @@ data class ReceiptSequenceDto(
 )
 
 @Serializable
+data class RouteCashDto(
+    val routeId: Int? = null,
+    val base: Double = 0.0,
+    val otherIncome: Double = 0.0,
+    val expenses: Double = 0.0
+)
+
+@Serializable
+data class OpenRouteCashData(val openRouteCash: RouteCashDto)
+
+@Serializable
 data class ReceiptSequencesData(val receiptSequences: List<ReceiptSequenceDto>)
 
 @Serializable

@@ -4,7 +4,7 @@ import { pool } from '../../dist/db.js';
 import {
   portfolio, customerById, defaultersOfPortfolio, withdrawnOfPortfolio, cancelledCredits,
   portfolioClients, restoreCredit, branchPermissions, receiptSequences, customerCandidate, customerByDocument,
-  personDocumentTypes,
+  personDocumentTypes, openRouteCash,
 } from '../../dist/services/queries.js';
 
 const user = {
@@ -377,5 +377,33 @@ test('receiptSequences refuses a branch the user cannot reach', async () => {
     throw new Error(`Unexpected query: ${sql}`);
   }, async () => {
     await assert.rejects(receiptSequences(context, 4), { extensions: { code: 'FORBIDDEN' } });
+  });
+});
+
+test('openRouteCash sums base, other income and expenses of the open route only', async () => {
+  await withMockedPool(async (sql, params) => {
+    const branchRow = mockBranchAccess(sql);
+    if (branchRow) return branchRow;
+    if (sql.includes('FROM tbl_detalle_ruta')) {
+      assert.match(sql, /str_estado <> 'saved'/);
+      assert.match(sql, /idtipo_contabilidad <> 4/);
+      assert.match(sql, /NOT IN \('recaudo', 'diferencia'\)/);
+      assert.deepEqual(params, [4, 7, 4, 7]);
+      return [[{ routeId: 55, base: '700.00', otherIncome: '20.00', expenses: '96.00' }], []];
+    }
+    throw new Error(`Unexpected query: ${sql}`);
+  }, async () => {
+    assert.deepEqual(await openRouteCash(context, 4), { routeId: 55, base: 700, otherIncome: 20, expenses: 96 });
+  });
+});
+
+test('openRouteCash returns zeros when the branch has no open route', async () => {
+  await withMockedPool(async (sql) => {
+    const branchRow = mockBranchAccess(sql);
+    if (branchRow) return branchRow;
+    if (sql.includes('FROM tbl_detalle_ruta')) return [[], []];
+    throw new Error(`Unexpected query: ${sql}`);
+  }, async () => {
+    assert.deepEqual(await openRouteCash(context, 4), { routeId: null, base: 0, otherIncome: 0, expenses: 0 });
   });
 });

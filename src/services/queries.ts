@@ -422,6 +422,40 @@ export async function receiptSequences(context: AuthContext | null, branchId: nu
   return rows;
 }
 
+// Pocket-cash inputs of the branch's open (not yet 'saved') route day, read from the same
+// tbl_contabilidad_detalle rows webgoez' "Detalle de cobro" totals. Abonos, seguros and new
+// credits are left to the client because it already caches them per card.
+// - base: the cash the collector started the day with ('base').
+// - otherIncome: entradas other than the recaudo/diferencia the totalizer writes.
+// - expenses: every salida except tipo 4 (prestamos/articulos, i.e. the new credits).
+export async function openRouteCash(context: AuthContext | null, branchId: number) {
+  const user = requireAuth(context);
+  await assertBranchAccess(user, branchId);
+  const [rows] = await pool.execute(
+    `SELECT dr.iddetalleruta AS routeId,
+            COALESCE(SUM(CASE WHEN dc.str_nombre = 'base' THEN dc.dec_total END), 0) AS base,
+            COALESCE(SUM(CASE WHEN dc.str_operacion LIKE 'entrada-%'
+                               AND dc.str_nombre NOT IN ('recaudo', 'diferencia') THEN dc.dec_total END), 0) AS otherIncome,
+            COALESCE(-SUM(CASE WHEN dc.str_operacion LIKE 'salida-%'
+                                AND dc.idtipo_contabilidad <> 4 THEN dc.dec_total END), 0) AS expenses
+     FROM (SELECT iddetalleruta FROM tbl_detalle_ruta
+           WHERE idsucursal = ? AND idglobal = ? AND str_estado <> 'saved'
+           ORDER BY created_at DESC LIMIT 1) dr
+     LEFT JOIN tbl_contabilidad_detalle dc
+       ON dc.iddetalleruta = dr.iddetalleruta AND dc.idsucursal = ? AND dc.idglobal = ?
+     GROUP BY dr.iddetalleruta`,
+    [branchId, user.companyId, branchId, user.companyId],
+  );
+  const row = (rows as Array<Record<string, unknown>>)[0];
+  if (!row) return { routeId: null, base: 0, otherIncome: 0, expenses: 0 };
+  return {
+    routeId: Number(row.routeId),
+    base: Number(row.base),
+    otherIncome: Number(row.otherIncome),
+    expenses: Number(row.expenses),
+  };
+}
+
 export async function syncChanges(context: AuthContext | null, branchId: number, after: string, first = 100) {
   const user = requireAuth(context);
   await assertBranchAccess(user, branchId);

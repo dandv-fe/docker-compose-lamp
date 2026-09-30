@@ -570,6 +570,29 @@ class CreditRepository(
 
     suspend fun unresolvedCount(accountKey: String): Int = dao.unresolvedCount(accountKey)
 
+    suspend fun routeCash(accountKey: String, branchId: String): RouteCashEntity? = dao.routeCash(accountKey, branchId)
+
+    suspend fun syncRouteCash(account: StoredSession, branchId: String): ApiResult<RouteCashEntity> =
+        when (val response = api.openRouteCash(account.token, branchId)) {
+            is ApiResult.Success -> {
+                val cash = response.value.openRouteCash
+                val entity = RouteCashEntity(
+                    account.accountKey, branchId, cash.routeId,
+                    cash.base.toBigDecimal().toPlainString(),
+                    cash.otherIncome.toBigDecimal().toPlainString(),
+                    cash.expenses.toBigDecimal().toPlainString(),
+                    System.currentTimeMillis()
+                )
+                dao.putRouteCash(entity)
+                ApiResult.Success(entity)
+            }
+            is ApiResult.AuthExpired -> response
+            is ApiResult.Conflict -> response
+            is ApiResult.PermissionRejected -> response
+            is ApiResult.Rejected -> response
+            is ApiResult.Retryable -> response
+        }
+
     suspend fun receiptSequences(accountKey: String, branchId: String) =
         dao.receiptSequences(accountKey, branchId)
 
@@ -724,6 +747,7 @@ class CreditRepository(
             dao.deleteAllReceiptSequences(accountKey)
             dao.deleteSyncControl(accountKey)
             dao.deleteActivityLog(accountKey)
+            dao.deleteRouteCash(accountKey)
         }
     }
 

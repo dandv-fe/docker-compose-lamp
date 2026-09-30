@@ -247,6 +247,17 @@ class GraphQlApi(private val client: GraphQlClient) {
         )
     }
 
+    suspend fun openRouteCash(token: String, branchId: String): ApiResult<OpenRouteCashData> {
+        val numericBranchId = branchId.toIntOrNull()
+            ?: return ApiResult.Rejected("La sucursal debe tener un ID numérico.")
+        return client.execute(
+            GraphQlDocuments.OPEN_ROUTE_CASH,
+            buildJsonObject { put("branchId", JsonPrimitive(numericBranchId)) },
+            OpenRouteCashData.serializer(),
+            token
+        )
+    }
+
     suspend fun receiptSequences(token: String, branchId: String): ApiResult<ReceiptSequencesData> {
         val numericBranchId = branchId.toIntOrNull()
             ?: return ApiResult.Rejected("La sucursal debe tener un ID numérico.")

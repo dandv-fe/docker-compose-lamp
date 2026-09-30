@@ -7,7 +7,7 @@ import { login, type AuthContext } from '../services/auth.js';
 import { applyOfflineOperation, type OfflineInput } from '../services/operations.js';
 import {
   branches, branchPermissions, cancelledCredits, customerByDocument, customerById, customerCandidate, personDocumentTypes,
-  defaultersOfPortfolio, me, paymentHistory, portfolio, portfolioClients, receiptSequences,
+  defaultersOfPortfolio, me, openRouteCash, paymentHistory, portfolio, portfolioClients, receiptSequences,
   restoreCredit, syncChanges, withdrawnOfPortfolio,
 } from '../services/queries.js';
 import { fail } from '../services/errors.js';
@@ -95,6 +95,16 @@ const ReceiptSequenceType = new GraphQLObjectType({
     documentType: { type: new GraphQLNonNull(GraphQLString) },
     series: { type: GraphQLString },
     lastNumber: { type: GraphQLString },
+  },
+});
+
+const RouteCashType = new GraphQLObjectType({
+  name: 'RouteCash',
+  fields: {
+    routeId: { type: GraphQLInt },
+    base: { type: new GraphQLNonNull(GraphQLFloat) },
+    otherIncome: { type: new GraphQLNonNull(GraphQLFloat) },
+    expenses: { type: new GraphQLNonNull(GraphQLFloat) },
   },
 });
 
@@ -365,6 +375,12 @@ const Query = new GraphQLObjectType({
       args: { branchId: { type: new GraphQLNonNull(GraphQLInt) } },
       resolve: (_source, args, context: { auth: AuthContext | null }) =>
         receiptSequences(auth(context), args.branchId),
+    },
+    openRouteCash: {
+      type: new GraphQLNonNull(RouteCashType),
+      args: { branchId: { type: new GraphQLNonNull(GraphQLInt) } },
+      resolve: (_source, args, context: { auth: AuthContext | null }) =>
+        openRouteCash(auth(context), args.branchId),
     },
     syncChanges: {
       type: new GraphQLNonNull(SyncPageType),

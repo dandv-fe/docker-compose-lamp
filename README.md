@@ -96,6 +96,7 @@ Queries:
 * `customerByDocument(branchId: Int!, documentType: String!, documentNumber: String!)`
 * `paymentHistory(branchId: Int!, creditId: ID!)`
 * `receiptSequences(branchId: Int!)` — branch `Comprobante` counters (`id`, `series`, `lastNumber`, `documentType`) that feed the new-card form, mirroring `Cartera::GetTipoDocSerieNum`
+* `openRouteCash(branchId: Int!)` — `routeId`, `base`, `otherIncome` and `expenses` (positive) of the branch's open, not yet saved `tbl_detalle_ruta`, summed from `tbl_contabilidad_detalle`: `base` rows, `entrada-*` except `recaudo`/`diferencia`, and `salida-*` except tipo 4 (prestamos/articulos); used by the APK pocket-cash line
 * `syncChanges(branchId: Int!, after: String!, first: Int)`
 
 Mutations:

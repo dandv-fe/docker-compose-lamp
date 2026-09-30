@@ -236,15 +236,25 @@ interface LocalDao {
 
     @Query("DELETE FROM activity_log WHERE accountKey = :accountKey")
     suspend fun deleteActivityLog(accountKey: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun putRouteCash(cash: RouteCashEntity)
+
+    @Query("SELECT * FROM route_cash WHERE accountKey = :accountKey AND branchId = :branchId LIMIT 1")
+    suspend fun routeCash(accountKey: String, branchId: String): RouteCashEntity?
+
+    @Query("DELETE FROM route_cash WHERE accountKey = :accountKey")
+    suspend fun deleteRouteCash(accountKey: String)
 }
 
 @Database(
     entities = [
         CustomerEntity::class, CreditEntity::class, PaymentEntity::class,
         OfflineOperationEntity::class, SyncControlEntity::class, SyncCursorEntity::class, RecordVersionEntity::class,
-        MarkedCreditEntity::class, ReceiptSequenceEntity::class, ActivityLogEntity::class
+        MarkedCreditEntity::class, ReceiptSequenceEntity::class, ActivityLogEntity::class,
+        RouteCashEntity::class
     ],
-    version = 10,
+    version = 11,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)
@@ -399,6 +409,17 @@ abstract class CreditDatabase : RoomDatabase() {
                 )
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS index_activity_log_accountKey_createdAt ON activity_log(accountKey, createdAt)"
+                )
+            }
+        }
+        val MIGRATION_10_11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS route_cash (
+                        accountKey TEXT NOT NULL, branchId TEXT NOT NULL, routeId INTEGER,
+                        base TEXT NOT NULL, otherIncome TEXT NOT NULL, expenses TEXT NOT NULL,
+                        fetchedAt INTEGER NOT NULL, PRIMARY KEY(accountKey, branchId)
+                    )""".trimIndent()
                 )
             }
         }
