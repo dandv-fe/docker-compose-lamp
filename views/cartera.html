@@ -491,6 +491,12 @@ include "views/partials/modalNuevaContabilidad.html";
                       <div class="col-md-4 px-1 divDetallePagoBancoAbono hide">
                         <input id="txtReferenciaBancoPagoAbono" name="txtReferenciaBancoPagoAbono" form="formAddAbonoConfirma" type="text" maxlength="50" class="form-control form-control-sm" placeholder="Referencia (opcional)" />
                       </div>
+                      <div id="divVueltoBancoAbono" class="col-12 px-1 hide">
+                        <label class="text-danger small mb-0">
+                          <input id="chkVueltoBancoAbono" type="checkbox" /> Le devuelvo <span id="txtVueltoBancoAbonoTexto">0</span> en efectivo
+                        </label>
+                      </div>
+                      <input id="txtVueltoBancoPagoAbono" name="txtVueltoBancoPagoAbono" form="formAddAbonoConfirma" type="hidden" value="0" />
                     </div>
                     <div id="loadinSavedAdd" class="overlay">
                       <i class="fa-solid fa-rotate fa-spin fa-2xl"></i>

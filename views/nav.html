@@ -467,6 +467,21 @@ $str_cero = str_split($dias_restantes);
         </li>
 
         <?php    } ?>
+        <?php
+        // Los administradores de oficina no ven "Mantenimiento", pero gestionan las cuentas bancarias de su oficina.
+        $navEsAdminOficina = false;
+        if (($userSession['usuario']->str_cargo ?? '') !== 'Super Administrador' && !empty($userSession['usuario']->idempleado)) {
+          $navAdminOficina = db_fetch_object($conexion, "SELECT 1 AS si FROM tbl_oficina WHERE idglobal=? AND idempleado_administrador=? LIMIT 1", "ii", [intval($idglobal), intval($userSession['usuario']->idempleado)]);
+          $navEsAdminOficina = !empty($navAdminOficina);
+        }
+        if ($navEsAdminOficina) { ?>
+        <li class="nav-item">
+          <a href="bancos_pago.php" class="nav-link lia-bancos-pago">
+            <i class="nav-icon fa-solid fa-building-columns"></i>
+            <p>Cuentas bancarias</p>
+          </a>
+        </li>
+        <?php } ?>
 
 
 

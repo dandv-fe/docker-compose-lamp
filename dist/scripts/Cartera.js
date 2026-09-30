@@ -49,7 +49,9 @@ jQuery(document).ready(function () {
             $("#txtValorBancoPagoAbono").val('')
             $("#txtReferenciaBancoPagoAbono").val('')
         }
+        revisarVueltoAbono()
     })
+    $(document).on('input', "#txtValorBancoPagoAbono, #txtAbono-credito", revisarVueltoAbono)
     $(document).on('change', "#cboBancoPagoCredito", function () {
         const usaBanco = parseInt($(this).val() || '0') > 0
         $(".divDetallePagoBancoCredito").toggleClass('hide', !usaBanco)
@@ -88,6 +90,23 @@ jQuery(document).ready(function () {
         $("#txtconfirma-credito").focus()
     });
 
+    // Cuando por banco entra más que el abono, el cobrador devuelve la diferencia en efectivo.
+    function vueltoAbono() {
+        if (parseInt($("#cboBancoPagoAbono").val() || '0') <= 0) return 0
+        const abono = parseFloat($("#txtAbono-credito").val() || '0') || 0
+        const porBanco = parseFloat($("#txtValorBancoPagoAbono").val() || '0') || (abono || 0)
+        const vuelto = Math.round((porBanco - abono) * 100) / 100
+        return vuelto > 0 ? vuelto : 0
+    }
+
+    function revisarVueltoAbono() {
+        const vuelto = vueltoAbono()
+        $("#divVueltoBancoAbono").toggleClass('hide', vuelto <= 0)
+        $("#txtVueltoBancoAbonoTexto").text(vuelto.toFixed(2))
+        if (vuelto <= 0) $("#chkVueltoBancoAbono").prop('checked', false)
+        $("#txtVueltoBancoPagoAbono").val(vuelto.toFixed(2))
+    }
+
     $("form#formAddAbonoConfirma").submit((e) => {
         e.preventDefault()
         $("#loadinSavedAdd").show()
@@ -105,6 +124,17 @@ jQuery(document).ready(function () {
             $("#btnsubmitAddAbono").attr('disabled', false)
             $("#txtAbono-credito").focus()
             changeEstadoRestaStylo('normal')
+            return false
+        }
+
+        revisarVueltoAbono()
+        if (vueltoAbono() > 0 && !$("#chkVueltoBancoAbono").is(':checked')) {
+            Toast.fire({
+                icon: 'error',
+                title: 'Confirme el efectivo que devuelve'
+            })
+            $("#loadinSavedAdd").hide()
+            $("#btnsubmitAddAbono").attr('disabled', false)
             return false
         }
 
@@ -537,7 +567,9 @@ function llenarSelectBancoPago(selector, bancos) {
     const actual = select.val() || '0'
     const opciones = ['<option value="0">Efectivo</option>']
     bancos.forEach(function (banco) {
-        const texto = $('<div>').text(banco.nombre + ' - ' + banco.tipo + ' (' + banco.numero + ')').html()
+        const titular = banco.titular ? ' · Titular: ' + banco.titular : ''
+        const documento = banco.documento ? ' · NIT/CC ' + banco.documento : ''
+        const texto = $('<div>').text(banco.nombre + ' - ' + banco.tipo + ' (' + banco.numero + ')' + titular + documento).html()
         opciones.push('<option value="' + banco.idbanco + '">' + texto + '</option>')
     })
     select.html(opciones.join(''))
@@ -593,6 +625,7 @@ function cargarDatosEnPanel() {
     $("#formAddAbono").trigger('reset')
     $("#formAddAbonoConfirma").trigger('reset')
     $("#cboBancoPagoAbono").val('0').trigger('change')
+    $("#chkVueltoBancoAbono").prop('checked', false)
     let id = sessionStorage.getItem('index');
 
     if (!id) {

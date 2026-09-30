@@ -12,6 +12,11 @@ $objBancoPago = new Banco();
 $idglobal = $_SESSION['idglobal'];
 $createdEmpleadoId = $_SESSION['idempleado'];
 
+function leerVueltoBancoDesdePost($sufijo)
+{
+   return round(floatval($_POST['txtVueltoBancoPago' . $sufijo] ?? 0), 2);
+}
+
 function leerPagoBancoDesdePost($sufijo, $maximo)
 {
    $idbanco = intval($_POST['cboBancoPago' . $sufijo] ?? 0);
@@ -65,14 +70,16 @@ switch ($_GET["op"]) {
 
 
    case 'listarBancosPago':
-      $queryBancoPago = $objBancoPago->ListarActivos($idglobal);
+      $queryBancoPago = $objBancoPago->ListarActivos($idglobal, intval($_SESSION['idsucursal'] ?? 0));
       $bancos = array();
       while ($banco = $queryBancoPago->fetch_object()) {
          $bancos[] = array(
             'idbanco' => intval($banco->idbanco),
             'nombre' => $banco->str_banco,
             'tipo' => $banco->str_tipo,
-            'numero' => $banco->str_num_cueneta
+            'numero' => $banco->str_num_cueneta,
+            'titular' => $banco->str_titular,
+            'documento' => $banco->str_documento_titular
          );
       }
       echo json_encode(array('ok' => true, 'data' => $bancos));
@@ -195,12 +202,13 @@ switch ($_GET["op"]) {
       $idtarjeta = limpiar_cadena($_POST['txtrefTarjetaHidden']);
       $abono = floatval($_POST['txtCuotaHidden']) * -1;
       $pagoBancoAbono = leerPagoBancoDesdePost('Abono', abs($abono));
+      $vueltoBancoAbono = leerVueltoBancoDesdePost('Abono');
 
       $resta = floatval($_POST['txtconfirma-credito']);
 
       if (empty($iddescripcion)) {
          $iddescripcion = uniqidReal();
-         $classCartera->saveCuota($iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $resta, $idusuario, $pagoBancoAbono);
+         $classCartera->saveCuota($iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $resta, $idusuario, $pagoBancoAbono, $vueltoBancoAbono);
       } else {
          if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || in_array('editar cuota', array_column($_SESSION['AUTHS'], 'nombre'))) {
             $classCartera->updateCuota($iddescripcion, $idsucursal, $abono, $resta);

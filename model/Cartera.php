@@ -136,7 +136,7 @@ class ClassCartera
                         )";
 
             $conexion->query($sql) or throw new Exception('error!');
-            $this->guardarPagosBanco('tbl_tarjeta_pago', 'idtarjeta', $idtarjeta, $idglobal, $idusuario, $pagosBanco, $prestamo);
+            $this->guardarPagosBanco('tbl_tarjeta_pago', 'idtarjeta', $idtarjeta, $idglobal, $idsucursal, $idusuario, $pagosBanco, $prestamo);
 
             if ($cutaInicial > 0) {
                 $iddescripcion = uniqidReal();
@@ -279,7 +279,7 @@ class ClassCartera
         return $sw;
     }
 
-    public function saveCuota($iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $resta, int $idusuario, array $pagosBanco = array())
+    public function saveCuota($iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $resta, int $idusuario, array $pagosBanco = array(), $vueltoBanco = 0)
     {
         global $conexion;
         $conexion->autocommit(false);
@@ -355,7 +355,7 @@ class ClassCartera
             )
 				VALUES ('$iddescripcion',$idglobal, $idsucursal, '$idtarjeta', $iddetalleruta, $abono, '$accion', 'created', $idusuario, 'web','$fecha','$fecha')";
             $conexion->query($sql) or throw new Exception('error!');
-            $this->guardarPagosBanco('tbl_descripcion_pago', 'iddescripcion', $iddescripcion, $idglobal, $idusuario, $pagosBanco, abs($abono));
+            $this->guardarPagosBanco('tbl_descripcion_pago', 'iddescripcion', $iddescripcion, $idglobal, $idsucursal, $idusuario, $pagosBanco, abs($abono), $vueltoBanco);
 
             $sql = "UPDATE tbl_tarjetas SET dec_resta=$resta WHERE idtarjeta='$idtarjeta'";
             $conexion->query($sql) or throw new Exception("error!");
@@ -429,7 +429,7 @@ class ClassCartera
         return (int)round(floatval($valor) * 100);
     }
 
-    private function guardarPagosBanco($tabla, $columna, $id, $idglobal, $idusuario, array $pagosBanco, $maximo)
+    private function guardarPagosBanco($tabla, $columna, $id, $idglobal, $idsucursal, $idusuario, array $pagosBanco, $maximo, $vuelto = 0)
     {
         global $conexion;
         if (!in_array($tabla, array('tbl_descripcion_pago', 'tbl_tarjeta_pago'), true) || !in_array($columna, array('iddescripcion', 'idtarjeta'), true)) {
@@ -437,7 +437,11 @@ class ClassCartera
         }
 
         db_execute($conexion, "DELETE FROM $tabla WHERE $columna=? AND idglobal=?", "si", [(string)$id, intval($idglobal)]);
+        $vueltoCentavos = $this->dineroACentavos($vuelto);
         if (count($pagosBanco) === 0) {
+            if ($vueltoCentavos !== 0) {
+                throw new Exception('ERROR: No hay transferencia para devolver efectivo');
+            }
             return true;
         }
         if (count($pagosBanco) > 5) {
@@ -466,22 +470,29 @@ class ClassCartera
         if (count(array_unique($idsBanco)) !== count($idsBanco)) {
             throw new Exception('ERROR: No repita el mismo banco en la operación');
         }
-        if ($totalCentavos > $this->dineroACentavos($maximo)) {
-            throw new Exception('ERROR: El valor por banco supera el valor de la operación');
+        // Si por banco entra más que el abono, el cobrador devuelve la diferencia en efectivo;
+        // se exige declararla para que un error al digitar no le vacíe el bolsillo sin avisar.
+        $excesoCentavos = max(0, $totalCentavos - $this->dineroACentavos($maximo));
+        if ($vueltoCentavos !== $excesoCentavos) {
+            throw new Exception($excesoCentavos > 0
+                ? 'ERROR: Confirme la devolución en efectivo por el excedente de la transferencia'
+                : 'ERROR: Solo hay devolución cuando la transferencia supera el valor de la operación');
         }
 
         $placeholders = implode(',', array_fill(0, count($idsBanco), '?'));
-        $params = array_merge([intval($idglobal)], $idsBanco);
+        $params = array_merge([intval($idsucursal), intval($idglobal)], $idsBanco);
         $stmt = db_prepare_execute(
             $conexion,
-            "SELECT idbanco FROM tbl_banco WHERE idglobal=? AND str_estado='activo' AND idbanco IN ($placeholders)",
+            "SELECT b.idbanco FROM tbl_banco b
+             JOIN tbl_banco_sucursal bs ON bs.idbanco=b.idbanco AND bs.idglobal=b.idglobal AND bs.idsucursal=?
+             WHERE b.idglobal=? AND b.str_estado='activo' AND b.idbanco IN ($placeholders)",
             str_repeat('i', count($params)),
             $params
         );
         $bancosValidos = $stmt->get_result()->num_rows;
         $stmt->close();
         if ($bancosValidos !== count($idsBanco)) {
-            throw new Exception('ERROR: El banco está inactivo o no pertenece a la empresa');
+            throw new Exception('ERROR: La cuenta está inactiva o no está autorizada en esta sucursal');
         }
 
         foreach ($pagosBanco as $pago) {

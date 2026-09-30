@@ -4,7 +4,8 @@
     <div class="container-fluid">
       <div class="row mb-2">
         <div class="col-sm-6">
-          <h1 class="m-0">Bancos / métodos de pago</h1>
+          <h1 class="m-0">Cuentas bancarias / métodos de pago</h1>
+          <small class="text-muted">Solo las cuentas autorizadas en una sucursal se ofrecen en su ruta.</small>
         </div>
       </div>
     </div>
@@ -14,17 +15,17 @@
       <div class="card card-default">
         <div id="VerFormBancoPago">
           <form role="form" name="frmBancoPago" id="frmBancoPago" enctype="multipart/form-data">
-            <div class="card-header"><h3 class="card-title">Método de pago</h3></div>
+            <div class="card-header"><h3 class="card-title">Cuenta bancaria</h3></div>
             <div class="card-body">
               <input id="txtIdBanco" type="hidden" name="txtIdBanco" />
               <div class="row">
-                <div class="col-md-4">
+                <div class="col-md-3">
                   <div class="form-group">
-                    <label for="txtNombreBanco">Nombre:</label>
+                    <label for="txtNombreBanco">Banco / billetera:</label>
                     <input id="txtNombreBanco" type="text" maxlength="100" class="form-control" name="txtNombreBanco" required placeholder="Ej: Bancolombia, Nequi" />
                   </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
                   <div class="form-group">
                     <label for="txtTipoBanco">Tipo:</label>
                     <input id="txtTipoBanco" type="text" maxlength="30" class="form-control" name="txtTipoBanco" required placeholder="Ahorros, Corriente, Nequi" />
@@ -43,6 +44,26 @@
                   </div>
                 </div>
               </div>
+              <div class="row">
+                <div class="col-md-5">
+                  <div class="form-group">
+                    <label for="txtTitularBanco">Titular (como aparece en el banco):</label>
+                    <input id="txtTitularBanco" type="text" maxlength="100" class="form-control" name="txtTitularBanco" required placeholder="Nombre o razón social del titular" />
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <div class="form-group">
+                    <label for="txtDocumentoTitular">NIT / documento del titular:</label>
+                    <input id="txtDocumentoTitular" type="text" maxlength="20" class="form-control" name="txtDocumentoTitular" required placeholder="Ej: 900123456-1" />
+                  </div>
+                </div>
+                <div class="col-md-4">
+                  <div class="form-group">
+                    <label for="cboOficinaBanco">Pertenece a:</label>
+                    <select id="cboOficinaBanco" name="cboOficinaBanco" class="form-control"></select>
+                  </div>
+                </div>
+              </div>
             </div>
             <div class="card-footer">
               <button class="btn btn-success" type="submit"><i class="fa fa-floppy-o"></i> Guardar</button>
@@ -50,18 +71,18 @@
             </div>
           </form>
         </div>
-        <button class="btn btn-primary" id="btnNuevoBancoPago"><i class="fa fa-plus"></i> Nuevo método de pago</button>
+        <button class="btn btn-primary" id="btnNuevoBancoPago"><i class="fa fa-plus"></i> Nueva cuenta bancaria</button>
         <div id="VerListadoBancoPago">
           <div class="card">
             <div class="card-header"><h3 class="card-title">Listado</h3></div>
             <div class="card-body">
               <table id="tblBancoPago" class="table table-bordered table-striped">
                 <thead>
-                  <tr><th>#</th><th>Nombre</th><th>Tipo</th><th>Número</th><th>Orden</th><th>Estado</th><th>Opciones</th></tr>
+                  <tr><th>#</th><th>Banco</th><th>Tipo / número</th><th>Titular</th><th>Pertenece a</th><th>Sucursales</th><th>Estado</th><th>Opciones</th></tr>
                 </thead>
                 <tbody></tbody>
                 <tfoot>
-                  <tr><th>#</th><th>Nombre</th><th>Tipo</th><th>Número</th><th>Orden</th><th>Estado</th><th>Opciones</th></tr>
+                  <tr><th>#</th><th>Banco</th><th>Tipo / número</th><th>Titular</th><th>Pertenece a</th><th>Sucursales</th><th>Estado</th><th>Opciones</th></tr>
                 </tfoot>
               </table>
             </div>
@@ -70,6 +91,25 @@
       </div>
     </div>
   </section>
+</div>
+<div class="modal fade" id="modalSucursalesBanco" tabindex="-1" role="dialog">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Sucursales autorizadas · <span id="lblBancoSucursales"></span></h5>
+        <button type="button" class="close" data-dismiss="modal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted mb-2">Marque las sucursales (rutas) donde esta cuenta puede recibir o pagar dinero. Solo ve las sucursales que usted administra.</p>
+        <div id="listaSucursalesBanco"></div>
+      </div>
+      <div class="modal-footer">
+        <input type="hidden" id="txtIdBancoSucursales" />
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+        <button type="button" class="btn btn-success" id="btnGuardarSucursalesBanco"><i class="fa fa-floppy-o"></i> Guardar</button>
+      </div>
+    </div>
+  </div>
 </div>
 <script src="plugins/datatables/jquery.dataTables.min.js"></script>
 <script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
