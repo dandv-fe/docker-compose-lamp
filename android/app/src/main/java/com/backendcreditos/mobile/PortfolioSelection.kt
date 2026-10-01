@@ -10,11 +10,27 @@ internal fun portfolioTap(
 ): PortfolioTap =
     if (pointerArmed && selectedCreditId == tappedCreditId) PortfolioTap.OPEN else PortfolioTap.SELECT
 
-// An empty list means the branch cache has not been loaded yet, so the pointer is kept
-// instead of being dropped before the portfolio appears.
-internal fun keepSelection(selectedCreditId: String?, cachedCreditIds: Collection<String>): String? =
-    if (cachedCreditIds.isEmpty()) selectedCreditId
-    else selectedCreditId?.takeIf { it in cachedCreditIds }
+// An empty list means the branch cache has not been loaded yet, so the pointer is kept.
+// When a selected card disappears, stay near its former route position: previous first,
+// then next. With no previous selection, the route starts at its first card.
+internal fun keepSelection(
+    selectedCreditId: String?,
+    previousCreditIds: List<String>,
+    cachedCreditIds: List<String>,
+): String? {
+    if (cachedCreditIds.isEmpty()) return selectedCreditId
+    if (selectedCreditId == null) return cachedCreditIds.first()
+    if (selectedCreditId in cachedCreditIds) return selectedCreditId
+    val previousIndex = previousCreditIds.indexOf(selectedCreditId)
+    if (previousIndex < 0) return cachedCreditIds.first()
+    for (index in previousIndex - 1 downTo 0) {
+        previousCreditIds[index].takeIf { it in cachedCreditIds }?.let { return it }
+    }
+    for (index in previousIndex + 1 until previousCreditIds.size) {
+        previousCreditIds[index].takeIf { it in cachedCreditIds }?.let { return it }
+    }
+    return cachedCreditIds.first()
+}
 
 // Arrow navigation walks the currently visible (filtered) list. It stops at both ends,
 // which is what disables the arrows, and starts at an end when nothing is pointed.

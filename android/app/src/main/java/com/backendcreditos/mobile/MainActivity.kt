@@ -23,10 +23,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyColumn
@@ -48,6 +50,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -61,8 +64,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.foundation.shape.CircleShape
@@ -88,8 +89,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.backendcreditos.mobile.data.BranchEntity
 import com.backendcreditos.mobile.data.CustomerEntity
 import com.backendcreditos.mobile.data.ACTIVITY_LOG_MAX_ENTRIES
@@ -115,12 +120,13 @@ import java.math.RoundingMode
 
 private data class ConnectionStatus(val color: Color, val description: String)
 
-// Red: offline or automatic sync off/paused; orange: server session expired; green: online with
-// automatic sync running. The expired token wins because only a new login can fix it.
+// A paused automatic sync is different from being offline: authenticated online actions may
+// continue while the queue waits for the user to resolve a conflict or configuration choice.
 private fun connectionStatus(authExpired: Boolean, online: Boolean, autoSync: Boolean): ConnectionStatus = when {
     authExpired -> ConnectionStatus(Color(0xFFFFA726), "Sesión del servidor vencida")
     online && autoSync -> ConnectionStatus(Color(0xFF43A047), "En línea con sincronización automática")
-    else -> ConnectionStatus(Color(0xFFE53935), "Sin conexión o sincronización automática detenida")
+    online -> ConnectionStatus(Color(0xFFFFC107), "En línea; sincronización automática detenida")
+    else -> ConnectionStatus(Color(0xFFE53935), "Sin conexión con el servidor")
 }
 
 private enum class Screen { LOGIN, BRANCHES, HOME, CUSTOMER, CUSTOMER_LOOKUP, CREDIT, CARD_ASSESSMENT, QUEUE, COMPOSER, DEFAULTERS, WITHDRAWN, CANCELLED, PORTFOLIO_CLIENTS, SYNC_SETTINGS, MARKED, SETTLEMENT, ROUTE_ENTRIES }
@@ -135,6 +141,53 @@ private fun textScaleLabel(scale: TextScale): String = when (scale) {
     TextScale.STANDARD -> "Estándar"
     TextScale.LARGE -> "Grande"
     TextScale.EXTRA_LARGE -> "Muy grande"
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun CompactOutlinedTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    modifier: Modifier = Modifier
+) {
+    val interactionSource = remember {
+        androidx.compose.foundation.interaction.MutableInteractionSource()
+    }
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier
+            .heightIn(min = 48.dp)
+            .semantics { contentDescription = placeholder },
+        textStyle = MaterialTheme.typography.bodyLarge.merge(
+            TextStyle(color = MaterialTheme.colorScheme.onSurface)
+        ),
+        keyboardOptions = keyboardOptions,
+        singleLine = true,
+        decorationBox = { innerTextField ->
+            OutlinedTextFieldDefaults.DecorationBox(
+                value = value,
+                innerTextField = innerTextField,
+                enabled = true,
+                singleLine = true,
+                visualTransformation = androidx.compose.ui.text.input.VisualTransformation.None,
+                interactionSource = interactionSource,
+                placeholder = {
+                    Text(
+                        placeholder,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                },
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = 8.dp,
+                    vertical = 4.dp
+                )
+            )
+        }
+    )
 }
 
 // The record is no longer in the queue: someone removed it by hand from the Cola screen.
@@ -315,7 +368,9 @@ private fun CreditApplicationScreen(
         connectivity.registerDefaultNetworkCallback(callback)
         onDispose { connectivity.unregisterNetworkCallback(callback) }
     }
-    val creditOnline = online && deviceConnected
+    // `online` comes from a real authenticated server response. Android's network capability can
+    // be transiently false after screen lock, especially on private Wi-Fi, even while the API works.
+    val creditOnline = online
     var company by remember { mutableStateOf(session?.companyId.orEmpty()) }
     var username by remember { mutableStateOf(session?.username.orEmpty()) }
     var password by remember { mutableStateOf("") }
@@ -337,6 +392,7 @@ private fun CreditApplicationScreen(
     // Portfolio pointer: the card the collector is standing on. It is saved so it also
     // survives configuration changes and process death, not only screen changes.
     var pointedCreditId by rememberSaveable { mutableStateOf<String?>(null) }
+    var previousPortfolioCreditIds by remember { mutableStateOf(emptyList<String>()) }
     // Only a tap on the card itself arms the pointer; arrows and bookmarks leave it disarmed.
     var pointerArmed by rememberSaveable { mutableStateOf(false) }
     var restorePointerScroll by rememberSaveable { mutableStateOf(false) }
@@ -664,6 +720,11 @@ private fun CreditApplicationScreen(
             is ApiResult.Rejected -> friendlyServerError(result.message)
             is ApiResult.Retryable -> "Sin conexión con el servidor: ${result.message}"
         }
+        when (result) {
+            is ApiResult.Success<*>, is ApiResult.Conflict, is ApiResult.PermissionRejected,
+            is ApiResult.Rejected -> online = true
+            is ApiResult.AuthExpired, is ApiResult.Retryable -> online = false
+        }
         if (result is ApiResult.AuthExpired) {
             session?.let { current ->
                 scope.launch {
@@ -672,6 +733,36 @@ private fun CreditApplicationScreen(
                 }
             }
         }
+    }
+
+    suspend fun revalidateServerConnection() {
+        val current = session ?: return
+        when (val result = app.api.me(current.token)) {
+            is ApiResult.Success -> {
+                online = true
+                if (app.database.localDao().syncControl(current.accountKey)?.pauseReason == "AUTH") {
+                    app.repository.setSyncPaused(current.accountKey, null)
+                }
+                loadOperations()
+            }
+            is ApiResult.AuthExpired -> report(result)
+            is ApiResult.Retryable -> online = false
+            else -> online = true
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, session?.accountKey) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME && session != null) {
+                scope.launch { revalidateServerConnection() }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(deviceConnected, session?.accountKey) {
+        if (deviceConnected && session != null) revalidateServerConnection()
     }
 
     fun openFullPayments(creditId: String) {
@@ -1421,7 +1512,6 @@ private fun CreditApplicationScreen(
     val operationsByEntity = remember(operationRows) { operationRows.groupBy { it.entityId } }
     val visibleCreditIds = visibleRows.map { it.credit.id }
     val pointerIndex = pointerPosition(pointedCreditId, visibleCreditIds)
-    val onPortfolio = screen == Screen.HOME
     val unresolvedBadge = operationRows.count {
         it.status in setOf(
             OperationStatus.PENDING, OperationStatus.IN_FLIGHT,
@@ -1501,19 +1591,15 @@ private fun CreditApplicationScreen(
         }
     }
 
-    fun movePointer(forward: Boolean) {
-        val target = pointerStep(pointedCreditId, visibleCreditIds, forward) ?: return
-        pointedCreditId = target
-        pointerArmed = false
-        inlinePaymentCreditId = null
-        restorePointerScroll = true
-    }
-
     LaunchedEffect(screen) {
         if (screen != Screen.HOME && pointedCreditId != null) restorePointerScroll = true
     }
     LaunchedEffect(rows) {
-        pointedCreditId = keepSelection(pointedCreditId, rows.map { it.credit.id })
+        val currentCreditIds = rows.map { it.credit.id }
+        val selection = keepSelection(pointedCreditId, previousPortfolioCreditIds, currentCreditIds)
+        if (selection != null && selection != pointedCreditId) pointerArmed = true
+        pointedCreditId = selection
+        if (currentCreditIds.isNotEmpty()) previousPortfolioCreditIds = currentCreditIds
     }
 
     // Notices used to sit as red text above every screen, eating space. They are now a brief
@@ -1555,7 +1641,7 @@ private fun CreditApplicationScreen(
                         val selectedBranch = branchList.find { it.id == branchId }
                         val status = connectionStatus(
                             authExpired = syncControl?.pauseReason == "AUTH",
-                            online = online && deviceConnected,
+                            online = online,
                             autoSync = syncAutoEnabled && syncControl?.paused != true
                         )
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1596,15 +1682,28 @@ private fun CreditApplicationScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Arrows walk the route card by card; they are dead outside the cartera
-                        // and at both ends of the visible list, like a browser's history arrows.
-                        val canGoBack = onPortfolio && pointerStep(pointedCreditId, visibleCreditIds, false) != null
-                        val canGoForward = onPortfolio && pointerStep(pointedCreditId, visibleCreditIds, true) != null
-                        IconButton(onClick = { movePointer(forward = false) }, enabled = canGoBack) {
-                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = "Tarjeta anterior")
+                        IconButton(onClick = {
+                            scope.launch {
+                                busy = true
+                                loadOperations()
+                                loadSettlement()
+                                busy = false
+                                screen = Screen.SETTLEMENT
+                            }
+                        }) {
+                            Icon(
+                                painterResource(R.drawable.ic_daily_accounting),
+                                contentDescription = "Abrir Cuentas del día"
+                            )
                         }
-                        IconButton(onClick = { movePointer(forward = true) }, enabled = canGoForward) {
-                            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = "Tarjeta siguiente")
+                        IconButton(
+                            onClick = { pointedCreditId?.let(::openFullPayments) },
+                            enabled = pointedCreditId != null
+                        ) {
+                            Icon(
+                                painterResource(R.drawable.ic_payment_history),
+                                contentDescription = "Abrir Abonos e historial completo"
+                            )
                         }
                         BadgedBox(badge = {
                             if (unresolvedBadge > 0) Badge { Text(unresolvedBadge.toString()) }
@@ -1781,6 +1880,7 @@ private fun CreditApplicationScreen(
                                             busy = true
                                             when (val result = app.repository.syncPortfolio(current, branch)) {
                                                 is ApiResult.Success -> {
+                                                    online = true
                                                     app.repository.pullChanges(current, branch)
                                                     loadLocal()
                                                     refreshRouteCash()
@@ -2143,8 +2243,9 @@ private fun CreditApplicationScreen(
                 Screen.HOME -> {
                     if (!online) Text("El desbloqueo local no autentica ni renueva credenciales del servidor.")
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    OutlinedTextField(
-                        search, {
+                    BasicTextField(
+                        value = search,
+                        onValueChange = {
                             search = it
                             scope.launch { portfolioListState.scrollToItem(0) }
                             session?.selectedBranchId?.let { branch ->
@@ -2154,8 +2255,35 @@ private fun CreditApplicationScreen(
                                     }
                                 }
                             }
-                        }, label = { Text("Buscar en cartera y clientes guardados") },
-                        modifier = Modifier.fillMaxWidth()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        textStyle = MaterialTheme.typography.bodyLarge.merge(
+                            TextStyle(color = MaterialTheme.colorScheme.onSurface)
+                        ),
+                        singleLine = true,
+                        decorationBox = { innerTextField ->
+                            OutlinedTextFieldDefaults.DecorationBox(
+                                value = search,
+                                innerTextField = innerTextField,
+                                enabled = true,
+                                singleLine = true,
+                                visualTransformation = androidx.compose.ui.text.input.VisualTransformation.None,
+                                interactionSource = remember {
+                                    androidx.compose.foundation.interaction.MutableInteractionSource()
+                                },
+                                placeholder = {
+                                    Text(
+                                        "Buscar...",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                },
+                                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                                    horizontal = 10.dp,
+                                    vertical = 6.dp
+                                )
+                            )
+                        }
                     )
                     // Always 4dp tall so the list never jumps: it moves while the cartera loads or an
                     // abono waits for the server, and otherwise shows how much of the route is collected.
@@ -2376,14 +2504,15 @@ private fun CreditApplicationScreen(
                                         Text("Ya hay un abono sin liquidar. Usa los movimientos para editarlo.",
                                             color = MaterialTheme.colorScheme.error)
                                     } else {
-                                        OutlinedTextField(
+                                        CompactOutlinedTextField(
                                             draftPaymentAmount, { draftPaymentAmount = it },
-                                            label = { Text("Abono *") }, modifier = Modifier.fillMaxWidth(),
+                                            placeholder = "Abono *",
+                                            modifier = Modifier.fillMaxWidth(),
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                                         )
-                                        OutlinedTextField(
+                                        CompactOutlinedTextField(
                                             draftPaymentConfirmRemaining, { draftPaymentConfirmRemaining = it },
-                                            label = { Text("Confirma cuánto queda restando *") },
+                                            placeholder = "Confirma cuánto queda restando *",
                                             modifier = Modifier.fillMaxWidth(),
                                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
                                         )

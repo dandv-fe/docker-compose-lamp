@@ -16,11 +16,25 @@ class PortfolioSelectionTest {
         assertEquals(PortfolioTap.OPEN, portfolioTap("credit-1", "credit-1", pointerArmed = true))
     }
 
-    @Test fun selectionSurvivesAnEmptyCacheAndIsDroppedWhenTheCardDisappears() {
-        assertEquals("credit-1", keepSelection("credit-1", emptyList()))
-        assertEquals("credit-1", keepSelection("credit-1", listOf("credit-2", "credit-1")))
-        assertNull(keepSelection("credit-1", listOf("credit-2")))
-        assertNull(keepSelection(null, listOf("credit-1")))
+    @Test fun selectionSurvivesAnEmptyCacheAndDefaultsToTheFirstAvailableCard() {
+        assertEquals("credit-1", keepSelection("credit-1", listOf("credit-1"), emptyList()))
+        assertEquals(
+            "credit-1",
+            keepSelection("credit-1", listOf("credit-2", "credit-1"), listOf("credit-2", "credit-1"))
+        )
+        assertEquals(
+            "credit-1",
+            keepSelection(null, emptyList(), listOf("credit-1", "credit-2"))
+        )
+        assertNull(keepSelection(null, emptyList(), emptyList()))
+    }
+
+    @Test fun aRemovedSelectionMovesToTheNearestPreviousCardThenTheNext() {
+        val previous = listOf("a", "b", "c", "d")
+        assertEquals("b", keepSelection("c", previous, listOf("a", "b", "d")))
+        assertEquals("a", keepSelection("c", previous, listOf("a", "d")))
+        assertEquals("d", keepSelection("c", previous, listOf("d")))
+        assertEquals("a", keepSelection("c", previous, listOf("a")))
     }
 
     @Test fun arrowsWalkTheVisibleListAndStopAtBothEnds() {
