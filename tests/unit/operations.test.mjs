@@ -4,7 +4,7 @@ import {
   assertBaseVersion, assertPayloadMatch, operationPayloadSchemas, parseOperationPayload,
   centsToDecimal, decimalToCents, payloadDigest, stableJson, serializeAlert, rejectExistingAlert,
 } from '../../dist/services/validation.js';
-import { applyOfflineOperation, saveBankSplits, assertCustomerBranch, assertEmployeeCreditApproval, creditAcceptsAdditionalInterest, ensureCreditLimit, nextReceiptNumber, openRoute, planPositionBesideCard, positionBesideCard } from '../../dist/services/operations.js';
+import { applyOfflineOperation, assertQueuedRouteOpen, isRouteBoundKind, saveBankSplits, assertCustomerBranch, assertEmployeeCreditApproval, creditAcceptsAdditionalInterest, ensureCreditLimit, nextReceiptNumber, openRoute, planPositionBesideCard, positionBesideCard } from '../../dist/services/operations.js';
 import { mapTransactionError } from '../../dist/services/errors.js';
 
 test('idempotency payload comparison is key-order independent and rejects changed input', () => {
@@ -74,6 +74,51 @@ test('route writes allow dispatch, matching office administrator, or Super Admin
   await assert.rejects(openRoute({
     async execute() { return [[]]; },
   }, 7, 9, null, 'Super Administrador'), { extensions: { code: 'BUSINESS_RULE' } });
+});
+
+test('a record queued against a route that is no longer open is refused', async () => {
+  const routeIn = (state) => ({ async execute(sql, params) {
+    assert.match(sql, /FROM tbl_detalle_ruta/);
+    assert.match(sql, /iddetalleruta = \? AND idglobal = \? AND idsucursal = \?/);
+    assert.deepEqual(params, [42, 7, 9]);
+    return [state == null ? [] : [{ str_estado: state }]];
+  } });
+  await assert.doesNotReject(assertQueuedRouteOpen(routeIn('created'), 7, 9, 42));
+  // 'entregando' can be unlocked back to 'created' from the web, so the record stays recoverable.
+  await assert.rejects(assertQueuedRouteOpen(routeIn('entregando'), 7, 9, 42),
+    { extensions: { code: 'ROUTE_REOPENABLE' } });
+  for (const state of ['saved', null]) {
+    await assert.rejects(assertQueuedRouteOpen(routeIn(state), 7, 9, 42), { extensions: { code: 'ROUTE_CLOSED' } });
+  }
+});
+
+test('the open route must be the one the record was queued against', async () => {
+  const conn = { async execute() { return [[{ iddetalleruta: 43 }]]; } };
+  await assert.rejects(openRoute(conn, 7, 9, null, 'Super Administrador', 42), { extensions: { code: 'ROUTE_REOPENABLE' } });
+  assert.equal(await openRoute(conn, 7, 9, null, 'Super Administrador', 43), 43);
+  assert.equal(await openRoute(conn, 7, 9, null, 'Super Administrador'), 43);
+});
+
+test('only route-day records are bound to the open route', () => {
+  for (const kind of ['CREATE_PAYMENT', 'UPDATE_PAYMENT', 'DELETE_PAYMENT', 'CREATE_CREDIT', 'DELETE_CREDIT',
+    'APPLY_DISCOUNT', 'ADD_INTEREST', 'CREATE_EXPENSE', 'UPDATE_EXPENSE', 'DELETE_EXPENSE',
+    'CREATE_BASE', 'UPDATE_BASE', 'DELETE_BASE']) assert.equal(isRouteBoundKind(kind), true, kind);
+  for (const kind of ['CREATE_CUSTOMER', 'UPDATE_CUSTOMER', 'UPDATE_DOCUMENT', 'UPDATE_CREDIT',
+    'CREATE_COMMENT', 'UPSERT_ALERT', 'CHANGE_CREDIT_STATUS', 'REORDER_CREDIT']) {
+    assert.equal(isRouteBoundKind(kind), false, kind);
+  }
+});
+
+test('an invalid routeId is rejected before any database access', async () => {
+  const context = { user: { userId: 1, companyId: 1, employeeId: 1, cargo: 'Cobrador' } };
+  await assert.rejects(
+    applyOfflineOperation(context, {
+      operationId: '123e4567-e89b-42d3-a456-426614174000',
+      branchId: 1, kind: 'CREATE_BASE', entityId: 'base-1', routeId: 0,
+      baseVersion: null, payload: { valor: 10 },
+    }),
+    { extensions: { code: 'VALIDATION_ERROR' } },
+  );
 });
 
 test('credit creation can reuse a company customer without a card in this branch', async () => {

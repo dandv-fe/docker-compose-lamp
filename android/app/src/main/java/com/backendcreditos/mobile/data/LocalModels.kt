@@ -127,7 +127,13 @@ data class OfflineOperationEntity(
     val attempts: Int,
     val lastError: String?,
     val serverState: String?,
-    val createdAt: Long
+    val createdAt: Long,
+    // iddetalleruta that was open ('created') when a route-day record was queued. The server
+    // refuses the record once that route is handed over, settled or gone.
+    val routeId: Int? = null,
+    // Why the server refused it (RouteGuard.ROUTE_CLOSED / ROUTE_REOPENABLE). The queue is never
+    // swept on its own: the record waits here until someone resends it or removes it by hand.
+    val rejectionCode: String? = null
 )
 
 data class BranchEntity(val id: String, val name: String, val type: String? = null)
@@ -176,7 +182,9 @@ data class RouteCashEntity(
     val base: String,
     val otherIncome: String,
     val expenses: String,
-    val fetchedAt: Long
+    val fetchedAt: Long,
+    // str_estado of that route: only 'created' accepts new records.
+    val routeState: String? = null
 )
 
 // Route expenses (gasolina, sueldo, viaticos...) and bases of the open day. Cached from the

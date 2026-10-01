@@ -287,7 +287,8 @@ data class OfflineOperationInput(
     val kind: String,
     val entityId: String,
     val baseVersion: String?,
-    val payload: JsonElement
+    val payload: JsonElement,
+    val routeId: Int? = null
 )
 
 // --- Cartera sub-screens: Morosos, Retirados, Canceladas, Clientes De Cartera ---
@@ -319,6 +320,7 @@ data class BankAccountsData(val bankAccounts: List<BankAccountDto>)
 @Serializable
 data class RouteCashDto(
     val routeId: Int? = null,
+    val routeState: String? = null,
     val base: Double = 0.0,
     val otherIncome: Double = 0.0,
     val expenses: Double = 0.0
@@ -524,6 +526,6 @@ sealed interface ApiResult<out T> {
     data class AuthExpired(val message: String) : ApiResult<Nothing>
     data class Conflict(val message: String, val currentRecord: JsonElement? = null) : ApiResult<Nothing>
     data class PermissionRejected(val message: String) : ApiResult<Nothing>
-    data class Rejected(val message: String) : ApiResult<Nothing>
+    data class Rejected(val message: String, val code: String? = null) : ApiResult<Nothing>
     data class Retryable(val message: String) : ApiResult<Nothing>
 }

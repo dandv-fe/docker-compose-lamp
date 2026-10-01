@@ -434,24 +434,25 @@ export async function openRouteCash(context: AuthContext | null, branchId: numbe
   const user = requireAuth(context);
   await assertBranchAccess(user, branchId);
   const [rows] = await pool.execute(
-    `SELECT dr.iddetalleruta AS routeId,
+    `SELECT dr.iddetalleruta AS routeId, dr.str_estado AS routeState,
             COALESCE(SUM(CASE WHEN dc.str_nombre = 'base' THEN dc.dec_total END), 0) AS base,
             COALESCE(SUM(CASE WHEN dc.str_operacion LIKE 'entrada-%'
                                AND dc.str_nombre NOT IN ('recaudo', 'diferencia') THEN dc.dec_total END), 0) AS otherIncome,
             COALESCE(-SUM(CASE WHEN dc.str_operacion LIKE 'salida-%'
                                 AND dc.idtipo_contabilidad <> 4 THEN dc.dec_total END), 0) AS expenses
-     FROM (SELECT iddetalleruta FROM tbl_detalle_ruta
+     FROM (SELECT iddetalleruta, str_estado FROM tbl_detalle_ruta
            WHERE idsucursal = ? AND idglobal = ? AND str_estado <> 'saved'
            ORDER BY created_at DESC LIMIT 1) dr
      LEFT JOIN tbl_contabilidad_detalle dc
        ON dc.iddetalleruta = dr.iddetalleruta AND dc.idsucursal = ? AND dc.idglobal = ?
-     GROUP BY dr.iddetalleruta`,
+     GROUP BY dr.iddetalleruta, dr.str_estado`,
     [branchId, user.companyId, branchId, user.companyId],
   );
   const row = (rows as Array<Record<string, unknown>>)[0];
-  if (!row) return { routeId: null, base: 0, otherIncome: 0, expenses: 0 };
+  if (!row) return { routeId: null, routeState: null, base: 0, otherIncome: 0, expenses: 0 };
   return {
     routeId: Number(row.routeId),
+    routeState: String(row.routeState),
     base: Number(row.base),
     otherIncome: Number(row.otherIncome),
     expenses: Number(row.expenses),

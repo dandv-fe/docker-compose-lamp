@@ -205,6 +205,7 @@ const RouteCashType = new GraphQLObjectType({
   name: 'RouteCash',
   fields: {
     routeId: { type: GraphQLInt },
+    routeState: { type: GraphQLString },
     base: { type: new GraphQLNonNull(GraphQLFloat) },
     otherIncome: { type: new GraphQLNonNull(GraphQLFloat) },
     expenses: { type: new GraphQLNonNull(GraphQLFloat) },
@@ -341,6 +342,7 @@ const OfflineInputType = new GraphQLInputObjectType({
     kind: { type: new GraphQLNonNull(OperationKind) },
     entityId: { type: new GraphQLNonNull(GraphQLString) },
     baseVersion: { type: GraphQLString },
+    routeId: { type: GraphQLInt },
     payload: { type: new GraphQLNonNull(JSONScalar) },
   },
 });

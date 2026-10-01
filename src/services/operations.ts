@@ -21,12 +21,48 @@ const operationKinds = [
 ] as const;
 type Kind = typeof operationKinds[number];
 
+// Records that live inside a route day (tbl_detalle_ruta). They only make sense while that exact
+// route is still 'created': once it is handed over ('entregando'), settled ('saved') or gone,
+// the record can never be applied and the device must drop it from its queue.
+export const routeBoundKinds: ReadonlySet<Kind> = new Set<Kind>([
+  'CREATE_CREDIT', 'DELETE_CREDIT', 'CREATE_PAYMENT', 'UPDATE_PAYMENT', 'DELETE_PAYMENT',
+  'APPLY_DISCOUNT', 'ADD_INTEREST',
+  'CREATE_EXPENSE', 'UPDATE_EXPENSE', 'DELETE_EXPENSE', 'CREATE_BASE', 'UPDATE_BASE', 'DELETE_BASE',
+]);
+
+export function isRouteBoundKind(kind: string): boolean {
+  return routeBoundKinds.has(kind as Kind);
+}
+
+// The route the device queued against must still exist in this branch and still be 'created'.
+// 'entregando' is recoverable: the office can unlock the day back to 'created' from webgoez, so the
+// record keeps its place in the queue and may be resent. Anything else is final.
+export async function assertQueuedRouteOpen(
+  conn: SqlConnection, companyId: number, branchId: number, routeId: number,
+) {
+  const [rows] = await conn.execute<RowDataPacket[]>(
+    `SELECT str_estado FROM tbl_detalle_ruta
+     WHERE iddetalleruta = ? AND idglobal = ? AND idsucursal = ? FOR UPDATE`,
+    [routeId, companyId, branchId],
+  );
+  if (!rows[0]) fail('ROUTE_CLOSED', 'La ruta de este registro ya no existe en la sucursal.');
+  if (rows[0].str_estado === 'entregando') {
+    fail('ROUTE_REOPENABLE', 'La ruta ya se entregó. Si la oficina la desbloquea, este registro se puede volver a enviar.');
+  }
+  if (rows[0].str_estado !== 'created') {
+    fail('ROUTE_CLOSED', `La ruta de este registro ya está en estado ${rows[0].str_estado}; no se puede aplicar.`);
+  }
+}
+
 export interface OfflineInput {
   operationId: string;
   branchId: number;
   kind: Kind;
   entityId: string;
   baseVersion?: string | null;
+  // iddetalleruta the device saw open when it queued the record. Optional only so operations
+  // queued by older app versions still go through; new ones always carry it.
+  routeId?: number | null;
   payload: unknown;
 }
 
@@ -154,6 +190,7 @@ function asMoneyNumber(cents: bigint) {
 // administrator, or the company Super Administrador can write against it.
 export async function openRoute(
   conn: SqlConnection, companyId: number, branchId: number, employeeId: number | null, cargo: string | null,
+  expectedRouteId: number | null = null,
 ) {
   const [routes] = await conn.execute<RowDataPacket[]>(
     `SELECT iddetalleruta FROM tbl_detalle_ruta
@@ -164,6 +201,9 @@ export async function openRoute(
   const route = routes[0];
   if (!route) fail('BUSINESS_RULE', 'An open route is required');
   const routeId = Number(route.iddetalleruta);
+  if (expectedRouteId != null && routeId !== expectedRouteId) {
+    fail('ROUTE_REOPENABLE', 'El registro pertenece a otra ruta distinta de la que está abierta.');
+  }
   if (cargo !== 'Super Administrador') {
     if (employeeId == null) fail('FORBIDDEN', 'An employee identity is required for this action');
     const [authorized] = await conn.execute<RowDataPacket[]>(
@@ -449,7 +489,7 @@ async function executeOperation(
         );
         if (!saleRows.length) fail('FORBIDDEN', 'Sale is outside the authenticated company');
       }
-      const routeId = await openRoute(conn, companyId, input.branchId, employeeId, cargo);
+      const routeId = await openRoute(conn, companyId, input.branchId, employeeId, cargo, input.routeId ?? null);
       const customer = await assertCustomerBranch(conn, companyId, input.branchId, Number(payload.idcliente), true);
       await ensureCreditLimit(conn, user, input.branchId, customer, decimalToCents(payload.prestamo as number));
       const [sequenceRows] = await conn.execute<RowDataPacket[]>(
@@ -553,7 +593,7 @@ async function executeOperation(
       return { entityId: credit.idtarjeta, data: { id: credit.idtarjeta }, recordType: 'credit', action: 'UPDATE', branchId: input.branchId, relatedId: String(credit.idcliente) };
     }
     case 'CREATE_PAYMENT': {
-      const routeId = await openRoute(conn, companyId, input.branchId, employeeId, cargo);
+      const routeId = await openRoute(conn, companyId, input.branchId, employeeId, cargo, input.routeId ?? null);
       const credit = await loadCredit(conn, companyId, input.branchId, input.entityId);
       if (!creditAcceptsPayments(credit)) fail('BUSINESS_RULE', 'Payments require an open credit');
       // Mirrors the legacy PHP rule (model/Cartera.php: saveCuota() -> "ERROR: No puede
@@ -599,7 +639,7 @@ async function executeOperation(
       return { entityId: String(payload.iddescripcion), data: { id: payload.iddescripcion, creditId: credit.idtarjeta, remaining: asMoneyNumber(balance + amount) }, recordType: 'payment', action: 'INSERT', branchId: input.branchId, relatedId: credit.idtarjeta };
     }
     case 'UPDATE_PAYMENT': {
-      await openRoute(conn, companyId, input.branchId, employeeId, cargo);
+      await openRoute(conn, companyId, input.branchId, employeeId, cargo, input.routeId ?? null);
       const [rows] = await conn.execute<RowDataPacket[]>(
         `SELECT d.iddescripcion,d.idtarjeta,d.str_estado FROM tbl_descripcion d
          WHERE d.iddescripcion=? AND d.idglobal=? AND d.idsucursal=? FOR UPDATE`,
@@ -645,7 +685,7 @@ async function executeOperation(
       return { entityId: input.entityId, data: { id: input.entityId, creditId: credit.idtarjeta, remaining: balance }, recordType: 'payment', action: 'UPDATE', branchId: input.branchId, relatedId: credit.idtarjeta };
     }
     case 'DELETE_PAYMENT': {
-      await openRoute(conn, companyId, input.branchId, employeeId, cargo);
+      await openRoute(conn, companyId, input.branchId, employeeId, cargo, input.routeId ?? null);
       const [rows] = await conn.execute<RowDataPacket[]>(
         `SELECT idtarjeta,str_estado FROM tbl_descripcion WHERE iddescripcion=?
          AND idglobal=? AND idsucursal=? FOR UPDATE`,
@@ -680,7 +720,7 @@ async function executeOperation(
     }
     case 'APPLY_DISCOUNT':
     case 'ADD_INTEREST': {
-      const routeId = await openRoute(conn, companyId, input.branchId, employeeId, cargo);
+      const routeId = await openRoute(conn, companyId, input.branchId, employeeId, cargo, input.routeId ?? null);
       const credit = await loadCredit(conn, companyId, input.branchId, input.entityId);
       if (input.kind === 'ADD_INTEREST' && !creditAcceptsAdditionalInterest(credit.str_estado)) {
         fail('BUSINESS_RULE', 'No se pueden cobrar más intereses mientras la tarjeta esté en estado created o entregando');
@@ -824,7 +864,7 @@ async function executeOperation(
     }
     case 'CREATE_EXPENSE':
     case 'UPDATE_EXPENSE': {
-      const routeId = await openRoute(conn, companyId, input.branchId, employeeId, cargo);
+      const routeId = await openRoute(conn, companyId, input.branchId, employeeId, cargo, input.routeId ?? null);
       const accountingType = Number(payload.idtipo_contabilidad);
       const name = String(payload.nombre);
       await assertExpenseCatalog(conn, companyId, accountingType, name);
@@ -863,7 +903,7 @@ async function executeOperation(
     }
     case 'CREATE_BASE':
     case 'UPDATE_BASE': {
-      const routeId = await openRoute(conn, companyId, input.branchId, employeeId, cargo);
+      const routeId = await openRoute(conn, companyId, input.branchId, employeeId, cargo, input.routeId ?? null);
       const amount = decimalToCents(payload.valor as number);
       const detail = String(payload.detalle ?? '');
       if (input.kind === 'CREATE_BASE') {
@@ -893,7 +933,7 @@ async function executeOperation(
     }
     case 'DELETE_EXPENSE':
     case 'DELETE_BASE': {
-      await openRoute(conn, companyId, input.branchId, employeeId, cargo);
+      await openRoute(conn, companyId, input.branchId, employeeId, cargo, input.routeId ?? null);
       const operation = input.kind === 'DELETE_EXPENSE' ? 'salida-totalizar' : 'info-totalizar';
       await loadRouteEntry(conn, companyId, input.branchId, input.entityId, operation);
       await conn.execute(
@@ -1044,6 +1084,8 @@ export async function applyOfflineOperation(context: AuthContext | null, input: 
     fail('VALIDATION_ERROR', 'operationId must be a UUID');
   }
   if (!Number.isSafeInteger(input.branchId) || input.branchId < 1) fail('VALIDATION_ERROR', 'Invalid branchId');
+  const routeId = input.routeId ?? null;
+  if (routeId !== null && (!Number.isSafeInteger(routeId) || routeId < 1)) fail('VALIDATION_ERROR', 'Invalid routeId');
   const entityIdMax = input.kind.includes('COMMENT') || input.kind.includes('CREDIT')
     || input.kind.includes('PAYMENT') || input.kind.includes('EXPENSE')
     || input.kind.includes('BASE') || input.kind === 'UPSERT_ALERT' ? 50 : 100;
@@ -1081,6 +1123,8 @@ export async function applyOfflineOperation(context: AuthContext | null, input: 
     const normalizedRequest = {
       kind: input.kind, branchId: input.branchId, entityId: input.entityId,
       baseVersion: input.baseVersion, payload,
+      // Left out when absent so receipts stored before routeId existed keep the same digest.
+      ...(routeId !== null ? { routeId } : {}),
     };
     const payloadHash = payloadDigest(normalizedRequest);
     try {
@@ -1106,6 +1150,12 @@ export async function applyOfflineOperation(context: AuthContext | null, input: 
       const replay = JSON.parse(String(existing.result_json)) as OperationResult;
       await conn.commit();
       return { ...replay, replayed: true };
+    }
+
+    // Checked before the version check: a record whose route already closed can never live,
+    // so it must not stop the queue as a conflict.
+    if (routeId !== null && isRouteBoundKind(input.kind)) {
+      await assertQueuedRouteOpen(conn, user.companyId, input.branchId, routeId);
     }
 
     const isCreate = createsNewEntity;

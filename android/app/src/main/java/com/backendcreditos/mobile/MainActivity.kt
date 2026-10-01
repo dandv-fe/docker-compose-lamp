@@ -102,6 +102,10 @@ import com.backendcreditos.mobile.data.PaymentEntity
 import com.backendcreditos.mobile.data.PortfolioRow
 import com.backendcreditos.mobile.network.ApiResult
 import com.backendcreditos.mobile.security.StoredSession
+import com.backendcreditos.mobile.ui.theme.CreditTheme
+import com.backendcreditos.mobile.ui.theme.TextScale
+import com.backendcreditos.mobile.ui.theme.ThemeMode
+import com.backendcreditos.mobile.ui.theme.ThemePreferences
 import com.backendcreditos.mobile.work.SyncScheduler
 import androidx.work.WorkManager
 import kotlinx.coroutines.delay
@@ -114,12 +118,35 @@ private data class ConnectionStatus(val color: Color, val description: String)
 // Red: offline or automatic sync off/paused; orange: server session expired; green: online with
 // automatic sync running. The expired token wins because only a new login can fix it.
 private fun connectionStatus(authExpired: Boolean, online: Boolean, autoSync: Boolean): ConnectionStatus = when {
-    authExpired -> ConnectionStatus(Color(0xFFF57C00), "Sesión del servidor vencida")
-    online && autoSync -> ConnectionStatus(Color(0xFF2E7D32), "En línea con sincronización automática")
-    else -> ConnectionStatus(Color(0xFFC62828), "Sin conexión o sincronización automática detenida")
+    authExpired -> ConnectionStatus(Color(0xFFFFA726), "Sesión del servidor vencida")
+    online && autoSync -> ConnectionStatus(Color(0xFF43A047), "En línea con sincronización automática")
+    else -> ConnectionStatus(Color(0xFFE53935), "Sin conexión o sincronización automática detenida")
 }
 
 private enum class Screen { LOGIN, BRANCHES, HOME, CUSTOMER, CUSTOMER_LOOKUP, CREDIT, CARD_ASSESSMENT, QUEUE, COMPOSER, DEFAULTERS, WITHDRAWN, CANCELLED, PORTFOLIO_CLIENTS, SYNC_SETTINGS, MARKED, SETTLEMENT, ROUTE_ENTRIES }
+
+private fun themeModeLabel(mode: ThemeMode): String = when (mode) {
+    ThemeMode.SYSTEM -> "Sistema"
+    ThemeMode.LIGHT -> "Claro"
+    ThemeMode.DARK -> "Oscuro"
+}
+
+private fun textScaleLabel(scale: TextScale): String = when (scale) {
+    TextScale.STANDARD -> "Estándar"
+    TextScale.LARGE -> "Grande"
+    TextScale.EXTRA_LARGE -> "Muy grande"
+}
+
+// The record is no longer in the queue: someone removed it by hand from the Cola screen.
+private const val DROPPED_FROM_QUEUE_MESSAGE =
+    "Ese registro ya no está en la cola: lo quitaron sin registrarlo. Mira el detalle en Actividad."
+
+// Server message plus, when the route day was the problem, what the person can do about it.
+private fun rejectionDetail(operation: com.backendcreditos.mobile.data.OfflineOperationEntity): String =
+    listOfNotNull(
+        friendlyServerError(operation.lastError),
+        com.backendcreditos.mobile.queue.RouteGuard.refusalAdvice(operation.rejectionCode)
+    ).joinToString(" ")
 
 class MainActivity : FragmentActivity() {
     fun unlockDevice(onResult: (Boolean, String?) -> Unit) {
@@ -151,8 +178,24 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         val app = application as CreditApp
         setContent {
-            MaterialTheme {
-                CreditApplicationScreen(app, this)
+            val themePreferences = remember { ThemePreferences(this) }
+            var themeMode by remember { mutableStateOf(themePreferences.read()) }
+            var textScale by remember { mutableStateOf(themePreferences.readTextScale()) }
+            CreditTheme(themeMode, textScale) {
+                CreditApplicationScreen(
+                    app = app,
+                    activity = this,
+                    themeMode = themeMode,
+                    textScale = textScale,
+                    onThemeModeChange = { selected ->
+                        themePreferences.save(selected)
+                        themeMode = selected
+                    },
+                    onTextScaleChange = { selected ->
+                        themePreferences.saveTextScale(selected)
+                        textScale = selected
+                    }
+                )
             }
         }
     }
@@ -228,10 +271,18 @@ private fun friendlyServerError(rawMessage: String?): String {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
-private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
+private fun CreditApplicationScreen(
+    app: CreditApp,
+    activity: MainActivity,
+    themeMode: ThemeMode,
+    textScale: TextScale,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    onTextScaleChange: (TextScale) -> Unit
+) {
     val scope = rememberCoroutineScope()
     var session by remember { mutableStateOf(app.vault.readSession()) }
     var screen by remember { mutableStateOf(Screen.LOGIN) }
+    var settingsReturnScreen by remember { mutableStateOf(Screen.LOGIN) }
     var online by remember { mutableStateOf(false) }
     val connectivity = remember {
         activity.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
@@ -303,6 +354,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     var busy by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
     var showLogoutConfirmation by remember { mutableStateOf(false) }
+    var showRouteSweepConfirmation by remember { mutableStateOf(false) }
     var pendingLogoutCount by remember { mutableStateOf(0) }
     var documentType by remember { mutableStateOf("") }
     var documentNumber by remember { mutableStateOf("") }
@@ -402,6 +454,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     var cancelledDateTo by remember { mutableStateOf("") }
     var syncIntervalMinutes by remember { mutableStateOf(SyncScheduler.readIntervalMinutes(activity)) }
     var syncAutoEnabled by remember { mutableStateOf(SyncScheduler.isPeriodicEnabled(activity)) }
+    var serverEndpoint by remember { mutableStateOf(app.connectionSettings.endpoint()) }
+    var serverEndpointError by remember { mutableStateOf<String?>(null) }
     var markedCreditIds by remember { mutableStateOf(emptySet<String>()) }
     var showMoreMenu by remember { mutableStateOf(false) }
     val branchId = session?.selectedBranchId
@@ -595,6 +649,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                 "$pendingCount $plural sin enviar; revisa la Cola."
             "REJECTED", "PROTOCOL", "SYNC_PROTOCOL" -> "⚠ Sincronización pausada: el servidor rechazó una operación. " +
                 "Tienes $pendingCount $plural sin enviar; revisa la Cola."
+            "ROUTE" -> "⚠ Sincronización pausada: la ruta de ese día ya no está abierta. Tienes $pendingCount " +
+                "$plural sin enviar; revisa abajo y decide si los vuelves a enviar o los quitas."
             else -> "⚠ Sincronización pausada. Tienes $pendingCount $plural sin enviar; revisa la Cola."
         }
     }
@@ -745,19 +801,22 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         SyncScheduler.enqueue(activity, current.accountKey, branch, expedited = online)
         if (online) {
             var latest = operation
+            var dropped = false
             val deadlineMs = System.currentTimeMillis() + 15_000
             while (latest.status in setOf(OperationStatus.PENDING, OperationStatus.IN_FLIGHT) &&
                 System.currentTimeMillis() < deadlineMs
             ) {
                 delay(400)
-                latest = app.repository.operation(operation.operationId) ?: latest
+                val next = app.repository.operation(operation.operationId)
+                if (next == null) { dropped = true; break }
+                latest = next
             }
-            routeEntryError = when (latest.status) {
+            routeEntryError = if (dropped) DROPPED_FROM_QUEUE_MESSAGE else when (latest.status) {
                 OperationStatus.CONFIRMED -> ""
                 OperationStatus.CONFLICT ->
                     "El servidor reportó un conflicto: ${friendlyServerError(latest.lastError)}"
                 OperationStatus.REJECTED ->
-                    "El servidor no lo aceptó: ${friendlyServerError(latest.lastError)}"
+                    "El servidor no lo aceptó: ${rejectionDetail(latest)}"
                 else -> "Quedó guardado y se sigue enviando; revisa la Cola si no desaparece el aviso."
             }
         } else {
@@ -906,19 +965,22 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         }
         notice = "Enviando al servidor…"
         var latest = operation
+        var dropped = false
         val deadlineMs = System.currentTimeMillis() + 15_000
         while (latest.status in setOf(OperationStatus.PENDING, OperationStatus.IN_FLIGHT) &&
             System.currentTimeMillis() < deadlineMs
         ) {
             delay(400)
-            latest = app.repository.operation(operation.operationId) ?: latest
+            val next = app.repository.operation(operation.operationId)
+            if (next == null) { dropped = true; break }
+            latest = next
         }
         loadLocal()
         loadOperations()
-        notice = when (latest.status) {
+        notice = if (dropped) DROPPED_FROM_QUEUE_MESSAGE else when (latest.status) {
             OperationStatus.CONFIRMED -> "Operación confirmada por el servidor."
             OperationStatus.CONFLICT -> "El servidor reportó un conflicto: ${friendlyServerError(latest.lastError)}"
-            OperationStatus.REJECTED -> "El servidor rechazó la operación: ${friendlyServerError(latest.lastError)}"
+            OperationStatus.REJECTED -> "El servidor rechazó la operación: ${rejectionDetail(latest)}"
             else -> if (syncControl?.pauseReason == "AUTH")
                 "Tu sesión venció mientras se procesaba. Quedó guardada localmente pero el servidor no la recibirá " +
                     "hasta que cierres sesión y vuelvas a iniciar sesión; hazlo ahora para enviarla."
@@ -1400,13 +1462,24 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                 val message = when (latest.status) {
                     OperationStatus.CONFIRMED -> "Abono confirmado por el servidor."
                     OperationStatus.CONFLICT -> "Conflicto en el abono: ${friendlyServerError(latest.lastError)}. Revisa la Cola."
-                    else -> "Abono rechazado: ${friendlyServerError(latest.lastError)}. Revisa la Cola."
+                    else -> "Abono rechazado: ${rejectionDetail(latest)}. Revisa la Cola."
                 }
                 if (latest.status != OperationStatus.CONFIRMED) failed++
                 messages.add(message)
             }
             if (completed.isNotEmpty() || removed.isNotEmpty()) {
                 watchedPaymentOperationIds -= completed + removed
+            }
+            if (removed.isNotEmpty()) {
+                if (session?.accountKey != current.accountKey || session?.selectedBranchId != branch) return@LaunchedEffect
+                loadLocal()
+                scope.launch {
+                    snackbarHostState.showSnackbar(
+                        if (removed.size == 1) "Un abono salió de la cola sin registrarse. Mira el motivo en Actividad."
+                        else "${removed.size} abonos salieron de la cola sin registrarse. Mira el motivo en Actividad.",
+                        duration = SnackbarDuration.Long
+                    )
+                }
             }
             if (completed.isNotEmpty()) {
                 val message = if (messages.size == 1) messages.single()
@@ -1491,6 +1564,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                     .size(14.dp)
                                     .background(status.color, CircleShape)
                                     .clickable(onClickLabel = "Abrir sincronización") {
+                                        settingsReturnScreen = screen
                                         screen = Screen.SYNC_SETTINGS
                                     }
                                     .semantics { contentDescription = status.description }
@@ -1778,8 +1852,12 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                     onClick = { showMoreMenu = false; screen = Screen.BRANCHES }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Sincronización automática") },
-                                    onClick = { showMoreMenu = false; screen = Screen.SYNC_SETTINGS }
+                                    text = { Text("Configuración") },
+                                    onClick = {
+                                        showMoreMenu = false
+                                        settingsReturnScreen = screen
+                                        screen = Screen.SYNC_SETTINGS
+                                    }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Cerrar sesión") },
@@ -1908,6 +1986,12 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             }
                         }
                     ) { Text(if (busy) "Conectando…" else "Iniciar sesión") }
+                    TextButton(onClick = {
+                        settingsReturnScreen = Screen.LOGIN
+                        serverEndpoint = app.connectionSettings.endpoint()
+                        serverEndpointError = null
+                        screen = Screen.SYNC_SETTINGS
+                    }) { Text("Configuración del servidor") }
                     if (session?.selectedBranchId != null) {
                         Spacer(Modifier.height(12.dp))
                         HorizontalDivider()
@@ -2506,29 +2590,106 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     TextButton(onClick = { screen = Screen.HOME }) { Text("Volver a la cartera") }
                 }
                 Screen.SYNC_SETTINGS -> {
-                    Text("Sincronización", style = MaterialTheme.typography.headlineSmall)
-                    Row(
-                        Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    Text("Configuración", style = MaterialTheme.typography.headlineSmall)
+                    Text("Apariencia", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Elige el tema de la aplicación. Sistema sigue automáticamente la configuración del teléfono.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("Sincronización automática", style = MaterialTheme.typography.titleMedium)
-                        Switch(
-                            checked = syncAutoEnabled,
-                            onCheckedChange = { enabled ->
-                                val current = session ?: return@Switch
-                                val branch = current.selectedBranchId ?: return@Switch
-                                SyncScheduler.setPeriodicEnabled(activity, current.accountKey, branch, enabled)
-                                syncAutoEnabled = enabled
-                                notice = if (enabled) {
-                                    "Sincronización automática encendida cada $syncIntervalMinutes minutos."
-                                } else {
-                                    "Sincronización automática apagada. Lo guardado sigue en la cola; " +
-                                        "usa \"Sincronizar ahora\" cuando quieras enviarlo."
-                                }
+                        ThemeMode.entries.forEach { mode ->
+                            FilterChip(
+                                selected = themeMode == mode,
+                                onClick = { onThemeModeChange(mode) },
+                                label = { Text(themeModeLabel(mode)) }
+                            )
+                        }
+                    }
+                    Text("Tamaño del texto", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "La app siempre respeta el tamaño configurado en el teléfono. Estas opciones permiten aumentarlo aún más.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        TextScale.entries.forEach { scale ->
+                            FilterChip(
+                                selected = textScale == scale,
+                                onClick = { onTextScaleChange(scale) },
+                                label = { Text(textScaleLabel(scale)) }
+                            )
+                        }
+                    }
+                    HorizontalDivider()
+                    Text("Conexión con el servidor", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Escribe el dominio (por ejemplo, api.empresa.com) o la URL completa de GraphQL. " +
+                            "En producción se exige HTTPS.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    OutlinedTextField(
+                        serverEndpoint,
+                        {
+                            serverEndpoint = it
+                            serverEndpointError = null
+                        },
+                        label = { Text("Dominio o URL del servidor") },
+                        isError = serverEndpointError != null,
+                        supportingText = { serverEndpointError?.let { Text(it) } },
+                        enabled = session == null,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (session == null) {
+                        Button(onClick = {
+                            try {
+                                serverEndpoint = app.configureGraphQlEndpoint(serverEndpoint)
+                                serverEndpointError = null
+                                notice = "Conexión guardada: $serverEndpoint"
+                            } catch (error: IllegalArgumentException) {
+                                serverEndpointError = error.message ?: "La URL del servidor no es válida."
                             }
+                        }) { Text("Guardar conexión") }
+                    } else {
+                        Text(
+                            "Para proteger tu sesión y sus operaciones pendientes, cierra sesión antes de cambiar el servidor.",
+                            style = MaterialTheme.typography.bodySmall
                         )
                     }
+                    val currentSession = session
+                    val currentBranch = currentSession?.selectedBranchId
+                    if (currentSession != null && currentBranch != null) {
+                        HorizontalDivider()
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("Sincronización automática", style = MaterialTheme.typography.titleMedium)
+                            Switch(
+                                checked = syncAutoEnabled,
+                                onCheckedChange = { enabled ->
+                                    SyncScheduler.setPeriodicEnabled(
+                                        activity, currentSession.accountKey, currentBranch, enabled
+                                    )
+                                    syncAutoEnabled = enabled
+                                    notice = if (enabled) {
+                                        "Sincronización automática encendida cada $syncIntervalMinutes minutos."
+                                    } else {
+                                        "Sincronización automática apagada. Lo guardado sigue en la cola; " +
+                                            "usa \"Sincronizar ahora\" cuando quieras enviarlo."
+                                    }
+                                }
+                            )
+                        }
                     Text(
                         if (syncAutoEnabled) {
                             "El sistema operativo obliga a un mínimo de 15 minutos entre sincronizaciones " +
@@ -2585,7 +2746,8 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             notice = "Sincronización automática programada cada $syncIntervalMinutes minutos."
                         }
                     ) { Text("Guardar intervalo") }
-                    TextButton(onClick = { screen = Screen.HOME }) { Text("Volver") }
+                    }
+                    TextButton(onClick = { screen = settingsReturnScreen }) { Text("Volver") }
                 }
                 Screen.CUSTOMER_LOOKUP -> {
                     Text("Buscar por documento · cliente o tarjeta",
@@ -3161,6 +3323,47 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     syncPausedBannerText()?.let {
                         Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
                     }
+                    val routeBlocked = operationRows.filter {
+                        com.backendcreditos.mobile.queue.RouteGuard.isRouteRefusal(it.rejectionCode)
+                    }
+                    if (routeBlocked.isNotEmpty()) {
+                        val resendable = routeBlocked.count {
+                            com.backendcreditos.mobile.queue.RouteGuard.canResend(it.rejectionCode)
+                        }
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp)) {
+                                Text("Ruta cerrada: ${routeBlocked.size} registros detenidos",
+                                    style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "Nada se borra solo. Revisa abajo uno por uno y anota lo que necesites antes de quitarlos. " +
+                                        if (resendable > 0)
+                                            "$resendable se pueden volver a enviar si la oficina desbloquea el día."
+                                        else "Ninguno se puede volver a enviar: la oficina ya guardó esos días."
+                                )
+                                if (resendable > 0) Button(enabled = !busy && online, onClick = {
+                                    scope.launch {
+                                        busy = true
+                                        try {
+                                            val sent = app.repository.resendAllRouteBlockedOperations(
+                                                requireNotNull(session).accountKey
+                                            )
+                                            loadOperations()
+                                            session?.let { enqueuePendingBranches(it) }
+                                            val stuck = operationRows.count {
+                                                com.backendcreditos.mobile.queue.RouteGuard.isRouteRefusal(it.rejectionCode)
+                                            }
+                                            notice = "Se volvieron a poner en cola $sent registros." +
+                                                if (stuck > 0) " Todavía hay $stuck detenidos: quítalos para que el envío siga."
+                                                else ""
+                                        } finally { busy = false }
+                                    }
+                                }) { Text("Volver a enviar los $resendable que se pueden") }
+                                TextButton(enabled = !busy, onClick = { showRouteSweepConfirmation = true }) {
+                                    Text("Quitar de la cola los ${routeBlocked.size}")
+                                }
+                            }
+                        }
+                    }
                     if (operationRows.isEmpty()) Text("No hay operaciones en la cola.")
                     Text(
                         "«Esperando envío» y «Enviando…» aún no están confirmados; solo el servidor los confirma.",
@@ -3187,7 +3390,7 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                     operationStatusLabel(operation.status),
                                     color = when (operation.status) {
                                         OperationStatus.CONFLICT, OperationStatus.REJECTED -> MaterialTheme.colorScheme.error
-                                        OperationStatus.CONFIRMED -> Color(0xFF2E7D32)
+                                        OperationStatus.CONFIRMED -> MaterialTheme.colorScheme.primary
                                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                                     },
                                     style = MaterialTheme.typography.labelLarge
@@ -3211,6 +3414,30 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 operation.lastError?.takeIf {
                                     operation.status == OperationStatus.CONFLICT || operation.status == OperationStatus.REJECTED
                                 }?.let { Text(friendlyServerError(it), color = MaterialTheme.colorScheme.error) }
+                                com.backendcreditos.mobile.queue.RouteGuard.refusalAdvice(operation.rejectionCode)?.let {
+                                    Text(it, color = MaterialTheme.colorScheme.error)
+                                }
+                                if (com.backendcreditos.mobile.queue.RouteGuard.canResend(operation.rejectionCode) &&
+                                    operation.status == OperationStatus.REJECTED
+                                ) {
+                                    Button(enabled = !busy && online, onClick = {
+                                        scope.launch {
+                                            busy = true
+                                            try {
+                                                val resent = app.repository.resendRouteBlockedOperation(
+                                                    operation.operationId, operation.accountKey
+                                                )
+                                                loadOperations()
+                                                submitAndAwaitConfirmation(resent, resent.branchId,
+                                                    requireNotNull(session))
+                                            } catch (error: IllegalArgumentException) {
+                                                notice = error.message ?: "No se pudo volver a enviar."
+                                            } finally {
+                                                busy = false
+                                            }
+                                        }
+                                    }) { Text("Volver a enviar este registro") }
+                                }
                                 if (operation.kind == OperationKind.CREATE_CREDIT &&
                                     operation.status == OperationStatus.REJECTED
                                 ) {
@@ -3243,15 +3470,33 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                         operation.serverState ?: "El servidor no envió el estado actual.",
                                         style = MaterialTheme.typography.bodySmall
                                     )
-                                    TextButton(onClick = {
+                                    val routeBlockedItem = com.backendcreditos.mobile.queue.RouteGuard
+                                        .isRouteRefusal(operation.rejectionCode)
+                                    TextButton(enabled = !busy, onClick = {
                                         scope.launch {
-                                            app.repository.discardResolvedOperation(operation.operationId, operation.accountKey)
-                                            loadOperations()
-                                            session?.let { enqueuePendingBranches(it) }
-                                            screen = Screen.QUEUE
-                                            notice = "Se descartó el borrador por decisión explícita."
+                                            busy = true
+                                            try {
+                                                val current = requireNotNull(session)
+                                                if (routeBlockedItem) {
+                                                    app.repository.discardRouteBlockedOperation(current, operation.operationId)
+                                                } else {
+                                                    app.repository.discardResolvedOperation(operation.operationId, operation.accountKey)
+                                                }
+                                                loadLocal()
+                                                loadOperations()
+                                                enqueuePendingBranches(current)
+                                                screen = Screen.QUEUE
+                                                notice = if (routeBlockedItem)
+                                                    "Se quitó de la cola. No quedó registrado; mira el detalle en Actividad."
+                                                else "Se descartó el borrador por decisión explícita."
+                                            } finally { busy = false }
                                         }
-                                    }) { Text("Descartar mi cambio y quedarme con lo del servidor") }
+                                    }) {
+                                        Text(
+                                            if (routeBlockedItem) "Quitar este registro de la cola"
+                                            else "Descartar mi cambio y quedarme con lo del servidor"
+                                        )
+                                    }
                                 }
                             }
                         }
@@ -3644,6 +3889,39 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                 TextButton(onClick = { showLogoutConfirmation = false; logout() }) { Text("Descartar y cerrar sesión") }
             },
             dismissButton = { TextButton(onClick = { showLogoutConfirmation = false }) { Text("Conservar datos") } }
+        )
+    }
+
+    if (showRouteSweepConfirmation) {
+        AlertDialog(
+            onDismissRequest = { showRouteSweepConfirmation = false },
+            title = { Text("Quitar de la cola") },
+            text = {
+                Text(
+                    "Se van a quitar todos los registros detenidos porque su ruta ya no está abierta, y también los " +
+                        "que dependían de ellos. No se van a registrar en la oficina y no se puede deshacer. " +
+                        "Queda la lista en Actividad por si necesitas copiarla."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showRouteSweepConfirmation = false
+                    scope.launch {
+                        busy = true
+                        try {
+                            val current = requireNotNull(session)
+                            val removed = app.repository.discardAllRouteBlockedOperations(current)
+                            loadLocal()
+                            loadOperations()
+                            enqueuePendingBranches(current)
+                            notice = "Se quitaron $removed registros de la cola. Mira la lista en Actividad."
+                        } finally { busy = false }
+                    }
+                }) { Text("Sí, quitarlos") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showRouteSweepConfirmation = false }) { Text("No, dejarlos") }
+            }
         )
     }
 

@@ -8,6 +8,7 @@ import com.backendcreditos.mobile.CreditApp
 import com.backendcreditos.mobile.data.OperationStatus
 import com.backendcreditos.mobile.network.ApiResult
 import com.backendcreditos.mobile.queue.OperationTransitions
+import com.backendcreditos.mobile.queue.RouteGuard
 
 class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
@@ -113,6 +114,15 @@ class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineW
             }
             is ApiResult.Rejected -> {
                 OperationTransitions.move(OperationStatus.IN_FLIGHT, OperationStatus.REJECTED)
+                if (RouteGuard.isRouteRefusal(response.code)) {
+                    // The queue is never swept on its own: the record stays in the Cola screen with
+                    // its reason so the person can read it and decide to resend it or remove it.
+                    app.database.localDao().finishRefusedOperation(
+                        operation.operationId, OperationStatus.REJECTED, response.message, response.code!!
+                    )
+                    repo.setSyncPaused(accountKey, "ROUTE")
+                    return Result.success()
+                }
                 app.database.localDao().finishOperation(operation.operationId, OperationStatus.REJECTED, response.message, null)
                 repo.setSyncPaused(accountKey, "REJECTED")
                 Result.success()

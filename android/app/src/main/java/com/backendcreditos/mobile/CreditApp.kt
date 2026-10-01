@@ -5,6 +5,7 @@ import com.backendcreditos.mobile.data.CreditRepository
 import com.backendcreditos.mobile.data.DatabaseProvider
 import com.backendcreditos.mobile.network.GraphQlApi
 import com.backendcreditos.mobile.network.GraphQlClient
+import com.backendcreditos.mobile.network.ServerConnectionSettings
 import com.backendcreditos.mobile.security.LocalVault
 import com.backendcreditos.mobile.work.SyncScheduler
 import kotlinx.coroutines.CoroutineScope
@@ -19,6 +20,8 @@ class CreditApp : Application() {
         private set
     lateinit var api: GraphQlApi
         private set
+    lateinit var connectionSettings: ServerConnectionSettings
+        private set
     lateinit var repository: CreditRepository
         private set
 
@@ -26,7 +29,8 @@ class CreditApp : Application() {
         super.onCreate()
         vault = LocalVault(this)
         database = DatabaseProvider.get(this, vault)
-        api = GraphQlApi(GraphQlClient())
+        connectionSettings = ServerConnectionSettings(this)
+        api = GraphQlApi(GraphQlClient(connectionSettings.endpoint()))
         repository = CreditRepository(database, api)
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             vault.readSession()?.let { session ->
@@ -37,5 +41,12 @@ class CreditApp : Application() {
                 }
             }
         }
+    }
+
+    fun configureGraphQlEndpoint(rawValue: String): String {
+        val endpoint = connectionSettings.save(rawValue)
+        api = GraphQlApi(GraphQlClient(endpoint))
+        repository = CreditRepository(database, api)
+        return endpoint
     }
 }

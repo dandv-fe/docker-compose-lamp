@@ -111,14 +111,23 @@ interface LocalDao {
     @Query("UPDATE offline_operations SET status = 'IN_FLIGHT', attempts = attempts + 1, lastError = NULL WHERE operationId = :operationId AND status = 'PENDING'")
     suspend fun claimOperation(operationId: String): Int
 
-    @Query("UPDATE offline_operations SET status = :status, lastError = :error, serverState = :serverState WHERE operationId = :operationId AND status = 'IN_FLIGHT'")
+    @Query("UPDATE offline_operations SET status = :status, lastError = :error, serverState = :serverState, rejectionCode = NULL WHERE operationId = :operationId AND status = 'IN_FLIGHT'")
     suspend fun finishOperation(operationId: String, status: OperationStatus, error: String?, serverState: String?)
+
+    @Query("UPDATE offline_operations SET status = :status, lastError = :error, serverState = NULL, rejectionCode = :rejectionCode WHERE operationId = :operationId AND status = 'IN_FLIGHT'")
+    suspend fun finishRefusedOperation(operationId: String, status: OperationStatus, error: String?, rejectionCode: String)
 
     @Query("UPDATE offline_operations SET status = 'PENDING', lastError = :error WHERE operationId = :operationId AND status = 'IN_FLIGHT'")
     suspend fun returnToPending(operationId: String, error: String)
 
-    @Query("UPDATE offline_operations SET status = 'PENDING', lastError = NULL, serverState = NULL WHERE operationId = :operationId AND accountKey = :accountKey AND kind = 'CREATE_CREDIT' AND status = 'REJECTED'")
+    @Query("UPDATE offline_operations SET status = 'PENDING', lastError = NULL, serverState = NULL, rejectionCode = NULL WHERE operationId = :operationId AND accountKey = :accountKey AND kind = 'CREATE_CREDIT' AND status = 'REJECTED'")
     suspend fun retryRejectedCredit(operationId: String, accountKey: String): Int
+
+    @Query("UPDATE offline_operations SET status = 'PENDING', lastError = NULL, serverState = NULL, rejectionCode = NULL WHERE operationId = :operationId AND accountKey = :accountKey AND status = 'REJECTED' AND rejectionCode = 'ROUTE_REOPENABLE'")
+    suspend fun resendRouteBlockedOperation(operationId: String, accountKey: String): Int
+
+    @Query("SELECT * FROM offline_operations WHERE accountKey = :accountKey AND status IN ('REJECTED', 'CONFLICT') AND rejectionCode IN ('ROUTE_CLOSED', 'ROUTE_REOPENABLE') ORDER BY createdAt")
+    suspend fun routeBlockedOperations(accountKey: String): List<OfflineOperationEntity>
 
     @Query("UPDATE offline_operations SET status = 'PENDING', lastError = 'Retry after process interruption' WHERE accountKey = :accountKey AND status = 'IN_FLIGHT'")
     suspend fun recoverInFlightOperations(accountKey: String)
@@ -129,8 +138,9 @@ interface LocalDao {
     @Query("UPDATE offline_operations SET payload = :payload WHERE operationId = :operationId AND status = 'PENDING'")
     suspend fun updatePendingPayload(operationId: String, payload: String)
 
-    @Query("UPDATE offline_operations SET status = 'REJECTED', lastError = :reason WHERE dependsOnOperationId = :dependencyId AND status = 'PENDING'")
-    suspend fun rejectPendingDependents(dependencyId: String, reason: String)
+    // The route refusal travels to the dependents so the manual sweep can pick them up too.
+    @Query("UPDATE offline_operations SET status = 'REJECTED', lastError = :reason, rejectionCode = :rejectionCode WHERE dependsOnOperationId = :dependencyId AND status = 'PENDING'")
+    suspend fun rejectPendingDependents(dependencyId: String, reason: String, rejectionCode: String?)
 
     @Query("DELETE FROM offline_operations WHERE accountKey = :accountKey")
     suspend fun deleteOperations(accountKey: String)
@@ -164,6 +174,9 @@ interface LocalDao {
 
     @Query("DELETE FROM offline_operations WHERE operationId = :operationId AND status IN ('CONFLICT', 'REJECTED')")
     suspend fun discardResolvedOperation(operationId: String)
+
+    @Query("SELECT * FROM offline_operations WHERE accountKey = :accountKey AND branchId = :branchId AND status IN ('PENDING', 'IN_FLIGHT') ORDER BY createdAt")
+    suspend fun openOperationsForBranch(accountKey: String, branchId: String): List<OfflineOperationEntity>
 
     @Query("SELECT COUNT(*) FROM offline_operations WHERE accountKey = :accountKey AND status IN ('CONFLICT', 'REJECTED')")
     suspend fun blockingOperationCount(accountKey: String): Int
@@ -308,7 +321,7 @@ interface LocalDao {
         RouteCashEntity::class, BankAccountEntity::class,
         RouteEntryEntity::class, RouteCatalogEntity::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)
@@ -519,6 +532,14 @@ abstract class CreditDatabase : RoomDatabase() {
                         PRIMARY KEY(accountKey, branchId)
                     )""".trimIndent()
                 )
+            }
+        }
+
+        val MIGRATION_14_15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE offline_operations ADD COLUMN routeId INTEGER")
+                db.execSQL("ALTER TABLE offline_operations ADD COLUMN rejectionCode TEXT")
+                db.execSQL("ALTER TABLE route_cash ADD COLUMN routeState TEXT")
             }
         }
     }

@@ -116,7 +116,7 @@ object GraphQlDocuments {
     """
     const val OPEN_ROUTE_CASH = """
         query OpenRouteCash(${'$'}branchId: Int!) {
-          openRouteCash(branchId: ${'$'}branchId) { routeId base otherIncome expenses }
+          openRouteCash(branchId: ${'$'}branchId) { routeId routeState base otherIncome expenses }
         }
     """
     private const val SETTLEMENT_FIELDS = """

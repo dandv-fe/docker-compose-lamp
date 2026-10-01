@@ -51,7 +51,9 @@ approved password-hash migration; do not treat this API compatibility layer as
 making existing credentials safe. TLS is mandatory in deployment.
 
 JWTs are signed using `JWT_SECRET`, issued for the Android audience, and expire
-after 15 minutes. There is no refresh-token endpoint in this stage. Each
+at the next midnight in the server's local time zone. Configure the production
+server's time zone to the business time zone. There is no refresh-token endpoint
+in this stage. Each
 authenticated GraphQL request reloads the user/company identity and current
 named permissions from MariaDB; branch access is checked again for each
 branch-scoped resolver. The token never supplies branch permissions.
@@ -59,7 +61,7 @@ branch-scoped resolver. The token never supplies branch permissions.
 ## GraphQL contract
 
 All names below are stable client-facing names. For authenticated operations,
-include the short-lived bearer token in the Authorization header.
+include the bearer token in the Authorization header.
 
 ```graphql
 mutation Login($companyId: Int!, $username: String!, $password: String!) {
@@ -321,6 +323,26 @@ change carries the amount with the sign the database keeps, `operation`, `state`
 and the name of whoever wrote it; the client keeps only the `created` rows whose
 name is `base` or whose operation starts with `salida-totalizar`, because the
 same table also holds the counted cash and the difference of the settlement.
+
+Route-day writes now carry `OfflineOperationInput.routeId`: the `iddetalleruta`
+the phone knew as open (`str_estado='created'`) when the record was queued.
+Only route-day kinds (payments, credit create/delete, discount/interest,
+expenses and bases) are allowed to queue when that local open route exists. On
+arrival, the backend revalidates that exact route ID in that branch and refuses
+the record in one of two ways:
+
+- `ROUTE_REOPENABLE` when the route is now `entregando` (or when a different
+  route is the open one). The office can unlock that day back to `created` from
+  the web (`manejarDesbEditarDetalleRuta`), so the very same record can be sent
+  again later.
+- `ROUTE_CLOSED` when the route is `saved` or no longer exists. That record can
+  never be applied.
+
+The APK never sweeps the queue on its own: the record stays in **Cola** marked
+`REJECTED` with its code, sync pauses with reason `ROUTE`, and the person
+decides — resend (only for `ROUTE_REOPENABLE`) or remove from the queue, one by
+one or all at once. Whatever is removed is written to **Logs** first so nothing
+is lost silently.
 
 The web was aligned with this: `RecibeCuentas::RegistrarContabilidadDetalle` no
 longer writes the `base` row (it read the form field and overwrote *every* base

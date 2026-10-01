@@ -3,7 +3,10 @@ import { GraphQLError } from 'graphql';
 export type ErrorCode =
   | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'VALIDATION_ERROR'
   | 'CONFLICT' | 'IDEMPOTENCY_MISMATCH' | 'BUSINESS_RULE' | 'CONFIGURATION_ERROR'
-  | 'INTERNAL_SERVER_ERROR';
+  // ROUTE_CLOSED is final: the route was settled or no longer exists, so the record can never be
+  // applied. ROUTE_REOPENABLE is not: the route was handed over ('entregando') and the office can
+  // unlock it back to 'created' (webgoez manejarDesbEditarDetalleRuta), so the record may be resent.
+  | 'INTERNAL_SERVER_ERROR' | 'ROUTE_CLOSED' | 'ROUTE_REOPENABLE';
 
 export function fail(code: ErrorCode, message: string): never {
   throw new GraphQLError(message, { extensions: { code } });

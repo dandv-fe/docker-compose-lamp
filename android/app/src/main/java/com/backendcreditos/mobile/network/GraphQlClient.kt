@@ -74,7 +74,7 @@ class GraphQlClient(
                             }
                         )
                         codes.any { it in setOf("FORBIDDEN", "PERMISSION_DENIED") } -> ApiResult.PermissionRejected(message)
-                        else -> ApiResult.Rejected(message)
+                        else -> ApiResult.Rejected(message, codes.firstOrNull())
                     }
                 } else {
                     envelope.data?.let { ApiResult.Success(it) }
@@ -227,6 +227,7 @@ class GraphQlApi(private val client: GraphQlClient) {
                 put("kind", JsonPrimitive(input.kind))
                 put("entityId", JsonPrimitive(input.entityId))
                 put("baseVersion", input.baseVersion?.let(::JsonPrimitive) ?: JsonNull)
+                put("routeId", input.routeId?.let(::JsonPrimitive) ?: JsonNull)
                 put("payload", input.payload)
             })
         },

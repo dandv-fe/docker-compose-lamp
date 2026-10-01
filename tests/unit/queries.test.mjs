@@ -389,11 +389,13 @@ test('openRouteCash sums base, other income and expenses of the open route only'
       assert.match(sql, /idtipo_contabilidad <> 4/);
       assert.match(sql, /NOT IN \('recaudo', 'diferencia'\)/);
       assert.deepEqual(params, [4, 7, 4, 7]);
-      return [[{ routeId: 55, base: '700.00', otherIncome: '20.00', expenses: '96.00' }], []];
+      return [[{ routeId: 55, routeState: 'entregando', base: '700.00', otherIncome: '20.00', expenses: '96.00' }], []];
     }
     throw new Error(`Unexpected query: ${sql}`);
   }, async () => {
-    assert.deepEqual(await openRouteCash(context, 4), { routeId: 55, base: 700, otherIncome: 20, expenses: 96 });
+    assert.deepEqual(await openRouteCash(context, 4), {
+      routeId: 55, routeState: 'entregando', base: 700, otherIncome: 20, expenses: 96,
+    });
   });
 });
 
@@ -404,7 +406,9 @@ test('openRouteCash returns zeros when the branch has no open route', async () =
     if (sql.includes('FROM tbl_detalle_ruta')) return [[], []];
     throw new Error(`Unexpected query: ${sql}`);
   }, async () => {
-    assert.deepEqual(await openRouteCash(context, 4), { routeId: null, base: 0, otherIncome: 0, expenses: 0 });
+    assert.deepEqual(await openRouteCash(context, 4), {
+      routeId: null, routeState: null, base: 0, otherIncome: 0, expenses: 0,
+    });
   });
 });
 

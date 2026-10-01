@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { assertBranchAccess, assertPermissionGranted, canAccessBranch, hasPermission, legacyPasswordMatches, listBranches } from '../../dist/services/auth.js';
+import { assertBranchAccess, assertPermissionGranted, canAccessBranch, hasPermission, legacyPasswordMatches, listBranches, secondsUntilNextMidnight } from '../../dist/services/auth.js';
 import { pool } from '../../dist/db.js';
 import { assertCompanyScope } from '../../dist/services/validation.js';
 import { permissionForOperation } from '../../dist/services/operations.js';
@@ -13,6 +13,15 @@ test('legacy login compares the exact lowercase MD5 digest without transforming 
   assert.equal(legacyPasswordMatches('legacy pass', digest), false);
   assert.equal(legacyPasswordMatches(password, digest.toUpperCase()), true);
   assert.equal(legacyPasswordMatches(password, 'not-a-digest'), false);
+});
+
+test('login token lifetime ends at the next server-local midnight', () => {
+  const now = new Date(2026, 8, 30, 21, 15, 30, 250);
+  const nextMidnight = new Date(2026, 9, 1, 0, 0, 0, 0);
+  assert.equal(
+    secondsUntilNextMidnight(now),
+    Math.ceil((nextMidnight.getTime() - now.getTime()) / 1000),
+  );
 });
 
 test('branch guard recognizes only the exact company admin title and always checks tenant', () => {

@@ -4,7 +4,11 @@ import type { RowDataPacket } from 'mysql2/promise';
 import { getConnection, pool } from '../db.js';
 import { fail } from './errors.js';
 
-const TOKEN_TTL_SECONDS = 15 * 60;
+export function secondsUntilNextMidnight(now = new Date()): number {
+  const midnight = new Date(now);
+  midnight.setHours(24, 0, 0, 0);
+  return Math.max(1, Math.ceil((midnight.getTime() - now.getTime()) / 1000));
+}
 
 export interface AuthUser {
   userId: number;
@@ -91,12 +95,13 @@ export async function login(companyId: number, username: string, password: strin
     fail('UNAUTHENTICATED', 'Invalid credentials');
   }
   const user = asAuthUser(row);
+  const expiresIn = secondsUntilNextMidnight();
   const token = jwt.sign({ sub: String(user.userId), companyId: user.companyId }, jwtSecret(), {
-    expiresIn: TOKEN_TTL_SECONDS,
+    expiresIn,
     issuer: 'backend-creditos-apk',
     audience: 'android-client',
   });
-  return { token, expiresIn: TOKEN_TTL_SECONDS, user, branches: await listBranches(user) };
+  return { token, expiresIn, user, branches: await listBranches(user) };
 }
 
 export async function authenticateRequest(authorization?: string): Promise<AuthContext | null> {

@@ -7,6 +7,7 @@ import com.backendcreditos.mobile.network.CustomerDto
 import com.backendcreditos.mobile.network.ExpenseCatalogDto
 import com.backendcreditos.mobile.network.GraphQlApi
 import com.backendcreditos.mobile.network.OfflineOperationInput
+import com.backendcreditos.mobile.queue.RouteGuard
 import com.backendcreditos.mobile.security.StoredSession
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
@@ -227,6 +228,15 @@ class CreditRepository(
                                         if (entry != null) dao.putRouteEntries(listOf(entry))
                                         else dao.deleteRouteEntry(account.accountKey, branchId, recordId)
                                     }
+                                    "ROUTE" -> {
+                                        val status = if (deleting) null else change.payload
+                                            ?.let { it as? JsonObject }?.get("status").textOr(null)
+                                        val cached = dao.routeCash(account.accountKey, branchId)
+                                        RouteGuard.routeCashAfterEvent(
+                                            cached, account.accountKey, branchId,
+                                            recordId.toIntOrNull(), status, System.currentTimeMillis()
+                                        )?.let { dao.putRouteCash(it) }
+                                    }
                                 }
                                 val recordType = when (type) {
                                     "CUSTOMER", "CLIENT" -> "customer"
@@ -276,6 +286,11 @@ class CreditRepository(
         operationId: String = UUID.randomUUID().toString()
     ): OfflineOperationEntity {
         require(branchId.isNotBlank()) { "Selecciona una sucursal antes de crear cambios." }
+        // A route-day record without a known open route would only travel to be refused.
+        val routeId = if (RouteGuard.isRouteBound(kind)) {
+            val cash = dao.routeCash(account.accountKey, branchId)
+            RouteGuard.openRouteId(cash) ?: throw IllegalArgumentException(RouteGuard.closedRouteMessage(cash))
+        } else null
         if (dependsOnOperationId != null) {
             val dependency = requireNotNull(dao.operation(dependsOnOperationId)) { "No se encontró la operación dependiente." }
             require(
@@ -321,7 +336,8 @@ class CreditRepository(
             attempts = 0,
             lastError = null,
             serverState = null,
-            createdAt = System.currentTimeMillis()
+            createdAt = System.currentTimeMillis(),
+            routeId = routeId
         )
         dao.addOperation(operation)
         return operation
@@ -633,7 +649,8 @@ class CreditRepository(
                     cash.base.toBigDecimal().toPlainString(),
                     cash.otherIncome.toBigDecimal().toPlainString(),
                     cash.expenses.toBigDecimal().toPlainString(),
-                    System.currentTimeMillis()
+                    System.currentTimeMillis(),
+                    routeState = cash.routeState
                 )
                 dao.putRouteCash(entity)
                 ApiResult.Success(entity)
@@ -789,6 +806,105 @@ class CreditRepository(
         return requireNotNull(dao.operation(operationId))
     }
 
+    /** Records the server refused because of the route day. Nothing here is removed on its own. */
+    suspend fun routeBlockedOperations(accountKey: String): List<OfflineOperationEntity> =
+        dao.routeBlockedOperations(accountKey)
+
+    /**
+     * Puts a record the server refused with ROUTE_REOPENABLE back in line. The route was handed
+     * over, so once the office unlocks the day the very same record can be sent again.
+     */
+    suspend fun resendRouteBlockedOperation(operationId: String, accountKey: String): OfflineOperationEntity {
+        database.withTransaction {
+            val operation = requireNotNull(dao.operation(operationId)) { "No se encontró la operación." }
+            require(operation.accountKey == accountKey && RouteGuard.canResend(operation.rejectionCode)) {
+                "Este registro no se puede volver a enviar: la ruta de ese día ya se guardó."
+            }
+            require(dao.resendRouteBlockedOperation(operationId, accountKey) == 1) {
+                "La operación cambió de estado; actualiza la cola antes de volver a enviarla."
+            }
+            resumeSyncIfQueueIsClear(accountKey)
+        }
+        return requireNotNull(dao.operation(operationId))
+    }
+
+    /** Resends every record the office can still receive. Returns how many went back in line. */
+    suspend fun resendAllRouteBlockedOperations(accountKey: String): Int {
+        var sent = 0
+        database.withTransaction {
+            dao.routeBlockedOperations(accountKey)
+                .filter { RouteGuard.canResend(it.rejectionCode) }
+                .forEach { if (dao.resendRouteBlockedOperation(it.operationId, accountKey) == 1) sent++ }
+            resumeSyncIfQueueIsClear(accountKey)
+        }
+        return sent
+    }
+
+    /**
+     * Manual sweep. The person decided this record is not going to be registered, so it leaves the
+     * queue together with whatever depended on it, and the activity log keeps a line describing it.
+     * Never called on its own: there may be something worth reading or copying down first.
+     */
+    suspend fun discardRouteBlockedOperation(account: StoredSession, operationId: String) {
+        val operation = requireNotNull(dao.operation(operationId)) { "No se encontró la operación." }
+        require(operation.accountKey == account.accountKey) { "Esa operación es de otra cuenta." }
+        log(account.accountKey, "Quitado de la cola a mano: ${describeOperation(operation)}. No quedó registrado.", problem = true)
+        discardResolvedOperation(operationId, account.accountKey)
+        refreshAfterDiscard(account, setOf(operation.branchId))
+    }
+
+    /** Same sweep for every route-blocked record at once. Returns how many left the queue. */
+    suspend fun discardAllRouteBlockedOperations(account: StoredSession): Int {
+        val branches = mutableSetOf<String>()
+        var removed = 0
+        while (true) {
+            // Re-read each round: discarding a record rejects its dependents with the same code,
+            // so they show up in the next pass.
+            val next = dao.routeBlockedOperations(account.accountKey).firstOrNull() ?: break
+            log(account.accountKey, "Quitado de la cola a mano: ${describeOperation(next)}. No quedó registrado.", problem = true)
+            discardResolvedOperation(next.operationId, account.accountKey)
+            branches += next.branchId
+            removed++
+        }
+        if (removed > 0) refreshAfterDiscard(account, branches)
+        return removed
+    }
+
+    // The local cache may still show what those records changed; rebuild it from the server when
+    // there is signal and lay the records that are still queued back on top.
+    private suspend fun refreshAfterDiscard(account: StoredSession, branchIds: Set<String>) {
+        branchIds.forEach { branchId ->
+            runCatching {
+                syncPortfolio(account, branchId)
+                syncRouteEntries(account, branchId)
+                syncRouteCash(account, branchId)
+            }
+            dao.openOperationsForBranch(account.accountKey, branchId).forEach { applyOptimisticCacheChange(it) }
+        }
+    }
+
+    private suspend fun describeOperation(operation: OfflineOperationEntity): String {
+        val fields = runCatching { json.parseToJsonElement(operation.payload) as? JsonObject }.getOrNull()
+        val creditId = when (operation.kind) {
+            OperationKind.CREATE_PAYMENT, OperationKind.APPLY_DISCOUNT, OperationKind.ADD_INTEREST,
+            OperationKind.DELETE_CREDIT -> operation.entityId
+            OperationKind.UPDATE_PAYMENT, OperationKind.DELETE_PAYMENT ->
+                dao.payment(operation.accountKey, operation.branchId, operation.entityId)?.creditId
+            else -> null
+        }
+        val customerId = fields?.get("idcliente").textOr(null)
+            ?: creditId?.let { dao.credit(operation.accountKey, operation.branchId, it)?.customerId }
+        val person = customerId?.let { dao.customer(operation.accountKey, operation.branchId, it) }
+            ?.let { "${it.firstName} ${it.lastName}".trim() }?.takeIf { it.isNotBlank() }
+        val amount = listOf("abono", "valor", "amount", "prestamo")
+            .firstNotNullOfOrNull { key -> fields?.get(key).textOr(null)?.toBigDecimalOrNull() }
+            ?.abs()?.let { "$" + it.stripTrailingZeros().toPlainString() }
+        val detail = fields?.get("nombre").textOr(null)?.takeIf {
+            operation.kind in setOf(OperationKind.CREATE_EXPENSE, OperationKind.UPDATE_EXPENSE)
+        }
+        return listOfNotNull(RouteGuard.kindLabel(operation.kind), detail, person, amount).joinToString(" · ")
+    }
+
     suspend fun discardResolvedOperation(operationId: String, accountKey: String) {
         val operation = requireNotNull(dao.operation(operationId))
         require(operation.accountKey == accountKey)
@@ -796,7 +912,8 @@ class CreditRepository(
         database.withTransaction {
             dao.rejectPendingDependents(
                 operationId,
-                "Dependency $operationId was explicitly discarded; review and recreate this operation."
+                "Dependency $operationId was explicitly discarded; review and recreate this operation.",
+                operation.rejectionCode
             )
             val server = operation.serverState?.let { encoded ->
                 runCatching { json.parseToJsonElement(encoded) }.getOrNull()
@@ -848,14 +965,24 @@ class CreditRepository(
                         ))
                     } else dao.deletePayment(operation.accountKey, operation.branchId, operation.entityId)
                 }
+                // Gastos y bases: the optimistic row only exists on the phone, so it goes away with
+                // the record. The next refresh brings back whatever the office really has.
+                OperationKind.CREATE_EXPENSE, OperationKind.UPDATE_EXPENSE, OperationKind.DELETE_EXPENSE,
+                OperationKind.CREATE_BASE, OperationKind.UPDATE_BASE, OperationKind.DELETE_BASE ->
+                    dao.deleteRouteEntry(operation.accountKey, operation.branchId, operation.entityId)
                 else -> Unit
             }
             dao.discardResolvedOperation(operationId)
-            if (
-                dao.blockingOperationCount(accountKey) == 0 &&
-                dao.syncControl(accountKey)?.pauseReason in setOf("CONFLICT", "PERMISSION", "PROTOCOL", "REJECTED")
-            ) setSyncPaused(accountKey, null)
+            resumeSyncIfQueueIsClear(accountKey)
         }
+    }
+
+    // Pauses the person can clear by emptying the queue; AUTH needs a new login instead.
+    private suspend fun resumeSyncIfQueueIsClear(accountKey: String) {
+        if (
+            dao.blockingOperationCount(accountKey) == 0 &&
+            dao.syncControl(accountKey)?.pauseReason in setOf("CONFLICT", "PERMISSION", "PROTOCOL", "REJECTED", "ROUTE")
+        ) setSyncPaused(accountKey, null)
     }
 
     suspend fun clearAccount(accountKey: String) {
@@ -884,7 +1011,8 @@ class CreditRepository(
             kind = operation.kind.name,
             entityId = operation.entityId,
             baseVersion = operation.baseVersion,
-            payload = json.parseToJsonElement(operation.payload)
+            payload = json.parseToJsonElement(operation.payload),
+            routeId = operation.routeId
         )
 
     fun serverStateForStorage(operation: OfflineOperationEntity, data: JsonElement?, entityId: String): String? {
@@ -1382,6 +1510,7 @@ internal fun syncPauseMessage(reason: String): String = when (reason) {
     "CONFLICT", "SYNC_CONFLICT" -> "Sincronización pausada por un conflicto; revisa la Cola."
     "PERMISSION" -> "Sincronización pausada: el servidor rechazó una operación por permisos."
     "REJECTED", "PROTOCOL", "SYNC_PROTOCOL" -> "Sincronización pausada: el servidor rechazó una operación."
+    "ROUTE" -> "Sincronización pausada: la ruta de ese día ya no está abierta. Revisa la Cola y decide qué hacer con esos registros."
     else -> "Sincronización pausada."
 }
 
