@@ -462,7 +462,12 @@ function verFormContabilibad(params, codigo, tipo, caja) {
 
       textDiferencia = '';
       $("#btnTotalizarDataCobro").removeClass("hide");
-      $("#inputBaseInformacion").val(r[3].find(a => a.nombre === 'base')?.valor);
+      // Puede haber varias bases en el día; se muestra la suma, igual que en la vista
+      // view_contabilidad_detalle_ruta con la que se verifican las cuentas.
+      $("#inputBaseInformacion").val(
+        r[3].filter(a => a.nombre === 'base')
+          .reduce((total, a) => total + (parseFloat(a.valor) || 0), 0)
+      );
       $("#inputEfectivoInformacion").val(r[3].find(a => a.nombre === 'efectivo')?.valor);
       $("#inputMonedaInformacion").val(r[3].find(a => a.nombre === 'efectivoMonedas')?.valor);
       textDiferencia = r[3].find(a => a.nombre === 'diferencia')?.valor;

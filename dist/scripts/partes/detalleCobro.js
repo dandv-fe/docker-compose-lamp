@@ -48,13 +48,11 @@ function init() {
   $("a#btnTotalizarDataCobro").on("click", function (e) {
     e.preventDefault();
     if (!$("a#btnTotalizarDataCobro").is(':disabled')) {
-      let base = $("#inputBaseInformacion").val();
       let efectivo = $("#inputEfectivoInformacion").val();
       let moneda = $("#inputMonedaInformacion").val();
 
 
       if (
-        base != "" &&
         efectivo != "" &&
         moneda != ""
 
@@ -80,6 +78,44 @@ function init() {
     $("#txtOperacionContabilidad").val('salida-totalizar');
     $("#txtrefSucursalHidden").val($("#txtrefSucursalContabiliddHidden").val());
     $("#modal-NuevaContabilidad").modal('show')
+  });
+
+  // La base se anota durante el día, una o varias veces, igual que en la APK.
+  $("body").on("click", "#iAaddNewBase", (e) => {
+    e.preventDefault();
+    abrirFormBase('', '', '');
+  });
+
+  $("#formNuevaBase").submit(function (e) {
+    e.preventDefault();
+
+    $.post("./ajax/UsuarioAjax.php", function (r) {
+      if (r === '0') {
+        location.reload(true);
+      }
+    });
+
+    $.ajax({
+      url: "./ajax/RecibirCuentasAjax.php?op=SaveOrUpdateBase",
+      type: "POST",
+      data: new FormData($("#formNuevaBase")[0]),
+      contentType: false,
+      processData: false,
+      success: function (datos) {
+        if (datos.indexOf("ERROR:") !== -1) {
+          Toast.fire({ icon: 'error', title: datos, position: 'top' })
+          return;
+        }
+        $("#modal-NuevaBase").modal('hide')
+        Toast.fire({ icon: 'success', title: datos, position: 'top' })
+        DatosCobro(false);
+      }
+    });
+  });
+
+  $("#modal-NuevaBase").on('hidden.bs.modal', function (e) {
+    $("form#formNuevaBase").trigger('reset');
+    $("#txtrefBaseHidden").val('');
   });
 
   $("form#fromDataCobro").submit(function (e) {
@@ -271,7 +307,6 @@ function DatosCobro(istotalizar) {
   $("#errorSegurosIncorrectos").addClass("hide");
   $("#infoModificarDetalleRuta").addClass("hide");
 
-  let base = $("#inputBaseInformacion").val();
   let efectivo = $("#inputEfectivoInformacion").val();
   let moneda = $("#inputMonedaInformacion").val();
 
@@ -546,6 +581,32 @@ function DatosCobro(istotalizar) {
       $("#iAaddNewGasto").val(r[0].refDetalle_ruta)
       $("#thNumAleatorio").val(r[0].refDetalle_ruta)
 
+      // Las bases anotadas en el día. Mientras la ruta siga abierta se pueden corregir o borrar;
+      // una vez entregadas quedan como historia y solo se leen.
+      const basesDelDia = r[3].filter(a => a.nombre === 'base');
+      const basesSuma = basesDelDia.reduce((total, a) => total + (parseFloat(a.valor) || 0), 0);
+      $("#tblCuentasBases").html(
+        (basesDelDia.length === 0
+          ? `<tr><td class="text-muted">Todavía no hay ninguna base anotada.</td></tr>`
+          : basesDelDia.map((v) => `
+        <tr>
+          <th style="width: 1px;">${boolop
+            ? `<i onClick="deleteBaseDetalleRuta('${v.refContabilidad_detalle}')" class="fa-solid fa-circle-minus fa-lg" style="color: #e30d0d; cursor: pointer;"></i>`
+            : ''}</th>
+          <th>${v.descripcion ? v.descripcion : 'Base recibida'}</th>
+          <td>${parseFloat(v.valor).toFixed(2)}</td>
+          <td style="width: 1px;">${boolop
+            ? `<i onClick="editarBase('${v.refContabilidad_detalle}', ${parseFloat(v.valor)}, '${(v.descripcion || '').replace(/'/g, "\\'")}')" class="fa-solid fa-pen-to-square fa-lg" style="color: #0636c6; cursor: pointer;"></i>`
+            : ''}</td>
+        </tr>`).join("")) +
+        `<tr>
+          <th style="width: 1px;"></th>
+          <th style="text-align: right; padding-right: 5px;">Total: </th>
+          <td>$${basesSuma.toFixed(2)}</td>
+          <td style="width: 1px;"></td>
+        </tr>`
+      );
+      if (boolop) $("#iAaddNewBase").show(); else $("#iAaddNewBase").hide();
 
 
       let trGastos = [];
@@ -593,6 +654,11 @@ function DatosCobro(istotalizar) {
       var $bDiferencia = $("#txtDiferenciaCuentas");
       let classDiferencia = "";
       let textDiferencia;
+      // La base es la que quedó anotada en la ruta, no un dato que se escriba aquí. Puede haber
+      // varias en el día, así que se usa la suma: es lo mismo que hace la vista
+      // view_contabilidad_detalle_ruta, con la que el servidor verifica la diferencia.
+      const base = basesSuma;
+      $("#inputBaseInformacion").val(base);
       if (istotalizar === true) {
         let diferencia =
           creditoSumaProducto +
@@ -600,7 +666,7 @@ function DatosCobro(istotalizar) {
           (gastosSuma * -1) +
           parseFloat(moneda) +
           parseFloat(efectivo) -
-          parseFloat(base) -
+          base -
           recaudoTotal;
 
         // $diferencia = $prestamo + $gastos + $gasolina + $boletas + $monedas + $efectivo - $base - $cobro - $boletas;
@@ -619,7 +685,6 @@ function DatosCobro(istotalizar) {
       } else {
         textDiferencia = '';
         $("#btnTotalizarDataCobro").removeClass("hide");
-        $("#inputBaseInformacion").val(r[3].find(a => a.nombre === 'base')?.valor);
         $("#inputEfectivoInformacion").val(r[3].find(a => a.nombre === 'efectivo')?.valor);
         $("#inputMonedaInformacion").val(r[3].find(a => a.nombre === 'efectivoMonedas')?.valor);
         textDiferencia = r[3].find(a => a.nombre === 'diferencia')?.valor;
@@ -794,6 +859,48 @@ function showBtnDeleteGasto(i, id, op) {
 }
 
 //<i class="fa-solid fa-minus fa-2xl" style="color: #e30d0d;"></i>
+// Abre el formulario de base: sin id anota una nueva, con id corrige la que ya estaba.
+function abrirFormBase(id, valor, detalle) {
+  $("#txtrefBaseHidden").val(id);
+  $("#txtrefSucursalBaseHidden").val($("#txtrefSucursalContabiliddHidden").val());
+  $("#txtValorBase").val(valor);
+  $("#txtdescripcionBase").val(detalle);
+  $("#tituloModalBase").text(id ? 'Corregir base' : 'Anotar base');
+  $("#modal-NuevaBase").modal('show');
+}
+
+function editarBase(id, valor, detalle) {
+  abrirFormBase(id, valor, detalle);
+}
+
+function deleteBaseDetalleRuta(params) {
+  $.post("./ajax/UsuarioAjax.php", function (r) {
+    if (r === '0') {
+      location.reload(true);
+    }
+  });
+
+  Swal.fire({
+    title: '¡Borrar base!',
+    text: "¿Está seguro de borrar esta base del día?",
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#3085d6',
+    cancelButtonColor: '#d33',
+    confirmButtonText: 'Si, Borrar ahora!'
+  }).then((result) => {
+    if (!result.isConfirmed) return;
+    $.post("./ajax/RecibirCuentasAjax.php?op=deleteBase", { id: params }, function (datos) {
+      if (datos.indexOf("ERROR:") !== -1) {
+        Toast.fire({ icon: 'error', title: datos, position: 'top' })
+        return;
+      }
+      Toast.fire({ icon: 'success', title: datos, position: 'top' })
+      DatosCobro(false);
+    });
+  })
+}
+
 function deleteGastoDetalleRuta(params) {
   $.post("./ajax/UsuarioAjax.php", function (r) {
     if (r === '0') {

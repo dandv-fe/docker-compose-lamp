@@ -10,9 +10,22 @@ $superadmin = $_SESSION['userEmpresa'];
 
 $operacion = $_GET['op'] ?? '';
 if (!in_array($operacion, ['list', 'listTipoContabilidadS', 'listNominas', 'deContabilidad'], true)) {
-   if ($operacion === 'SaveOrUpdateGastos') {
+   if ($operacion === 'SaveOrUpdateGastos' || $operacion === 'SaveOrUpdateBase') {
       $idsucursalDespacho = (int)($_POST['txtrefSucursalHidden'] ?? 0);
       $iddetallerutaDespacho = null;
+      $estadosDespacho = ['created'];
+   } elseif ($operacion === 'deleteBase') {
+      $consulta = db_prepare_execute(
+         $conexion,
+         'SELECT idsucursal, iddetalleruta FROM tbl_contabilidad_detalle
+           WHERE idcontabilidad_detalle=? AND idglobal=? LIMIT 1',
+         'si',
+         [$_POST['id'] ?? '', (int)($idglobal ?? 0)]
+      );
+      $filaBase = $consulta->get_result()->fetch_object();
+      $consulta->close();
+      $idsucursalDespacho = (int)($filaBase->idsucursal ?? 0);
+      $iddetallerutaDespacho = (int)($filaBase->iddetalleruta ?? 0);
       $estadosDespacho = ['created'];
    } else {
       $iddetallerutaDespacho = (int)($_POST['params'] ?? $_POST['thNumAleatorio'] ?? 0);
@@ -47,11 +60,23 @@ switch ($_GET["op"]) {
 
    case 'SaveOrUpdateDtaCobro':
       $iddetalleruta = limpiar_cadena($_POST['thNumAleatorio']);
-      $base = floatval($_POST['inputBaseInformacion']);
+      // La base ya no se escribe aquí: la pone el modelo con lo anotado durante el día.
       $efectivo = floatval($_POST['inputEfectivoInformacion']);
       $efectivoMoneda = floatval($_POST['inputMonedaInformacion']);
       $diferencia = floatval($_POST['txtDiferenciaHidden']);
-      $objRecibeCuentas->RegistrarContabilidadDetalle($iddetalleruta, $base, $efectivo, $efectivoMoneda, $diferencia, $userEmpleadoId);
+      $objRecibeCuentas->RegistrarContabilidadDetalle($iddetalleruta, $efectivo, $efectivoMoneda, $diferencia, $userEmpleadoId);
+      break;
+
+   case 'SaveOrUpdateBase':
+      $idsucursal = limpiar_cadena($_POST['txtrefSucursalHidden']);
+      $idcontabilidad_detalle = limpiar_cadena($_POST['txtrefBaseHidden'] ?? '');
+      $dec_total = floatval($_POST['txtValorBase']);
+      $str_detalle = limpiar_cadena($_POST['txtdescripcionBase'] ?? '');
+      $objRecibeCuentas->RegistrarBase($idglobal, $idsucursal, $idcontabilidad_detalle, $dec_total, $str_detalle, $userEmpleadoId);
+      break;
+
+   case 'deleteBase':
+      $objRecibeCuentas->EliminarBase($idglobal, limpiar_cadena($_POST['id']));
       break;
 
    case "SaveOrUpdateGastos":

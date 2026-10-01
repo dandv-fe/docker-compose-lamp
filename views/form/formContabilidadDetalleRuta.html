@@ -70,7 +70,18 @@
       </table>
     </div>
 
-    <p class="lead">Gastos</p>
+    <p class="lead">Bases</p>
+
+    <div class="table-responsive">
+      <table id="tblCuentasBases" style="margin: 0;" class="table">
+
+      </table>
+    </div>
+
+    <button id="iAaddNewBase" class="btn btn-tool btn-pulsado" style="float: right; font-weight: bold;"><i
+        class="fa-brands fa-google-plus fa-2xl " style="color: #0b7a1c; "></i>ANOTAR BASE</button>
+
+    <p class="lead" style="clear: both;">Gastos</p>
 
     <div class="table-responsive">
       <table id="tblCuentasGastos" style="margin: 0;" class="table">
@@ -102,8 +113,9 @@
 
           <tr>
             <th> <label for="inputBaseInformacion"> Base: </label></th>
-            <td><input onkeyup="return manejaronKeyEnter(event,this);" type="number" id="inputBaseInformacion"
-                name="inputBaseInformacion" placeholder="" class="form-control classDatamyt" required /></td>
+            <!-- La base se anota durante el día (puede ser una o varias); aquí solo se informa. -->
+            <td><input type="number" id="inputBaseInformacion"
+                name="inputBaseInformacion" placeholder="" class="form-control classDatamyt" readonly /></td>
           </tr>
           <tr>
             <th> <label for="inputEfectivoInformacion"> Efectivo: </label></th>
@@ -416,3 +428,37 @@
     }).buttons().container().appendTo('#tblRecaudo_wrapper .col-md-6:eq(0)');
   });
 </script>
+<!-- La base se anota durante el día, una o varias veces, igual que en la APK. -->
+<div class="modal fade" id="modal-NuevaBase">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title" id="tituloModalBase">Anotar base</h4>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form id="formNuevaBase">
+        <input type="hidden" name="txtrefBaseHidden" id="txtrefBaseHidden">
+        <input type="hidden" name="txtrefSucursalHidden" id="txtrefSucursalBaseHidden">
+        <div class="modal-body">
+          <div class="form-group has-success">
+            <label for="txtValorBase">Valor que recibió:</label>
+            <input required type="number" min="1" step="any" id="txtValorBase" name="txtValorBase"
+              placeholder="0.00" class="form-control">
+          </div>
+          <div class="form-group has-success">
+            <label for="txtdescripcionBase">De dónde viene (opcional):</label>
+            <textarea name="txtdescripcionBase" id="txtdescripcionBase" class="form-control" cols="30" rows="2"
+              maxlength="250"></textarea>
+          </div>
+          <p class="text-muted m-0">Puede anotar varias bases en el día; se suman todas.</p>
+        </div>
+        <div class="modal-footer justify-content-between">
+          <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

@@ -246,7 +246,7 @@ class RecibeCuentas
 
 
 
-   public function RegistrarContabilidadDetalle($iddetalleruta, $base, $efectivo, $efectivoMoneda, $diferencia, $created_empleado_id)
+   public function RegistrarContabilidadDetalle($iddetalleruta, $efectivo, $efectivoMoneda, $diferencia, $created_empleado_id)
    {
       global $conexion;
       $sw = true;
@@ -256,11 +256,15 @@ class RecibeCuentas
       try {
 
          $sql = "SELECT refDetalle_ruta, refGlobal, refSucursal, gastos, creditos,
-			recaudo, efectivoOtraUtilidad, estado
-			FROM view_contabilidad_detalle_ruta WHERE refDetalle_ruta=$iddetalleruta"; //, base, efectivo, efectivoMonedas, diferencia
+			recaudo, efectivoOtraUtilidad, base, estado
+			FROM view_contabilidad_detalle_ruta WHERE refDetalle_ruta=$iddetalleruta"; //, efectivo, efectivoMonedas, diferencia
          $querySelecAbono = $conexion->query($sql);
          $res = $querySelecAbono->fetch_object();
          $idsucursal = intval($res->refSucursal);
+
+         // La base ya no se escribe aquí: se anota durante el día (una o varias veces) y esta
+         // pantalla solo la informa. Se usa la suma guardada para verificar la diferencia.
+         $base = floatval($res->base);
 
          $diferenciaVerificada =
             $res->creditos +
@@ -294,11 +298,6 @@ class RecibeCuentas
             return;
          }
 
-         // saber si hay guardado base
-         $sql = "SELECT idcontabilidad_detalle FROM `tbl_contabilidad_detalle` WHERE iddetalleruta=$iddetalleruta AND str_nombre='base'";
-         $querybase = $conexion->query($sql);
-         $resbase = $querybase->fetch_object();
-
          // saber si hay guardado efectivo
          $sql = "SELECT idcontabilidad_detalle FROM `tbl_contabilidad_detalle` WHERE iddetalleruta=$iddetalleruta AND str_nombre='efectivo'";
          $queryefectivo = $conexion->query($sql);
@@ -314,30 +313,6 @@ class RecibeCuentas
          $querydiferencia = $conexion->query($sql);
          $resdiferencia = $querydiferencia->fetch_object();
 
-         // la Base
-         if (isset($resbase->idcontabilidad_detalle)) {
-            $sql = "UPDATE tbl_contabilidad_detalle SET dec_total=$base, str_estado='entregando' 
-				WHERE idcontabilidad_detalle='$resbase->idcontabilidad_detalle'";
-            $conexion->query($sql) or throw new Exception('error!');
-         } else if ($base > 0) {
-
-            $idcontabilidad_detalle = uniqidReal();
-            $sql = "INSERT INTO tbl_contabilidad_detalle (idcontabilidad_detalle,
-				idglobal, idsucursal, idtipo_contabilidad, iddetalleruta,
-				dec_total,
-				str_detalle,
-				str_nombre,
-				str_estado,
-				str_operacion,
-				created_empleado_id,
-				created_at,
-				update_at
-				)
-				VALUES ('$idcontabilidad_detalle',$res->refGlobal, $idsucursal, 8, $iddetalleruta,
-				$base, '', 'base', 'entregando', 
-				'info-totalizar', $created_empleado_id, '$fecha','$fecha' )";
-            $conexion->query($sql) or throw new Exception('error!');
-         }
          // el efectivo
          if (isset($resefectivo->idcontabilidad_detalle)) {
             $sql = "UPDATE tbl_contabilidad_detalle SET dec_total=$efectivo, str_estado='entregando'
@@ -444,6 +419,100 @@ class RecibeCuentas
       echo $msg;
       return;
    }
+   /**
+    * Anota o corrige una base de la ruta abierta de la sucursal. La base ya no se escribe al
+    * cerrar las cuentas: se anota durante el día, una o varias veces, igual que en la APK
+    * (CREATE_BASE / UPDATE_BASE). El valor siempre se guarda positivo y la fila solo se puede
+    * tocar mientras la ruta y la fila sigan en 'created'.
+    */
+   public function RegistrarBase(
+      $idglobal,
+      $idsucursal,
+      $idcontabilidad_detalle,
+      $dec_total,
+      $str_detalle,
+      $created_empleado_id
+   ) {
+      global $conexion;
+      $idglobal = intval($idglobal);
+      $idsucursal = intval($idsucursal);
+      $created_empleado_id = intval($created_empleado_id);
+      $dec_total = abs(floatval($dec_total));
+      $fecha = date('Y-m-d H:i:s');
+
+      if ($dec_total <= 0) {
+         echo 'ERROR: El valor de la base tiene que ser mayor que cero';
+         return;
+      }
+
+      $consulta = db_prepare_execute(
+         $conexion,
+         "SELECT iddetalleruta FROM tbl_detalle_ruta
+           WHERE idsucursal=? AND idglobal=? AND str_estado='created'
+           ORDER BY created_at DESC LIMIT 1",
+         'ii',
+         [$idsucursal, $idglobal]
+      );
+      $ruta = $consulta->get_result()->fetch_object();
+      $consulta->close();
+      if (!isset($ruta->iddetalleruta)) {
+         echo 'ERROR: Falta Despachar';
+         return;
+      }
+
+      if ($idcontabilidad_detalle === '') {
+         $consulta = db_prepare_execute(
+            $conexion,
+            "INSERT INTO tbl_contabilidad_detalle (idcontabilidad_detalle,idglobal,idsucursal,
+               idtipo_contabilidad,iddetalleruta,dec_total,str_detalle,str_nombre,str_estado,
+               str_operacion,created_empleado_id,created_at,update_at)
+             VALUES (?,?,?,8,?,?,?,'base','created','info-totalizar',?,?,?)",
+            'siiidsiss',
+            [uniqidReal(), $idglobal, $idsucursal, intval($ruta->iddetalleruta), $dec_total,
+               $str_detalle, $created_empleado_id, $fecha, $fecha]
+         );
+         $consulta->close();
+         echo '¡Correcto!';
+         return;
+      }
+
+      $consulta = db_prepare_execute(
+         $conexion,
+         "UPDATE tbl_contabilidad_detalle SET dec_total=?, str_detalle=?, update_at=?
+           WHERE idcontabilidad_detalle=? AND idglobal=? AND iddetalleruta=?
+             AND str_nombre='base' AND str_estado='created'",
+         'dsssii',
+         [$dec_total, $str_detalle, $fecha, $idcontabilidad_detalle, $idglobal,
+            intval($ruta->iddetalleruta)]
+      );
+      $cambiadas = $consulta->affected_rows;
+      $consulta->close();
+      if ($cambiadas < 1) {
+         echo 'ERROR: Esa base ya no se puede corregir';
+         return;
+      }
+      echo '¡Correcto!';
+      return;
+   }
+
+   /** Borra una base mientras la ruta siga abierta; después queda como historia del día. */
+   public function EliminarBase($idglobal, $idcontabilidad_detalle)
+   {
+      global $conexion;
+      $consulta = db_prepare_execute(
+         $conexion,
+         "DELETE FROM tbl_contabilidad_detalle
+           WHERE idcontabilidad_detalle=? AND idglobal=? AND str_nombre='base'
+             AND str_estado='created'",
+         'si',
+         [$idcontabilidad_detalle, intval($idglobal)]
+      );
+      $borradas = $consulta->affected_rows;
+      $consulta->close();
+      echo $borradas > 0 ? ' ¡Eliminado Correctamente!' : 'ERROR: Esa base ya no se puede borrar';
+      return;
+   }
+
    // gastos al totalizar ruta cartera
    public function RegistrarContabilidad(
       $idglobal,
@@ -590,18 +659,23 @@ class RecibeCuentas
    public function ListContabilidadRecibir($idglobal, $superadmin, $userEmpleadoId)
    {
       global $conexion;
+      $idglobal = intval($idglobal);
+      $userEmpleadoId = intval($userEmpleadoId);
+      // Solo se listan las carteras de la oficina elegida en la sesión, igual que en despachar.
+      $idoficina = intval($_SESSION['idoficina'] ?? 0);
+      $filtroOficina = $idoficina > 0 ? " AND s.idoficina=$idoficina" : '';
       $idsucursals = array();
       $query = null;
       if (empty($superadmin)) {
          $sql = "SELECT v.refSucursal FROM view_auth_sucursal v
             INNER JOIN tbl_sucursal s ON s.idsucursal=v.refSucursal AND s.idglobal=$idglobal
-            WHERE v.refEmpleado=$userEmpleadoId AND v.nameAccion='ver recibir' AND v.estadoAuthSucursal='activo'
+            WHERE v.refEmpleado=$userEmpleadoId AND v.nameAccion='ver recibir' AND v.estadoAuthSucursal='activo'$filtroOficina
             UNION SELECT s.idsucursal AS refSucursal FROM tbl_sucursal s
             INNER JOIN tbl_oficina o ON o.idoficina=s.idoficina AND o.idglobal=s.idglobal
-            WHERE s.idglobal=$idglobal AND o.idempleado_administrador=$userEmpleadoId";
+            WHERE s.idglobal=$idglobal AND o.idempleado_administrador=$userEmpleadoId$filtroOficina";
          $query = $conexion->query($sql);
       } else {
-         $sql = "SELECT idsucursal AS refSucursal FROM tbl_sucursal WHERE idglobal=$idglobal";
+         $sql = "SELECT s.idsucursal AS refSucursal FROM tbl_sucursal s WHERE s.idglobal=$idglobal$filtroOficina";
          $query = $conexion->query($sql);
       }
       while ($req = $query->fetch_object()) {
