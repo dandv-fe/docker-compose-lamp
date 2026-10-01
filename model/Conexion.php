@@ -24,17 +24,17 @@ if (!function_exists('load_private_db_config')) {
 
       $home = getenv('HOME');
       if ($home) {
-         $candidates[] = rtrim($home, '/') . '/config/webgoez-db.php';
+         $candidates[] = rtrim($home, '/') . '/config/webgoez-db_dev.php';
       }
 
       if (!empty($_SERVER['HOME'])) {
-         $candidates[] = rtrim($_SERVER['HOME'], '/') . '/config/webgoez-db.php';
+         $candidates[] = rtrim($_SERVER['HOME'], '/') . '/config/webgoez-db_dev.php';
       }
 
-      $candidates[] = dirname(__DIR__, 4) . '/config/webgoez-db.php';
+      $candidates[] = dirname(__DIR__, 4) . '/config/webgoez-db_dev.php';
 
       if (!empty($_SERVER['DOCUMENT_ROOT'])) {
-         $candidates[] = dirname(rtrim($_SERVER['DOCUMENT_ROOT'], '/'), 1) . '/config/webgoez-db.php';
+         $candidates[] = dirname(rtrim($_SERVER['DOCUMENT_ROOT'], '/'), 1) . '/config/webgoez-db_dev.php';
       }
 
       foreach (array_unique($candidates) as $configPath) {
