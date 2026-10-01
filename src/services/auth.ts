@@ -62,6 +62,29 @@ type UserRow = RowDataPacket & {
   employeeMaxCredit: number | string | null;
 };
 
+type PaymentRow = RowDataPacket & { expiresAt: number | string; expired: number };
+
+export async function companyPaymentExpiry(companyId: number): Promise<number | null> {
+  const [rows] = await pool.execute<PaymentRow[]>(
+    `SELECT UNIX_TIMESTAMP(DATE_ADD(date_corte, INTERVAL (int_dias_extras + 1) DAY)) * 1000 AS expiresAt,
+            DATE_ADD(date_corte, INTERVAL int_dias_extras DAY) < CURRENT_DATE() AS expired
+     FROM tbl_descripcion_global
+     WHERE idglobal_accion = ? AND str_estado = 'actual'
+     LIMIT 1`,
+    [companyId],
+  );
+  // The web allows access when there is no current payment record.
+  if (!rows.length) return null;
+  const expiry = Number(rows[0].expiresAt);
+  if (rows[0].expiresAt == null || !Number.isFinite(expiry) || ![0, 1].includes(Number(rows[0].expired))) {
+    fail('CONFIGURATION_ERROR', 'Invalid company payment date');
+  }
+  if (Number(rows[0].expired) === 1) {
+    fail('PAYMENT_REQUIRED', 'No hemos registrado su pago. Servicio no disponible; comuníquese con el administrador.');
+  }
+  return expiry;
+}
+
 const USER_SELECT = `
  SELECT u.idusuario, u.idglobal, u.idpersona, u.str_user_name, u.str_password,
         p.str_nombres, p.str_apellidos, g.str_razon_social,
@@ -95,13 +118,14 @@ export async function login(companyId: number, username: string, password: strin
     fail('UNAUTHENTICATED', 'Invalid credentials');
   }
   const user = asAuthUser(row);
+  const paymentExpiresAt = await companyPaymentExpiry(user.companyId);
   const expiresIn = secondsUntilNextMidnight();
   const token = jwt.sign({ sub: String(user.userId), companyId: user.companyId }, jwtSecret(), {
     expiresIn,
     issuer: 'backend-creditos-apk',
     audience: 'android-client',
   });
-  return { token, expiresIn, user, branches: await listBranches(user) };
+  return { token, expiresIn, user, paymentExpiresAt, branches: await listBranches(user) };
 }
 
 export async function authenticateRequest(authorization?: string): Promise<AuthContext | null> {
@@ -130,6 +154,7 @@ export async function authenticateRequest(authorization?: string): Promise<AuthC
     fail('UNAUTHENTICATED', 'User is not active');
   }
   const user = asAuthUser(row);
+  await companyPaymentExpiry(user.companyId);
   const permissions: Array<{ branchId: number; name: string }> = [];
   if (user.employeeId != null) {
     const [permissionRows] = await pool.execute(

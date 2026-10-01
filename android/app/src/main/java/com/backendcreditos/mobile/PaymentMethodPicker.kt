@@ -38,6 +38,20 @@ internal data class PaymentMethodDraft(
     /** False while editing means "leave the bank split as it was". */
     val edited: Boolean = false
 ) {
+    fun requireCreditFunding(banks: List<BankAccountEntity>) {
+        require(edited) { "Indica de dónde salió el dinero: efectivo o consignación desde una cuenta." }
+        require(bankId == null || banks.any { it.id == bankId }) {
+            "La cuenta de origen ya no está disponible para esta sucursal; actualiza las cuentas."
+        }
+    }
+
+    fun requireInitialPaymentSource(banks: List<BankAccountEntity>) {
+        require(edited) { "Indica quién recibió la cuota inicial: efectivo o cuenta bancaria." }
+        require(bankId == null || banks.any { it.id == bankId }) {
+            "La cuenta que recibió la cuota inicial no está disponible; actualiza las cuentas."
+        }
+    }
+
     /** Bank split for the payload; a blank amount means the whole [total] went through the bank. */
     fun splits(total: String): List<BankSplit> {
         val id = bankId ?: return emptyList()
@@ -54,8 +68,8 @@ internal data class PaymentMethodDraft(
 /**
  * «Efectivo» plus one chip per company bank account. Choosing a bank reveals how much went
  * through it (blank = all of it, less = mixed payment, the rest in cash) and an optional reference.
- * Only accounts the office authorized for this branch are listed; hidden when there are none,
- * so cash-only rutas see no extra fields.
+ * Only accounts the office authorized for this branch are listed. In required mode, cash
+ * remains available even when there are no authorized accounts.
  */
 @Composable
 internal fun PaymentMethodPicker(
@@ -65,11 +79,17 @@ internal fun PaymentMethodPicker(
     amountLabel: String,
     total: String = "",
     allowChange: Boolean = false,
-    allowKeep: Boolean = false
+    allowKeep: Boolean = false,
+    requireSelection: Boolean = false,
+    selectionLabel: String = "¿De dónde salió el dinero del crédito? *",
+    accountLabel: String = "Cuenta desde la que salió el dinero"
 ) {
-    if (banks.isEmpty()) return
+    if (banks.isEmpty() && !requireSelection) return
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text("Método de pago", style = MaterialTheme.typography.labelLarge)
+        Text(
+            if (requireSelection) selectionLabel else "Método de pago",
+            style = MaterialTheme.typography.labelLarge
+        )
         Row(
             Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -80,7 +100,7 @@ internal fun PaymentMethodPicker(
                 label = { Text("Sin cambios") }
             )
             FilterChip(
-                selected = draft.bankId == null && (draft.edited || !allowKeep),
+                selected = draft.bankId == null && (draft.edited || (!allowKeep && !requireSelection)),
                 onClick = { onChange(PaymentMethodDraft(edited = true)) },
                 label = { Text("Efectivo") }
             )
@@ -88,7 +108,7 @@ internal fun PaymentMethodPicker(
                 FilterChip(
                     selected = draft.bankId == bank.id,
                     onClick = { onChange(draft.copy(bankId = bank.id, edited = true)) },
-                    label = { Text(bank.name) }
+                    label = { Text(if (requireSelection) "Consignación · ${bank.name}" else bank.name) }
                 )
             }
         }
@@ -98,6 +118,7 @@ internal fun PaymentMethodPicker(
                 bankAccountDetail(selected),
                 style = MaterialTheme.typography.bodySmall
             )
+            if (requireSelection) Text(accountLabel, style = MaterialTheme.typography.bodySmall)
             OutlinedTextField(
                 draft.bankAmount, { onChange(draft.copy(bankAmount = it)) },
                 label = { Text(amountLabel) },
@@ -121,5 +142,10 @@ internal fun PaymentMethodPicker(
                 )
             }
         }
+        if (requireSelection && !draft.edited) Text(
+            "Selecciona efectivo o la cuenta de origen antes de guardar.",
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodySmall
+        )
     }
 }

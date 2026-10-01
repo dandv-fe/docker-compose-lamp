@@ -542,6 +542,21 @@ class CreditRepository(
                     profit = fields["utilidad"].textOr(null),
                     bankFunded = bankSplitTotal(fields)
                 )))
+                val initialId = fields?.get("cuotaInicialId").textOr(null)
+                val initial = fields?.get("cuotaInicial")?.let { (it as? JsonPrimitive)?.content?.toBigDecimalOrNull() }
+                if (initialId != null && initial != null && initial.signum() > 0) {
+                    val existingInitial = dao.payment(operation.accountKey, operation.branchId, initialId)
+                    dao.putPayments(listOf(PaymentEntity(
+                        accountKey = operation.accountKey, branchId = operation.branchId,
+                        id = initialId, creditId = operation.entityId,
+                        amount = initial.negate().toPlainString(), description = "Inicial", state = "created",
+                        createdAt = operation.createdAt.toString(), updatedAt = null, routeId = operation.routeId,
+                        createdLocally = true,
+                        creatorUsername = creatorUsername ?: existingInitial?.creatorUsername,
+                        creatorUserId = creatorUserId ?: existingInitial?.creatorUserId,
+                        bankAmount = bankSplitTotal(fields, "bancosInicial")
+                    )))
+                }
             }
             OperationKind.CREATE_PAYMENT, OperationKind.UPDATE_PAYMENT -> {
                 val fields = payload as? JsonObject
@@ -938,7 +953,12 @@ class CreditRepository(
                     }
                     if (dto != null) dao.putCredits(listOf(dto.toEntity(
                         StoredSession(operation.accountKey, "", ""), operation.branchId
-                    ))) else dao.deleteCredit(operation.accountKey, operation.branchId, operation.entityId)
+                    ))) else {
+                        val initialId = (json.parseToJsonElement(operation.payload) as? JsonObject)
+                            ?.get("cuotaInicialId").textOr(null)
+                        if (initialId != null) dao.deletePayment(operation.accountKey, operation.branchId, initialId)
+                        dao.deleteCredit(operation.accountKey, operation.branchId, operation.entityId)
+                    }
                 }
                 OperationKind.CREATE_PAYMENT -> {
                     val dto = server?.let {
@@ -1382,9 +1402,9 @@ class CreditRepository(
             bankAmount = bankAmount?.toString()
         )
 
-    /** Sum of the payload's `bancos` split, or null when the operation did not send one. */
-    private fun bankSplitTotal(fields: JsonObject): String? {
-        val splits = fields["bancos"] as? kotlinx.serialization.json.JsonArray ?: return null
+    /** Sum of one payment split, or null when the operation did not send one. */
+    private fun bankSplitTotal(fields: JsonObject, key: String = "bancos"): String? {
+        val splits = fields[key] as? kotlinx.serialization.json.JsonArray ?: return null
         return splits.sumOf { split ->
             ((split as? JsonObject)?.get("valor") as? JsonPrimitive)?.content?.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO
         }.toPlainString()
@@ -1506,6 +1526,7 @@ const val ACTIVITY_LOG_MAX_ENTRIES = 300
 const val ACTIVITY_LOG_RETENTION_MS = 7L * 24 * 60 * 60 * 1000
 
 internal fun syncPauseMessage(reason: String): String = when (reason) {
+    "PAYMENT" -> "Servicio no disponible: no hemos registrado el pago. Inicia sesión tras regularizarlo."
     "AUTH" -> "Sincronización pausada: la sesión del servidor venció. Vuelve a iniciar sesión."
     "CONFLICT", "SYNC_CONFLICT" -> "Sincronización pausada por un conflicto; revisa la Cola."
     "PERMISSION" -> "Sincronización pausada: el servidor rechazó una operación por permisos."

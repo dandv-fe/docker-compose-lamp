@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { assertBranchAccess, assertPermissionGranted, canAccessBranch, hasPermission, legacyPasswordMatches, listBranches, secondsUntilNextMidnight } from '../../dist/services/auth.js';
+import jwt from 'jsonwebtoken';
+import { assertBranchAccess, assertPermissionGranted, authenticateRequest, canAccessBranch, companyPaymentExpiry, hasPermission, legacyPasswordMatches, listBranches, login, secondsUntilNextMidnight } from '../../dist/services/auth.js';
 import { pool } from '../../dist/db.js';
 import { assertCompanyScope } from '../../dist/services/validation.js';
 import { permissionForOperation } from '../../dist/services/operations.js';
@@ -22,6 +23,62 @@ test('login token lifetime ends at the next server-local midnight', () => {
     secondsUntilNextMidnight(now),
     Math.ceil((nextMidnight.getTime() - now.getTime()) / 1000),
   );
+});
+
+test('payment guard follows the web cutoff plus extra days and permits companies without a current record', async () => {
+  const original = pool.execute;
+  const expiry = Date.UTC(2026, 9, 12);
+  try {
+    pool.execute = async (sql, params) => {
+      assert.match(sql, /tbl_descripcion_global/);
+      assert.match(sql, /str_estado = 'actual'/);
+      assert.match(sql, /CURRENT_DATE\(\)/);
+      assert.deepEqual(params, [7]);
+      return [[{ expiresAt: expiry, expired: 0 }], []];
+    };
+    assert.equal(await companyPaymentExpiry(7), expiry);
+    pool.execute = async () => [[{ expiresAt: expiry, expired: 1 }], []];
+    await assert.rejects(companyPaymentExpiry(7), { extensions: { code: 'PAYMENT_REQUIRED' } });
+    pool.execute = async () => [[], []];
+    assert.equal(await companyPaymentExpiry(7), null);
+    pool.execute = async () => [[{ expiresAt: null, expired: null }], []];
+    await assert.rejects(companyPaymentExpiry(7), { extensions: { code: 'CONFIGURATION_ERROR' } });
+  } finally {
+    pool.execute = original;
+  }
+});
+
+test('expired company payment blocks both login and existing tokens before accessing portfolio data', async () => {
+  const original = pool.execute;
+  const secret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'test-only-secret-at-least-32-characters-long';
+  const password = 'test-password';
+  const user = {
+    idusuario: 12, idglobal: 7, idpersona: 15, str_user_name: 'collector',
+    str_password: createHash('md5').update(password).digest('hex'), str_estado: 'activo',
+    str_nombres: 'Test', str_apellidos: 'User', str_razon_social: 'Company',
+    idempleado: 5, str_cargo: 'Cobrador', employeeMaxCredit: null,
+  };
+  try {
+    pool.execute = async (sql, params) => {
+      if (sql.includes('FROM tbl_usuario u')) {
+        assert.deepEqual(params, sql.includes('str_user_name = ?') ? [7, 'collector'] : [12, 7]);
+        return [[user], []];
+      }
+      assert.match(sql, /FROM tbl_descripcion_global/);
+      assert.deepEqual(params, [7]);
+      return [[{ expiresAt: Date.UTC(2026, 9, 12), expired: 1 }], []];
+    };
+    await assert.rejects(login(7, 'collector', password), { extensions: { code: 'PAYMENT_REQUIRED' } });
+    const token = jwt.sign({ sub: '12', companyId: 7 }, process.env.JWT_SECRET, {
+      issuer: 'backend-creditos-apk', audience: 'android-client',
+    });
+    await assert.rejects(authenticateRequest(`Bearer ${token}`), { extensions: { code: 'PAYMENT_REQUIRED' } });
+  } finally {
+    pool.execute = original;
+    if (secret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = secret;
+  }
 });
 
 test('branch guard recognizes only the exact company admin title and always checks tenant', () => {

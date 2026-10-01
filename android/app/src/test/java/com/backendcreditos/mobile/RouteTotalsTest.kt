@@ -83,4 +83,17 @@ class RouteTotalsTest {
         // 100.000 + 10.000 cash abono − 50.000 cash credit
         assertEquals(0, BigDecimal("60000").compareTo(cash.total))
     }
+
+    @Test
+    fun initialReceivedByTheCreatorCountsOnlyTheCashRemainder() {
+        val credit = credit("new", "created", "900").copy(bankFunded = "600")
+        val initial = payment("initial", "new", "-100", "Inicial", "created")
+            .copy(bankAmount = "70", creatorUserId = 12, creatorUsername = "Cobradora")
+        val totals = routeTotals(listOf(credit), listOf(initial))
+        val cash = pocketCash(totals, base = "0", otherIncome = "0", expenses = "0")
+        assertEquals(0, BigDecimal("30").compareTo(cash.cashCollected))
+        assertEquals(0, BigDecimal("300").compareTo(cash.cashCredits))
+        assertEquals(0, BigDecimal("-270").compareTo(cash.total))
+        assertEquals(12, initial.creatorUserId)
+    }
 }

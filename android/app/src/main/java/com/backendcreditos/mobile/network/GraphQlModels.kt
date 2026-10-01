@@ -64,6 +64,7 @@ data class LoginData(@SerialName("login") val login: LoginResult)
 data class LoginResult(
     val token: String,
     val expiresIn: Int,
+    val paymentExpiresAt: Double? = null,
     val user: UserDto,
     val company: CompanyDto,
     val branches: List<BranchDto>

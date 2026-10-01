@@ -44,7 +44,7 @@ class OperationPayloadMapperTest {
         assertEquals(
             setOf(
                 "idtarjeta", "idcliente", "idventa", "concepto", "valor", "modo", "plazo", "prestamo",
-                "descripcion", "cuotaInicial", "item", "utilidad", "adicionalNumero", "adicionalValor",
+                "descripcion", "cuotaInicial", "cuotaInicialId", "item", "utilidad", "adicionalNumero", "adicionalValor",
                 "tipoComprobante", "serie", "numero", "nota", "obligacion", "detalleDocumentoSucursalId"
             ),
             payload.keys
@@ -52,6 +52,7 @@ class OperationPayloadMapperTest {
         assertEquals("card/opaque-1", payload.getValue("idtarjeta").jsonPrimitive.content)
         assertEquals("42", payload.getValue("idcliente").jsonPrimitive.content)
         assertEquals(JsonNull, payload.getValue("obligacion"))
+        assertTrue(payload.getValue("cuotaInicialId").jsonPrimitive.content.isNotBlank())
         assertTrue("routeId" !in payload && "branchId" !in payload && "companyId" !in payload)
     }
 
@@ -74,6 +75,24 @@ class OperationPayloadMapperTest {
         ).payload as JsonObject
         assertEquals("source-card", payload.getValue("tarjetaReferenciaId").jsonPrimitive.content)
         assertEquals("despues", payload.getValue("ubicacion").jsonPrimitive.content)
+    }
+
+    @Test fun initialPaymentBankIsSeparateFromTheCreditFundingAndBoundedByInitialAmount() {
+        fun credit(initial: String, initialBanks: List<BankSplit> = emptyList()) =
+            OperationPayloadMapper.createCredit(
+                "new-card", "42", "Articulo", "1200", "Mensual", "12", "900",
+                "Artículo", initial, "2.5", "300", "", "0", "Comprobante", "A", "8",
+                "", "", "17", banks = listOf(BankSplit(3, "600")),
+                initialBanks = initialBanks
+            ).payload as JsonObject
+        val mixed = credit("100", listOf(BankSplit(4, "70", "Recibo")))
+        assertEquals("3", mixed.getValue("bancos").jsonArray.single().jsonObject.getValue("idbanco").jsonPrimitive.content)
+        assertEquals("4", mixed.getValue("bancosInicial").jsonArray.single().jsonObject.getValue("idbanco").jsonPrimitive.content)
+        assertEquals("70.0", mixed.getValue("bancosInicial").jsonArray.single().jsonObject.getValue("valor").jsonPrimitive.content)
+        assertTrue("bancosInicial" !in credit("100"))
+        assertTrue("cuotaInicialId" !in credit("0"))
+        assertThrows(IllegalArgumentException::class.java) { credit("100", listOf(BankSplit(4, "101"))) }
+        assertThrows(IllegalArgumentException::class.java) { credit("0", listOf(BankSplit(4, "1"))) }
     }
 
     @Test fun paymentUpdateUsesOpaquePaymentIdAndStrictNegativeFields() {

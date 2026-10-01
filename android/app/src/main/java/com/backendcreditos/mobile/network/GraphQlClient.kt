@@ -47,7 +47,12 @@ class GraphQlClient(
                 val body = response.body?.string().orEmpty()
                 if (response.code == 401) return@withContext ApiResult.AuthExpired("La sesión venció. Inicia sesión de nuevo.")
                 if (response.code == 409) return@withContext ApiResult.Conflict("El servidor informó un conflicto.")
-                if (response.code == 403) return@withContext ApiResult.PermissionRejected("No tienes permiso para esta acción.")
+                if (response.code == 403) {
+                    val error = json.decodeFromString(GraphQlEnvelope.serializer(responseSerializer), body).errors.firstOrNull()
+                    return@withContext if (error?.extensions?.code == "PAYMENT_REQUIRED") {
+                        ApiResult.Rejected(error.message, "PAYMENT_REQUIRED")
+                    } else ApiResult.PermissionRejected("No tienes permiso para esta acción.")
+                }
                 if (!response.isSuccessful) {
                     return@withContext if (response.code >= 500 || response.code == 429) {
                         ApiResult.Retryable("El servidor no está disponible (${response.code}).")

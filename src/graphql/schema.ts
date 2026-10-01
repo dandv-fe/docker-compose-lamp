@@ -65,6 +65,7 @@ const AuthPayloadType = new GraphQLObjectType({
   fields: {
     token: { type: new GraphQLNonNull(GraphQLString) },
     expiresIn: { type: new GraphQLNonNull(GraphQLInt) },
+    paymentExpiresAt: { type: GraphQLFloat },
     user: { type: new GraphQLNonNull(BasicUserType) },
     company: { type: new GraphQLNonNull(new GraphQLObjectType({
       name: 'CompanyBasics',

@@ -9,6 +9,7 @@ import com.backendcreditos.mobile.data.OperationStatus
 import com.backendcreditos.mobile.network.ApiResult
 import com.backendcreditos.mobile.queue.OperationTransitions
 import com.backendcreditos.mobile.queue.RouteGuard
+import com.backendcreditos.mobile.security.paymentAccessBlocked
 
 class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
@@ -17,6 +18,10 @@ class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineW
         val session = app.vault.readSession() ?: return Result.success()
         if (session.accountKey != accountKey) return Result.success()
         val repo = app.repository
+        if (paymentAccessBlocked(session.paymentExpiresAt, System.currentTimeMillis())) {
+            repo.setSyncPaused(accountKey, "PAYMENT")
+            return Result.success()
+        }
         app.database.localDao().recoverInFlightOperations(accountKey)
         if (repo.syncIsPaused(accountKey)) return Result.success()
         val requestedBranchId = inputData.getString(KEY_BRANCH)
@@ -113,6 +118,11 @@ class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineW
                 Result.success()
             }
             is ApiResult.Rejected -> {
+                if (response.code == "PAYMENT_REQUIRED") {
+                    app.database.localDao().returnToPending(operation.operationId, response.message)
+                    repo.setSyncPaused(accountKey, "PAYMENT")
+                    return Result.success()
+                }
                 OperationTransitions.move(OperationStatus.IN_FLIGHT, OperationStatus.REJECTED)
                 if (RouteGuard.isRouteRefusal(response.code)) {
                     // The queue is never swept on its own: the record stays in the Cola screen with
@@ -162,7 +172,8 @@ class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineW
                 Result.success()
             }
             is ApiResult.Rejected -> {
-                app.repository.setSyncPaused(session.accountKey, "SYNC_PROTOCOL")
+                app.repository.setSyncPaused(session.accountKey,
+                    if (response.code == "PAYMENT_REQUIRED") "PAYMENT" else "SYNC_PROTOCOL")
                 Result.success()
             }
             is ApiResult.Retryable -> Result.retry()

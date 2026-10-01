@@ -4,7 +4,7 @@ object GraphQlDocuments {
     const val LOGIN = """
         mutation Login(${'$'}companyId: Int!, ${'$'}username: String!, ${'$'}password: String!) {
           login(companyId: ${'$'}companyId, username: ${'$'}username, password: ${'$'}password) {
-            token expiresIn
+            token expiresIn paymentExpiresAt
             user { userId companyId employeeId employeeMaxCredit isSuperAdministrator username firstName lastName companyName }
             company { id name }
             branches { id name type extraCharge }

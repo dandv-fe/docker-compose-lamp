@@ -3,6 +3,12 @@ package com.backendcreditos.mobile.network
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.coroutines.runBlocking
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -11,19 +17,35 @@ import org.junit.Test
 class GraphQlContractTest {
     private val json = Json { ignoreUnknownKeys = true }
 
+    @Test fun paymentRequiredResponseIsNotMistakenForMissingPermissions() = runBlocking {
+        val http = OkHttpClient.Builder().addInterceptor { chain ->
+            Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(403)
+                .message("Forbidden")
+                .body("""{"errors":[{"message":"Pago pendiente","extensions":{"code":"PAYMENT_REQUIRED"}}]}""".toResponseBody())
+                .build()
+        }.build()
+        val result = GraphQlClient("https://example.invalid/graphql", http)
+            .execute(GraphQlDocuments.ME, buildJsonObject { }, MeData.serializer(), "token")
+        assertEquals(ApiResult.Rejected("Pago pendiente", "PAYMENT_REQUIRED"), result)
+    }
+
     @Test fun loginUsesIntegerCompanyIdAndBackendAuthPayloadFields() {
         assertTrue(GraphQlDocuments.LOGIN.contains("companyId: Int!"))
-        assertTrue(GraphQlDocuments.LOGIN.contains("token expiresIn"))
+        assertTrue(GraphQlDocuments.LOGIN.contains("token expiresIn paymentExpiresAt"))
         assertTrue(GraphQlDocuments.LOGIN.contains("user { userId companyId employeeId employeeMaxCredit isSuperAdministrator username firstName lastName companyName }"))
         assertTrue(GraphQlDocuments.LOGIN.contains("company { id name }"))
         val result = json.decodeFromString(
             LoginData.serializer(),
-            """{"login":{"token":"opaque","expiresIn":3600,"user":{"userId":3,"companyId":17,"employeeId":9,"employeeMaxCredit":150000,"isSuperAdministrator":false,"username":"operator","firstName":"A","lastName":"B","companyName":"Example"},"company":{"id":17,"name":"Example"},"branches":[{"id":4,"name":"North","type":"store","extraCharge":"boleta"}]}}"""
+            """{"login":{"token":"opaque","expiresIn":3600,"paymentExpiresAt":1791763200000,"user":{"userId":3,"companyId":17,"employeeId":9,"employeeMaxCredit":150000,"isSuperAdministrator":false,"username":"operator","firstName":"A","lastName":"B","companyName":"Example"},"company":{"id":17,"name":"Example"},"branches":[{"id":4,"name":"North","type":"store","extraCharge":"boleta"}]}}"""
         ).login
         assertEquals(17, result.company.id)
         assertEquals(4, result.branches.single().id)
         assertEquals("boleta", result.branches.single().extraCharge)
         assertEquals(150000.0, result.user.employeeMaxCredit!!, 0.0)
+        assertEquals(1791763200000.0, result.paymentExpiresAt!!, 0.0)
         assertFalse(result.user.isSuperAdministrator)
         assertTrue(GraphQlDocuments.CUSTOMER_CANDIDATE.contains("personId customerId"))
         assertTrue(GraphQlDocuments.PERSON_DOCUMENT_TYPES.contains("personDocumentTypes"))

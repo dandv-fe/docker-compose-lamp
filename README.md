@@ -56,7 +56,14 @@ server's time zone to the business time zone. There is no refresh-token endpoint
 in this stage. Each
 authenticated GraphQL request reloads the user/company identity and current
 named permissions from MariaDB; branch access is checked again for each
-branch-scoped resolver. The token never supplies branch permissions.
+branch-scoped resolver. The token never supplies branch permissions. Login and
+every authenticated request also check `tbl_descripcion_global` for the company's
+current (`str_estado = 'actual'`) payment record. As in the PHP cartera, access
+is denied after `date_corte` plus `int_dias_extras` days; no current record means
+no payment restriction. The API returns `PAYMENT_REQUIRED` (HTTP 403 for
+authenticated requests) and includes `paymentExpiresAt` (epoch milliseconds or
+null) at login so the phone can block cached/offline access at the same cutoff.
+The database and app clocks and time zones must be synchronized.
 
 ## GraphQL contract
 
@@ -66,7 +73,7 @@ include the bearer token in the Authorization header.
 ```graphql
 mutation Login($companyId: Int!, $username: String!, $password: String!) {
   login(companyId: $companyId, username: $username, password: $password) {
-    token expiresIn
+    token expiresIn paymentExpiresAt
     user { userId companyId employeeId username firstName lastName companyName }
     company { id name }
     branches { id name type extraCharge }
@@ -174,7 +181,7 @@ Payload fields by kind (all undeclared fields are rejected):
 | --- | --- |
 | `CREATE_CUSTOMER`, `UPDATE_CUSTOMER` | Customer fields above; `fechaNacimiento`, `fotoBase64`, and `fiadorPersonaId` may be omitted. |
 | `UPDATE_DOCUMENT` | `tipoDocumento`, `numeroDocumento` |
-| `CREATE_CREDIT` | `idtarjeta`, `idcliente`, `concepto`, `valor`, `modo`, `plazo`, `prestamo`, `descripcion`, `item`, `utilidad`, `adicionalNumero`, `adicionalValor`, `tipoComprobante`, `serie`, `numero`, `nota`, `detalleDocumentoSucursalId`; optional `idventa`, `cuotaInicial`, `obligacion`, `bancos` |
+| `CREATE_CREDIT` | `idtarjeta`, `idcliente`, `concepto`, `valor`, `modo`, `plazo`, `prestamo`, `descripcion`, `item`, `utilidad`, `adicionalNumero`, `adicionalValor`, `tipoComprobante`, `serie`, `numero`, `nota`, `detalleDocumentoSucursalId`; optional `idventa`, `cuotaInicial`, `cuotaInicialId`, `bancosInicial` (cuenta receptora de la inicial), `obligacion`, `bancos` (cuenta de origen del crédito) |
 | `UPDATE_CREDIT` | `concepto`, `valor`, `modo`, `plazo`, `prestamo`, `descripcion`, `item`, `utilidad`, `adicionalNumero`, `adicionalValor`, `tipoComprobante`, `serie`, `numero`, `nota` |
 | `UPDATE_CREDIT_TERMS` | `modo`, `plazo`, `numero`, `createdAt` |
 | `CREATE_PAYMENT` | `iddescripcion`, negative `abono`; optional `descripcion`, `bancos`, `vuelto` |

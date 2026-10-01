@@ -358,6 +358,14 @@ private fun CreditApplicationScreen(
     val scope = rememberCoroutineScope()
     var session by remember { mutableStateOf(app.vault.readSession()) }
     var screen by remember { mutableStateOf(Screen.LOGIN) }
+    var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(session?.paymentExpiresAt) {
+        val expiry = session?.paymentExpiresAt
+        if (expiry != null && expiry > System.currentTimeMillis()) {
+            delay(expiry - System.currentTimeMillis())
+            currentTime = System.currentTimeMillis()
+        }
+    }
     var settingsReturnScreen by remember { mutableStateOf(Screen.LOGIN) }
     var online by remember { mutableStateOf(false) }
     val connectivity = remember {
@@ -479,7 +487,6 @@ private fun CreditApplicationScreen(
     var draftBalance by remember { mutableStateOf("") }
     var draftSortOrder by remember { mutableStateOf("") }
     var draftAdditionalNumber by remember { mutableStateOf("") }
-    var draftInitialPayment by remember { mutableStateOf("0") }
     var draftProfit by remember { mutableStateOf("0") }
     var draftAdditionalValue by remember { mutableStateOf("0") }
     var draftReceiptType by remember { mutableStateOf("") }
@@ -516,6 +523,8 @@ private fun CreditApplicationScreen(
     }
     var draftCardPlacement by remember { mutableStateOf(CardPlacement.AFTER) }
     var draftCost by remember { mutableStateOf("0") }
+    var draftInitialPayment by remember { mutableStateOf("0") }
+    var draftInitialPaymentMethod by remember { mutableStateOf(PaymentMethodDraft()) }
     var draftPaymentMethod by remember { mutableStateOf(PaymentMethodDraft()) }
     var bankAccounts by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.data.BankAccountEntity>()) }
     var settlement by remember { mutableStateOf<com.backendcreditos.mobile.network.RouteSettlementDto?>(null) }
@@ -539,6 +548,10 @@ private fun CreditApplicationScreen(
     var showMoreMenu by remember { mutableStateOf(false) }
     val branchId = session?.selectedBranchId
     val account = session
+    val serviceBlocked = account?.let { stored ->
+        syncControl?.pauseReason == "PAYMENT" ||
+            com.backendcreditos.mobile.security.paymentAccessBlocked(stored.paymentExpiresAt, currentTime)
+    } == true
 
     suspend fun loadLocal() {
         val current = session ?: return
@@ -756,6 +769,14 @@ private fun CreditApplicationScreen(
                 }
             }
         }
+        if (result is ApiResult.Rejected && result.code == "PAYMENT_REQUIRED") {
+            session?.let { current ->
+                scope.launch {
+                    app.repository.setSyncPaused(current.accountKey, "PAYMENT")
+                    syncControl = app.database.localDao().syncControl(current.accountKey)
+                }
+            }
+        }
     }
 
     suspend fun revalidateServerConnection() {
@@ -770,6 +791,7 @@ private fun CreditApplicationScreen(
             }
             is ApiResult.AuthExpired -> report(result)
             is ApiResult.Retryable -> online = false
+            is ApiResult.Rejected -> report(result)
             else -> online = true
         }
     }
@@ -777,8 +799,13 @@ private fun CreditApplicationScreen(
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner, session?.accountKey) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME && session != null) {
-                scope.launch { revalidateServerConnection() }
+            if (event == Lifecycle.Event.ON_RESUME) {
+                currentTime = System.currentTimeMillis()
+                val current = session
+                if (current != null) scope.launch {
+                    syncControl = app.database.localDao().syncControl(current.accountKey)
+                    revalidateServerConnection()
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -786,6 +813,16 @@ private fun CreditApplicationScreen(
     }
     LaunchedEffect(deviceConnected, session?.accountKey) {
         if (deviceConnected && session != null) revalidateServerConnection()
+    }
+    LaunchedEffect(session?.accountKey) {
+        val current = session ?: return@LaunchedEffect
+        while (true) {
+            delay(5_000)
+            val latest = app.database.localDao().syncControl(current.accountKey)
+            if (latest?.pauseReason == "PAYMENT" && syncControl?.pauseReason != "PAYMENT") {
+                syncControl = latest
+            }
+        }
     }
 
     fun openFullPayments(creditId: String) {
@@ -1109,6 +1146,7 @@ private fun CreditApplicationScreen(
     }
 
     suspend fun saveTypedOperation(stayOnPortfolio: Boolean = false): OfflineOperationEntity {
+        require(!serviceBlocked) { "Servicio no disponible: no hemos registrado el pago." }
         var current = session ?: throw IllegalArgumentException("Inicia sesión para guardar cambios.")
         val branch = current.selectedBranchId ?: throw IllegalArgumentException("Selecciona una sucursal.")
         if (operationKind == OperationKind.CREATE_CUSTOMER) {
@@ -1186,6 +1224,9 @@ private fun CreditApplicationScreen(
                     (draftValue.toBigDecimalOrNull() ?: java.math.BigDecimal.ZERO)) {
                     "La cuota inicial no puede superar el valor a pagar."
                 }
+                if (draftInitialPayment.toBigDecimal() > java.math.BigDecimal.ZERO) {
+                    draftInitialPaymentMethod.requireInitialPaymentSource(bankAccounts)
+                }
             } else if (charge == "boleta") {
                 require(draftAdditionalNumber.isNotBlank()) { "Ingresa el número de boleta." }
                 require(draftAdditionalValue.toBigDecimalOrNull()?.let { it > java.math.BigDecimal.ZERO } == true) {
@@ -1208,6 +1249,7 @@ private fun CreditApplicationScreen(
             require(draftCost.toBigDecimalOrNull()?.let { it > java.math.BigDecimal.ZERO } == true) {
                 "El costo debe ser positivo."
             }
+            draftPaymentMethod.requireCreditFunding(bankAccounts)
             if (draftDocumentSequenceId.isBlank()) {
                 throw IllegalArgumentException(
                     "Esta sucursal no tiene consecutivo de comprobante guardado; sincroniza en línea antes de crear la tarjeta."
@@ -1262,7 +1304,9 @@ private fun CreditApplicationScreen(
                 draftAdditionalNumber, draftAdditionalValue, draftReceiptType, draftSeries,
                 draftReceiptNumber, draftNote, draftObligation, draftDocumentSequenceId,
                 selectedCreditId, if (draftCardPlacement == CardPlacement.BEFORE) "antes" else "despues",
-                draftPaymentMethod.splits(draftPrincipal)
+                draftPaymentMethod.splits(draftPrincipal),
+                if (draftConcept == "Articulo" && draftInitialPayment.toBigDecimal() > java.math.BigDecimal.ZERO)
+                    draftInitialPaymentMethod.splits(draftInitialPayment) else emptyList()
             )
             OperationKind.UPDATE_CREDIT -> OperationPayloadMapper.updateCredit(
                 entityId, draftConcept, draftValue, draftFrequency, draftTerm, draftPrincipal,
@@ -1327,8 +1371,11 @@ private fun CreditApplicationScreen(
         app.repository.applyOptimisticCacheChange(
             operation,
             creatorUsername = listOfNotNull(current.firstName, current.lastName)
-                .joinToString(" ").ifBlank { current.username }.takeIf { operationKind == OperationKind.CREATE_PAYMENT },
-            creatorUserId = current.userId.takeIf { operationKind == OperationKind.CREATE_PAYMENT }
+                .joinToString(" ").ifBlank { current.username }
+                .takeIf { operationKind in setOf(OperationKind.CREATE_PAYMENT, OperationKind.CREATE_CREDIT) },
+            creatorUserId = current.userId.takeIf {
+                operationKind in setOf(OperationKind.CREATE_PAYMENT, OperationKind.CREATE_CREDIT)
+            }
         )
         if (operationKind == OperationKind.CREATE_PAYMENT) {
             val dao = app.database.localDao()
@@ -1457,6 +1504,7 @@ private fun CreditApplicationScreen(
             draftGuarantorPersonId = ""
         }
         draftPaymentMethod = PaymentMethodDraft()
+        draftInitialPaymentMethod = PaymentMethodDraft()
         if (kind == OperationKind.CREATE_CREDIT) {
             entityId = UUID.randomUUID().toString()
             draftConcept = "Prestamo"
@@ -1652,7 +1700,7 @@ private fun CreditApplicationScreen(
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            val branchChosen = account != null && branchId != null &&
+            val branchChosen = !serviceBlocked && account != null && branchId != null &&
                 screen !in setOf(Screen.LOGIN, Screen.BRANCHES)
             TopAppBar(
                 title = {
@@ -1694,7 +1742,7 @@ private fun CreditApplicationScreen(
             )
         },
         bottomBar = {
-            if (account != null && branchId != null && screen !in setOf(Screen.LOGIN, Screen.BRANCHES)) {
+            if (!serviceBlocked && account != null && branchId != null && screen !in setOf(Screen.LOGIN, Screen.BRANCHES)) {
                 Surface(tonalElevation = 3.dp) {
                     Row(
                         Modifier.fillMaxWidth()
@@ -2043,10 +2091,10 @@ private fun CreditApplicationScreen(
     ) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).padding(16.dp)
-                .then(if (screen == Screen.HOME) Modifier else Modifier.verticalScroll(otherScreensScrollState)),
+                .then(if (screen == Screen.HOME && !serviceBlocked) Modifier else Modifier.verticalScroll(otherScreensScrollState)),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            if (account != null && branchId != null && screen !in setOf(Screen.LOGIN, Screen.BRANCHES)) {
+            if (!serviceBlocked && account != null && branchId != null && screen !in setOf(Screen.LOGIN, Screen.BRANCHES)) {
                 val totals = routeSummary
                 Text(
                     "Abs: ${totals.cardsWithPayments}/${totals.totalCards} · " +
@@ -2060,7 +2108,13 @@ private fun CreditApplicationScreen(
                     }
                 )
             }
-            when (screen) {
+            if (serviceBlocked && screen != Screen.LOGIN) {
+                Text("Servicio no disponible", style = MaterialTheme.typography.headlineSmall)
+                Text(if (session?.paymentExpiresAt == -1L)
+                    "Para comprobar el pago del servicio, inicia sesión en línea con esta versión de la app."
+                else "No hemos registrado su pago. Este es necesario para continuar usando el servicio.")
+                Button(onClick = { screen = Screen.LOGIN }) { Text("Iniciar sesión para comprobar el pago") }
+            } else when (screen) {
                 Screen.LOGIN -> {
                     Text("Inicio de sesión en línea", style = MaterialTheme.typography.headlineSmall)
                     Text("La primera autenticación necesita conexión. La contraseña no se guarda.")
@@ -2092,7 +2146,8 @@ private fun CreditApplicationScreen(
                                             firstName = login.user.firstName, lastName = login.user.lastName,
                                             branchExtraCharges = login.branches.associate { it.id.toString() to it.extraCharge },
                                             employeeMaxCredit = login.user.employeeMaxCredit?.toString(),
-                                            isSuperAdministrator = login.user.isSuperAdministrator
+                                            isSuperAdministrator = login.user.isSuperAdministrator,
+                                            paymentExpiresAt = login.paymentExpiresAt?.toLong()
                                         )
                                         if (previous != null && previous.accountKey != newSession.accountKey) {
                                             val unresolved = app.repository.unresolvedCount(previous.accountKey)
@@ -2110,7 +2165,7 @@ private fun CreditApplicationScreen(
                                         session = newSession
                                         app.vault.saveSession(newSession)
                                         if (previous?.accountKey == newSession.accountKey &&
-                                            app.database.localDao().syncControl(newSession.accountKey)?.pauseReason == "AUTH"
+                                            app.database.localDao().syncControl(newSession.accountKey)?.pauseReason in setOf("AUTH", "PAYMENT")
                                         ) app.repository.setSyncPaused(newSession.accountKey, null)
                                         syncControl = app.database.localDao().syncControl(newSession.accountKey)
                                         when (val me = app.api.me(newSession.token)) {
@@ -2145,6 +2200,8 @@ private fun CreditApplicationScreen(
                                     }
                                     is ApiResult.AuthExpired ->
                                         notice = "Empresa, usuario o contraseña incorrectos."
+                                    is ApiResult.Rejected ->
+                                        if (response.code == "PAYMENT_REQUIRED") notice = response.message else report(response)
                                     else -> report(response)
                                 }
                                 busy = false
@@ -2157,7 +2214,7 @@ private fun CreditApplicationScreen(
                         serverEndpointError = null
                         screen = Screen.SYNC_SETTINGS
                     }) { Text("Configuración del servidor") }
-                    if (session?.selectedBranchId != null) {
+                    if (session?.selectedBranchId != null && !serviceBlocked) {
                         Spacer(Modifier.height(12.dp))
                         HorizontalDivider()
                         Text("Acceso sin conexión", style = MaterialTheme.typography.titleMedium)
@@ -2487,6 +2544,67 @@ private fun CreditApplicationScreen(
                                     )
                                 }
                                 val cachedCreditPayments = paymentsByCredit[row.credit.id].orEmpty()
+                                if (inlinePaymentCreditId == row.credit.id) {
+                                    val openPayment = cachedCreditPayments.firstOrNull { it.state != "saved" }
+                                    if (openPayment != null) {
+                                        Text("Ya hay un abono sin liquidar. Usa los movimientos para editarlo.",
+                                            color = MaterialTheme.colorScheme.error)
+                                    } else {
+                                        CompactOutlinedTextField(
+                                            draftPaymentAmount, { draftPaymentAmount = it },
+                                            placeholder = "Abono *",
+                                            modifier = Modifier.fillMaxWidth(),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                                        )
+                                        Spacer(Modifier.height(6.dp))
+                                        CompactOutlinedTextField(
+                                            draftPaymentConfirmRemaining, { draftPaymentConfirmRemaining = it },
+                                            placeholder = "Confirma cuánto queda restando *",
+                                            modifier = Modifier.fillMaxWidth(),
+                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+                                        )
+                                        PaymentMethodPicker(
+                                            bankAccounts, draftPaymentMethod, { draftPaymentMethod = it },
+                                            "¿Cuánto entró por banco?", draftPaymentAmount, allowChange = true
+                                        )
+                                        if (inlinePaymentError.isNotBlank()) {
+                                            Text(inlinePaymentError, color = MaterialTheme.colorScheme.error)
+                                        }
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                            Button(enabled = !busy, onClick = {
+                                                scope.launch {
+                                                    busy = true
+                                                    inlinePaymentError = ""
+                                                    try {
+                                                        operationKind = OperationKind.CREATE_PAYMENT
+                                                        selectedCreditId = row.credit.id
+                                                        draftBalance = row.credit.balance.orEmpty()
+                                                        val saved = saveTypedOperation(stayOnPortfolio = true)
+                                                        inlinePaymentCreditId = null
+                                                        draftPaymentAmount = ""
+                                                        draftPaymentConfirmRemaining = ""
+                                                        draftPaymentMethod = PaymentMethodDraft()
+                                                        watchedPaymentOperationIds += saved.operationId
+                                                        scope.launch {
+                                                            snackbarHostState.showSnackbar(
+                                                                "Abono guardado en el teléfono; pendiente de confirmación del servidor.",
+                                                                duration = SnackbarDuration.Short
+                                                            )
+                                                        }
+                                                    } catch (error: IllegalArgumentException) {
+                                                        inlinePaymentError = error.message ?: "Abono inválido."
+                                                    } finally {
+                                                        busy = false
+                                                    }
+                                                }
+                                            }) { Text("Guardar abono") }
+                                            TextButton(onClick = {
+                                                inlinePaymentCreditId = null
+                                                inlinePaymentError = ""
+                                            }) { Text("Cancelar") }
+                                        }
+                                    }
+                                }
                                 val pendingLocalPayment = cachedCreditPayments.firstOrNull { payment ->
                                     payment.createdLocally && operationsByEntity[row.credit.id].orEmpty().any { operation ->
                                         operation.kind == OperationKind.CREATE_PAYMENT &&
@@ -2563,66 +2681,6 @@ private fun CreditApplicationScreen(
                                             it.status in setOf(OperationStatus.PENDING, OperationStatus.IN_FLIGHT)
                                     }
                                 ) Text("Hay otros cambios pendientes de confirmar.", color = MaterialTheme.colorScheme.error)
-                                if (inlinePaymentCreditId == row.credit.id) {
-                                    val openPayment = cachedCreditPayments.firstOrNull { it.state != "saved" }
-                                    if (openPayment != null) {
-                                        Text("Ya hay un abono sin liquidar. Usa los movimientos para editarlo.",
-                                            color = MaterialTheme.colorScheme.error)
-                                    } else {
-                                        CompactOutlinedTextField(
-                                            draftPaymentAmount, { draftPaymentAmount = it },
-                                            placeholder = "Abono *",
-                                            modifier = Modifier.fillMaxWidth(),
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                                        )
-                                        CompactOutlinedTextField(
-                                            draftPaymentConfirmRemaining, { draftPaymentConfirmRemaining = it },
-                                            placeholder = "Confirma cuánto queda restando *",
-                                            modifier = Modifier.fillMaxWidth(),
-                                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-                                        )
-                                        PaymentMethodPicker(
-                                            bankAccounts, draftPaymentMethod, { draftPaymentMethod = it },
-                                            "¿Cuánto entró por banco?", draftPaymentAmount, allowChange = true
-                                        )
-                                        if (inlinePaymentError.isNotBlank()) {
-                                            Text(inlinePaymentError, color = MaterialTheme.colorScheme.error)
-                                        }
-                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                            Button(enabled = !busy, onClick = {
-                                                scope.launch {
-                                                    busy = true
-                                                    inlinePaymentError = ""
-                                                    try {
-                                                        operationKind = OperationKind.CREATE_PAYMENT
-                                                        selectedCreditId = row.credit.id
-                                                        draftBalance = row.credit.balance.orEmpty()
-                                                        val saved = saveTypedOperation(stayOnPortfolio = true)
-                                                        inlinePaymentCreditId = null
-                                                        draftPaymentAmount = ""
-                                                        draftPaymentConfirmRemaining = ""
-                                                        draftPaymentMethod = PaymentMethodDraft()
-                                                        watchedPaymentOperationIds += saved.operationId
-                                                        scope.launch {
-                                                            snackbarHostState.showSnackbar(
-                                                                "Abono guardado en el teléfono; pendiente de confirmación del servidor.",
-                                                                duration = SnackbarDuration.Short
-                                                            )
-                                                        }
-                                                    } catch (error: IllegalArgumentException) {
-                                                        inlinePaymentError = error.message ?: "Abono inválido."
-                                                    } finally {
-                                                        busy = false
-                                                    }
-                                                }
-                                            }) { Text("Guardar abono") }
-                                            TextButton(onClick = {
-                                                inlinePaymentCreditId = null
-                                                inlinePaymentError = ""
-                                            }) { Text("Cancelar") }
-                                        }
-                                    }
-                                }
                             }
                         }
                         if (inlinePaymentCreditId == row.credit.id) {
@@ -3891,7 +3949,8 @@ private fun CreditApplicationScreen(
                             OutlinedTextField(draftCost, { draftCost = it }, label = { Text("Costo / capital entregado (no es la deuda) *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
                             PaymentMethodPicker(
                                 bankAccounts, draftPaymentMethod, { draftPaymentMethod = it },
-                                "¿Cuánto del costo salió del banco?"
+                                "¿Cuánto del costo salió de esta cuenta?",
+                                requireSelection = true
                             )
                             Text(
                                 if (session?.isSuperAdministrator == true)
@@ -3917,6 +3976,13 @@ private fun CreditApplicationScreen(
                             if (draftConcept == "Articulo") {
                                 OutlinedTextField(draftDescription, { draftDescription = it }, label = { Text("Descripción del artículo *") }, modifier = Modifier.fillMaxWidth(), minLines = 2)
                                 OutlinedTextField(draftInitialPayment, { draftInitialPayment = it }, label = { Text("Cuota inicial *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                                if (draftInitialPayment.toBigDecimalOrNull()?.signum() == 1) PaymentMethodPicker(
+                                    bankAccounts, draftInitialPaymentMethod, { draftInitialPaymentMethod = it },
+                                    "¿Cuánto entró a esta cuenta?", draftInitialPayment,
+                                    requireSelection = true,
+                                    selectionLabel = "¿Quién recibió la cuota inicial? *",
+                                    accountLabel = "Cuenta que recibió la cuota inicial; el efectivo queda a cargo de quien la registra"
+                                )
                             } else {
                                 when (session?.branchExtraCharges?.get(branchId)) {
                                     "boleta" -> {

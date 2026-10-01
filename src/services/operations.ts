@@ -547,16 +547,22 @@ async function executeOperation(
       );
       const valueCents = decimalToCents(payload.valor as number);
       const initialCents = decimalToCents((payload.cuotaInicial ?? 0) as number);
-      if (initialCents > valueCents) fail('BUSINESS_RULE', 'Initial payment exceeds the credit value');
+      if (initialCents < 0n || initialCents > valueCents) fail('BUSINESS_RULE', 'Initial payment must be between zero and the credit value');
+      if (initialCents === 0n && ((payload.bancosInicial as BankSplit[] | undefined)?.length || payload.cuotaInicialId)) {
+        fail('VALIDATION_ERROR', 'A bank account for the initial payment requires an initial payment');
+      }
       if (initialCents > 0n) {
+        const initialPaymentId = (payload.cuotaInicialId as string | undefined) ?? cryptoRandomId();
         await conn.execute(
           `INSERT INTO tbl_descripcion
            (iddescripcion,idglobal,idsucursal,idtarjeta,iddetalleruta,dec_abono,str_descripcion,
             str_estado,idusuario,str_origen,created_at,updated_at)
            VALUES (?,?,?,?,?,?,'Inicial','created',?,?,NOW(),NOW())`,
-          [cryptoRandomId(), companyId, input.branchId, payload.idtarjeta, routeId, centsToDecimal(-initialCents),
+          [initialPaymentId, companyId, input.branchId, payload.idtarjeta, routeId, centsToDecimal(-initialCents),
             userId, PAYMENT_ORIGIN],
         );
+        await saveBankSplits(conn, 'payment', initialPaymentId, companyId, input.branchId, userId,
+          payload.bancosInicial as BankSplit[] | undefined, initialCents);
         await conn.execute(
           'UPDATE tbl_tarjetas SET dec_resta = ? WHERE idtarjeta = ? AND idglobal = ? AND idsucursal = ?',
           [centsToDecimal(valueCents - initialCents), payload.idtarjeta, companyId, input.branchId],

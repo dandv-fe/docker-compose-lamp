@@ -1,7 +1,7 @@
 import { GraphQLError } from 'graphql';
 
 export type ErrorCode =
-  | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'NOT_FOUND' | 'VALIDATION_ERROR'
+  | 'UNAUTHENTICATED' | 'FORBIDDEN' | 'PAYMENT_REQUIRED' | 'NOT_FOUND' | 'VALIDATION_ERROR'
   | 'CONFLICT' | 'IDEMPOTENCY_MISMATCH' | 'BUSINESS_RULE' | 'CONFIGURATION_ERROR'
   // ROUTE_CLOSED is final: the route was settled or no longer exists, so the record can never be
   // applied. ROUTE_REOPENABLE is not: the route was handed over ('entregando') and the office can
@@ -28,7 +28,7 @@ export function mapTransactionError(error: unknown): Error {
 export function httpStatusForCode(code: unknown): number {
   switch (code) {
     case 'UNAUTHENTICATED': return 401;
-    case 'FORBIDDEN': return 403;
+    case 'FORBIDDEN': case 'PAYMENT_REQUIRED': return 403;
     case 'NOT_FOUND': return 404;
     case 'VALIDATION_ERROR': return 400;
     case 'CONFLICT': case 'IDEMPOTENCY_MISMATCH': return 409;

@@ -323,6 +323,20 @@ test('abonos and credits accept optional bank splits; cash stays the default', (
   assert.equal(parseOperationPayload('CREATE_PAYMENT', { ...payment, bancos: [{ idbanco: 3, valor: 70000 }], vuelto: 20000 }).vuelto, 20000);
   assert.equal(operationPayloadSchemas.CREATE_PAYMENT.safeParse({ ...payment, vuelto: -1 }).success, false);
   assert.equal(operationPayloadSchemas.CREATE_CREDIT.safeParse({ vuelto: 1 }).success, false);
+  const credit = {
+    idtarjeta: 'card', idcliente: 4, concepto: 'Articulo', valor: 1000, modo: 'Diario',
+    plazo: 10, prestamo: 800, descripcion: 'Artículo', cuotaInicial: 100,
+    item: 1, utilidad: 200, adicionalNumero: '', adicionalValor: 0,
+    tipoComprobante: 'Ticket', serie: 'A', numero: '1', nota: '',
+    obligacion: null, detalleDocumentoSucursalId: 2,
+  };
+  assert.equal(parseOperationPayload('CREATE_CREDIT', {
+    ...credit, cuotaInicialId: 'initial-1', bancosInicial: [{ idbanco: 3, valor: 60 }],
+    bancos: [{ idbanco: 4, valor: 700 }],
+  }).bancosInicial[0].valor, 60);
+  assert.equal(operationPayloadSchemas.CREATE_CREDIT.safeParse({
+    ...credit, bancosInicial: [{ idbanco: 3, valor: -1 }],
+  }).success, false);
 });
 
 test('route expenses and bases travel with a positive amount and a closed field list', () => {

@@ -67,7 +67,8 @@ object OperationPayloadMapper {
         profit: String, additionalNumber: String, additionalValue: String, receiptType: String,
         series: String, receiptNumber: String, note: String, obligation: String, documentSequenceId: String,
         referenceCardId: String? = null, placement: String? = null,
-        banks: List<BankSplit> = emptyList()
+        banks: List<BankSplit> = emptyList(),
+        initialBanks: List<BankSplit> = emptyList()
     ): MappedOperation {
         require(creditId.isNotBlank() && creditId.length <= 50)
         val customer = customerId.toIntOrNull()?.takeIf { it > 0 }
@@ -83,6 +84,13 @@ object OperationPayloadMapper {
         require(placement == null || placement in setOf("antes", "despues")) {
             "Ubicación de tarjeta inválida."
         }
+        val initial = number(initialPayment, "Cuota inicial")
+        require(initial >= 0 && initial <= number(value, "Valor")) {
+            "La cuota inicial debe estar entre cero y el valor a pagar."
+        }
+        require(initial > 0 || initialBanks.isEmpty()) {
+            "No registres un banco sin cuota inicial."
+        }
         val fields = buildJsonObject {
             require(concept.length <= 30 && description.length <= 65_535)
             require(additionalNumber.length <= 11 && receiptType.length <= 30)
@@ -97,7 +105,11 @@ object OperationPayloadMapper {
             put("plazo", JsonPrimitive(plazo))
             put("prestamo", JsonPrimitive(number(loan, "Préstamo")))
             put("descripcion", description)
-            put("cuotaInicial", JsonPrimitive(number(initialPayment, "Cuota inicial")))
+            put("cuotaInicial", JsonPrimitive(initial))
+            if (initial > 0) {
+                put("cuotaInicialId", UUID.randomUUID().toString())
+                if (initialBanks.isNotEmpty()) put("bancosInicial", bankSplits(initialBanks, initial, "cuota inicial"))
+            }
             put("item", JsonPrimitive(number(item, "Orden")))
             put("utilidad", JsonPrimitive(number(profit, "Utilidad")))
             put("adicionalNumero", additionalNumber)

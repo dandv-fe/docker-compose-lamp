@@ -24,7 +24,8 @@ const bankSplits = z.array(z.object({
 const creditFields = {
   idtarjeta: z.string().min(1).max(50), idcliente: z.number().int(), idventa: z.number().int().nullable().optional(),
   concepto: text(30), valor: number, modo: z.enum(['Diario', 'Semanal', 'Quincenal', 'Mensual']),
-  plazo: z.number().int(), prestamo: number, descripcion: z.string().max(65_535), cuotaInicial: number.optional(),
+  plazo: z.number().int(), prestamo: number, descripcion: z.string().max(65_535),
+  cuotaInicial: number.optional(), cuotaInicialId: text(50).optional(), bancosInicial: bankSplits,
   item: number, utilidad: number, adicionalNumero: text(11), adicionalValor: number,
   tipoComprobante: text(30), serie: text(11), numero: text(11), nota: z.string().max(65_535),
   obligacion: nullableText(11), detalleDocumentoSucursalId: z.number().int(),

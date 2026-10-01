@@ -2,6 +2,7 @@ package com.backendcreditos.mobile
 
 import com.backendcreditos.mobile.data.BankAccountEntity
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class PaymentMethodPickerTest {
@@ -25,5 +26,32 @@ class PaymentMethodPickerTest {
         assertEquals(0.0, PaymentMethodDraft(bankId = 3, bankAmount = "40").cashChange("100"), 0.0001)
         assertEquals(20.0, PaymentMethodDraft(bankId = 3, bankAmount = "120").cashChange("100"), 0.0001)
         assertEquals(0.0, PaymentMethodDraft().cashChange("100"), 0.0001)
+    }
+
+    @Test
+    fun creditFundingRequiresExplicitCashOrAuthorizedOriginAccount() {
+        val banks = listOf(BankAccountEntity("a", "1", 3, "Banco", "ahorros", "123", "Ana", "123"))
+        assertThrows(IllegalArgumentException::class.java) {
+            PaymentMethodDraft().requireCreditFunding(banks)
+        }
+
+        PaymentMethodDraft(edited = true).requireCreditFunding(emptyList())
+        PaymentMethodDraft(bankId = 3, edited = true).requireCreditFunding(banks)
+        assertThrows(IllegalArgumentException::class.java) {
+            PaymentMethodDraft(bankId = 4, edited = true).requireCreditFunding(banks)
+        }
+    }
+
+    @Test
+    fun initialPaymentRequiresExplicitCollectorOrAuthorizedReceivingAccount() {
+        val banks = listOf(BankAccountEntity("a", "1", 3, "Banco", "ahorros", "123", "Ana", "123"))
+        assertThrows(IllegalArgumentException::class.java) {
+            PaymentMethodDraft().requireInitialPaymentSource(banks)
+        }
+        PaymentMethodDraft(edited = true).requireInitialPaymentSource(emptyList())
+        PaymentMethodDraft(bankId = 3, edited = true).requireInitialPaymentSource(banks)
+        assertThrows(IllegalArgumentException::class.java) {
+            PaymentMethodDraft(bankId = 4, edited = true).requireInitialPaymentSource(banks)
+        }
     }
 }
