@@ -103,6 +103,23 @@
               </div>
             </div>
           </div>
+          <div id="divMetodoCuotaInicial" class="hide mx-2 mb-2 p-2 border rounded text-left">
+            <label for="cboBancoPagoInicial" class="small font-weight-bold mb-1">Recepción de cuota inicial *</label>
+            <select id="cboBancoPagoInicial" name="cboBancoPagoInicial" class="form-control form-control-sm">
+              <option value="">Seleccione efectivo o cuenta bancaria</option>
+              <option value="0">Efectivo (lo tiene quien registra)</option>
+            </select>
+            <div class="divDetallePagoBancoInicial hide row mt-2">
+              <div class="col-12 col-sm-6 mb-2 mb-sm-0">
+                <label for="txtValorBancoPagoInicial" class="small mb-1">Valor recibido en banco (vacío = toda la inicial)</label>
+                <input id="txtValorBancoPagoInicial" type="number" step="0.01" min="0" name="txtValorBancoPagoInicial" class="form-control form-control-sm" />
+              </div>
+              <div class="col-12 col-sm-6">
+                <label for="txtReferenciaBancoPagoInicial" class="small mb-1">Referencia (opcional)</label>
+                <input id="txtReferenciaBancoPagoInicial" type="text" maxlength="50" name="txtReferenciaBancoPagoInicial" class="form-control form-control-sm" />
+              </div>
+            </div>
+          </div>
           <div class="row">
             <div class="col pr-0">
 
@@ -151,11 +168,11 @@
             </div>
           </div>
 
-          <div id="divPagoBancoCredito" class="row hide">
+          <div id="divPagoBancoCredito" class="row">
             <div class="col pr-0">
               <div class="divForNuevoCredito">
                 <label class="labelForNuevoCredito" for="cboBancoPagoCredito">
-                  <span class="spanForNuevoCredito top badge-success">Método de pago</span>
+                  <span class="spanForNuevoCredito top badge-success">Entrega del crédito</span>
                   <select id="cboBancoPagoCredito" name="cboBancoPagoCredito" class="form-control inputForNuevoCredito">
                     <option value="0">Efectivo</option>
                   </select>
@@ -165,7 +182,7 @@
             <div class="col px-1 divDetallePagoBancoCredito hide">
               <div class="divForNuevoCredito">
                 <label class="labelForNuevoCredito" for="txtValorBancoPagoCredito">
-                  <span class="spanForNuevoCredito top badge-success">¿Cuánto del costo salió del banco?</span>
+                  <span class="spanForNuevoCredito top badge-success">Importe consignado desde esta cuenta</span>
                   <input id="txtValorBancoPagoCredito" type="number" step="0.01" min="0" maxlength="12" name="txtValorBancoPagoCredito" class="form-control inputForNuevoCredito" />
                 </label>
               </div>
@@ -286,6 +303,7 @@
         $("#divDescipcionArticuloInicial").hide();
         $(".divSeguroFormNuevoCredito").show();
       }
+      $("#txtCuotaInicial").trigger('input');
 
 
       //resetStyleFormNuevoPrestamo()
@@ -307,6 +325,7 @@
       $("#formSaveNewCredit button").attr('disabled', false);
       $('#formSaveNewCredit').trigger("reset");
       $("#cboBancoPagoCredito").val('0').trigger('change');
+      $("#txtCuotaInicial").trigger('input');
     })
 
   });

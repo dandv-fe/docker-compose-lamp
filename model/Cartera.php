@@ -1,5 +1,5 @@
 <?php
-require "Conexion.php";
+require_once "Conexion.php";
 require_once "AutorizarDespachoCartera.php";
 
 class ClassCartera
@@ -8,6 +8,229 @@ class ClassCartera
 
     public function __construct()
     {
+    }
+
+    public function cajaBolsilloRuta(int $idglobal, int $idsucursal, int $idusuario = 0, ?int $iddetalleruta = null): array
+    {
+        global $conexion;
+        $ruta = db_fetch_object(
+            $conexion,
+            "SELECT iddetalleruta FROM tbl_detalle_ruta
+             WHERE idglobal=? AND idsucursal=? AND str_estado<>'saved'
+               AND (? IS NULL OR iddetalleruta=?)
+             ORDER BY created_at DESC LIMIT 1",
+            'iiii',
+            [$idglobal, $idsucursal, $iddetalleruta, $iddetalleruta]
+        );
+        if (!$ruta) {
+            return ['ruta' => null, 'totales' => null, 'movimientos' => [], 'otrosAutores' => []];
+        }
+
+        $idRuta = (int)$ruta->iddetalleruta;
+        $totales = [
+            'base' => 0.0, 'recaudo' => 0.0, 'recaudoBanco' => 0.0,
+            'cuotas' => 0.0, 'inicial' => 0.0, 'cancelado' => 0.0,
+            'cuotasBanco' => 0.0, 'inicialBanco' => 0.0, 'canceladoBanco' => 0.0,
+            'seguros' => 0.0, 'otro' => 0.0, 'gastos' => 0.0,
+            'creditos' => 0.0, 'creditosBanco' => 0.0,
+            'prestamoBanco' => 0.0, 'articuloBanco' => 0.0
+        ];
+        $movimientos = [];
+        $usuario = $idusuario > 0 ? db_fetch_object(
+            $conexion,
+            "SELECT u.idpersona
+             FROM tbl_usuario u
+             WHERE u.idusuario=? AND u.idglobal=? LIMIT 1",
+            'ii', [$idusuario, $idglobal]
+        ) : null;
+        $idPersona = (int)($usuario->idpersona ?? 0);
+
+        $pagosAbono = [];
+        $stmt = db_prepare_execute(
+            $conexion,
+            "SELECT dp.iddescripcion AS id, dp.dec_valor AS valor, b.str_banco AS banco,
+                    b.str_num_cueneta AS numero
+             FROM tbl_descripcion_pago dp
+             JOIN tbl_descripcion d ON d.iddescripcion=dp.iddescripcion AND d.idglobal=dp.idglobal
+             JOIN tbl_banco b ON b.idbanco=dp.idbanco AND b.idglobal=dp.idglobal
+             WHERE d.iddetalleruta=? AND d.idglobal=?",
+            'ii', [$idRuta, $idglobal]
+        );
+        foreach ($stmt->get_result() as $pago) {
+            $pagosAbono[$pago['id']][] = ['valor' => (float)$pago['valor'],
+                'cuenta' => $pago['banco'] . ' · ' . $pago['numero']];
+        }
+        $stmt->close();
+
+        $stmt = db_prepare_execute(
+            $conexion,
+            "SELECT d.iddescripcion AS id, d.dec_abono AS valor, d.str_descripcion AS descripcion,
+                    d.created_at AS fecha, CONCAT_WS(' ', p.str_nombres, p.str_apellidos) AS persona,
+                    d.idusuario AS autorId, u.idpersona AS autorPersona,
+                    CONCAT_WS(' ', ap.str_nombres, ap.str_apellidos) AS autor,
+                    COALESCE((SELECT SUM(dp.dec_valor) FROM tbl_descripcion_pago dp
+                              WHERE dp.iddescripcion=d.iddescripcion AND dp.idglobal=d.idglobal), 0) AS banco
+             FROM tbl_descripcion d
+             JOIN tbl_tarjetas t ON t.idtarjeta=d.idtarjeta AND t.idglobal=d.idglobal
+             JOIN tbl_clientes c ON c.idcliente=t.idcliente AND c.idglobal=t.idglobal
+             JOIN tbl_persona p ON p.idpersona=c.idpersona AND p.idglobal=c.idglobal
+             LEFT JOIN tbl_usuario u ON u.idusuario=d.idusuario AND u.idglobal=d.idglobal
+             LEFT JOIN tbl_persona ap ON ap.idpersona=u.idpersona AND ap.idglobal=u.idglobal
+             WHERE d.iddetalleruta=? AND d.idglobal=?
+             ORDER BY d.created_at, d.iddescripcion",
+            'ii', [$idRuta, $idglobal]
+        );
+        foreach ($stmt->get_result() as $row) {
+            $valor = -(float)$row['valor'];
+            $banco = (float)$row['banco'];
+            $cuenta = preg_match('/^(Abono|Inicial|Cancelado)/i', (string)$row['descripcion']) === 1;
+            if ($cuenta) {
+                $totales['recaudo'] += $valor;
+                $totales['recaudoBanco'] += $banco;
+                $categoria = preg_match('/^Abono/i', (string)$row['descripcion']) ? 'cuotas'
+                    : (preg_match('/^Inicial/i', (string)$row['descripcion']) ? 'inicial' : 'cancelado');
+                $totales[$categoria] += $valor;
+                $totales[$categoria . 'Banco'] += $banco;
+            }
+            $movimientos[] = [
+                'tipo' => $cuenta ? 'Abono' : 'Informativo',
+                'nombre' => trim((string)$row['descripcion'] . ' · ' . $row['persona']),
+                'detalle' => $cuenta ? '' : 'No mueve efectivo',
+                'fecha' => $row['fecha'], 'valor' => $valor, 'banco' => $banco,
+                'efectivo' => $cuenta ? $valor - $banco : 0.0, 'cuenta' => $cuenta,
+                'pagosBanco' => $pagosAbono[$row['id']] ?? [],
+                'autor' => trim((string)$row['autor']) ?: 'Sin identificar (cobros antiguos)',
+                'autorPersona' => $row['autorPersona'],
+                'autorEstado' => !$row['autorPersona'] ? 'desconocido'
+                    : ((int)$row['autorPersona'] === $idPersona ? 'propio' : 'otro')
+            ];
+        }
+        $stmt->close();
+
+        $pagosCredito = [];
+        $stmt = db_prepare_execute(
+            $conexion,
+            "SELECT tp.idtarjeta AS id, tp.dec_valor AS valor, b.str_banco AS banco,
+                    b.str_num_cueneta AS numero
+             FROM tbl_tarjeta_pago tp
+             JOIN tbl_tarjetas t ON t.idtarjeta=tp.idtarjeta AND t.idglobal=tp.idglobal
+             JOIN tbl_banco b ON b.idbanco=tp.idbanco AND b.idglobal=tp.idglobal
+             WHERE t.iddetalleruta=? AND t.idglobal=?",
+            'ii', [$idRuta, $idglobal]
+        );
+        foreach ($stmt->get_result() as $pago) {
+            $pagosCredito[$pago['id']][] = ['valor' => (float)$pago['valor'],
+                'cuenta' => $pago['banco'] . ' · ' . $pago['numero']];
+        }
+        $stmt->close();
+
+        $stmt = db_prepare_execute(
+            $conexion,
+            "SELECT t.idtarjeta AS id, t.dec_prestamo AS prestamo, t.dec_c_adicional_valor AS adicional,
+                    t.str_concepto AS concepto, t.created_at AS fecha,
+                    t.created_empleado_id AS autorId, e.idpersona AS autorPersona,
+                    CONCAT_WS(' ', ap.str_nombres, ap.str_apellidos) AS autor,
+                    CONCAT_WS(' ', p.str_nombres, p.str_apellidos) AS persona,
+                    COALESCE((SELECT SUM(tp.dec_valor) FROM tbl_tarjeta_pago tp
+                              WHERE tp.idtarjeta=t.idtarjeta AND tp.idglobal=t.idglobal), 0) AS banco
+             FROM tbl_tarjetas t
+             JOIN tbl_clientes c ON c.idcliente=t.idcliente AND c.idglobal=t.idglobal
+             JOIN tbl_persona p ON p.idpersona=c.idpersona AND p.idglobal=c.idglobal
+             LEFT JOIN tbl_empleado e ON e.idempleado=t.created_empleado_id AND e.idglobal=t.idglobal
+             LEFT JOIN tbl_persona ap ON ap.idpersona=e.idpersona AND ap.idglobal=e.idglobal
+             WHERE t.iddetalleruta=? AND t.idglobal=?
+             ORDER BY t.created_at, t.idtarjeta",
+            'ii', [$idRuta, $idglobal]
+        );
+        foreach ($stmt->get_result() as $row) {
+            $prestamo = (float)$row['prestamo'];
+            $adicional = (float)$row['adicional'];
+            $banco = (float)$row['banco'];
+            $esCredito = in_array($row['concepto'], ['Prestamo', 'Articulo'], true);
+            if ($esCredito) {
+                $totales['creditos'] += $prestamo;
+                $totales['creditosBanco'] += $banco;
+                $totales[$row['concepto'] === 'Prestamo' ? 'prestamoBanco' : 'articuloBanco'] += $banco;
+            }
+            $totales['otro'] += $adicional;
+            $totales['seguros'] += $adicional;
+            $movimientos[] = [
+                'tipo' => $esCredito ? 'Crédito' : 'Informativo',
+                'nombre' => trim((string)$row['concepto'] . ' · ' . $row['persona']),
+                'detalle' => $adicional ? "Cobro adicional: $adicional" : '',
+                'fecha' => $row['fecha'], 'valor' => ($esCredito ? -$prestamo : 0) + $adicional,
+                'desembolso' => $esCredito ? $prestamo : 0.0,
+                'banco' => $banco, 'efectivo' => ($esCredito ? -$prestamo + $banco : 0) + $adicional,
+                'cuenta' => $esCredito || $adicional != 0,
+                'pagosBanco' => $pagosCredito[$row['id']] ?? [],
+                'autor' => trim((string)$row['autor']) ?: 'Sin identificar',
+                'autorPersona' => $row['autorPersona'],
+                'autorEstado' => !$row['autorPersona'] ? 'desconocido'
+                    : ((int)$row['autorPersona'] === $idPersona ? 'propio' : 'otro')
+            ];
+        }
+        $stmt->close();
+
+        $stmt = db_prepare_execute(
+            $conexion,
+            "SELECT dc.dec_total AS valor, dc.str_nombre AS nombre, dc.str_detalle AS detalle,
+                    dc.str_operacion AS operacion, dc.idtipo_contabilidad AS categoria, dc.created_at AS fecha,
+                    e.idpersona AS autorPersona,
+                    CONCAT_WS(' ', ap.str_nombres, ap.str_apellidos) AS autor
+             FROM tbl_contabilidad_detalle dc
+             LEFT JOIN tbl_empleado e ON e.idempleado=dc.created_empleado_id AND e.idglobal=dc.idglobal
+             LEFT JOIN tbl_persona ap ON ap.idpersona=e.idpersona AND ap.idglobal=e.idglobal
+             WHERE dc.iddetalleruta=? AND dc.idglobal=?
+               AND dc.str_nombre NOT IN ('efectivo','efectivoMonedas','diferencia','recaudo')
+             ORDER BY dc.created_at, dc.idcontabilidad_detalle",
+            'ii', [$idRuta, $idglobal]
+        );
+        foreach ($stmt->get_result() as $row) {
+            $valor = (float)$row['valor'];
+            $esBase = $row['nombre'] === 'base';
+            $esEntrada = strpos((string)$row['operacion'], 'entrada-') === 0
+                && !in_array($row['nombre'], ['recaudo', 'diferencia'], true);
+            $esGasto = strpos((string)$row['operacion'], 'salida-') === 0
+                && (int)$row['categoria'] !== 4;
+            if ($esBase) $totales['base'] += $valor;
+            if ($esEntrada) $totales['otro'] += $valor;
+            if ($esGasto) $totales['gastos'] -= $valor;
+            $cuenta = $esBase || $esEntrada || $esGasto;
+            $movimientos[] = [
+                'tipo' => $esBase ? 'Base' : ($esGasto ? 'Gasto' : ($esEntrada ? 'Otro recaudo' : 'Informativo')),
+                'nombre' => $esBase ? 'Base recibida' : $row['nombre'],
+                'detalle' => trim((string)$row['detalle'] . ($cuenta ? '' : ' · No entra en la caja')),
+                'fecha' => $row['fecha'], 'valor' => $valor, 'banco' => 0.0,
+                'efectivo' => ($esBase ? $valor : 0) + ($esEntrada ? $valor : 0)
+                    + ($esGasto ? $valor : 0),                     'cuenta' => $cuenta,
+                    'autor' => trim((string)$row['autor']) ?: 'Sin identificar',
+                    'autorPersona' => $row['autorPersona'],
+                    'autorEstado' => !$row['autorPersona'] ? 'desconocido'
+                        : ((int)$row['autorPersona'] === $idPersona ? 'propio' : 'otro')
+            ];
+        }
+        $stmt->close();
+
+        usort($movimientos, function ($a, $b) {
+            return strcmp((string)$a['fecha'], (string)$b['fecha']);
+        });
+        $otrosAutores = [];
+        foreach ($movimientos as $movimiento) {
+            if (!$movimiento['cuenta'] || $movimiento['autorEstado'] === 'propio'
+                || abs($movimiento['efectivo']) < 0.005) continue;
+            $clave = $movimiento['autorPersona'] ? 'persona-' . $movimiento['autorPersona'] : 'desconocido';
+            if (!isset($otrosAutores[$clave])) {
+                $otrosAutores[$clave] = ['nombre' => $movimiento['autor'], 'efectivo' => 0.0];
+            }
+            $otrosAutores[$clave]['efectivo'] += $movimiento['efectivo'];
+        }
+        $totales['efectivo'] = round(
+            $totales['base'] + $totales['recaudo'] - $totales['recaudoBanco']
+            + $totales['otro'] - $totales['gastos'] - $totales['creditos']
+            + $totales['creditosBanco'], 2
+        );
+        return ['ruta' => $idRuta, 'totales' => $totales, 'movimientos' => $movimientos,
+            'otrosAutores' => array_values($otrosAutores)];
     }
 
     public function Registrar(
@@ -35,7 +258,8 @@ class ClassCartera
         $obligacion,
         $iddetalle_documento_socursal,
         int $idusuario,
-        array $pagosBanco = array()
+        array $pagosBanco = array(),
+        array $pagosBancoInicial = array()
 
     ) {
         global $conexion;
@@ -47,6 +271,10 @@ class ClassCartera
         $errorMensaje = '';
 
         try {
+            if ($cutaInicial < 0 || $cutaInicial > $valor ||
+                ($cutaInicial == 0 && count($pagosBancoInicial) > 0)) {
+                throw new Exception('ERROR: La cuota inicial debe estar entre cero y el valor a pagar');
+            }
             $sql = "SELECT 
             dec_max_credito AS max_credito,
             str_estado AS estadoCliente, 
@@ -157,6 +385,8 @@ class ClassCartera
             )
 				VALUES ('$iddescripcion',$idglobal, $idsucursal, '$idtarjeta', $iddetalleruta, $cutaInicial*-1, 'Inicial', 'created', $idusuario, 'web','$dt','$dt')";
                 $conexion->query($sql) or throw new Exception('error!');
+                $this->guardarPagosBanco('tbl_descripcion_pago', 'iddescripcion', $iddescripcion, $idglobal,
+                    $idsucursal, $idusuario, $pagosBancoInicial, $cutaInicial);
                 $resta = $valor - $cutaInicial;
                 $sql = "UPDATE tbl_tarjetas SET dec_resta=$resta WHERE idtarjeta='$idtarjeta'";
                 $conexion->query($sql) or throw new Exception("error!");

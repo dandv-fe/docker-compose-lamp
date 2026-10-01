@@ -1,5 +1,36 @@
 Para mejorar  la contabilidad de las carteras de prestamos
 
+## Caja de bolsillo en cartera
+
+En la cabecera de `cartera.php`, una línea compacta muestra el efectivo esperado:
+0 + base + recaudo + otros ingresos (incluidos seguros) - recaudo bancario
+- gastos - créditos entregados en efectivo. La línea se desplaza horizontalmente
+en pantallas estrechas, sin ocupar varias filas. En **Cuentas**, al final,
+el detalle siempre visible agrupa recaudos, créditos, bases, gastos y otros
+movimientos por empleado y muestra cuánto fue en efectivo o por banco y
+la cuenta bancaria utilizada. Los ajustes informativos no entran en la caja.
+Advierte si otro empleado recibió efectivo que todavía debe entregar; los
+registros antiguos sin autor se identifican como tales. El recuadro de Recaudo
+desglosa cuotas, inicial y cancelaciones cobradas por banco, y muestra los
+abonos que quedan en efectivo. Al abrir o volver a totalizar Cuentas se
+consultan de nuevo las cifras; tanto la diferencia presentada como la que
+verifica el servidor descuentan lo recibido por banco y agregan los créditos
+pagados desde el banco. Si no existe ruta abierta o falla la consulta,
+no se muestra un importe cero como si fuera una cifra verificada.
+Los datos provienen del servidor para la sucursal seleccionada en la sesión;
+los permisos para entregar cuentas no cambian.
+Al guardar permanentemente la ruta, se contabiliza solo la parte en efectivo
+de los recaudos y créditos; los importes bancarios se conservan como información
+sin totalizar, sin cambiar registros históricos.
+Al crear un crédito se elige efectivo o consignación desde una cuenta autorizada
+para la sucursal; se permite consignar todo o parte del costo y se conserva la
+cuenta de origen con el desembolso.
+Si un artículo lleva cuota inicial, el importe sigue calculando las cuotas y
+se debe indicar además si lo recibió en efectivo quien registra la tarjeta o
+cuánto entró en una cuenta autorizada. La cuenta receptora es independiente de
+la cuenta desde la que se entregó el crédito; el movimiento Inicial conserva
+el empleado registrador y solo la parte en efectivo entra en su caja.
+
 ## Autor y origen de abonos en cartera
 
 Antes de desplegar cambios en `model/Cartera.php`, respaldar `tbl_descripcion`
@@ -12,6 +43,11 @@ en éstos ambos datos permanecen sin registrar.
 Los nuevos abonos, cuotas iniciales y ajustes de cartera web guardan el
 `idusuario` de la sesión y origen `web`. La tarjeta muestra el último registro,
 su descripción, origen, usuario, estado y que está guardado en el servidor.
+Al registrar un abono en Cartera, Enter después del importe pide elegir
+explícitamente efectivo o una cuenta receptora antes de confirmar el saldo.
+Efectivo sigue disponible aunque no haya cuentas autorizadas; si se elige
+banco, el valor bancario vacío indica el abono completo y un valor menor
+permite pago mixto. Cada abono nuevo vuelve a pedir el medio de pago.
 `created`/`saved` indica el estado del abono, no una sincronización pendiente
 del navegador. La web y la API de la APK apuntan localmente a la misma base
 `websdnco_db_webgoez`; compruebe `DB_NAME` o la configuración privada si

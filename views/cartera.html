@@ -15,7 +15,7 @@
 <script src="plugins/jquery-ui/jquery-ui.min.js"></script>
 <script src="plugins/moment/moment.min.js"></script>
 <script src="plugins/moment/locale/es.js"></script>
-<script type="text/javascript" src="dist/scripts/Cartera.js?v=<?php echo $infoSistemaCuentas['version']; ?>-autor-registro"></script>
+<script type="text/javascript" src="dist/scripts/Cartera.js?v=<?php echo $infoSistemaCuentas['version']; ?>-cuota-inicial"></script>
 
 
 <style>
@@ -212,8 +212,6 @@ include "views/partials/modalNuevaContabilidad.html";
         </nav>
       </div>
 
-
-
       <div id="verMenus" class="row">
         <div class="col-md-12">
           <div class="card card-widget mb-0">
@@ -299,6 +297,9 @@ include "views/partials/modalNuevaContabilidad.html";
               </div>
               <!-- /.card-header -->
             </div>
+          </div>
+          <div id="resumenCajaCartera" class="small px-2 py-1 border-bottom" style="overflow-x:auto; white-space:nowrap" title="Efectivo esperado en la ruta" aria-live="polite">
+            Caja: Cargando…
           </div>
         </div>
       </div>
@@ -448,6 +449,27 @@ include "views/partials/modalNuevaContabilidad.html";
                   </div>
 
                   <div id="styloResta" class="card card-outline card-primary m-0">
+                    <div id="divPagoBancoAbono" class="row m-1">
+                      <div class="col-12 col-md-4 px-1">
+                        <label for="cboBancoPagoAbono" class="small mb-0">Medio de pago del abono *</label>
+                        <select id="cboBancoPagoAbono" name="cboBancoPagoAbono" form="formAddAbonoConfirma" class="form-control form-control-sm" required>
+                          <option value="">Seleccione el medio de pago</option>
+                          <option value="0">Efectivo</option>
+                        </select>
+                      </div>
+                      <div class="col-12 col-md-4 px-1 divDetallePagoBancoAbono hide">
+                        <input id="txtValorBancoPagoAbono" name="txtValorBancoPagoAbono" form="formAddAbonoConfirma" type="number" step="0.01" min="0" class="form-control form-control-sm" placeholder="¿Cuánto entró por banco?" />
+                      </div>
+                      <div class="col-12 col-md-4 px-1 divDetallePagoBancoAbono hide">
+                        <input id="txtReferenciaBancoPagoAbono" name="txtReferenciaBancoPagoAbono" form="formAddAbonoConfirma" type="text" maxlength="50" class="form-control form-control-sm" placeholder="Referencia (opcional)" />
+                      </div>
+                      <div id="divVueltoBancoAbono" class="col-12 px-1 hide">
+                        <label class="text-danger small mb-0">
+                          <input id="chkVueltoBancoAbono" type="checkbox" /> Le devuelvo <span id="txtVueltoBancoAbonoTexto">0</span> en efectivo
+                        </label>
+                      </div>
+                      <input id="txtVueltoBancoPagoAbono" name="txtVueltoBancoPagoAbono" form="formAddAbonoConfirma" type="hidden" value="0" />
+                    </div>
                     <div class="Heading">
                       <div class="Cell derecha">
                         <button onclick="ditetion('back')" type="button" class="btn btn-block btn-default">
@@ -478,25 +500,6 @@ include "views/partials/modalNuevaContabilidad.html";
                             style="color: #055df5"></i>
                         </button>
                       </div>
-                    </div>
-                    <div id="divPagoBancoAbono" class="row m-1 hide">
-                      <div class="col-md-4 px-1">
-                        <select id="cboBancoPagoAbono" name="cboBancoPagoAbono" form="formAddAbonoConfirma" class="form-control form-control-sm">
-                          <option value="0">Efectivo</option>
-                        </select>
-                      </div>
-                      <div class="col-md-4 px-1 divDetallePagoBancoAbono hide">
-                        <input id="txtValorBancoPagoAbono" name="txtValorBancoPagoAbono" form="formAddAbonoConfirma" type="number" step="0.01" min="0" class="form-control form-control-sm" placeholder="¿Cuánto entró por banco?" />
-                      </div>
-                      <div class="col-md-4 px-1 divDetallePagoBancoAbono hide">
-                        <input id="txtReferenciaBancoPagoAbono" name="txtReferenciaBancoPagoAbono" form="formAddAbonoConfirma" type="text" maxlength="50" class="form-control form-control-sm" placeholder="Referencia (opcional)" />
-                      </div>
-                      <div id="divVueltoBancoAbono" class="col-12 px-1 hide">
-                        <label class="text-danger small mb-0">
-                          <input id="chkVueltoBancoAbono" type="checkbox" /> Le devuelvo <span id="txtVueltoBancoAbonoTexto">0</span> en efectivo
-                        </label>
-                      </div>
-                      <input id="txtVueltoBancoPagoAbono" name="txtVueltoBancoPagoAbono" form="formAddAbonoConfirma" type="hidden" value="0" />
                     </div>
                     <div id="loadinSavedAdd" class="overlay">
                       <i class="fa-solid fa-rotate fa-spin fa-2xl"></i>
@@ -1163,7 +1166,7 @@ include "views/partials/modalNuevaContabilidad.html";
   <?php  include "views/partials/modalSearchPersona.html"; ?>
   <?php  include "views/partials/modalAlertasCliente.html"; ?>
   <script type="text/javascript"
-    src="dist/scripts/NuevoCredito.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+    src="dist/scripts/NuevoCredito.js?v=<?php echo $infoSistemaCuentas['version']; ?>-cuota-inicial"></script>
 
   <?php 
   include "views/partials/modalNuevoCredito.html"; 

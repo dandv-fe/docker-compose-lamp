@@ -18,6 +18,7 @@
     /* Lowering the shadow */
   }
 </style>
+<script type="text/javascript" src="dist/scripts/partes/cajaRuta.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
 <script type="text/javascript" src="dist/scripts/partes/detalleCobro.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
 <input type="hidden" name="txtrefSucursalContabiliddHidden" id="txtrefSucursalContabiliddHidden">
 <div class="row">
@@ -419,6 +420,13 @@
 
   </div>
 </div>
+
+<section id="cajaBolsilloDetalle" class="border-top mt-2 py-2" aria-live="polite">
+  <h5 class="mb-1">Movimientos de la ruta · Caja <strong id="cajaBolsilloTotal">Cargando…</strong></h5>
+  <div id="cajaBolsilloFormula" class="small text-muted"></div>
+  <div id="cajaBolsilloOtros" class="small"></div>
+  <div id="cajaBolsilloMovimientos"></div>
+</section>
 
 <script>
   $(function () {

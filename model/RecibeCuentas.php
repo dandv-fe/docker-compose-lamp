@@ -1,6 +1,7 @@
 <?php
 require "Conexion.php";
 require_once "AutorizarDespachoCartera.php";
+require_once __DIR__ . "/Cartera.php";
 
 class RecibeCuentas
 {
@@ -42,6 +43,36 @@ class RecibeCuentas
          $sql = "SELECT refDetalle_ruta, refGlobal, refSucursal, valorTotalCreditos, cantidadTotalRecaudos, masUtilidad, descuento, recaudo, prestamo, articulo, efectivoOtraUtilidad, estado FROM view_contabilidad_detalle_ruta WHERE refDetalle_ruta=$iddetalleruta AND estado='entregando'";
          $querySelecAbono = $conexion->query($sql);
          $res = $querySelecAbono->fetch_object();
+         if (!$res) {
+            throw new Exception('Ruta no disponible para guardar');
+         }
+         $caja = (new ClassCartera())->cajaBolsilloRuta((int)$res->refGlobal, (int)$res->refSucursal, 0, (int)$iddetalleruta);
+         if (!$caja['totales']) {
+            throw new Exception('No se pudo calcular la caja de la ruta');
+         }
+         $prestamoEfectivo = round((float)$res->prestamo - $caja['totales']['prestamoBanco'], 2);
+         $articuloEfectivo = round((float)$res->articulo - $caja['totales']['articuloBanco'], 2);
+         $recaudoEfectivo = round((float)$res->recaudo - $caja['totales']['recaudoBanco'], 2);
+         foreach ([
+            'recaudo-banco' => $caja['totales']['recaudoBanco'],
+            'prestamos-banco' => $caja['totales']['prestamoBanco'],
+            'articulos-banco' => $caja['totales']['articuloBanco']
+         ] as $nombre => $importe) {
+            if ($importe == 0) {
+               continue;
+            }
+            $idcontabilidad_detalle = uniqidReal();
+            $sql = "INSERT INTO tbl_contabilidad_detalle (
+               idcontabilidad_detalle, idglobal, idsucursal, idtipo_contabilidad, iddetalleruta,
+               dec_total, str_detalle, str_nombre, str_estado, str_operacion,
+               created_empleado_id, created_at, update_at
+            ) VALUES (
+               '$idcontabilidad_detalle', $res->refGlobal, $res->refSucursal, 8, $iddetalleruta,
+               $importe, 'no totaliza', '$nombre', 'saved', 'info-totalizar',
+               $created_empleado_id, '$fecha', '$fecha'
+            )";
+            $conexion->query($sql) or throw new Exception('error!');
+         }
 
 
 
@@ -127,7 +158,7 @@ class RecibeCuentas
             $conexion->query($sql) or throw new Exception('error!');
          }
 
-         if ($res->prestamo > 0) {
+         if ($prestamoEfectivo != 0) {
             // el valor costo que se realisan en consepto de Prestamo
             $idcontabilidad_detalle = uniqidReal();
             $sql = "INSERT INTO tbl_contabilidad_detalle (idcontabilidad_detalle,
@@ -142,11 +173,11 @@ class RecibeCuentas
 					update_at
 					)
 					VALUES ('$idcontabilidad_detalle',$res->refGlobal, $res->refSucursal, 4, $iddetalleruta,
-					$res->prestamo*-1, '', 'prestamos', 'saved', 
+					$prestamoEfectivo*-1, '', 'prestamos', 'saved',
 					'salida-totalizar', $created_empleado_id, '$fecha','$fecha' )";
             $conexion->query($sql) or throw new Exception('error!');
          }
-         if ($res->articulo > 0) {
+         if ($articuloEfectivo != 0) {
             // el valor costo que se realisan en consepto de Articulo
             $idcontabilidad_detalle = uniqidReal();
             $sql = "INSERT INTO tbl_contabilidad_detalle (idcontabilidad_detalle,
@@ -161,11 +192,11 @@ class RecibeCuentas
 					update_at
 					)
 					VALUES ('$idcontabilidad_detalle',$res->refGlobal, $res->refSucursal, 4, $iddetalleruta,
-					$res->articulo*-1, '', 'articulos', 'saved', 
+					$articuloEfectivo*-1, '', 'articulos', 'saved',
 					'salida-totalizar', $created_empleado_id, '$fecha','$fecha' )";
             $conexion->query($sql) or throw new Exception('error!');
          }
-         if ($res->recaudo > 0) {
+         if ($recaudoEfectivo != 0) {
             // el valor del recaudo o cobrado
             $idcontabilidad_detalle = uniqidReal();
             $sql = "INSERT INTO tbl_contabilidad_detalle (idcontabilidad_detalle,
@@ -180,7 +211,7 @@ class RecibeCuentas
 					update_at
 					)
 					VALUES ('$idcontabilidad_detalle',$res->refGlobal, $res->refSucursal, 7, $iddetalleruta,
-					$res->recaudo, '', 'recaudo', 'saved', 
+					$recaudoEfectivo, '', 'recaudo', 'saved',
 					'entrada-totalizar', $created_empleado_id, '$fecha','$fecha' )";
             $conexion->query($sql) or throw new Exception('error!');
          }
@@ -260,20 +291,24 @@ class RecibeCuentas
 			FROM view_contabilidad_detalle_ruta WHERE refDetalle_ruta=$iddetalleruta"; //, efectivo, efectivoMonedas, diferencia
          $querySelecAbono = $conexion->query($sql);
          $res = $querySelecAbono->fetch_object();
+         if (!$res || $res->estado !== 'created') {
+            $conexion->rollback();
+            $conexion->autocommit(true);
+            echo "ERROR: No hay una ruta abierta para entregar";
+            return;
+         }
          $idsucursal = intval($res->refSucursal);
 
-         // La base ya no se escribe aquí: se anota durante el día (una o varias veces) y esta
-         // pantalla solo la informa. Se usa la suma guardada para verificar la diferencia.
-         $base = floatval($res->base);
-
-         $diferenciaVerificada =
-            $res->creditos +
-            ($res->gastos * -1) +
-            $efectivoMoneda +
-            $efectivo -
-            $base -
-            $res->recaudo -
-            $res->efectivoOtraUtilidad;
+         $caja = (new ClassCartera())->cajaBolsilloRuta(
+            (int)$res->refGlobal, $idsucursal, (int)($_SESSION['idusuario'] ?? 0)
+         );
+         if ($caja['ruta'] !== (int)$iddetalleruta || $caja['totales'] === null) {
+            $conexion->rollback();
+            $conexion->autocommit(true);
+            echo "ERROR: La ruta cambió; vuelve a totalizar";
+            return;
+         }
+         $diferenciaVerificada = round($efectivoMoneda + $efectivo - $caja['totales']['efectivo'], 2);
 
 
          $sql = "SELECT
@@ -293,7 +328,9 @@ class RecibeCuentas
             return;
          }
 
-         if (empty($res->refDetalle_ruta) || $res->estado != "created" || $diferenciaVerificada != $diferencia) {
+         if (round($diferenciaVerificada * 100) !== round($diferencia * 100)) {
+            $conexion->rollback();
+            $conexion->autocommit(true);
             echo "ERROR: No registrado ";
             return;
          }

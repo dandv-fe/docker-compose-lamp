@@ -1,6 +1,15 @@
 <?php
 
 session_start();
+if (in_array(($_GET['op'] ?? ''), ['VerfCuentas', 'resumenCajaRuta'], true) &&
+    ((int)($_SESSION['idusuario'] ?? 0) <= 0 ||
+     (int)($_SESSION['idglobal'] ?? 0) <= 0 ||
+     (int)($_SESSION['idsucursal'] ?? 0) <= 0)) {
+   http_response_code(401);
+   header('Content-Type: application/json; charset=utf-8');
+   echo json_encode(['error' => 'Inicia sesión y selecciona una sucursal.']);
+   return;
+}
 require_once "../method.php";
 
 require_once "../model/Cartera.php";
@@ -38,7 +47,7 @@ function leerPagoBancoDesdePost($sufijo, $maximo)
 // Solo estas operaciones son de lectura; las demás requieren despacho.
 $accionesLectura = [
    'buscarCliente', 'getDiferencia', 'listarRuta', 'listarDescripcion',
-   'valid', 'VerfCuentas', 'listarTarjetasCanceladas', 'usercreated', 'listarBancosPago'
+   'valid', 'VerfCuentas', 'resumenCajaRuta', 'listarTarjetasCanceladas', 'usercreated', 'listarBancosPago'
 ];
 if (!in_array($_GET['op'] ?? '', $accionesLectura, true)) {
    $idsucursalDespacho = (int)($_SESSION['idsucursal'] ?? 0);
@@ -68,6 +77,10 @@ if (!in_array($_GET['op'] ?? '', $accionesLectura, true)) {
 
 switch ($_GET["op"]) {
 
+   case 'resumenCajaRuta':
+      $caja = $classCartera->cajaBolsilloRuta((int)$idglobal, (int)$_SESSION['idsucursal']);
+      echo json_encode(['ruta' => $caja['ruta'], 'totales' => $caja['totales']]);
+      break;
 
    case 'listarBancosPago':
       $queryBancoPago = $objBancoPago->ListarActivos($idglobal, intval($_SESSION['idsucursal'] ?? 0));
@@ -138,8 +151,21 @@ switch ($_GET["op"]) {
       }
 
       if (empty($idtarjeta)) {
+         if ($cutaInicial > 0 && !array_key_exists('cboBancoPagoInicial', $_POST)) {
+            echo "ERROR: Seleccione cómo recibió la cuota inicial";
+            break;
+         }
+         if ($cutaInicial > 0 && !ctype_digit((string)$_POST['cboBancoPagoInicial'])) {
+            echo "ERROR: Seleccione efectivo o la cuenta que recibió la cuota inicial";
+            break;
+         }
+         if ($cutaInicial <= 0 && !empty($_POST['cboBancoPagoInicial'])) {
+            echo "ERROR: No registre un banco sin cuota inicial";
+            break;
+         }
          $idtarjeta = uniqidReal();
          $pagoBancoCredito = leerPagoBancoDesdePost('Credito', $prestamo);
+         $pagoBancoInicial = $cutaInicial > 0 ? leerPagoBancoDesdePost('Inicial', $cutaInicial) : array();
          $classCartera->Registrar(
             $idtarjeta,
             $idglobal,
@@ -165,7 +191,8 @@ switch ($_GET["op"]) {
             $obligacion,
             $iddetalle_documento_socursal,
             $idusuario,
-            $pagoBancoCredito
+            $pagoBancoCredito,
+            $pagoBancoInicial
          );
       } else {
          if ($classCartera->Modificar($idtarjeta, $idglobal, $idsucursal, $idcliente, $idventa, $consepto, $valor, $modo, $plazo, $prestamo, $descripcion, $item, $utilidad, $c_adicional_numero, $c_adicional_valor, $str_tipo_comprobante, $str_serie, $str_numero, $str_nota, $createdEmpleadoId)) {
@@ -200,6 +227,13 @@ switch ($_GET["op"]) {
 
       $iddescripcion = limpiar_cadena($_POST['textRefDexcripcionHidden']);
       $idtarjeta = limpiar_cadena($_POST['txtrefTarjetaHidden']);
+      if (empty($iddescripcion)) {
+         $medioAbono = (string)($_POST['cboBancoPagoAbono'] ?? '');
+         if (!preg_match('/^(0|[1-9][0-9]*)$/', $medioAbono)) {
+            echo "ERROR: Seleccione efectivo o la cuenta que recibió el abono";
+            break;
+         }
+      }
       $abono = floatval($_POST['txtCuotaHidden']) * -1;
       $pagoBancoAbono = leerPagoBancoDesdePost('Abono', abs($abono));
       $vueltoBancoAbono = leerVueltoBancoDesdePost('Abono');
@@ -363,7 +397,13 @@ switch ($_GET["op"]) {
       echo json_encode($_SESSION['idsucursal']);
       break;
    case 'VerfCuentas':
-      $idsucursal = limpiar_cadena($_REQUEST['id']);
+      $idsucursal = (int)($_REQUEST['id'] ?? 0);
+      if ($idsucursal !== (int)$_SESSION['idsucursal']) {
+         http_response_code(403);
+         header('Content-Type: application/json; charset=utf-8');
+         echo json_encode(['error' => 'La sucursal no coincide con la sesión.']);
+         break;
+      }
       $arrayCuentas = array();
       $recaudos = array();
       $newsCreditos = array();
@@ -430,6 +470,9 @@ switch ($_GET["op"]) {
       array_push($arrayCuentas, $newsContabilidadOtrosGastos);
       array_push($arrayCuentas, $newsContabilidadSalidas);
       array_push($arrayCuentas, $newsContabilidadEntradas);
+      $arrayCuentas[] = $classCartera->cajaBolsilloRuta(
+         (int)$idglobal, (int)$idsucursal, (int)($_SESSION['idusuario'] ?? 0)
+      );
 
       echo json_encode($arrayCuentas);
       break;

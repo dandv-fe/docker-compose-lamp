@@ -312,6 +312,15 @@ function DatosCobro(istotalizar) {
 
 
   $.getJSON("ajax/CarteraAjax.php?op=VerfCuentas", { id: $("#txtrefSucursalContabiliddHidden").val(), istotalizar }, function (r) {
+    const cajaRuta = r[9];
+    const cajaVigente = cajaRuta?.totales && Number(cajaRuta.ruta) === Number(r[0]?.refDetalle_ruta);
+    mostrarCajaBolsillo(cajaRuta);
+    if (typeof actualizarResumenCajaCartera === 'function') actualizarResumenCajaCartera();
+    if (!cajaVigente) {
+      $("#btnDataCobro").addClass("hide");
+      $("#txtDiferenciaCuentas").text("No se pudo verificar la caja de esta ruta. Actualiza las cuentas.");
+      if (istotalizar) return;
+    }
 
 
     if (!r[0]?.reg && r[0] != null) {
@@ -450,6 +459,12 @@ function DatosCobro(istotalizar) {
 
 
     // recaudos append a la table
+    if (cajaVigente) {
+      recaudoSumaCuota = cajaRuta.totales.cuotas;
+      recaudoSumaInicial = cajaRuta.totales.inicial;
+      recaudoSumaCancelado = cajaRuta.totales.cancelado;
+      seguroSuma = cajaRuta.totales.seguros;
+    }
     recaudoTotal =
       recaudoSumaCuota +
       recaudoSumaCancelado +
@@ -494,6 +509,22 @@ function DatosCobro(istotalizar) {
           <td>$${seguroSuma.toFixed(2)}</td>
         </tr>
         <tr>
+          <th>Recibido por banco (cuotas):</th>
+          <td>$${(cajaVigente ? cajaRuta.totales.cuotasBanco : 0).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <th>Recibido por banco (inicial):</th>
+          <td>$${(cajaVigente ? cajaRuta.totales.inicialBanco : 0).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <th>Recibido por banco (cancelado):</th>
+          <td>$${(cajaVigente ? cajaRuta.totales.canceladoBanco : 0).toFixed(2)}</td>
+        </tr>
+        <tr>
+          <th>Abonos en efectivo:</th>
+          <td>$${(cajaVigente ? cajaRuta.totales.recaudo - cajaRuta.totales.recaudoBanco : 0).toFixed(2)}</td>
+        </tr>
+        <tr>
           <th>Total:</th>
           <td>$${recaudoTotal.toFixed(2)}</td>
         </tr>
@@ -513,6 +544,10 @@ function DatosCobro(istotalizar) {
             <tr>
               <th>Sub-Total:</th>
               <td>$${(creditoSumaProducto + creditoSumaPrestamo).toFixed(2)}</td>
+            </tr>
+            <tr>
+              <th>Pagado desde banco:</th>
+              <td>$${(cajaVigente ? cajaRuta.totales.creditosBanco : 0).toFixed(2)}</td>
             </tr>
             <tr>
               <th>Total:</th>
@@ -660,14 +695,9 @@ function DatosCobro(istotalizar) {
       const base = basesSuma;
       $("#inputBaseInformacion").val(base);
       if (istotalizar === true) {
-        let diferencia =
-          creditoSumaProducto +
-          creditoSumaPrestamo +
-          (gastosSuma * -1) +
-          parseFloat(moneda) +
-          parseFloat(efectivo) -
-          base -
-          recaudoTotal;
+        const diferencia = Math.round((
+          Number(moneda) + Number(efectivo) - cajaRuta.totales.efectivo
+        ) * 100) / 100;
 
         // $diferencia = $prestamo + $gastos + $gasolina + $boletas + $monedas + $efectivo - $base - $cobro - $boletas;
         if (diferencia > 0) {
@@ -841,6 +871,10 @@ function DatosCobro(istotalizar) {
 
 
 
+  }).fail(function () {
+    $("#btnDataCobro").addClass("hide");
+    $("#cajaBolsilloTotal").text("No disponible");
+    $("#txtDiferenciaCuentas").text("No se pudieron actualizar las cuentas. Intenta de nuevo.");
   });
 }// ./DatosCobro()
 

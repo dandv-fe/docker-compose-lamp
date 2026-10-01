@@ -42,7 +42,7 @@ jQuery(document).ready(function () {
     listarRuta();
 
     cargarBancosPagoCartera()
-    $("#cboBancoPagoAbono").on('change', function () {
+    $("#cboBancoPagoAbono").on('change', function (e) {
         const usaBanco = parseInt($(this).val() || '0') > 0
         $(".divDetallePagoBancoAbono").toggleClass('hide', !usaBanco)
         if (!usaBanco) {
@@ -50,6 +50,19 @@ jQuery(document).ready(function () {
             $("#txtReferenciaBancoPagoAbono").val('')
         }
         revisarVueltoAbono()
+        if (e.originalEvent && $(this).val() !== '') {
+            (usaBanco ? $("#txtValorBancoPagoAbono") : $("#txtconfirma-credito")).focus()
+        }
+    })
+    $("#cboBancoPagoAbono, #txtValorBancoPagoAbono, #txtReferenciaBancoPagoAbono").on('keydown', function (e) {
+        if (e.key !== 'Enter') return
+        e.preventDefault()
+        if ($("#cboBancoPagoAbono").val() === '') {
+            Toast.fire({ icon: 'warning', title: 'Seleccione efectivo o la cuenta que recibió el abono' })
+            $("#cboBancoPagoAbono").focus()
+            return
+        }
+        $("#txtconfirma-credito").focus()
     })
     $(document).on('input', "#txtValorBancoPagoAbono, #txtAbono-credito", revisarVueltoAbono)
     $(document).on('change', "#cboBancoPagoCredito", function () {
@@ -58,6 +71,13 @@ jQuery(document).ready(function () {
         if (!usaBanco) {
             $("#txtValorBancoPagoCredito").val('')
             $("#txtReferenciaBancoPagoCredito").val('')
+        }
+    })
+    $(document).on('change', "#cboBancoPagoInicial", function () {
+        const usaBanco = Number($(this).val()) > 0
+        $(".divDetallePagoBancoInicial").toggleClass('hide', !usaBanco)
+        if (!usaBanco) {
+            $("#txtValorBancoPagoInicial, #txtReferenciaBancoPagoInicial").val('')
         }
     })
 
@@ -87,7 +107,8 @@ jQuery(document).ready(function () {
         let id = parseInt(sessionStorage.getItem('index'))
         $("#txtCuotaHidden").val(abono)
         $("#resta-cliente-panel").text((parseFloat(ArrayTarjetas[id].resta) - parseFloat(abono)).toFixed(2))
-        $("#txtconfirma-credito").focus()
+        Toast.fire({ icon: 'info', title: 'Seleccione cómo recibió el abono' })
+        $("#cboBancoPagoAbono").focus()
     });
 
     // Cuando por banco entra más que el abono, el cobrador devuelve la diferencia en efectivo.
@@ -109,6 +130,12 @@ jQuery(document).ready(function () {
 
     $("form#formAddAbonoConfirma").submit((e) => {
         e.preventDefault()
+        const medioAbono = $("#cboBancoPagoAbono").val()
+        if (medioAbono === '' || !/^(0|[1-9]\d*)$/.test(medioAbono || '')) {
+            Toast.fire({ icon: 'error', title: 'Seleccione el medio de pago antes de confirmar cuánto resta' })
+            $("#cboBancoPagoAbono").focus()
+            return false
+        }
         $("#loadinSavedAdd").show()
         $("#btnsubmitAddAbono").attr('disabled', true)
         let abono = $("#txtAbono-credito").val()
@@ -191,6 +218,7 @@ jQuery(document).ready(function () {
 
                     $("#formAddAbono").trigger('reset')
                     $("#formAddAbonoConfirma").trigger('reset')
+                    $("#cboBancoPagoAbono").val('').trigger('change')
                     $("#txtAbono-credito").focus()
                     Toast.fire({
                         icon: 'success',
@@ -485,6 +513,7 @@ function listarRuta(nextIndex) {
                 }
                 verFormPanel()
                 enviarSumarRecaudoCreditos()
+                actualizarResumenCajaCartera()
             } else {
                 Toast.fire({
                     icon: 'error',
@@ -500,6 +529,24 @@ function listarRuta(nextIndex) {
         })
     });
 
+}
+
+function actualizarResumenCajaCartera() {
+    const linea = $("#resumenCajaCartera")
+    if (!linea.length) return
+    $.getJSON("./ajax/CarteraAjax.php?op=resumenCajaRuta", function (respuesta) {
+        if (!respuesta.totales) {
+            linea.text("Caja: Sin ruta abierta")
+            return
+        }
+        const t = respuesta.totales
+        const dinero = valor => '$' + Number(valor).toLocaleString('es-CO', { maximumFractionDigits: 2 })
+        linea.text(`Caja = ${dinero(t.efectivo)} = ${dinero(0)} + Base ${dinero(t.base)} + Recaudo ${dinero(t.recaudo)}` +
+            ` + Otro recaudo ${dinero(t.otro)} − Banco ${dinero(t.recaudoBanco)}` +
+            ` − Gastos ${dinero(t.gastos)} − Créditos ${dinero(t.creditos - t.creditosBanco)}`)
+    }).fail(function () {
+        linea.text("Caja: No disponible; actualice la cartera")
+    })
 }
 
 function ditetion(op) {
@@ -544,28 +591,39 @@ function ditetion(op) {
 
 
 function cargarBancosPagoCartera() {
+    function mostrarSoloEfectivo() {
+        $("#cboBancoPagoAbono").find("option:not([value='']):not([value='0'])").remove()
+        $("#cboBancoPagoAbono").val('').trigger('change')
+        $('#cboBancoPagoCredito').prop('disabled', true)
+        Toast.fire({ icon: 'error', title: 'No se pudieron cargar las cuentas bancarias; solo puede elegir efectivo' })
+    }
     $.ajax({
         url: './ajax/CarteraAjax.php?op=listarBancosPago',
         dataType: 'json',
         success: function (resp) {
-            const bancos = resp && resp.ok && Array.isArray(resp.data) ? resp.data : []
+            if (!resp || !resp.ok || !Array.isArray(resp.data)) {
+                mostrarSoloEfectivo()
+                return
+            }
+            const bancos = resp.data
             llenarSelectBancoPago('#cboBancoPagoAbono', bancos)
             llenarSelectBancoPago('#cboBancoPagoCredito', bancos)
-            $('#divPagoBancoAbono').toggleClass('hide', bancos.length === 0)
-            $('#divPagoBancoCredito').toggleClass('hide', bancos.length === 0)
+            llenarSelectBancoPago('#cboBancoPagoInicial', bancos)
         },
-        error: function () {
-            $('#divPagoBancoAbono').addClass('hide')
-            $('#divPagoBancoCredito').addClass('hide')
-        }
+        error: mostrarSoloEfectivo
     })
 }
 
 function llenarSelectBancoPago(selector, bancos) {
     const select = $(selector)
     if (!select.length) return
-    const actual = select.val() || '0'
-    const opciones = ['<option value="0">Efectivo</option>']
+    const requiereEleccion = selector === '#cboBancoPagoInicial' || selector === '#cboBancoPagoAbono'
+    const actual = requiereEleccion ? select.val() : (select.val() || '0')
+    const opciones = selector === '#cboBancoPagoInicial'
+        ? ['<option value="">Seleccione el medio</option>', '<option value="0">Efectivo (lo tiene quien registra)</option>']
+        : selector === '#cboBancoPagoAbono'
+            ? ['<option value="">Seleccione el medio de pago</option>', '<option value="0">Efectivo</option>']
+            : ['<option value="0">Efectivo</option>']
     bancos.forEach(function (banco) {
         const titular = banco.titular ? ' · Titular: ' + banco.titular : ''
         const documento = banco.documento ? ' · NIT/CC ' + banco.documento : ''
@@ -574,8 +632,14 @@ function llenarSelectBancoPago(selector, bancos) {
     })
     select.html(opciones.join(''))
     select.val(actual)
-    if (!select.val()) select.val('0')
+    if (select.val() === null) select.val(requiereEleccion ? '' : '0')
     select.trigger('change')
+    if (selector === '#cboBancoPagoCredito') {
+        select.find('option').first().text('Efectivo')
+        select.find('option:not(:first)').each(function () {
+            $(this).text('Consignación desde ' + $(this).text())
+        })
+    }
 }
 
 function clasificarUltimoRegistro(descripcion, estado, esPropio = false) {
@@ -624,7 +688,7 @@ function cargarDatosEnPanel() {
 
     $("#formAddAbono").trigger('reset')
     $("#formAddAbonoConfirma").trigger('reset')
-    $("#cboBancoPagoAbono").val('0').trigger('change')
+    $("#cboBancoPagoAbono").val('').trigger('change')
     $("#chkVueltoBancoAbono").prop('checked', false)
     let id = sessionStorage.getItem('index');
 

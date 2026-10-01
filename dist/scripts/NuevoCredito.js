@@ -21,6 +21,13 @@ function init() {
         if (banderasavedcredito === 1) {
             banderasavedcredito = 2
             const consepto = $("#txtConsepto").val()
+            if (consepto === 'Articulo' && Number($("#txtCuotaInicial").val()) > 0 &&
+                !/^(0|[1-9]\d*)$/.test($("#cboBancoPagoInicial").val() || '')) {
+                Toast.fire({ icon: 'error', title: 'Indique cómo recibió la cuota inicial' })
+                $("#cboBancoPagoInicial").focus()
+                banderasavedcredito = 0
+                return
+            }
             const inputs = $("#formSaveNewCredit input")
             const textarea = $("#formSaveNewCredit textarea")
             for (const [i, v] of Object.entries({ ...inputs, ...textarea })) {
@@ -171,9 +178,16 @@ function init() {
             $(".divSeguroFormNuevoCredito").show();
         }
         $("#txtCuotaInicial").val('')
+        $("#cboBancoPagoInicial").val('').trigger('change')
+        $("#divMetodoCuotaInicial").addClass('hide')
         $("#txtRecaudo").val('')
         $("#txtObligacion").focus();
     });
+    $("#txtCuotaInicial").on('input', function () {
+        const tieneInicial = $("#txtConsepto").val() === 'Articulo' && Number($(this).val()) > 0
+        $("#divMetodoCuotaInicial").toggleClass('hide', !tieneInicial)
+        if (!tieneInicial) $("#cboBancoPagoInicial").val('').trigger('change')
+    })
     function SaveOrUpdate() {
         $.post("./ajax/UsuarioAjax.php", function (r) {
             if (r === '0') {
