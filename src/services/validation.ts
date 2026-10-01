@@ -41,6 +41,16 @@ const paymentFields = {
 const commentFields = {
   idcliente: z.number().int(), comentario: text(255), tipo: text(30),
 };
+// Route expenses and bases live in tbl_contabilidad_detalle. The amount always travels
+// positive and the server stores the sign webgoez expects (negative for an expense), so a
+// queued operation can never flip the cuadre by sending the wrong sign.
+const accountingFields = {
+  valor: number.positive(), detalle: text(250).optional(),
+};
+const expenseFields = {
+  idtipo_contabilidad: z.number().int().positive(), nombre: text(50),
+  idnomina: z.number().int().positive().nullable().optional(), ...accountingFields,
+};
 
 export const operationPayloadSchemas: Record<string, z.ZodTypeAny> = {
   CREATE_CUSTOMER: z.object({ ...personFields, ...clientFields }).strict(),
@@ -75,6 +85,14 @@ export const operationPayloadSchemas: Record<string, z.ZodTypeAny> = {
     subject: text(255),
     text: text(255),
   }).strict(),
+  // The id of the new row travels as entityId (webgoez generates it with uniqid), so the
+  // payload only carries the fields of the expense itself.
+  CREATE_EXPENSE: z.object(expenseFields).strict(),
+  UPDATE_EXPENSE: z.object(expenseFields).strict(),
+  DELETE_EXPENSE: z.object({}).strict(),
+  CREATE_BASE: z.object(accountingFields).strict(),
+  UPDATE_BASE: z.object(accountingFields).strict(),
+  DELETE_BASE: z.object({}).strict(),
 };
 
 export function parseOperationPayload(kind: string, value: unknown): Record<string, unknown> {

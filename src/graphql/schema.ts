@@ -10,7 +10,7 @@ import {
   bankAccounts, defaultersOfPortfolio, me, openRouteCash, paymentHistory, portfolio, portfolioClients, receiptSequences,
   restoreCredit, syncChanges, withdrawnOfPortfolio,
 } from '../services/queries.js';
-import { routeSettlement, settleRoute } from '../services/settlement.js';
+import { routeSettlement, settleRoute, routeExpenseCatalog, routeEntries } from '../services/settlement.js';
 import { fail } from '../services/errors.js';
 import { z } from 'zod';
 
@@ -122,8 +122,22 @@ const RouteMovementType = new GraphQLObjectType({
     amount: { type: new GraphQLNonNull(GraphQLFloat) },
     bankAmount: { type: new GraphQLNonNull(GraphQLFloat) },
     countsForCash: { type: new GraphQLNonNull(GraphQLBoolean) },
+    cashAmount: { type: new GraphQLNonNull(GraphQLFloat) },
+    personId: { type: GraphQLInt },
+    personName: { type: GraphQLString },
     state: { type: GraphQLString },
     createdAt: { type: GraphQLString },
+  },
+});
+
+const RouteCollectorType = new GraphQLObjectType({
+  name: 'RouteCollector',
+  fields: {
+    personId: { type: GraphQLInt },
+    personName: { type: GraphQLString },
+    cash: { type: new GraphQLNonNull(GraphQLFloat) },
+    movements: { type: new GraphQLNonNull(GraphQLInt) },
+    isMe: { type: new GraphQLNonNull(GraphQLBoolean) },
   },
 });
 
@@ -142,6 +156,48 @@ const RouteSettlementType = new GraphQLObjectType({
     expenses: { type: new GraphQLNonNull(GraphQLFloat) },
     expectedCash: { type: new GraphQLNonNull(GraphQLFloat) },
     movements: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(RouteMovementType))) },
+    collectors: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(RouteCollectorType))) },
+  },
+});
+
+const ExpenseCategoryType = new GraphQLObjectType({
+  name: 'ExpenseCategory',
+  fields: {
+    id: { type: new GraphQLNonNull(GraphQLInt) },
+    category: { type: new GraphQLNonNull(GraphQLString) },
+    names: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(GraphQLString))) },
+  },
+});
+
+const PayrollType = new GraphQLObjectType({
+  name: 'Payroll',
+  fields: {
+    id: { type: new GraphQLNonNull(GraphQLInt) },
+    name: { type: new GraphQLNonNull(GraphQLString) },
+  },
+});
+
+const RouteEntryType = new GraphQLObjectType({
+  name: 'RouteEntry',
+  fields: {
+    id: { type: new GraphQLNonNull(GraphQLID) },
+    kind: { type: new GraphQLNonNull(GraphQLString) },
+    name: { type: new GraphQLNonNull(GraphQLString) },
+    detail: { type: new GraphQLNonNull(GraphQLString) },
+    amount: { type: new GraphQLNonNull(GraphQLFloat) },
+    accountingType: { type: GraphQLInt },
+    payrollId: { type: GraphQLInt },
+    personName: { type: GraphQLString },
+    state: { type: GraphQLString },
+    createdAt: { type: GraphQLString },
+  },
+});
+
+const ExpenseCatalogType = new GraphQLObjectType({
+  name: 'ExpenseCatalog',
+  fields: {
+    categories: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(ExpenseCategoryType))) },
+    payrolls: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(PayrollType))) },
   },
 });
 
@@ -272,7 +328,8 @@ const OperationKind = new GraphQLEnumType({
     UPDATE_CREDIT: {}, UPDATE_CREDIT_TERMS: {}, CREATE_PAYMENT: {}, UPDATE_PAYMENT: {},
     DELETE_PAYMENT: {}, DELETE_CREDIT: {}, APPLY_DISCOUNT: {}, ADD_INTEREST: {},
     CHANGE_CREDIT_STATUS: {}, REORDER_CREDIT: {}, CREATE_COMMENT: {}, UPDATE_COMMENT: {},
-    DELETE_COMMENT: {}, UPSERT_ALERT: {},
+    DELETE_COMMENT: {}, UPSERT_ALERT: {}, CREATE_EXPENSE: {}, UPDATE_EXPENSE: {},
+    DELETE_EXPENSE: {}, CREATE_BASE: {}, UPDATE_BASE: {}, DELETE_BASE: {},
   },
 });
 
@@ -436,6 +493,18 @@ const Query = new GraphQLObjectType({
       resolve: (_source, args, context: { auth: AuthContext | null }) =>
         routeSettlement(auth(context), args.branchId),
     },
+    routeExpenseCatalog: {
+      type: new GraphQLNonNull(ExpenseCatalogType),
+      args: { branchId: { type: new GraphQLNonNull(GraphQLInt) } },
+      resolve: (_source, args, context: { auth: AuthContext | null }) =>
+        routeExpenseCatalog(auth(context), args.branchId),
+    },
+    routeEntries: {
+      type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(RouteEntryType))),
+      args: { branchId: { type: new GraphQLNonNull(GraphQLInt) } },
+      resolve: (_source, args, context: { auth: AuthContext | null }) =>
+        routeEntries(auth(context), args.branchId),
+    },
     openRouteCash: {
       type: new GraphQLNonNull(RouteCashType),
       args: { branchId: { type: new GraphQLNonNull(GraphQLInt) } },
@@ -518,14 +587,13 @@ const Mutation = new GraphQLObjectType({
       type: new GraphQLNonNull(RouteSettlementType),
       args: {
         branchId: { type: new GraphQLNonNull(GraphQLInt) },
-        base: { type: new GraphQLNonNull(GraphQLFloat) },
         cash: { type: new GraphQLNonNull(GraphQLFloat) },
         coins: { type: new GraphQLNonNull(GraphQLFloat) },
         difference: { type: new GraphQLNonNull(GraphQLFloat) },
       },
       resolve: (_source, args, context: { auth: AuthContext | null }) =>
         settleRoute(auth(context), args.branchId, {
-          base: args.base, cash: args.cash, coins: args.coins, difference: args.difference,
+          cash: args.cash, coins: args.coins, difference: args.difference,
         }),
     },
     restoreCredit: {

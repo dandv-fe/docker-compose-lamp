@@ -495,7 +495,7 @@ export async function syncChanges(context: AuthContext | null, branchId: number,
             record_id AS recordId, related_id AS relatedId, action, created_at AS createdAt
      FROM mobile_change_event
      WHERE idglobal = ? AND idsucursal = ? AND id > ? AND id <= ?
-       AND record_type IN ('customer','credit','payment','comment','route','receipt_sequence')
+       AND record_type IN ('customer','credit','payment','comment','route','receipt_sequence','accounting')
      ORDER BY id LIMIT ?`,
     [user.companyId, branchId, after, watermark, first + 1],
   );

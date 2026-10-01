@@ -122,7 +122,8 @@ object GraphQlDocuments {
     private const val SETTLEMENT_FIELDS = """
         routeId state canSettle base collected collectedBank otherCollected
         credits creditsBank expenses expectedCash
-        movements { id kind title detail amount bankAmount countsForCash state createdAt }
+        movements { id kind title detail amount bankAmount countsForCash cashAmount personId personName state createdAt }
+        collectors { personId personName cash movements isMe }
     """
     val ROUTE_SETTLEMENT = """
         query RouteSettlement(${'$'}branchId: Int!) {
@@ -130,9 +131,24 @@ object GraphQlDocuments {
         }
     """
     val SETTLE_ROUTE = """
-        mutation SettleRoute(${'$'}branchId: Int!, ${'$'}base: Float!, ${'$'}cash: Float!, ${'$'}coins: Float!, ${'$'}difference: Float!) {
-          settleRoute(branchId: ${'$'}branchId, base: ${'$'}base, cash: ${'$'}cash, coins: ${'$'}coins, difference: ${'$'}difference) {
+        mutation SettleRoute(${'$'}branchId: Int!, ${'$'}cash: Float!, ${'$'}coins: Float!, ${'$'}difference: Float!) {
+          settleRoute(branchId: ${'$'}branchId, cash: ${'$'}cash, coins: ${'$'}coins, difference: ${'$'}difference) {
             $SETTLEMENT_FIELDS
+          }
+        }
+    """
+    val ROUTE_ENTRIES = """
+        query RouteEntries(${'$'}branchId: Int!) {
+          routeEntries(branchId: ${'$'}branchId) {
+            id kind name detail amount accountingType payrollId personName state createdAt
+          }
+        }
+    """
+    val ROUTE_EXPENSE_CATALOG = """
+        query RouteExpenseCatalog(${'$'}branchId: Int!) {
+          routeExpenseCatalog(branchId: ${'$'}branchId) {
+            categories { id category names }
+            payrolls { id name }
           }
         }
     """

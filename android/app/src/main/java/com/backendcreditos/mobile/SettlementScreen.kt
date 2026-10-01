@@ -29,7 +29,6 @@ import java.math.RoundingMode
 
 /** What the collector typed while counting the cash in their pocket. */
 internal data class CashCount(
-    val base: String = "",
     val cash: String = "",
     val coins: String = "",
     val confirmed: Boolean = false
@@ -41,16 +40,20 @@ internal data class CashCount(
 }
 
 /**
- * The cash the route should hold once the base the collector typed replaces the stored one.
- * Money that arrived or left through a bank is already discounted by the server.
+ * The cash the route should hold. The base is no longer typed here: it is one more movement
+ * of the day, registered in «Gastos y bases». Money that arrived or left through a bank is
+ * already discounted by the server.
  */
 internal fun expectedCash(summary: RouteSettlementDto, count: CashCount): BigDecimal =
-    summary.expectedCash.toBigDecimal().setScale(2, RoundingMode.HALF_UP) -
-        summary.base.toBigDecimal().setScale(2, RoundingMode.HALF_UP) + count.amount(count.base)
+    summary.expectedCash.toBigDecimal().setScale(2, RoundingMode.HALF_UP)
 
 /** Positive = the collector has more cash than the movements explain; negative = it is missing. */
 internal fun cashDifference(summary: RouteSettlementDto, count: CashCount): BigDecimal =
     count.counted - expectedCash(summary, count)
+
+/** The person who did a movement, so the collector sees from whom money is still missing. */
+internal fun collectorLabel(name: String?): String =
+    name?.takeIf(String::isNotBlank) ?: "Sin identificar (cobros antiguos)"
 
 /** A reason the accounts cannot be handed in yet, or null when everything is ready. */
 internal fun settlementBlocker(
@@ -141,7 +144,7 @@ internal fun SettlementScreen(
             .background(MaterialTheme.colorScheme.surfaceVariant).padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        TotalLine("Base con la que salió", money(summary.base))
+        TotalLine("Base recibida hoy", money(summary.base))
         TotalLine("Recaudo del día", money(summary.collected))
         if (summary.collectedBank != 0.0) TotalLine("− Le consignaron al banco", money(summary.collectedBank))
         if (summary.otherCollected != 0.0) TotalLine("Cobros adicionales", money(summary.otherCollected))
@@ -153,12 +156,6 @@ internal fun SettlementScreen(
     }
 
     Text("Cuente el efectivo", style = MaterialTheme.typography.titleMedium)
-    OutlinedTextField(
-        count.base, { onCountChange(count.copy(base = it, confirmed = false)) },
-        label = { Text("Base") }, modifier = Modifier.fillMaxWidth(),
-        supportingText = { Text("La base con la que arrancó el día.") },
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal)
-    )
     OutlinedTextField(
         count.cash, { onCountChange(count.copy(cash = it, confirmed = false)) },
         label = { Text("Billetes") }, modifier = Modifier.fillMaxWidth(),
@@ -198,9 +195,35 @@ internal fun SettlementScreen(
         TextButton(onClick = onBack) { Text("Corregir en cartera") }
     }
 
-    Text("Lo que hizo hoy (${counting.size})", style = MaterialTheme.typography.titleMedium)
+    Text("Lo que se hizo hoy (${counting.size})", style = MaterialTheme.typography.titleMedium)
     if (counting.isEmpty()) Text("Todavía no hay movimientos en esta ruta.")
-    counting.forEach { MovementRow(it) }
+    // Agrupado por quién lo hizo: el efectivo que movió otra persona lo tiene esa persona,
+    // así que si no lo entrega el dinero le falta a quien entrega las cuentas.
+    val groups = counting.groupBy { it.personId }
+    val order = summary.collectors.map { it.personId }
+    groups.entries
+        .sortedBy { entry -> order.indexOf(entry.key).takeIf { it >= 0 } ?: Int.MAX_VALUE }
+        .forEach { (personId, movements) ->
+            val collector = summary.collectors.firstOrNull { it.personId == personId }
+            val name = collectorLabel(collector?.personName ?: movements.firstOrNull()?.personName)
+            val cash = movements.sumOf { it.cashAmount }
+            HorizontalDivider(Modifier.padding(top = 6.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(
+                    if (collector?.isMe == true) "$name (usted)" else name,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(formatMoney(BigDecimal.valueOf(cash).setScale(2, RoundingMode.HALF_UP)),
+                    style = MaterialTheme.typography.titleSmall)
+            }
+            if (collector?.isMe != true) Text(
+                "Este dinero lo movió otra persona: si no se lo entrega, a usted le falta.",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.error
+            )
+            movements.forEach { MovementRow(it) }
+        }
     if (informative.isNotEmpty()) {
         HorizontalDivider()
         Text("No entra en el cuadre (${informative.size})", style = MaterialTheme.typography.titleMedium)

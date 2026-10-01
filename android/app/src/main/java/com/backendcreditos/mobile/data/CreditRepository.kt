@@ -1,8 +1,10 @@
 package com.backendcreditos.mobile.data
 
 import androidx.room.withTransaction
+import com.backendcreditos.mobile.momentMillis
 import com.backendcreditos.mobile.network.ApiResult
 import com.backendcreditos.mobile.network.CustomerDto
+import com.backendcreditos.mobile.network.ExpenseCatalogDto
 import com.backendcreditos.mobile.network.GraphQlApi
 import com.backendcreditos.mobile.network.OfflineOperationInput
 import com.backendcreditos.mobile.security.StoredSession
@@ -211,12 +213,27 @@ class CreditRepository(
                                         val dto = json.decodeFromJsonElement(com.backendcreditos.mobile.network.PaymentDto.serializer(), payload)
                                         dao.putPayments(listOf(dto.toEntity(account, branchId).preservingLocalOrigin(account, branchId)))
                                     }
+                                    "ACCOUNTING" -> if (deleting) {
+                                        dao.deleteRouteEntry(account.accountKey, branchId, recordId)
+                                    } else change.payload?.let { payload ->
+                                        val dto = json.decodeFromJsonElement(
+                                            com.backendcreditos.mobile.network.AccountingChangeDto.serializer(), payload
+                                        )
+                                        val entry = dto.toRouteEntry(account.accountKey, branchId)
+                                        // Everything else stored in tbl_contabilidad_detalle (the counted
+                                        // cash, the difference) is not a gasto nor a base, and rows already
+                                        // handed in belong to a day that is closed: neither one goes into
+                                        // the list the collector is filling today.
+                                        if (entry != null) dao.putRouteEntries(listOf(entry))
+                                        else dao.deleteRouteEntry(account.accountKey, branchId, recordId)
+                                    }
                                 }
                                 val recordType = when (type) {
                                     "CUSTOMER", "CLIENT" -> "customer"
                                     "CREDIT", "CARD" -> "credit"
                                     "PAYMENT", "DESCRIPTION" -> "payment"
                                     "COMMENT" -> "comment"
+                                    "ACCOUNTING" -> "accounting"
                                     else -> type.lowercase()
                                 }
                                 dao.setRecordVersions(listOf(
@@ -267,7 +284,10 @@ class CreditRepository(
                     dependency.branchId == branchId
             ) { "La dependencia pertenece a otra cuenta o sucursal." }
         }
-        val isCreate = kind in setOf(OperationKind.CREATE_CUSTOMER, OperationKind.CREATE_CREDIT, OperationKind.CREATE_COMMENT)
+        val isCreate = kind in setOf(
+            OperationKind.CREATE_CUSTOMER, OperationKind.CREATE_CREDIT, OperationKind.CREATE_COMMENT,
+            OperationKind.CREATE_EXPENSE, OperationKind.CREATE_BASE
+        )
         val effectiveBaseVersion = if (isCreate) null else baseVersion ?: run {
             val recordType = when (kind) {
                 OperationKind.UPDATE_CUSTOMER, OperationKind.UPDATE_DOCUMENT -> "customer"
@@ -275,6 +295,8 @@ class CreditRepository(
                 OperationKind.CREATE_COMMENT, OperationKind.UPDATE_COMMENT, OperationKind.DELETE_COMMENT,
                 OperationKind.UPSERT_ALERT -> "comment"
                 OperationKind.UPDATE_PAYMENT, OperationKind.DELETE_PAYMENT -> "payment"
+                OperationKind.UPDATE_EXPENSE, OperationKind.DELETE_EXPENSE,
+                OperationKind.UPDATE_BASE, OperationKind.DELETE_BASE -> "accounting"
                 else -> "credit"
             }
             val recordId = entityId
@@ -367,6 +389,33 @@ class CreditRepository(
     ) {
         val payload = json.parseToJsonElement(operation.payload)
         when (operation.kind) {
+            OperationKind.CREATE_EXPENSE, OperationKind.UPDATE_EXPENSE,
+            OperationKind.CREATE_BASE, OperationKind.UPDATE_BASE -> {
+                val fields = payload as? JsonObject
+                val amount = fields?.get("valor").doubleOr(null)
+                if (fields != null && amount != null) {
+                    val isBase = operation.kind == OperationKind.CREATE_BASE ||
+                        operation.kind == OperationKind.UPDATE_BASE
+                    val existing = dao.routeEntry(operation.accountKey, operation.branchId, operation.entityId)
+                    dao.putRouteEntries(listOf(RouteEntryEntity(
+                        accountKey = operation.accountKey,
+                        branchId = operation.branchId,
+                        id = operation.entityId,
+                        kind = if (isBase) "base" else "expense",
+                        name = if (isBase) "base" else fields["nombre"].textOr(existing?.name).orEmpty(),
+                        detail = fields["detalle"].textOr(existing?.detail).orEmpty(),
+                        amount = amount.toBigDecimal().toPlainString(),
+                        accountingType = fields["idtipo_contabilidad"].intOr(existing?.accountingType),
+                        payrollId = fields["idnomina"].intOr(existing?.payrollId),
+                        personName = existing?.personName ?: creatorUsername,
+                        state = "created",
+                        createdAt = existing?.createdAt ?: System.currentTimeMillis(),
+                        pending = true
+                    )))
+                }
+            }
+            OperationKind.DELETE_EXPENSE, OperationKind.DELETE_BASE ->
+                dao.deleteRouteEntry(operation.accountKey, operation.branchId, operation.entityId)
             OperationKind.DELETE_CREDIT -> {
                 dao.deletePaymentsForCredit(operation.accountKey, operation.branchId, operation.entityId)
                 dao.deleteCredit(operation.accountKey, operation.branchId, operation.entityId)
@@ -596,6 +645,55 @@ class CreditRepository(
             is ApiResult.Retryable -> response
         }
 
+    suspend fun routeEntries(accountKey: String, branchId: String): List<RouteEntryEntity> =
+        dao.routeEntries(accountKey, branchId)
+
+    suspend fun syncRouteEntries(account: StoredSession, branchId: String): ApiResult<List<RouteEntryEntity>> =
+        when (val response = api.routeEntries(account.token, branchId)) {
+            is ApiResult.Success -> {
+                val entries = response.value.routeEntries.map {
+                    RouteEntryEntity(
+                        account.accountKey, branchId, it.id, it.kind, it.name, it.detail,
+                        it.amount.toBigDecimal().toPlainString(), it.accountingType, it.payrollId,
+                        it.personName, it.state,
+                        momentMillis(it.createdAt) ?: System.currentTimeMillis(), pending = false
+                    )
+                }
+                dao.replaceRouteEntries(account.accountKey, branchId, entries)
+                ApiResult.Success(dao.routeEntries(account.accountKey, branchId))
+            }
+            is ApiResult.AuthExpired -> response
+            is ApiResult.Conflict -> response
+            is ApiResult.PermissionRejected -> response
+            is ApiResult.Rejected -> response
+            is ApiResult.Retryable -> response
+        }
+
+    suspend fun routeCatalog(accountKey: String, branchId: String): ExpenseCatalogDto? =
+        dao.routeCatalog(accountKey, branchId)?.let {
+            runCatching { json.decodeFromString(ExpenseCatalogDto.serializer(), it.payloadJson) }.getOrNull()
+        }
+
+    suspend fun syncRouteCatalog(account: StoredSession, branchId: String): ApiResult<ExpenseCatalogDto> =
+        when (val response = api.routeExpenseCatalog(account.token, branchId)) {
+            is ApiResult.Success -> {
+                val catalog = response.value.routeExpenseCatalog
+                dao.putRouteCatalog(
+                    RouteCatalogEntity(
+                        account.accountKey, branchId,
+                        json.encodeToString(ExpenseCatalogDto.serializer(), catalog),
+                        System.currentTimeMillis()
+                    )
+                )
+                ApiResult.Success(catalog)
+            }
+            is ApiResult.AuthExpired -> response
+            is ApiResult.Conflict -> response
+            is ApiResult.PermissionRejected -> response
+            is ApiResult.Rejected -> response
+            is ApiResult.Retryable -> response
+        }
+
     suspend fun bankAccounts(accountKey: String, branchId: String): List<BankAccountEntity> =
         dao.bankAccounts(accountKey, branchId)
 
@@ -774,6 +872,8 @@ class CreditRepository(
             dao.deleteActivityLog(accountKey)
             dao.deleteRouteCash(accountKey)
             dao.deleteBankAccounts(accountKey)
+            dao.deleteRouteEntries(accountKey)
+            dao.deleteRouteCatalog(accountKey)
         }
     }
 
@@ -862,6 +962,9 @@ class CreditRepository(
                 "comment" to setOf("id", "customerId", "comment", "type", "userId", "createdAt", "updatedAt")
             OperationKind.UPSERT_ALERT ->
                 "alert" to setOf("id", "alerta")
+            OperationKind.CREATE_EXPENSE, OperationKind.UPDATE_EXPENSE, OperationKind.DELETE_EXPENSE,
+            OperationKind.CREATE_BASE, OperationKind.UPDATE_BASE, OperationKind.DELETE_BASE ->
+                "entry" to setOf("id", "kind", "name", "detail", "amount", "accountingType", "payrollId", "state")
         }
         val selectedObject = (normalized[nestedName] as? JsonObject) ?: normalized
         val numericFields = when (operation.kind) {
@@ -876,6 +979,9 @@ class CreditRepository(
             OperationKind.CREATE_COMMENT, OperationKind.UPDATE_COMMENT, OperationKind.DELETE_COMMENT ->
                 setOf("customerId", "userId")
             OperationKind.UPSERT_ALERT -> emptySet()
+            OperationKind.CREATE_EXPENSE, OperationKind.UPDATE_EXPENSE, OperationKind.DELETE_EXPENSE,
+            OperationKind.CREATE_BASE, OperationKind.UPDATE_BASE, OperationKind.DELETE_BASE ->
+                setOf("accountingType", "payrollId")
         }
         val decimalFields = when (operation.kind) {
             OperationKind.CREATE_CUSTOMER, OperationKind.UPDATE_CUSTOMER, OperationKind.UPDATE_DOCUMENT ->
@@ -918,6 +1024,22 @@ class CreditRepository(
         var appliedServerState = false
         database.withTransaction {
             when (operation.kind) {
+                OperationKind.CREATE_EXPENSE, OperationKind.UPDATE_EXPENSE,
+                OperationKind.CREATE_BASE, OperationKind.UPDATE_BASE -> {
+                    val local = dao.routeEntry(operation.accountKey, operation.branchId, operation.entityId)
+                    if (local != null) {
+                        val serverId = responseEntityId.takeIf(String::isNotBlank) ?: local.id
+                        if (serverId != local.id) {
+                            dao.deleteRouteEntry(operation.accountKey, operation.branchId, local.id)
+                        }
+                        dao.putRouteEntries(listOf(local.copy(id = serverId, pending = false)))
+                        appliedServerState = true
+                    }
+                }
+                OperationKind.DELETE_EXPENSE, OperationKind.DELETE_BASE -> {
+                    dao.deleteRouteEntry(operation.accountKey, operation.branchId, operation.entityId)
+                    appliedServerState = true
+                }
                 OperationKind.CREATE_CUSTOMER -> {
                     val old = dao.customer(operation.accountKey, operation.branchId, operation.entityId)
                     val stateObject = state as? JsonObject
@@ -1188,9 +1310,19 @@ class CreditRepository(
             is ApiResult.Retryable -> response
         }
 
+    suspend fun routeExpenseCatalog(account: StoredSession, branchId: String) =
+        when (val response = api.routeExpenseCatalog(account.token, branchId)) {
+            is ApiResult.Success -> ApiResult.Success(response.value.routeExpenseCatalog)
+            is ApiResult.AuthExpired -> response
+            is ApiResult.Conflict -> response
+            is ApiResult.PermissionRejected -> response
+            is ApiResult.Rejected -> response
+            is ApiResult.Retryable -> response
+        }
+
     suspend fun settleRoute(
-        account: StoredSession, branchId: String, base: Double, cash: Double, coins: Double, difference: Double
-    ) = when (val response = api.settleRoute(account.token, branchId, base, cash, coins, difference)) {
+        account: StoredSession, branchId: String, cash: Double, coins: Double, difference: Double
+    ) = when (val response = api.settleRoute(account.token, branchId, cash, coins, difference)) {
         is ApiResult.Success -> ApiResult.Success(response.value.settleRoute)
         is ApiResult.AuthExpired -> response
         is ApiResult.Conflict -> response
@@ -1251,4 +1383,38 @@ internal fun syncPauseMessage(reason: String): String = when (reason) {
     "PERMISSION" -> "Sincronización pausada: el servidor rechazó una operación por permisos."
     "REJECTED", "PROTOCOL", "SYNC_PROTOCOL" -> "Sincronización pausada: el servidor rechazó una operación."
     else -> "Sincronización pausada."
+}
+
+/**
+ * Turns the accounting row a sync change carries into the gasto or base the collector sees.
+ * Returns null when the row is not one of those: `tbl_contabilidad_detalle` also stores the
+ * counted cash and the difference of the settlement, and rows already handed in ('entregando')
+ * belong to a day that is closed, so neither one belongs in today's list.
+ */
+internal fun com.backendcreditos.mobile.network.AccountingChangeDto.toRouteEntry(
+    accountKey: String,
+    branchId: String
+): RouteEntryEntity? {
+    val kind = when {
+        name == "base" -> "base"
+        operation?.startsWith("salida-totalizar") == true -> "expense"
+        else -> return null
+    }
+    if (!state.isNullOrBlank() && !state.equals("created", ignoreCase = true)) return null
+    return RouteEntryEntity(
+        accountKey = accountKey,
+        branchId = branchId,
+        id = id,
+        kind = kind,
+        name = name,
+        detail = detail.orEmpty(),
+        // Gastos are stored negative; the phone always works with the amount that was typed.
+        amount = kotlin.math.abs(amount).toBigDecimal().toPlainString(),
+        accountingType = accountingType,
+        payrollId = payrollId,
+        personName = personName?.takeIf { it.isNotBlank() },
+        state = state,
+        createdAt = momentMillis(createdAt) ?: System.currentTimeMillis(),
+        pending = false
+    )
 }

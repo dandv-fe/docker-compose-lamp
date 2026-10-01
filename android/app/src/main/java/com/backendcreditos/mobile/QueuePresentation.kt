@@ -92,6 +92,17 @@ internal fun summarizeOperation(
         OperationKind.DELETE_COMMENT -> details += "Se elimina un comentario"
         OperationKind.UPSERT_ALERT -> text("alerta")?.split("/,")?.getOrNull(2)
             ?.takeIf(String::isNotBlank)?.let { details += "Alerta: $it" }
+        OperationKind.CREATE_EXPENSE, OperationKind.UPDATE_EXPENSE -> {
+            listOfNotNull(text("nombre"), money("valor")).joinToString(" ")
+                .takeIf(String::isNotBlank)?.let { details += "Gasto de la ruta: $it" }
+            text("detalle")?.let { details += it }
+        }
+        OperationKind.DELETE_EXPENSE -> details += "Se borra un gasto de la ruta"
+        OperationKind.CREATE_BASE, OperationKind.UPDATE_BASE -> {
+            money("valor")?.let { details += "Base recibida $it" }
+            text("detalle")?.let { details += it }
+        }
+        OperationKind.DELETE_BASE -> details += "Se borra una base recibida"
     }
     if (cardLabel != null && kind != OperationKind.CREATE_CREDIT) details.add(0, cardLabel)
     return OperationSummary(person?.takeIf(String::isNotBlank), details)

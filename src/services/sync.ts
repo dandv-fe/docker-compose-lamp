@@ -149,6 +149,23 @@ export async function materializeSyncEvent(
              WHERE d.iddetalle_documento_sucursal=? AND d.idglobal=? AND d.idsucursal=? LIMIT 1`;
       params = [event.recordId, user.companyId, branchId];
       break;
+    case 'accounting':
+      sql = `SELECT dc.idcontabilidad_detalle AS id,dc.dec_total AS amount,dc.str_nombre AS name,
+                    dc.str_detalle AS detail,dc.str_operacion AS operation,dc.str_estado AS state,
+                    dc.idtipo_contabilidad AS accountingType,dc.iddetalleruta AS routeId,
+                    dc.created_empleado_id AS createdEmployeeId,dc.created_at AS createdAt,
+                    dc.update_at AS updatedAt,
+                    COALESCE(NULLIF(TRIM(CONCAT_WS(' ', p.str_nombres, p.str_apellidos)), ''), '')
+                        AS personName,
+                    (SELECT dn.idnomina FROM tbl_detalle_nomina dn
+                      WHERE dn.idcontabilidad_detalle=dc.idcontabilidad_detalle
+                        AND dn.idglobal=dc.idglobal LIMIT 1) AS payrollId
+             FROM tbl_contabilidad_detalle dc
+             LEFT JOIN tbl_empleado e ON e.idempleado=dc.created_empleado_id AND e.idglobal=dc.idglobal
+             LEFT JOIN tbl_persona p ON p.idpersona=e.idpersona AND p.idglobal=e.idglobal
+             WHERE dc.idcontabilidad_detalle=? AND dc.idglobal=? AND dc.idsucursal=? LIMIT 1`;
+      params = [event.recordId, user.companyId, branchId];
+      break;
     default:
       return null;
   }

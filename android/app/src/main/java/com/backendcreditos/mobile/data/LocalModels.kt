@@ -11,7 +11,8 @@ enum class OperationKind {
     CREATE_CUSTOMER, UPDATE_CUSTOMER, UPDATE_DOCUMENT, CREATE_CREDIT, UPDATE_CREDIT,
     UPDATE_CREDIT_TERMS, CREATE_PAYMENT, UPDATE_PAYMENT, DELETE_PAYMENT, DELETE_CREDIT,
     APPLY_DISCOUNT, ADD_INTEREST, CHANGE_CREDIT_STATUS, REORDER_CREDIT, CREATE_COMMENT,
-    UPDATE_COMMENT, DELETE_COMMENT, UPSERT_ALERT
+    UPDATE_COMMENT, DELETE_COMMENT, UPSERT_ALERT,
+    CREATE_EXPENSE, UPDATE_EXPENSE, DELETE_EXPENSE, CREATE_BASE, UPDATE_BASE, DELETE_BASE
 }
 
 @Entity(
@@ -175,6 +176,36 @@ data class RouteCashEntity(
     val base: String,
     val otherIncome: String,
     val expenses: String,
+    val fetchedAt: Long
+)
+
+// Route expenses (gasolina, sueldo, viaticos...) and bases of the open day. Cached from the
+// server and also written locally while offline, so the list is always complete: `pending` marks
+// the rows that still travel in the queue.
+@Entity(tableName = "route_entries", primaryKeys = ["accountKey", "branchId", "id"])
+data class RouteEntryEntity(
+    val accountKey: String,
+    val branchId: String,
+    val id: String,
+    val kind: String,
+    val name: String,
+    val detail: String,
+    val amount: String,
+    val accountingType: Int?,
+    val payrollId: Int?,
+    val personName: String?,
+    val state: String?,
+    val createdAt: Long,
+    val pending: Boolean = false
+)
+
+// The expense concepts the branch office publishes, stored as the JSON the server returned so a
+// gasto can still be typed with the right categories after a day without signal.
+@Entity(tableName = "route_catalog", primaryKeys = ["accountKey", "branchId"])
+data class RouteCatalogEntity(
+    val accountKey: String,
+    val branchId: String,
+    val payloadJson: String,
     val fetchedAt: Long
 )
 

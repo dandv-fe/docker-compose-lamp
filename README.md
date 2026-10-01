@@ -99,13 +99,15 @@ Queries:
 * `bankAccounts(branchId: Int!)` — active `tbl_banco` accounts of the company **authorized in that branch** (`tbl_banco_sucursal`): `id`, `name`, `type`, `number`, `holderName`, `holderDocument` (NIT/CC of the holder), ordered by `int_orden`, offered as payment methods besides cash
 * `openRouteCash(branchId: Int!)` — `routeId`, `base`, `otherIncome` and `expenses` (positive) of the branch's open, not yet saved `tbl_detalle_ruta`, summed from `tbl_contabilidad_detalle`: `base` rows, `entrada-*` except `recaudo`/`diferencia`, and `salida-*` except tipo 4 (prestamos/articulos); used by the APK pocket-cash line
 * `routeSettlement(branchId: Int!)` — end-of-day accounting of the branch's open route (see *Route settlement* below)
+* `routeEntries(branchId: Int!)` — the route expenses and bases written today
+* `routeExpenseCatalog(branchId: Int!)` — expense categories, concepts and payrolls the branch may use
 * `syncChanges(branchId: Int!, after: String!, first: Int)`
 
 Mutations:
 
 * `login(companyId: Int!, username: String!, password: String!): AuthPayload!`
 * `applyOfflineOperation(input: OfflineOperationInput!): OfflineOperationResult!`
-* `settleRoute(branchId: Int!, base: Float!, cash: Float!, coins: Float!, difference: Float!): RouteSettlement!` — hands the route over (see *Route settlement* below)
+* `settleRoute(branchId: Int!, cash: Float!, coins: Float!, difference: Float!): RouteSettlement!` — hands the route over (see *Route settlement* below)
 
 `OfflineOperationInput` contains `operationId` (UUID), `branchId`, `kind`,
 `entityId`, `baseVersion` (decimal event-cursor string or null), and a JSON
@@ -115,7 +117,8 @@ Mutations:
 `UPDATE_CREDIT`, `UPDATE_CREDIT_TERMS`, `CREATE_PAYMENT`, `UPDATE_PAYMENT`,
 `DELETE_PAYMENT`, `DELETE_CREDIT`, `APPLY_DISCOUNT`, `ADD_INTEREST`,
 `CHANGE_CREDIT_STATUS`, `REORDER_CREDIT`, `CREATE_COMMENT`, `UPDATE_COMMENT`,
-`DELETE_COMMENT`, `UPSERT_ALERT`.
+`DELETE_COMMENT`, `UPSERT_ALERT`, `CREATE_EXPENSE`, `UPDATE_EXPENSE`,
+`DELETE_EXPENSE`, `CREATE_BASE`, `UPDATE_BASE`, `DELETE_BASE`.
 
 The branch list includes `extraCharge` from `tbl_sucursal.str_cobro_adicional`
 (`seguro`, `boleta`, `ninguno`) for the Android new-card form. A `CREATE_CREDIT`
@@ -282,12 +285,47 @@ office. The pocket-cash line does count them and may therefore differ.
 
 `settleRoute` requires `str_estado='created'`, recomputes the difference and
 rejects the call when it does not match the one sent. It writes or updates the
-four named rows `base`, `efectivo` and `efectivoMonedas` (tipo 8,
-`info-totalizar`) plus `diferencia` (tipo 7, `entrada-totalizar`), then moves
+named rows `efectivo` and `efectivoMonedas` (tipo 8, `info-totalizar`) plus
+`diferencia` (tipo 7, `entrada-totalizar`), then moves
 every `created` row of `tbl_descripcion`, `tbl_tarjetas`,
 `tbl_contabilidad_detalle` and `tbl_detalle_ruta` of that branch to
 `entregando`. Permission mirrors the web: Super Administrador, the office
 administrator, or the `bloquear` permission on the branch.
+
+### Route expenses and bases
+
+The base is no longer typed while handing in the accounts: it is written during
+the day like any other movement, one or several times, and the settlement screen
+only shows the sum. `routeEntries(branchId)` lists today's `base` and
+`salida-totalizar` rows of `tbl_contabilidad_detalle`, and
+`routeExpenseCatalog(branchId)` publishes the categories the branch may use
+(`tbl_tipo_contabilidad` of the company plus the shared `idglobal = 1001`,
+`str_operacion='salida'`), their concepts (`tbl_de_contabilidad`) and the open
+payrolls (`tbl_nomina`).
+
+The six offline kinds `CREATE/UPDATE/DELETE_EXPENSE` and
+`CREATE/UPDATE/DELETE_BASE` write those rows. An expense payload carries
+`idtipo_contabilidad`, `nombre`, `valor`, optional `detalle` and optional
+`idnomina` (linked through `tbl_detalle_nomina`); a base payload only carries
+`valor` and optional `detalle`. The id of a new row travels as `entityId`, the
+way webgoez generates it with `uniqid()`. **The amount always travels positive**
+and the server applies the sign webgoez stores (negative for an expense), so a
+queued operation can never flip the cuadre. The pair (category, concept) must
+exist in the catalog, and editing or deleting is only allowed while the row is
+still `created`. Unlike the web, the APK can correct a row instead of deleting
+and rewriting it.
+
+Those rows also travel through `syncChanges` as `recordType: "accounting"`, so a
+gasto or a base written by another collector reaches the phone on its own. The
+change carries the amount with the sign the database keeps, `operation`, `state`
+and the name of whoever wrote it; the client keeps only the `created` rows whose
+name is `base` or whose operation starts with `salida-totalizar`, because the
+same table also holds the counted cash and the difference of the settlement.
+
+The web was aligned with this: `RecibeCuentas::RegistrarContabilidadDetalle` no
+longer writes the `base` row (it read the form field and overwrote *every* base
+of the day) and takes the stored sum from `view_contabilidad_detalle_ruta`
+instead; the field in `formContabilidadDetalleRuta.html` is now read-only.
 
 ## Payment methods migration
 

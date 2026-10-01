@@ -16,19 +16,18 @@ class SettlementScreenTest {
     )
 
     @Test
-    fun correctingTheBaseMovesTheExpectedCash() {
-        val sameBase = CashCount(base = "50")
-        assertEquals(BigDecimal("-37.00"), expectedCash(summary, sameBase))
-        // Started with 80 instead of the 50 the office had recorded.
-        assertEquals(BigDecimal("-7.00"), expectedCash(summary, CashCount(base = "80")))
+    fun theBaseIsOneMoreMovementAndIsNoLongerTypedHere() {
+        // The base is registered in «Gastos y bases», so the count no longer changes it.
+        assertEquals(BigDecimal("-37.00"), expectedCash(summary, CashCount()))
+        assertEquals(BigDecimal("-37.00"), expectedCash(summary, CashCount(cash = "999")))
     }
 
     @Test
     fun theDifferenceIsWhatTheCollectorHasOverOrUnder() {
-        val squared = CashCount(base = "50", cash = "-37")
+        val squared = CashCount(cash = "-37")
         assertEquals(0, cashDifference(summary, squared).compareTo(BigDecimal.ZERO))
-        assertEquals(BigDecimal("40.00"), cashDifference(summary, CashCount(base = "50", cash = "3")))
-        assertEquals(BigDecimal("-13.00"), cashDifference(summary, CashCount(base = "50", cash = "-50")))
+        assertEquals(BigDecimal("40.00"), cashDifference(summary, CashCount(cash = "3")))
+        assertEquals(BigDecimal("-13.00"), cashDifference(summary, CashCount(cash = "-50")))
         // Bills and coins add up, and a comma is typed as often as a dot.
         assertEquals(BigDecimal("50.50"), CashCount(cash = "40,25", coins = "10,25").counted)
     }

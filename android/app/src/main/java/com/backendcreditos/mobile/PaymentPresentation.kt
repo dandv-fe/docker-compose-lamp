@@ -88,6 +88,14 @@ private fun parseMoment(text: String, zone: ZoneId): Instant? {
     return null
 }
 
+// Same reading as formatPaymentMoment, but returning the instant so a cached row can be sorted:
+// the list query hands epoch milliseconds while a sync change hands an ISO instant.
+internal fun momentMillis(raw: String?, zone: ZoneId = ZoneId.systemDefault()): Long? {
+    val text = raw?.trim().orEmpty()
+    if (text.isEmpty()) return null
+    return parseMoment(text, zone)?.toEpochMilli()
+}
+
 // The server never sends a per-payment balance, so it is rebuilt from the card's current
 // balance walking backwards: the newest row lands on today's balance and every older row
 // undoes the movement above it. It is only exact while the whole history is cached, which is

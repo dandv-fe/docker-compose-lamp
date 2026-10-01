@@ -336,8 +336,20 @@ data class RouteMovementDto(
     val amount: Double = 0.0,
     val bankAmount: Double = 0.0,
     val countsForCash: Boolean = true,
+    val cashAmount: Double = 0.0,
+    val personId: Int? = null,
+    val personName: String? = null,
     val state: String? = null,
     val createdAt: String? = null
+)
+
+@Serializable
+data class RouteCollectorDto(
+    val personId: Int? = null,
+    val personName: String? = null,
+    val cash: Double = 0.0,
+    val movements: Int = 0,
+    val isMe: Boolean = false
 )
 
 @Serializable
@@ -353,7 +365,8 @@ data class RouteSettlementDto(
     val creditsBank: Double = 0.0,
     val expenses: Double = 0.0,
     val expectedCash: Double = 0.0,
-    val movements: List<RouteMovementDto> = emptyList()
+    val movements: List<RouteMovementDto> = emptyList(),
+    val collectors: List<RouteCollectorDto> = emptyList()
 )
 
 @Serializable
@@ -361,6 +374,59 @@ data class RouteSettlementData(val routeSettlement: RouteSettlementDto)
 
 @Serializable
 data class SettleRouteData(val settleRoute: RouteSettlementDto)
+
+@Serializable
+data class ExpenseCategoryDto(
+    val id: Int,
+    val category: String = "",
+    val names: List<String> = emptyList()
+)
+
+@Serializable
+data class PayrollDto(val id: Int, val name: String = "")
+
+@Serializable
+data class ExpenseCatalogDto(
+    val categories: List<ExpenseCategoryDto> = emptyList(),
+    val payrolls: List<PayrollDto> = emptyList()
+)
+
+@Serializable
+data class RouteExpenseCatalogData(val routeExpenseCatalog: ExpenseCatalogDto)
+
+@Serializable
+data class RouteEntryDto(
+    @Serializable(with = GraphQlIdSerializer::class) val id: String,
+    val kind: String = "expense",
+    val name: String = "",
+    val detail: String = "",
+    val amount: Double = 0.0,
+    val accountingType: Int? = null,
+    val payrollId: Int? = null,
+    val personName: String? = null,
+    val state: String? = null,
+    val createdAt: String? = null
+)
+
+@Serializable
+data class RouteEntriesData(val routeEntries: List<RouteEntryDto> = emptyList())
+
+// The shape `syncChanges` sends for a `tbl_contabilidad_detalle` row: the same gasto or base the
+// collector sees, but with the sign the database keeps and the raw operation name, so the phone
+// can tell a gasto apart from the other accounting rows of the day.
+@Serializable
+data class AccountingChangeDto(
+    @Serializable(with = GraphQlIdSerializer::class) val id: String,
+    val amount: Double = 0.0,
+    val name: String = "",
+    val detail: String? = null,
+    val operation: String? = null,
+    val state: String? = null,
+    val accountingType: Int? = null,
+    val payrollId: Int? = null,
+    val personName: String? = null,
+    val createdAt: String? = null
+)
 
 @Serializable
 data class ReceiptSequencesData(val receiptSequences: List<ReceiptSequenceDto>)

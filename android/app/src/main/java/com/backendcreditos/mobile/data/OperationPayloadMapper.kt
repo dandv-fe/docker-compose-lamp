@@ -225,6 +225,59 @@ object OperationPayloadMapper {
         }
     })
 
+    // Gastos de ruta y bases. El importe viaja siempre positivo: el servidor le pone el signo
+    // que guarda webgoez, para que una operación en cola no pueda invertir el cuadre.
+    fun createExpense(
+        accountingType: Int, name: String, amount: String, detail: String, payrollId: Int? = null
+    ) = MappedOperation(newEntryId(), expenseBody(accountingType, name, amount, detail, payrollId))
+
+    fun updateExpense(
+        id: String, accountingType: Int, name: String, amount: String, detail: String, payrollId: Int? = null
+    ): MappedOperation {
+        require(id.isNotBlank() && id.length <= 50)
+        return MappedOperation(id, expenseBody(accountingType, name, amount, detail, payrollId))
+    }
+
+    fun createBase(amount: String, detail: String) = MappedOperation(newEntryId(), baseBody(amount, detail))
+
+    fun updateBase(id: String, amount: String, detail: String): MappedOperation {
+        require(id.isNotBlank() && id.length <= 50)
+        return MappedOperation(id, baseBody(amount, detail))
+    }
+
+    private fun expenseBody(
+        accountingType: Int, name: String, amount: String, detail: String, payrollId: Int?
+    ) = buildJsonObject {
+        require(accountingType > 0) { "Elige el tipo de gasto." }
+        require(name.isNotBlank() && name.length <= 50) { "Elige el concepto del gasto." }
+        require(payrollId == null || payrollId > 0) { "La nómina elegida no es válida." }
+        put("idtipo_contabilidad", JsonPrimitive(accountingType))
+        put("nombre", name.trim())
+        put("valor", JsonPrimitive(positiveAmount(amount)))
+        putDetail(detail)
+        if (payrollId != null) put("idnomina", JsonPrimitive(payrollId))
+    }
+
+    private fun baseBody(amount: String, detail: String) = buildJsonObject {
+        put("valor", JsonPrimitive(positiveAmount(amount)))
+        putDetail(detail)
+    }
+
+    private fun JsonObjectBuilder.putDetail(detail: String) {
+        require(detail.length <= 250) { "El detalle no puede pasar de 250 letras." }
+        if (detail.isNotBlank()) put("detalle", detail.trim())
+    }
+
+    private fun positiveAmount(amount: String): Double {
+        val value = number(amount, "Valor")
+        require(value > 0.0) { "Escribe un valor mayor que cero." }
+        return value
+    }
+
+    // webgoez identifica estas filas con uniqid(): 13 caracteres hexadecimales.
+    private fun newEntryId(): String =
+        UUID.randomUUID().toString().replace("-", "").take(13)
+
     fun delete(id: String): MappedOperation {
         require(id.isNotBlank() && id.length <= 50)
         return MappedOperation(id, buildJsonObject { })

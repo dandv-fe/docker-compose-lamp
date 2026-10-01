@@ -264,6 +264,40 @@ interface LocalDao {
 
     @Query("DELETE FROM bank_accounts WHERE accountKey = :accountKey")
     suspend fun deleteBankAccounts(accountKey: String)
+
+    @Query("SELECT * FROM route_entries WHERE accountKey = :accountKey AND branchId = :branchId ORDER BY createdAt, id")
+    suspend fun routeEntries(accountKey: String, branchId: String): List<RouteEntryEntity>
+
+    @Query("SELECT * FROM route_entries WHERE accountKey = :accountKey AND branchId = :branchId AND id = :id LIMIT 1")
+    suspend fun routeEntry(accountKey: String, branchId: String, id: String): RouteEntryEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun putRouteEntries(entries: List<RouteEntryEntity>)
+
+    @Query("DELETE FROM route_entries WHERE accountKey = :accountKey AND branchId = :branchId AND id = :id")
+    suspend fun deleteRouteEntry(accountKey: String, branchId: String, id: String)
+
+    @Query("DELETE FROM route_entries WHERE accountKey = :accountKey AND branchId = :branchId AND pending = 0")
+    suspend fun deleteSyncedRouteEntries(accountKey: String, branchId: String)
+
+    /** Server truth replaces the synced rows; whatever is still queued stays visible. */
+    @Transaction
+    suspend fun replaceRouteEntries(accountKey: String, branchId: String, entries: List<RouteEntryEntity>) {
+        deleteSyncedRouteEntries(accountKey, branchId)
+        if (entries.isNotEmpty()) putRouteEntries(entries)
+    }
+
+    @Query("DELETE FROM route_entries WHERE accountKey = :accountKey")
+    suspend fun deleteRouteEntries(accountKey: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun putRouteCatalog(catalog: RouteCatalogEntity)
+
+    @Query("SELECT * FROM route_catalog WHERE accountKey = :accountKey AND branchId = :branchId LIMIT 1")
+    suspend fun routeCatalog(accountKey: String, branchId: String): RouteCatalogEntity?
+
+    @Query("DELETE FROM route_catalog WHERE accountKey = :accountKey")
+    suspend fun deleteRouteCatalog(accountKey: String)
 }
 
 @Database(
@@ -271,9 +305,10 @@ interface LocalDao {
         CustomerEntity::class, CreditEntity::class, PaymentEntity::class,
         OfflineOperationEntity::class, SyncControlEntity::class, SyncCursorEntity::class, RecordVersionEntity::class,
         MarkedCreditEntity::class, ReceiptSequenceEntity::class, ActivityLogEntity::class,
-        RouteCashEntity::class, BankAccountEntity::class
+        RouteCashEntity::class, BankAccountEntity::class,
+        RouteEntryEntity::class, RouteCatalogEntity::class
     ],
-    version = 13,
+    version = 14,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)
@@ -462,6 +497,28 @@ abstract class CreditDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE bank_accounts ADD COLUMN holderDocument TEXT")
                 // The list is now per-branch authorization; drop the old company-wide cache.
                 db.execSQL("DELETE FROM bank_accounts")
+            }
+        }
+
+        val MIGRATION_13_14 = object : Migration(13, 14) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS route_entries (
+                        accountKey TEXT NOT NULL, branchId TEXT NOT NULL, id TEXT NOT NULL,
+                        kind TEXT NOT NULL, name TEXT NOT NULL, detail TEXT NOT NULL,
+                        amount TEXT NOT NULL, accountingType INTEGER, payrollId INTEGER,
+                        personName TEXT, state TEXT, createdAt INTEGER NOT NULL,
+                        pending INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(accountKey, branchId, id)
+                    )""".trimIndent()
+                )
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS route_catalog (
+                        accountKey TEXT NOT NULL, branchId TEXT NOT NULL,
+                        payloadJson TEXT NOT NULL, fetchedAt INTEGER NOT NULL,
+                        PRIMARY KEY(accountKey, branchId)
+                    )""".trimIndent()
+                )
             }
         }
     }

@@ -119,7 +119,7 @@ private fun connectionStatus(authExpired: Boolean, online: Boolean, autoSync: Bo
     else -> ConnectionStatus(Color(0xFFC62828), "Sin conexión o sincronización automática detenida")
 }
 
-private enum class Screen { LOGIN, BRANCHES, HOME, CUSTOMER, CUSTOMER_LOOKUP, CREDIT, CARD_ASSESSMENT, QUEUE, COMPOSER, DEFAULTERS, WITHDRAWN, CANCELLED, PORTFOLIO_CLIENTS, SYNC_SETTINGS, MARKED, SETTLEMENT }
+private enum class Screen { LOGIN, BRANCHES, HOME, CUSTOMER, CUSTOMER_LOOKUP, CREDIT, CARD_ASSESSMENT, QUEUE, COMPOSER, DEFAULTERS, WITHDRAWN, CANCELLED, PORTFOLIO_CLIENTS, SYNC_SETTINGS, MARKED, SETTLEMENT, ROUTE_ENTRIES }
 
 class MainActivity : FragmentActivity() {
     fun unlockDevice(onResult: (Boolean, String?) -> Unit) {
@@ -182,6 +182,12 @@ private fun operationDisplayName(kind: OperationKind): String = when (kind) {
     OperationKind.UPDATE_COMMENT -> "Editar comentario"
     OperationKind.DELETE_COMMENT -> "Eliminar comentario"
     OperationKind.UPSERT_ALERT -> "Crear/editar alerta"
+    OperationKind.CREATE_EXPENSE -> "Anotar gasto de la ruta"
+    OperationKind.UPDATE_EXPENSE -> "Corregir gasto de la ruta"
+    OperationKind.DELETE_EXPENSE -> "Borrar gasto de la ruta"
+    OperationKind.CREATE_BASE -> "Anotar base recibida"
+    OperationKind.UPDATE_BASE -> "Corregir base recibida"
+    OperationKind.DELETE_BASE -> "Borrar base recibida"
 }
 
 /**
@@ -384,6 +390,10 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
     var settlement by remember { mutableStateOf<com.backendcreditos.mobile.network.RouteSettlementDto?>(null) }
     var cashCount by remember { mutableStateOf(CashCount()) }
     var settlementError by remember { mutableStateOf("") }
+    var routeEntryRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.data.RouteEntryEntity>()) }
+    var routeCatalog by remember { mutableStateOf<com.backendcreditos.mobile.network.ExpenseCatalogDto?>(null) }
+    var routeEntryDraft by remember { mutableStateOf(RouteEntryDraft()) }
+    var routeEntryError by remember { mutableStateOf("") }
     var defaulterRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.network.DefaulterCreditDto>()) }
     var withdrawnRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.network.WithdrawnCreditDto>()) }
     var cancelledRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.network.CancelledCreditDto>()) }
@@ -706,15 +716,112 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
         val branch = current.selectedBranchId ?: return
         settlementError = ""
         when (val result = app.repository.routeSettlement(current, branch)) {
-            is ApiResult.Success -> {
-                settlement = result.value
-                // The stored base is what the office already knows; the collector may correct it.
-                if (cashCount.base.isBlank() && result.value.base != 0.0) {
-                    cashCount = cashCount.copy(base = result.value.base.toBigDecimal().toPlainString())
-                }
-            }
+            is ApiResult.Success -> settlement = result.value
             else -> report(result)
         }
+    }
+
+    // Gastos y bases: la lista se lee siempre de la caché, así se puede anotar sin señal.
+    suspend fun loadRouteEntries(fromServer: Boolean) {
+        val current = session ?: return
+        val branch = current.selectedBranchId ?: return
+        routeEntryError = ""
+        if (fromServer && online) {
+            app.repository.syncRouteEntries(current, branch)
+            app.repository.syncRouteCatalog(current, branch)
+        }
+        routeEntryRows = app.repository.routeEntries(current.accountKey, branch)
+        routeCatalog = app.repository.routeCatalog(current.accountKey, branch)
+    }
+
+    /**
+     * Wakes the queue up so the gasto or base leaves the phone right away and, while online,
+     * waits a moment for the answer so the «Falta enviar» mark disappears without the collector
+     * having to look for it in the Cola. Offline it simply stays queued, like the abonos.
+     */
+    suspend fun sendRouteEntry(
+        operation: OfflineOperationEntity, current: StoredSession, branch: String
+    ) {
+        SyncScheduler.enqueue(activity, current.accountKey, branch, expedited = online)
+        if (online) {
+            var latest = operation
+            val deadlineMs = System.currentTimeMillis() + 15_000
+            while (latest.status in setOf(OperationStatus.PENDING, OperationStatus.IN_FLIGHT) &&
+                System.currentTimeMillis() < deadlineMs
+            ) {
+                delay(400)
+                latest = app.repository.operation(operation.operationId) ?: latest
+            }
+            routeEntryError = when (latest.status) {
+                OperationStatus.CONFIRMED -> ""
+                OperationStatus.CONFLICT ->
+                    "El servidor reportó un conflicto: ${friendlyServerError(latest.lastError)}"
+                OperationStatus.REJECTED ->
+                    "El servidor no lo aceptó: ${friendlyServerError(latest.lastError)}"
+                else -> "Quedó guardado y se sigue enviando; revisa la Cola si no desaparece el aviso."
+            }
+        } else {
+            routeEntryError = "Sin conexión: quedó guardado y se enviará al recuperar señal."
+        }
+        loadOperations()
+        loadRouteEntries(false)
+        refreshRouteCash()
+    }
+
+    suspend fun saveRouteEntry() {
+        val current = session ?: return
+        val branch = current.selectedBranchId ?: return
+        val draft = routeEntryDraft
+        routeEntryError = ""
+        val mapped = try {
+            when {
+                draft.isBase && draft.editing ->
+                    OperationKind.UPDATE_BASE to OperationPayloadMapper.updateBase(draft.id, draft.amount, draft.detail)
+                draft.isBase ->
+                    OperationKind.CREATE_BASE to OperationPayloadMapper.createBase(draft.amount, draft.detail)
+                draft.editing -> OperationKind.UPDATE_EXPENSE to OperationPayloadMapper.updateExpense(
+                    draft.id, draft.categoryId ?: 0, draft.name, draft.amount, draft.detail, draft.payrollId
+                )
+                else -> OperationKind.CREATE_EXPENSE to OperationPayloadMapper.createExpense(
+                    draft.categoryId ?: 0, draft.name, draft.amount, draft.detail, draft.payrollId
+                )
+            }
+        } catch (error: IllegalArgumentException) {
+            routeEntryError = error.message ?: "Revisa los datos."
+            return
+        }
+        val (kind, payload) = mapped
+        val operation = try {
+            app.repository.enqueue(current, branch, kind, payload.entityId, payload.payload)
+        } catch (error: IllegalArgumentException) {
+            routeEntryError = error.message ?: "No se pudo anotar."
+            return
+        }
+        app.repository.applyOptimisticCacheChange(
+            operation,
+            creatorUsername = listOfNotNull(current.firstName, current.lastName)
+                .joinToString(" ").ifBlank { current.username }
+        )
+        routeEntryDraft = RouteEntryDraft()
+        sendRouteEntry(operation, current, branch)
+    }
+
+    suspend fun deleteRouteEntry(entry: com.backendcreditos.mobile.data.RouteEntryEntity) {
+        val current = session ?: return
+        val branch = current.selectedBranchId ?: return
+        routeEntryError = ""
+        val kind = if (entry.kind == "base") OperationKind.DELETE_BASE else OperationKind.DELETE_EXPENSE
+        val operation = try {
+            app.repository.enqueue(
+                current, branch, kind, entry.id, OperationPayloadMapper.delete(entry.id).payload
+            )
+        } catch (error: IllegalArgumentException) {
+            routeEntryError = error.message ?: "No se pudo borrar."
+            return
+        }
+        app.repository.applyOptimisticCacheChange(operation)
+        if (routeEntryDraft.id == entry.id) routeEntryDraft = RouteEntryDraft()
+        sendRouteEntry(operation, current, branch)
     }
 
     suspend fun loadWithdrawn() {
@@ -1016,7 +1123,9 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                 draftCustomerId, entityId.ifBlank { UUID.randomUUID().toString() },
                 draftAlertIcon, draftAlertColor, draftAlertSubject, draftAlertMessage
             )
-            OperationKind.UPDATE_DOCUMENT -> throw IllegalArgumentException("Operación no disponible.")
+            OperationKind.UPDATE_DOCUMENT, OperationKind.CREATE_EXPENSE, OperationKind.UPDATE_EXPENSE,
+            OperationKind.DELETE_EXPENSE, OperationKind.CREATE_BASE, OperationKind.UPDATE_BASE,
+            OperationKind.DELETE_BASE -> throw IllegalArgumentException("Operación no disponible.")
         }
         val operation = when (operationKind) {
             OperationKind.CREATE_CUSTOMER -> app.repository.createCustomerOffline(
@@ -1606,6 +1715,19 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                                 else -> report(result)
                                             }
                                             busy = false
+                                        }
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Gastos y bases") },
+                                    onClick = {
+                                        showMoreMenu = false
+                                        scope.launch {
+                                            busy = true
+                                            routeEntryDraft = RouteEntryDraft()
+                                            loadRouteEntries(true)
+                                            busy = false
+                                            screen = Screen.ROUTE_ENTRIES
                                         }
                                     }
                                 )
@@ -2942,6 +3064,20 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                     }
                     TextButton(onClick = { screen = Screen.HOME }) { Text("Volver a cartera") }
                 }
+                Screen.ROUTE_ENTRIES -> {
+                    RouteEntriesScreen(
+                        entries = routeEntryRows,
+                        catalog = routeCatalog,
+                        draft = routeEntryDraft,
+                        onDraftChange = { routeEntryDraft = it },
+                        busy = busy,
+                        error = routeEntryError,
+                        onSave = { scope.launch { busy = true; saveRouteEntry(); busy = false } },
+                        onDelete = { entry -> scope.launch { busy = true; deleteRouteEntry(entry); busy = false } },
+                        onRefresh = { scope.launch { busy = true; loadRouteEntries(true); busy = false } },
+                        onBack = { screen = Screen.HOME }
+                    )
+                }
                 Screen.SETTLEMENT -> {
                     SettlementScreen(
                         summary = settlement,
@@ -2964,7 +3100,6 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                                 when (
                                     val result = app.repository.settleRoute(
                                         current, branch,
-                                        cashCount.amount(cashCount.base).toDouble(),
                                         cashCount.amount(cashCount.cash).toDouble(),
                                         cashCount.amount(cashCount.coins).toDouble(),
                                         difference.toDouble()
@@ -3428,7 +3563,10 @@ private fun CreditApplicationScreen(app: CreditApp, activity: MainActivity) {
                             Text("Acción destructiva para la entidad $entityId. Requiere confirmación.")
                         OperationKind.DELETE_PAYMENT ->
                             OutlinedTextField(entityId, { entityId = it }, label = { Text("ID del pago *") }, modifier = Modifier.fillMaxWidth())
-                        OperationKind.UPDATE_DOCUMENT -> Text("Operación no disponible.")
+                        OperationKind.UPDATE_DOCUMENT, OperationKind.CREATE_EXPENSE,
+                        OperationKind.UPDATE_EXPENSE, OperationKind.DELETE_EXPENSE,
+                        OperationKind.CREATE_BASE, OperationKind.UPDATE_BASE, OperationKind.DELETE_BASE ->
+                            Text("Los gastos y las bases se anotan en la pantalla «Gastos y bases».")
                     }
                     // Hidden for CREATE/UPDATE_PAYMENT too: it is an advanced optimistic-concurrency
                     // override that the offline queue already resolves automatically from the

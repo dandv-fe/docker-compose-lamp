@@ -280,8 +280,30 @@ class GraphQlApi(private val client: GraphQlClient) {
         )
     }
 
+    suspend fun routeEntries(token: String, branchId: String): ApiResult<RouteEntriesData> {
+        val numericBranchId = branchId.toIntOrNull()
+            ?: return ApiResult.Rejected("La sucursal debe tener un ID numérico.")
+        return client.execute(
+            GraphQlDocuments.ROUTE_ENTRIES,
+            buildJsonObject { put("branchId", JsonPrimitive(numericBranchId)) },
+            RouteEntriesData.serializer(),
+            token
+        )
+    }
+
+    suspend fun routeExpenseCatalog(token: String, branchId: String): ApiResult<RouteExpenseCatalogData> {
+        val numericBranchId = branchId.toIntOrNull()
+            ?: return ApiResult.Rejected("La sucursal debe tener un ID numérico.")
+        return client.execute(
+            GraphQlDocuments.ROUTE_EXPENSE_CATALOG,
+            buildJsonObject { put("branchId", JsonPrimitive(numericBranchId)) },
+            RouteExpenseCatalogData.serializer(),
+            token
+        )
+    }
+
     suspend fun settleRoute(
-        token: String, branchId: String, base: Double, cash: Double, coins: Double, difference: Double
+        token: String, branchId: String, cash: Double, coins: Double, difference: Double
     ): ApiResult<SettleRouteData> {
         val numericBranchId = branchId.toIntOrNull()
             ?: return ApiResult.Rejected("La sucursal debe tener un ID numérico.")
@@ -289,7 +311,6 @@ class GraphQlApi(private val client: GraphQlClient) {
             GraphQlDocuments.SETTLE_ROUTE,
             buildJsonObject {
                 put("branchId", JsonPrimitive(numericBranchId))
-                put("base", JsonPrimitive(base))
                 put("cash", JsonPrimitive(cash))
                 put("coins", JsonPrimitive(coins))
                 put("difference", JsonPrimitive(difference))

@@ -16,6 +16,8 @@ const operationKinds = [
   'UPDATE_CREDIT_TERMS', 'CREATE_PAYMENT', 'UPDATE_PAYMENT', 'DELETE_PAYMENT', 'DELETE_CREDIT',
   'APPLY_DISCOUNT', 'ADD_INTEREST', 'CHANGE_CREDIT_STATUS', 'REORDER_CREDIT', 'CREATE_COMMENT',
   'UPDATE_COMMENT', 'DELETE_COMMENT', 'UPSERT_ALERT',
+  'CREATE_EXPENSE', 'UPDATE_EXPENSE', 'DELETE_EXPENSE',
+  'CREATE_BASE', 'UPDATE_BASE', 'DELETE_BASE',
 ] as const;
 type Kind = typeof operationKinds[number];
 
@@ -76,6 +78,10 @@ export function permissionForOperation(kind: Kind, payload: Record<string, unkno
 
 // Requires migrations/002_payment_author.sql (tbl_descripcion.idusuario/str_origen).
 const PAYMENT_ORIGIN = 'android';
+
+// webgoez publishes the shared expense catalog under company 1001 and lets each company add
+// its own rows (model/RecibeCuentas.php: listTipoContabilidadS / listDeContabilidad).
+const SHARED_CATALOG_COMPANY = 1001;
 
 function requireAuth(context: AuthContext | null) {
   if (!context) fail('UNAUTHENTICATED', 'Authentication is required');
@@ -816,7 +822,157 @@ async function executeOperation(
         relatedId: String(customer.idcliente),
       };
     }
+    case 'CREATE_EXPENSE':
+    case 'UPDATE_EXPENSE': {
+      const routeId = await openRoute(conn, companyId, input.branchId, employeeId, cargo);
+      const accountingType = Number(payload.idtipo_contabilidad);
+      const name = String(payload.nombre);
+      await assertExpenseCatalog(conn, companyId, accountingType, name);
+      const payrollId = payload.idnomina == null ? null : Number(payload.idnomina);
+      if (payrollId !== null) await assertPayroll(conn, companyId, payrollId);
+      // webgoez stores route expenses as a negative amount (model/RecibeCuentas.php:
+      // RegistrarContabilidad), which is what view_contabilidad_detalle_ruta then adds up.
+      const amount = -decimalToCents(payload.valor as number);
+      const detail = String(payload.detalle ?? '');
+      if (input.kind === 'CREATE_EXPENSE') {
+        await conn.execute(
+          `INSERT INTO tbl_contabilidad_detalle (idcontabilidad_detalle,idglobal,idsucursal,
+             idtipo_contabilidad,iddetalleruta,dec_total,str_detalle,str_nombre,str_estado,
+             str_operacion,created_empleado_id,created_at,update_at)
+           VALUES (?,?,?,?,?,?,?,?,'created','salida-totalizar',?,NOW(),NOW())`,
+          [input.entityId, companyId, input.branchId, accountingType, routeId,
+            centsToDecimal(amount), detail, name, employeeId],
+        );
+      } else {
+        await loadRouteEntry(conn, companyId, input.branchId, input.entityId, 'salida-totalizar');
+        await conn.execute(
+          `UPDATE tbl_contabilidad_detalle SET idtipo_contabilidad=?,dec_total=?,str_detalle=?,
+             str_nombre=?,update_at=NOW()
+           WHERE idcontabilidad_detalle=? AND idglobal=? AND idsucursal=?`,
+          [accountingType, centsToDecimal(amount), detail, name, input.entityId, companyId, input.branchId],
+        );
+      }
+      await savePayrollLink(conn, companyId, input.entityId, payrollId, name);
+      return {
+        entityId: input.entityId,
+        data: { id: input.entityId, routeId, amount: asMoneyNumber(amount), name, detail, accountingType, payrollId },
+        recordType: 'accounting',
+        action: input.kind === 'CREATE_EXPENSE' ? 'INSERT' : 'UPDATE',
+        branchId: input.branchId,
+      };
+    }
+    case 'CREATE_BASE':
+    case 'UPDATE_BASE': {
+      const routeId = await openRoute(conn, companyId, input.branchId, employeeId, cargo);
+      const amount = decimalToCents(payload.valor as number);
+      const detail = String(payload.detalle ?? '');
+      if (input.kind === 'CREATE_BASE') {
+        await conn.execute(
+          `INSERT INTO tbl_contabilidad_detalle (idcontabilidad_detalle,idglobal,idsucursal,
+             idtipo_contabilidad,iddetalleruta,dec_total,str_detalle,str_nombre,str_estado,
+             str_operacion,created_empleado_id,created_at,update_at)
+           VALUES (?,?,?,8,?,?,?,'base','created','info-totalizar',?,NOW(),NOW())`,
+          [input.entityId, companyId, input.branchId, routeId,
+            centsToDecimal(amount), detail, employeeId],
+        );
+      } else {
+        await loadRouteEntry(conn, companyId, input.branchId, input.entityId, 'info-totalizar');
+        await conn.execute(
+          `UPDATE tbl_contabilidad_detalle SET dec_total=?,str_detalle=?,update_at=NOW()
+           WHERE idcontabilidad_detalle=? AND idglobal=? AND idsucursal=?`,
+          [centsToDecimal(amount), detail, input.entityId, companyId, input.branchId],
+        );
+      }
+      return {
+        entityId: input.entityId,
+        data: { id: input.entityId, routeId, amount: asMoneyNumber(amount), name: 'base', detail },
+        recordType: 'accounting',
+        action: input.kind === 'CREATE_BASE' ? 'INSERT' : 'UPDATE',
+        branchId: input.branchId,
+      };
+    }
+    case 'DELETE_EXPENSE':
+    case 'DELETE_BASE': {
+      await openRoute(conn, companyId, input.branchId, employeeId, cargo);
+      const operation = input.kind === 'DELETE_EXPENSE' ? 'salida-totalizar' : 'info-totalizar';
+      await loadRouteEntry(conn, companyId, input.branchId, input.entityId, operation);
+      await conn.execute(
+        'DELETE FROM tbl_detalle_nomina WHERE idcontabilidad_detalle=? AND idglobal=?',
+        [input.entityId, companyId],
+      );
+      await conn.execute(
+        `DELETE FROM tbl_contabilidad_detalle
+         WHERE idcontabilidad_detalle=? AND idglobal=? AND idsucursal=? AND str_estado='created'`,
+        [input.entityId, companyId, input.branchId],
+      );
+      return {
+        entityId: input.entityId,
+        data: { id: input.entityId, deleted: true },
+        recordType: 'accounting',
+        action: 'DELETE',
+        branchId: input.branchId,
+      };
+    }
   }
+}
+
+// Only the categories and names the branch office publishes (tbl_tipo_contabilidad /
+// tbl_de_contabilidad, shared catalog 1001 plus the company's own) can be written, so a
+// queued expense can never invent a concept the office does not recognize.
+async function assertExpenseCatalog(
+  conn: SqlConnection, companyId: number, accountingType: number, name: string,
+) {
+  const [rows] = await conn.execute<RowDataPacket[]>(
+    `SELECT 1 FROM tbl_de_contabilidad d
+     JOIN tbl_tipo_contabilidad t ON t.idtipo_contabilidad=d.idtipo_contabilidad
+     WHERE d.idtipo_contabilidad=? AND d.str_de=? AND d.idglobal IN (?, ?)
+       AND t.idglobal IN (?, ?) AND t.str_operacion='salida'
+       AND t.str_categoria NOT IN ('contabilidad','salida') LIMIT 1`,
+    [accountingType, name, SHARED_CATALOG_COMPANY, companyId, SHARED_CATALOG_COMPANY, companyId],
+  );
+  if (!rows[0]) fail('VALIDATION_ERROR', 'That expense concept is not in the branch catalog');
+}
+
+async function assertPayroll(conn: SqlConnection, companyId: number, payrollId: number) {
+  const [rows] = await conn.execute<RowDataPacket[]>(
+    "SELECT 1 FROM tbl_nomina WHERE idnomina=? AND idglobal=? AND str_estado='activo' LIMIT 1",
+    [payrollId, companyId],
+  );
+  if (!rows[0]) fail('VALIDATION_ERROR', 'Unknown or inactive payroll');
+}
+
+async function savePayrollLink(
+  conn: SqlConnection, companyId: number, entryId: string, payrollId: number | null, name: string,
+) {
+  await conn.execute(
+    'DELETE FROM tbl_detalle_nomina WHERE idcontabilidad_detalle=? AND idglobal=?',
+    [entryId, companyId],
+  );
+  if (payrollId === null) return;
+  await conn.execute(
+    `INSERT INTO tbl_detalle_nomina (idglobal,idnomina,idcontabilidad_detalle,str_tipo,str_estado)
+     VALUES (?,?,?,?,'entregando')`,
+    [companyId, payrollId, entryId, name],
+  );
+}
+
+// An entry can only be rewritten while it is still 'created': once the day is handed over it
+// belongs to a closed route, the same rule payments already follow.
+async function loadRouteEntry(
+  conn: SqlConnection, companyId: number, branchId: number, entryId: string, operation: string,
+) {
+  const [rows] = await conn.execute<RowDataPacket[]>(
+    `SELECT str_estado,str_operacion,str_nombre FROM tbl_contabilidad_detalle
+     WHERE idcontabilidad_detalle=? AND idglobal=? AND idsucursal=? FOR UPDATE`,
+    [entryId, companyId, branchId],
+  );
+  const entry = rows[0];
+  if (!entry) fail('NOT_FOUND', 'Accounting entry not found');
+  if (entry.str_operacion !== operation || (operation === 'info-totalizar' && entry.str_nombre !== 'base')) {
+    fail('BUSINESS_RULE', 'That entry is not a route expense or base');
+  }
+  if (entry.str_estado !== 'created') fail('BUSINESS_RULE', 'Only created entries can be edited or deleted');
+  return entry;
 }
 
 type BankSplit = { idbanco: number; valor: number; referencia?: string };
@@ -889,7 +1045,8 @@ export async function applyOfflineOperation(context: AuthContext | null, input: 
   }
   if (!Number.isSafeInteger(input.branchId) || input.branchId < 1) fail('VALIDATION_ERROR', 'Invalid branchId');
   const entityIdMax = input.kind.includes('COMMENT') || input.kind.includes('CREDIT')
-    || input.kind.includes('PAYMENT') || input.kind === 'UPSERT_ALERT' ? 50 : 100;
+    || input.kind.includes('PAYMENT') || input.kind.includes('EXPENSE')
+    || input.kind.includes('BASE') || input.kind === 'UPSERT_ALERT' ? 50 : 100;
   if (input.entityId.length < 1 || input.entityId.length > entityIdMax) {
     fail('VALIDATION_ERROR', `entityId must contain between 1 and ${entityIdMax} characters`);
   }
@@ -907,7 +1064,8 @@ export async function applyOfflineOperation(context: AuthContext | null, input: 
     fail('VALIDATION_ERROR', 'Reserved or unsupported credit status');
   }
   const createsNewEntity = input.kind === 'CREATE_CUSTOMER' || input.kind === 'CREATE_CREDIT'
-    || input.kind === 'CREATE_COMMENT';
+    || input.kind === 'CREATE_COMMENT' || input.kind === 'CREATE_EXPENSE'
+    || input.kind === 'CREATE_BASE';
   if (!createsNewEntity && input.baseVersion === null) {
     fail('VALIDATION_ERROR', 'baseVersion is required when mutating an existing record');
   }
@@ -950,8 +1108,7 @@ export async function applyOfflineOperation(context: AuthContext | null, input: 
       return { ...replay, replayed: true };
     }
 
-    const isCreate = input.kind === 'CREATE_CUSTOMER' || input.kind === 'CREATE_CREDIT'
-      || input.kind === 'CREATE_COMMENT';
+    const isCreate = createsNewEntity;
     if (!isCreate) {
       let events: RowDataPacket[];
       if (eventRecordType(input.kind) === 'customer') {
@@ -1023,6 +1180,7 @@ export async function applyOfflineOperation(context: AuthContext | null, input: 
 }
 
 function eventRecordType(kind: Kind) {
+  if (kind.includes('EXPENSE') || kind.includes('BASE')) return 'accounting';
   if (kind.includes('CUSTOMER') || kind === 'UPDATE_DOCUMENT') return 'customer';
   if (kind === 'CREATE_PAYMENT') return 'credit';
   if (kind.includes('PAYMENT')) return 'payment';
@@ -1034,6 +1192,17 @@ async function loadCurrentRecord(
   conn: SqlConnection, companyId: number, branchId: number,
   userId: number, kind: Kind, id: string,
 ) {
+  if (kind.includes('EXPENSE') || kind.includes('BASE')) {
+    const [rows] = await conn.execute<RowDataPacket[]>(
+      `SELECT idcontabilidad_detalle AS id,dec_total AS amount,str_nombre AS name,
+              str_detalle AS detail,str_operacion AS operation,str_estado AS state,
+              idtipo_contabilidad AS accountingType,iddetalleruta AS routeId
+       FROM tbl_contabilidad_detalle
+       WHERE idcontabilidad_detalle=? AND idglobal=? AND idsucursal=? LIMIT 1`,
+      [id, companyId, branchId],
+    );
+    return rows[0] ?? null;
+  }
   if (kind.includes('CUSTOMER') || kind === 'UPDATE_DOCUMENT') {
     const [rows] = await conn.execute<RowDataPacket[]>(
       `SELECT c.idcliente AS id,c.idpersona AS personId,c.idglobal AS companyId,

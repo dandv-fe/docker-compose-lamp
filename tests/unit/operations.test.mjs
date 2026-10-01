@@ -280,6 +280,24 @@ test('abonos and credits accept optional bank splits; cash stays the default', (
   assert.equal(operationPayloadSchemas.CREATE_CREDIT.safeParse({ vuelto: 1 }).success, false);
 });
 
+test('route expenses and bases travel with a positive amount and a closed field list', () => {
+  const expense = { idtipo_contabilidad: 1, nombre: 'gasolina', valor: 12000 };
+  assert.equal(parseOperationPayload('CREATE_EXPENSE', expense).valor, 12000);
+  assert.equal(parseOperationPayload('CREATE_EXPENSE', { ...expense, detalle: 'moto', idnomina: 4 }).idnomina, 4);
+  // The sign is the server's decision, so a queued expense can never add money to the cuadre.
+  assert.equal(operationPayloadSchemas.CREATE_EXPENSE.safeParse({ ...expense, valor: -1 }).success, false);
+  assert.equal(operationPayloadSchemas.CREATE_EXPENSE.safeParse({ ...expense, valor: 0 }).success, false);
+  assert.equal(operationPayloadSchemas.CREATE_EXPENSE.safeParse({ ...expense, str_operacion: 'salida' }).success, false);
+  assert.equal(operationPayloadSchemas.UPDATE_EXPENSE.safeParse({ idtipo_contabilidad: 1, nombre: 'lavada', valor: 5 }).success, true);
+  assert.equal(operationPayloadSchemas.UPDATE_EXPENSE.safeParse({ idcontabilidad_detalle: 'e1', idtipo_contabilidad: 1, nombre: 'lavada', valor: 5 }).success, false);
+  assert.deepEqual(parseOperationPayload('DELETE_EXPENSE', {}), {});
+
+  assert.equal(parseOperationPayload('CREATE_BASE', { valor: 50000 }).valor, 50000);
+  assert.equal(parseOperationPayload('UPDATE_BASE', { valor: 1, detalle: 'segunda base' }).detalle, 'segunda base');
+  assert.equal(operationPayloadSchemas.CREATE_BASE.safeParse({ valor: -50 }).success, false);
+  assert.equal(operationPayloadSchemas.CREATE_BASE.safeParse({ valor: 1, nombre: 'otra' }).success, false);
+});
+
 test('bank splits replace previous rows, accept only accounts authorized in the branch and never exceed the amount', async () => {
   const calls = [];
   const conn = { async execute(sql, params) {
