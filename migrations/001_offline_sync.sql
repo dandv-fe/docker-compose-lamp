@@ -63,7 +63,7 @@ CREATE VIEW `mobile_customer_branch` AS
   SELECT c.idglobal,e.idsucursal,c.idcliente
   FROM mobile_change_event e
   JOIN tbl_clientes c ON c.idglobal=e.idglobal
-    AND CAST(c.idcliente AS CHAR)=e.record_id
+    AND CAST(c.idcliente AS CHAR CHARACTER SET utf8mb4) COLLATE utf8mb4_general_ci=e.record_id
   WHERE e.record_type='customer' AND e.action='INSERT';
 
 CREATE VIEW `mobile_comment_branch` AS

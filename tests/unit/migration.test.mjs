@@ -7,6 +7,7 @@ const migration = await readFile(new URL('../../migrations/001_offline_sync.sql'
 test('offline migration is additive and binds customer/comment events to branch scope', () => {
   assert.match(migration, /`idsucursal` INT NOT NULL/);
   assert.match(migration, /CREATE VIEW `mobile_customer_branch`/);
+  assert.match(migration, /CAST\(c\.idcliente AS CHAR CHARACTER SET utf8mb4\) COLLATE utf8mb4_general_ci=e\.record_id/);
   assert.match(migration, /CREATE VIEW `mobile_comment_branch`/);
   assert.match(migration, /JOIN mobile_customer_branch mcb\s+ON mcb\.idcliente=customer\.idcliente AND mcb\.idglobal=customer\.idglobal/);
   assert.match(migration, /e\.record_type='customer' AND e\.action='INSERT'/);

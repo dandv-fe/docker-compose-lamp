@@ -7,6 +7,10 @@ migration.
 
 ## Run and configure
 
+For a staged deployment on cPanel against an **isolated test database**, follow
+the [Spanish migration and deployment checklist](DESPLIEGUE_CPANEL_PRUEBAS.md)
+before starting the API.
+
 Node.js 20 or newer is required. In the development container:
 
 ```sh
