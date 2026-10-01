@@ -20,13 +20,17 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -69,6 +73,7 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
@@ -86,6 +91,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.font.FontWeight
@@ -141,6 +147,23 @@ private fun textScaleLabel(scale: TextScale): String = when (scale) {
     TextScale.STANDARD -> "Estándar"
     TextScale.LARGE -> "Grande"
     TextScale.EXTRA_LARGE -> "Muy grande"
+}
+
+@Composable
+private fun MenuIcon(drawable: Int) {
+    Icon(
+        painter = painterResource(drawable),
+        contentDescription = null
+    )
+}
+
+@Composable
+private fun MenuSectionDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(horizontal = 12.dp),
+        thickness = 1.dp,
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1747,6 +1770,10 @@ private fun CreditApplicationScreen(
                             }
                         }
                         Box {
+                            val systemBarPadding = WindowInsets.statusBars.asPaddingValues().calculateTopPadding() +
+                                WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+                            val maxMenuHeight = (LocalConfiguration.current.screenHeightDp.dp -
+                                systemBarPadding - 32.dp).coerceAtLeast(200.dp)
                             BadgedBox(badge = {
                                 if (unresolvedBadge > 0) Badge { Text(unresolvedBadge.toString()) }
                             }) {
@@ -1754,22 +1781,38 @@ private fun CreditApplicationScreen(
                                     Icon(Icons.Filled.MoreVert, contentDescription = "Más opciones")
                                 }
                             }
-                            DropdownMenu(showMoreMenu, onDismissRequest = { showMoreMenu = false }) {
+                            DropdownMenu(
+                                expanded = showMoreMenu,
+                                onDismissRequest = { showMoreMenu = false },
+                                modifier = Modifier.heightIn(max = maxMenuHeight),
+                                shape = RoundedCornerShape(24.dp),
+                                containerColor = lerp(
+                                    MaterialTheme.colorScheme.surface,
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    0.6f
+                                ),
+                                border = BorderStroke(
+                                    1.dp,
+                                    MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)
+                                )
+                            ) {
                                 // Card actions live here too, so the payments screen keeps only the
                                 // button you press every day and the rest act on the open card.
                                 if (screen == Screen.CREDIT && selectedCreditId != null) {
                                     if ("nueva tarjeta" in branchPermissionSet || branchPermissionSet.isEmpty()) {
                                         DropdownMenuItem(
                                             text = { Text("Crear otra tarjeta a este cliente") },
+                                            leadingIcon = { MenuIcon(R.drawable.ic_menu_credit_add) },
                                             onClick = {
                                                 showMoreMenu = false
                                                 selectedCreditId?.let(::assessCard)
                                             }
                                         )
-                                        HorizontalDivider()
+                                        MenuSectionDivider()
                                     }
                                     DropdownMenuItem(
                                         text = { Text("Editar crédito") },
+                                        leadingIcon = { MenuIcon(R.drawable.ic_menu_edit) },
                                         onClick = {
                                             showMoreMenu = false
                                             prepareComposer(OperationKind.UPDATE_CREDIT, selectedCreditId.orEmpty())
@@ -1777,6 +1820,7 @@ private fun CreditApplicationScreen(
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Cambiar estado") },
+                                        leadingIcon = { MenuIcon(R.drawable.ic_menu_status) },
                                         onClick = {
                                             showMoreMenu = false
                                             prepareComposer(OperationKind.CHANGE_CREDIT_STATUS, selectedCreditId.orEmpty())
@@ -1784,6 +1828,7 @@ private fun CreditApplicationScreen(
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Reordenar") },
+                                        leadingIcon = { MenuIcon(R.drawable.ic_menu_reorder) },
                                         onClick = {
                                             showMoreMenu = false
                                             prepareComposer(OperationKind.REORDER_CREDIT, selectedCreditId.orEmpty())
@@ -1791,6 +1836,7 @@ private fun CreditApplicationScreen(
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Aplicar descuento") },
+                                        leadingIcon = { MenuIcon(R.drawable.ic_menu_money) },
                                         onClick = {
                                             showMoreMenu = false
                                             prepareComposer(OperationKind.APPLY_DISCOUNT, selectedCreditId.orEmpty())
@@ -1798,6 +1844,7 @@ private fun CreditApplicationScreen(
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Agregar interés") },
+                                        leadingIcon = { MenuIcon(R.drawable.ic_menu_money) },
                                         enabled = canAddInterest(
                                             rows.firstOrNull { it.credit.id == selectedCreditId }?.credit?.status
                                         ),
@@ -1808,6 +1855,7 @@ private fun CreditApplicationScreen(
                                     )
                                     if (online) DropdownMenuItem(
                                         text = { Text("Actualizar pagos") },
+                                        leadingIcon = { MenuIcon(R.drawable.ic_menu_refresh) },
                                         onClick = {
                                             showMoreMenu = false
                                             scope.launch {
@@ -1828,6 +1876,7 @@ private fun CreditApplicationScreen(
                                         text = {
                                             Text("Eliminar crédito", color = MaterialTheme.colorScheme.error)
                                         },
+                                        leadingIcon = { MenuIcon(R.drawable.ic_menu_delete) },
                                         // The server refuses to delete a credit that left the
                                         // 'created' state or that already has settled payments.
                                         enabled = rows.firstOrNull { it.credit.id == selectedCreditId }
@@ -1837,20 +1886,22 @@ private fun CreditApplicationScreen(
                                             prepareComposer(OperationKind.DELETE_CREDIT, selectedCreditId.orEmpty())
                                         }
                                     )
-                                    HorizontalDivider()
+                                    MenuSectionDivider()
                                 }
                                 DropdownMenuItem(
                                     text = {
                                         Text(if (unresolvedBadge > 0) "Cola ($unresolvedBadge sin resolver)" else "Cola")
                                     },
+                                    leadingIcon = { MenuIcon(R.drawable.ic_queue_transfers) },
                                     onClick = {
                                         showMoreMenu = false
                                         scope.launch { loadOperations(); queueTab = 0; screen = Screen.QUEUE }
                                     }
                                 )
-                                HorizontalDivider()
+                                MenuSectionDivider()
                                 DropdownMenuItem(
                                     text = { Text("Crear cliente") },
+                                    leadingIcon = { MenuIcon(R.drawable.ic_menu_person_add) },
                                     onClick = {
                                         showMoreMenu = false
                                         openCustomerLookup()
@@ -1858,20 +1909,24 @@ private fun CreditApplicationScreen(
                                 )
                                 if (screen == Screen.HOME) DropdownMenuItem(
                                     text = { Text("Abonos e historial completo") },
+                                    leadingIcon = { MenuIcon(R.drawable.ic_payment_history) },
                                     enabled = pointedCreditId != null,
                                     onClick = { showMoreMenu = false; pointedCreditId?.let(::openFullPayments) }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Crear crédito") },
+                                    leadingIcon = { MenuIcon(R.drawable.ic_menu_credit_add) },
                                     enabled = creditOnline && pointedCreditId != null,
                                     onClick = { showMoreMenu = false; pointedCreditId?.let(::assessCard) }
                                 )
                                 if (creditOnline) DropdownMenuItem(
                                     text = { Text("Buscar cliente por documento") },
+                                    leadingIcon = { MenuIcon(R.drawable.ic_menu_search) },
                                     onClick = { showMoreMenu = false; openCustomerLookup() }
                                 )
                                 if (online) DropdownMenuItem(
                                     text = { Text("Actualizar cartera") },
+                                    leadingIcon = { MenuIcon(R.drawable.ic_menu_refresh) },
                                     onClick = {
                                         showMoreMenu = false
                                         scope.launch {
@@ -1894,6 +1949,7 @@ private fun CreditApplicationScreen(
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Gastos y bases") },
+                                    leadingIcon = { MenuIcon(R.drawable.ic_menu_money) },
                                     onClick = {
                                         showMoreMenu = false
                                         scope.launch {
@@ -1907,6 +1963,7 @@ private fun CreditApplicationScreen(
                                 )
                                 if (online) DropdownMenuItem(
                                     text = { Text("Cuentas del día") },
+                                    leadingIcon = { MenuIcon(R.drawable.ic_daily_accounting) },
                                     onClick = {
                                         showMoreMenu = false
                                         scope.launch {
@@ -1919,9 +1976,10 @@ private fun CreditApplicationScreen(
                                     }
                                 )
                                 if (online && branchPermissionSet.isNotEmpty()) {
-                                    HorizontalDivider()
+                                    MenuSectionDivider()
                                     if ("ver morosos" in branchPermissionSet) DropdownMenuItem(
                                         text = { Text("Morosos") },
+                                        leadingIcon = { MenuIcon(R.drawable.ic_menu_people) },
                                         onClick = {
                                             showMoreMenu = false
                                             scope.launch { busy = true; loadDefaulters(); busy = false; screen = Screen.DEFAULTERS }
@@ -1929,6 +1987,7 @@ private fun CreditApplicationScreen(
                                     )
                                     if ("ver retirados" in branchPermissionSet) DropdownMenuItem(
                                         text = { Text("Retirados") },
+                                        leadingIcon = { MenuIcon(R.drawable.ic_menu_people) },
                                         onClick = {
                                             showMoreMenu = false
                                             scope.launch { busy = true; loadWithdrawn(); busy = false; screen = Screen.WITHDRAWN }
@@ -1936,23 +1995,27 @@ private fun CreditApplicationScreen(
                                     )
                                     if ("ver canceladas" in branchPermissionSet) DropdownMenuItem(
                                         text = { Text("Canceladas") },
+                                        leadingIcon = { MenuIcon(R.drawable.ic_menu_status) },
                                         onClick = { showMoreMenu = false; screen = Screen.CANCELLED }
                                     )
                                     if ("ver clientes" in branchPermissionSet) DropdownMenuItem(
                                         text = { Text("Clientes de cartera") },
+                                        leadingIcon = { MenuIcon(R.drawable.ic_menu_people) },
                                         onClick = {
                                             showMoreMenu = false
                                             scope.launch { busy = true; loadPortfolioClients(); busy = false; screen = Screen.PORTFOLIO_CLIENTS }
                                         }
                                     )
                                 }
-                                HorizontalDivider()
+                                MenuSectionDivider()
                                 if (online) DropdownMenuItem(
                                     text = { Text("Cambiar sucursal") },
+                                    leadingIcon = { MenuIcon(R.drawable.ic_menu_branch) },
                                     onClick = { showMoreMenu = false; screen = Screen.BRANCHES }
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Configuración") },
+                                    leadingIcon = { MenuIcon(R.drawable.ic_menu_settings) },
                                     onClick = {
                                         showMoreMenu = false
                                         settingsReturnScreen = screen
@@ -1961,6 +2024,7 @@ private fun CreditApplicationScreen(
                                 )
                                 DropdownMenuItem(
                                     text = { Text("Cerrar sesión") },
+                                    leadingIcon = { MenuIcon(R.drawable.ic_menu_logout) },
                                     onClick = {
                                         showMoreMenu = false
                                         scope.launch {
@@ -1969,6 +2033,7 @@ private fun CreditApplicationScreen(
                                         }
                                     }
                                 )
+                                Spacer(Modifier.height(16.dp))
                             }
                         }
                     }
