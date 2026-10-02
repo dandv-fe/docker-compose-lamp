@@ -96,7 +96,7 @@ class Rendimientos
     IFNULL(v.salida, 0) AS salida, 
     IFNULL(v.entrada, 0) AS entrada, 
     IFNULL(t.sum_cart, 0) AS sum_cart,
-    IFNULL(v.saldo_disp + IFNULL(h.efectivo_historico, 0), 0) AS saldo_disp, 
+    IFNULL(caja.saldo_disp, 0) AS saldo_disp,
     IFNULL(v.valorTotalCreditos, 0) AS valorTotalCreditos, 
     IFNULL(t.carteraTotal, 0) AS carteraTotal
 FROM tbl_sucursal s
@@ -112,7 +112,6 @@ LEFT JOIN (
         SUM(CASE WHEN c.str_nombre = 'diferencia' THEN c.dec_total ELSE 0 END) AS diferencia,
         SUM(CASE WHEN c.str_nombre = 'descuento' THEN c.dec_total ELSE 0 END) AS descuento,
         SUM(CASE WHEN c.str_nombre = 'valorTotalCreditos' THEN c.dec_total ELSE 0 END) AS valorTotalCreditos,
-        SUM(CASE WHEN c.idtipo_contabilidad <> 8 THEN c.dec_total ELSE 0 END) AS saldo_disp,
         SUM(CASE WHEN c.str_nombre <> 'prestamos' AND c.str_nombre <> 'articulos' AND c.str_operacion LIKE 'salida-totalizar%' THEN c.dec_total ELSE 0 END) * -1 AS gastos,
         SUM(CASE WHEN c.idtipo_contabilidad <> 6 AND c.str_operacion LIKE 'salida-contabilidad%' THEN c.dec_total ELSE 0 END) * -1 AS otros_gastos,
         SUM(CASE WHEN c.idtipo_contabilidad = 6 AND c.str_operacion LIKE 'salida-contabilidad%' THEN c.dec_total ELSE 0 END) * -1 AS salida,
@@ -124,7 +123,18 @@ LEFT JOIN (
     GROUP BY dr.idsucursal
 ) v ON v.refSucursal = s.idsucursal
 
--- 2. Bloque de cartera consolidada (Una sola lectura en lugar de dos subconsultas)
+-- Saldo de caja vigente, con la misma regla que Cartera y Kardex
+LEFT JOIN (
+    SELECT
+        idsucursal AS refSucursal,
+        SUM(dec_total) AS saldo_disp
+    FROM tbl_contabilidad_detalle
+    WHERE idtipo_contabilidad <> 8
+      AND str_estado <> 'created'
+    GROUP BY idsucursal
+) caja ON caja.refSucursal = s.idsucursal
+
+-- Bloque de cartera consolidada
 LEFT JOIN (
     SELECT 
         idsucursal,
@@ -134,17 +144,6 @@ LEFT JOIN (
     WHERE str_estado NOT IN ('cancelado', 'inactiva')
     GROUP BY idsucursal
 ) t ON t.idsucursal = s.idsucursal
-
--- 3. Histórico acumulado de caja (Calculado de forma directa y rápida)
-LEFT JOIN (
-    SELECT 
-        dr.idsucursal AS refSucursal, 
-        SUM(CASE WHEN c.idtipo_contabilidad <> 8 THEN c.dec_total ELSE 0 END) AS efectivo_historico
-    FROM tbl_detalle_ruta dr
-    INNER JOIN tbl_contabilidad_detalle c ON c.iddetalleruta = dr.iddetalleruta
-    WHERE dr.created_at < '$primerDia'
-    GROUP BY dr.idsucursal
-) h ON h.refSucursal = s.idsucursal
 
 WHERE s.idglobal = $idglobal 
   AND s.str_estado = 'disponible' 
