@@ -570,6 +570,8 @@ private fun CreditApplicationScreen(
     var serverEndpointError by remember { mutableStateOf<String?>(null) }
     var markedCreditIds by remember { mutableStateOf(emptySet<String>()) }
     var showMoreMenu by remember { mutableStateOf(false) }
+    var whatsAppOffer by remember { mutableStateOf<WhatsAppOffer?>(null) }
+    var whatsAppOfferEnabled by remember { mutableStateOf(WhatsAppSettings.offerAfterSave(activity)) }
     val branchId = session?.selectedBranchId
     val account = session
     val serviceBlocked = account?.let { stored ->
@@ -1380,6 +1382,18 @@ private fun CreditApplicationScreen(
         } else { queueTab = 0; screen = Screen.QUEUE }
     }
 
+    fun collectorName(current: StoredSession): String =
+        listOfNotNull(current.firstName, current.lastName).joinToString(" ").trim()
+
+    fun openWhatsApp(offer: WhatsAppOffer) {
+        val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(whatsAppUrl(offer.phone, offer.message)))
+        try {
+            activity.startActivity(intent)
+        } catch (_: android.content.ActivityNotFoundException) {
+            notice = "No hay WhatsApp ni navegador para abrir el mensaje."
+        }
+    }
+
     suspend fun saveTypedOperation(stayOnPortfolio: Boolean = false): OfflineOperationEntity {
         require(!serviceBlocked) { "Servicio no disponible: no hemos registrado el pago." }
         var current = session ?: throw IllegalArgumentException("Inicia sesión para guardar cambios.")
@@ -1625,6 +1639,20 @@ private fun CreditApplicationScreen(
                 dao.payments(current.accountKey, branch, creditId)
             paymentRows = dao.payments(current.accountKey, branch, creditId)
             operationRows = operationRows + operation
+            if (whatsAppOfferEnabled) {
+                val credit = dao.credit(current.accountKey, branch, creditId)
+                val owner = credit?.let { c ->
+                    rows.firstOrNull { it.credit.customerId == c.customerId }?.customer
+                        ?: dao.customer(current.accountKey, branch, c.customerId)
+                }
+                val name = owner?.let { "${it.firstName} ${it.lastName}".trim() }.orEmpty()
+                whatsAppOffer = WhatsAppOffer(
+                    title = "Comprobante de abono",
+                    customerName = name,
+                    phone = whatsAppPhone(owner?.phone),
+                    message = paymentReceiptMessage(name, draftPaymentAmount, credit?.balance, collectorName(current))
+                )
+            }
         } else if (operationKind == OperationKind.CREATE_CREDIT) {
             val dao = app.database.localDao()
             dao.credit(current.accountKey, branch, operation.entityId)?.let { newCredit ->
@@ -1632,6 +1660,18 @@ private fun CreditApplicationScreen(
                     ?: dao.customer(current.accountKey, branch, newCredit.customerId)
                 rows = (rows.filterNot { it.credit.id == newCredit.id } + PortfolioRow(newCredit, owner))
                     .sortedWith(compareBy<PortfolioRow> { it.credit.sortOrder }.thenBy { it.credit.id })
+                if (whatsAppOfferEnabled) {
+                    val name = owner?.let { "${it.firstName} ${it.lastName}".trim() }.orEmpty()
+                    whatsAppOffer = WhatsAppOffer(
+                        title = "Crédito registrado",
+                        customerName = name,
+                        phone = whatsAppPhone(owner?.phone),
+                        message = creditCreatedMessage(
+                            name, newCredit.value, newCredit.frequency, newCredit.term,
+                            newCredit.balance, newCredit.concept, collectorName(current)
+                        )
+                    )
+                }
             }
             operationRows = operationRows + operation
         } else {
@@ -3077,6 +3117,27 @@ private fun CreditApplicationScreen(
                         }
                     }
                     HorizontalDivider()
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text("Comprobantes por WhatsApp", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "Al guardar un abono o un crédito, ofrecer enviarle el mensaje al cliente por WhatsApp.",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                        Switch(
+                            checked = whatsAppOfferEnabled,
+                            onCheckedChange = {
+                                whatsAppOfferEnabled = it
+                                WhatsAppSettings.setOfferAfterSave(activity, it)
+                            }
+                        )
+                    }
+                    HorizontalDivider()
                     Text("Conexión con el servidor", style = MaterialTheme.typography.titleMedium)
                     Text(
                         "Escribe el dominio (por ejemplo, api.empresa.com) o la URL completa de GraphQL. " +
@@ -4490,6 +4551,35 @@ private fun CreditApplicationScreen(
                 }
             }
         }
+    }
+
+    whatsAppOffer?.let { offer ->
+        var editedMessage by remember(offer) { mutableStateOf(offer.message) }
+        AlertDialog(
+            onDismissRequest = { whatsAppOffer = null },
+            title = { Text(offer.title) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        if (offer.phone != null) "Enviar por WhatsApp a ${offer.customerName.ifBlank { "el cliente" }} (+${offer.phone})."
+                        else "El cliente no tiene un celular válido guardado; WhatsApp te dejará elegir el contacto.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    OutlinedTextField(
+                        editedMessage, { editedMessage = it },
+                        label = { Text("Mensaje") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    whatsAppOffer = null
+                    openWhatsApp(offer.copy(message = editedMessage))
+                }) { Text("Enviar por WhatsApp") }
+            },
+            dismissButton = { TextButton(onClick = { whatsAppOffer = null }) { Text("Ahora no") } }
+        )
     }
 
     if (showLogoutConfirmation) {

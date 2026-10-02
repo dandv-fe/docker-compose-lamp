@@ -62,6 +62,8 @@ En **Abonos e historial completo** ves cada movimiento con importe, fecha, estad
 
 En esa misma pantalla está **Ubicaciones de cobro**. Toca **Marcar ubicación aquí** estando parado en el punto real, escribe un nombre corto (por ejemplo Casa, Negocio o Trabajo) y acepta el permiso de ubicación. La APK guarda el GPS en el teléfono y lo envía por la cola aunque no haya internet. Si la precisión pasa de 50 m, conviene volver a marcar al aire libre. Cada punto tiene **Cómo llegar**, que abre Google Maps, Waze u otra app compatible; si el teléfono no tiene ninguna, verás un aviso. También puedes **Eliminar** un punto; el borrado se sincroniza igual que los demás cambios.
 
+Al guardar un **abono** o un **crédito**, la APK ofrece **Enviar por WhatsApp** un comprobante para el cliente: abono con fecha y saldo pendiente, o crédito con valor, plazo y cuota aproximada. Puedes corregir el texto antes de enviarlo; WhatsApp se abre con el celular del cliente (se agrega +57 a los celulares de 10 dígitos) y el mensaje solo se envía cuando tú lo confirmas en WhatsApp. Si el número guardado no es válido, WhatsApp te deja elegir el contacto. Esta oferta se puede desactivar en **Configuración > Comprobantes por WhatsApp**.
+
 En los tres puntos de esta pantalla están las acciones de la tarjeta: **Editar crédito**, **Cambiar estado**, **Reordenar**, **Aplicar descuento**, **Agregar interés**, **Actualizar pagos** (con internet) y **Eliminar crédito** (solo si su estado lo permite). Las operaciones se validan en el servidor y pueden requerir permisos.
 
 **Captura sugerida:** historial de movimientos, ubicaciones de cobro y sus acciones.
