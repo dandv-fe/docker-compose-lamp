@@ -11,6 +11,43 @@ function verificar($condicion, $mensaje)
    }
 }
 
+$consultaDetalle = $conexion->query(
+   "SELECT au.idglobal, au.idsucursal, au.idempleado, otra.idsucursal AS sucursal_sesion
+    FROM tbl_auth_sucursal au
+    JOIN tbl_auths b ON b.idauth_sucursal=au.idauth_sucursal
+    JOIN tbl_auth a ON a.idauth=b.idauth
+    JOIN tbl_sucursal otra ON otra.idglobal=au.idglobal AND otra.idsucursal<>au.idsucursal
+    WHERE au.str_estado<>'inactivo' AND a.str_nombre='ver cuentas detalladas'
+    LIMIT 1"
+);
+$permisoDetalle = $consultaDetalle->fetch_object();
+verificar($permisoDetalle !== null, 'Falta permiso de prueba para ver cuentas detalladas');
+$sesionDetalle = [
+   'idglobal' => (int)$permisoDetalle->idglobal,
+   'idempleado' => (int)$permisoDetalle->idempleado,
+   'idsucursal' => (int)$permisoDetalle->sucursal_sesion,
+   'userEmpresa' => null
+];
+verificar(
+   puedeVerDetalleCuentasSucursal($conexion, $sesionDetalle, (int)$permisoDetalle->idsucursal),
+   'Permiso de detalle rechazado cuando la sucursal activa es distinta'
+);
+$sesionSinPermiso = $sesionDetalle;
+$sesionSinPermiso['idempleado'] = 2147483647;
+verificar(
+   !puedeVerDetalleCuentasSucursal($conexion, $sesionSinPermiso, (int)$permisoDetalle->idsucursal),
+   'Empleado sin permiso puede ver el detalle de otra sucursal'
+);
+$sesionDetalle['userEmpresa'] = (int)$permisoDetalle->idglobal;
+verificar(
+   puedeVerDetalleCuentasSucursal($conexion, $sesionDetalle, (int)$permisoDetalle->idsucursal),
+   'Superadministrador rechazado al ver detalle de una sucursal de su empresa'
+);
+verificar(
+   !puedeVerDetalleCuentasSucursal($conexion, $sesionDetalle, (int)$permisoDetalle->idsucursal + 1000000),
+   'Superadministrador puede consultar una sucursal fuera de su empresa'
+);
+
 foreach (['created', 'entregando'] as $estado) {
    $consulta = db_prepare_execute(
       $conexion,

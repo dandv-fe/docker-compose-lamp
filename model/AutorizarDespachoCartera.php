@@ -42,6 +42,56 @@ function administraOficinaCartera(mysqli $conexion, array $sesion, int $idsucurs
    return $administra;
 }
 
+function puedeVerDetalleCuentasSucursal(mysqli $conexion, array $sesion, int $idsucursal): bool
+{
+   $idglobal = (int)($sesion['idglobal'] ?? 0);
+   $idempleado = (int)($sesion['idempleado'] ?? 0);
+   if ($idglobal <= 0 || $idsucursal <= 0) {
+      return false;
+   }
+
+   if ((int)($sesion['userEmpresa'] ?? 0) === $idglobal) {
+      $consulta = db_prepare_execute(
+         $conexion,
+         'SELECT 1 FROM tbl_sucursal WHERE idsucursal=? AND idglobal=? LIMIT 1',
+         'ii',
+         [$idsucursal, $idglobal]
+      );
+      $autorizado = $consulta->get_result()->fetch_object() !== null;
+      $consulta->close();
+      return $autorizado;
+   }
+
+   if ($idsucursal === (int)($sesion['idsucursal'] ?? 0)) {
+      return true;
+   }
+
+   if ($idempleado <= 0) {
+      return false;
+   }
+
+   if (administraOficinaCartera($conexion, $sesion, $idsucursal)) {
+      return true;
+   }
+
+   $consulta = db_prepare_execute(
+      $conexion,
+      "SELECT 1
+       FROM tbl_auth_sucursal au
+       INNER JOIN tbl_auths b ON b.idauth_sucursal=au.idauth_sucursal
+       INNER JOIN tbl_auth a ON a.idauth=b.idauth
+       INNER JOIN tbl_sucursal s ON s.idsucursal=au.idsucursal AND s.idglobal=au.idglobal
+       WHERE au.idglobal=? AND au.idsucursal=? AND au.idempleado=?
+         AND au.str_estado<>'inactivo' AND a.str_nombre='ver cuentas detalladas'
+       LIMIT 1",
+      'iii',
+      [$idglobal, $idsucursal, $idempleado]
+   );
+   $autorizado = $consulta->get_result()->fetch_object() !== null;
+   $consulta->close();
+   return $autorizado;
+}
+
 function errorDespachoCartera(mysqli $conexion, array $sesion, int $idsucursal, ?int $iddetalleruta = null, array $estados = ['created']): ?string
 {
    $idglobal = (int)($sesion['idglobal'] ?? 0);

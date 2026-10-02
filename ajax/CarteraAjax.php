@@ -398,10 +398,10 @@ switch ($_GET["op"]) {
       break;
    case 'VerfCuentas':
       $idsucursal = (int)($_REQUEST['id'] ?? 0);
-      if ($idsucursal !== (int)$_SESSION['idsucursal']) {
+      if (!puedeVerDetalleCuentasSucursal($conexion, $_SESSION, $idsucursal)) {
          http_response_code(403);
          header('Content-Type: application/json; charset=utf-8');
-         echo json_encode(['error' => 'La sucursal no coincide con la sesión.']);
+         echo json_encode(['error' => 'No tienes permiso para ver el detalle de esta sucursal.']);
          break;
       }
       $arrayCuentas = array();
