@@ -23,6 +23,18 @@ android {
         buildConfigField("String", "GRAPHQL_ENDPOINT", "\"$escapedEndpoint\"")
     }
 
+    buildTypes {
+        debug {
+            val localEndpoint = providers.gradleProperty("LOCAL_GRAPHQL_ENDPOINT")
+                .orElse("http://192.168.1.22:3000/graphql").get()
+                .replace("\\", "\\\\").replace("\"", "\\\"")
+            buildConfigField("String", "LOCAL_GRAPHQL_ENDPOINT", "\"$localEndpoint\"")
+        }
+        release {
+            buildConfigField("String", "LOCAL_GRAPHQL_ENDPOINT", "\"\"")
+        }
+    }
+
     buildFeatures {
         compose = true
         buildConfig = true

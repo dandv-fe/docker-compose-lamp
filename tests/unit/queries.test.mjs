@@ -113,6 +113,7 @@ test('portfolio excludes credits with legacy-excluded statuses and hides custome
         description: 'Abono', state: 'created', createdAt: '2026-09-28 10:00:00',
       }], []];
     }
+    if (sql.includes('FROM mobile_credit_location')) return [[], []];
     if (sql.includes('FROM tbl_comentarios_cliente')) return [[], []];
     throw new Error(`Unexpected query: ${sql}`);
   }, async () => {
@@ -141,6 +142,7 @@ test('customerById keeps every credit regardless of status, mirroring buscarTarj
       ], []];
     }
     if (sql.includes('FROM tbl_descripcion d')) return [[], []];
+    if (sql.includes('FROM mobile_credit_location')) return [[], []];
     if (sql.includes('FROM tbl_comentarios_cliente')) return [[], []];
     throw new Error(`Unexpected query: ${sql}`);
   }, async () => {

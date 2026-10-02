@@ -64,14 +64,16 @@ class GraphQlContractTest {
         assertTrue(GraphQlDocuments.PORTFOLIO.contains("nodes {"))
         assertTrue(GraphQlDocuments.PORTFOLIO.contains("credits {"))
         assertTrue(GraphQlDocuments.PORTFOLIO.contains("sortOrder"))
+        assertTrue(GraphQlDocuments.PORTFOLIO.contains("locations { id creditId name latitude longitude accuracy createdAt }"))
         assertTrue(GraphQlDocuments.PORTFOLIO.contains("comments { id customerId comment type userId createdAt updatedAt }"))
         assertFalse(GraphQlDocuments.PORTFOLIO.contains("items {"))
         val result = json.decodeFromString(
             PortfolioData.serializer(),
-            """{"portfolio":{"nodes":[{"id":21,"companyId":17,"personId":31,"firstName":"A","lastName":"B","credits":[{"id":88,"companyId":17,"branchId":4,"customerId":21,"routeId":12,"principal":100.5,"balance":80,"sortOrder":1.5,"status":"active"}],"comments":[]}],"snapshotCursor":"120","nextCursor":null,"hasNextPage":false}}"""
+            """{"portfolio":{"nodes":[{"id":21,"companyId":17,"personId":31,"firstName":"A","lastName":"B","credits":[{"id":88,"companyId":17,"branchId":4,"customerId":21,"routeId":12,"principal":100.5,"balance":80,"sortOrder":1.5,"status":"active","locations":[{"id":"loc-1","creditId":"88","name":"Casa","latitude":4.7,"longitude":-74.0}]}],"comments":[]}],"snapshotCursor":"120","nextCursor":null,"hasNextPage":false}}"""
         ).portfolio
         assertEquals("88", result.nodes.single().credits.single().id)
         assertEquals(1.5, result.nodes.single().credits.single().sortOrder!!, 0.0)
+        assertEquals("Casa", result.nodes.single().credits.single().locations.single().name)
     }
 
     @Test fun paymentSyncAndOperationDtosMatchSchemaFieldNames() {

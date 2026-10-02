@@ -90,6 +90,8 @@ internal fun summarizeOperation(
         OperationKind.REORDER_CREDIT -> text("item")?.let { details += "Nueva posición en la ruta: $it" }
         OperationKind.CREATE_COMMENT, OperationKind.UPDATE_COMMENT -> text("comentario")?.let { details += "«$it»" }
         OperationKind.DELETE_COMMENT -> details += "Se elimina un comentario"
+        OperationKind.CREATE_LOCATION -> text("nombre")?.let { details += "Ubicación marcada: $it" }
+        OperationKind.DELETE_LOCATION -> details += "Ubicación eliminada"
         OperationKind.UPSERT_ALERT -> text("alerta")?.split("/,")?.getOrNull(2)
             ?.takeIf(String::isNotBlank)?.let { details += "Alerta: $it" }
         OperationKind.CREATE_EXPENSE, OperationKind.UPDATE_EXPENSE -> {

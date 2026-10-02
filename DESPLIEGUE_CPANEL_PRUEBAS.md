@@ -38,7 +38,7 @@ test -s "$HOME/backups-pruebas/antes-api-android.sql"
 
 Confirma que el volcado no está vacío, contiene el esquema esperado y que puedes **restaurarlo en otra base desechable** antes de seguir. No subas el respaldo al repositorio ni a la carpeta pública. Si la versión del servidor no permite alguna opción de `mysqldump`, consulta con el administrador en lugar de asumir que el respaldo está completo.
 
-## Aplicar las cuatro migraciones, en orden
+## Aplicar las migraciones, en orden
 
 Los archivos están en [`migrations/`](migrations/). Usa un usuario con permisos de migración **solo en el clon**. El comando pide la contraseña de forma interactiva y para ante el primer error; no uses `--force` ni ejecutes todo nuevamente a ciegas si queda una instalación parcial.
 
@@ -48,6 +48,8 @@ Los archivos están en [`migrations/`](migrations/). Usa un usuario con permisos
 | 2 | `002_payment_author.sql` | Autor y origen de abonos en `tbl_descripcion`. |
 | 3 | `003_payment_methods.sql` | Datos de `tbl_banco` y vínculos bancarios de abonos/créditos. |
 | 4 | `004_bank_holder_branches.sql` | Titular y oficina de cuentas, y autorización por sucursal. Requiere 003. |
+| 5 | `005_biometric_credentials.sql` | Credenciales biométricas por dispositivo y retos temporales. |
+| 6 | `006_credit_locations.sql` | Ubicaciones GPS de cobro por tarjeta para la APK. |
 
 Desde la carpeta del backend, ejecuta **uno por uno**, revisando el resultado después de cada archivo:
 
@@ -56,7 +58,11 @@ mysql -h HOST_MARIADB -u USUARIO_MIGRACION -p NOMBRE_BD_PRUEBAS < migrations/001
 mysql -h HOST_MARIADB -u USUARIO_MIGRACION -p NOMBRE_BD_PRUEBAS < migrations/002_payment_author.sql
 mysql -h HOST_MARIADB -u USUARIO_MIGRACION -p NOMBRE_BD_PRUEBAS < migrations/003_payment_methods.sql
 mysql -h HOST_MARIADB -u USUARIO_MIGRACION -p NOMBRE_BD_PRUEBAS < migrations/004_bank_holder_branches.sql
+mysql -h HOST_MARIADB -u USUARIO_MIGRACION -p NOMBRE_BD_PRUEBAS < migrations/005_biometric_credentials.sql
+mysql -h HOST_MARIADB -u USUARIO_MIGRACION -p NOMBRE_BD_PRUEBAS < migrations/006_credit_locations.sql
 ```
+
+Las migraciones 005 y 006 deben estar aplicadas antes de publicar una APK/backend que use inicio con huella o ubicaciones de cobro; son idempotentes, pero revísalas igual una por una.
 
 **Alto si falla una instrucción.** La 001 no es reejecutable completa: sus `CREATE VIEW` y `CREATE TRIGGER` no llevan `IF NOT EXISTS`. Revisa cuáles objetos ya se crearon y cuál fue el error; restaura el clon desde el respaldo o solicita ayuda antes de reintentar. En MariaDB 10.11 con phpMyAdmin, la conexión puede usar `utf8mb4_unicode_ci` mientras `mobile_change_event.record_id` usa `utf8mb4_general_ci`; la versión actual de la vista `mobile_customer_branch` establece explícitamente el cotejo de la comparación para evitar el error `#1267`. Cambiar el cotejo predeterminado de la base **no** modifica las columnas ya creadas ni sustituye esta corrección. Los demás archivos tienen instrucciones repetibles, pero tampoco reparan automáticamente cambios parciales ni datos bancarios preexistentes.
 

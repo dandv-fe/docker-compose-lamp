@@ -1,11 +1,16 @@
 package com.backendcreditos.mobile
 
+import android.Manifest
 import android.os.Bundle
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricPrompt
 import androidx.fragment.app.FragmentActivity
 import androidx.compose.foundation.BorderStroke
@@ -31,6 +36,7 @@ import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -103,6 +109,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.backendcreditos.mobile.data.BranchEntity
 import com.backendcreditos.mobile.data.CustomerEntity
+import com.backendcreditos.mobile.data.CreditLocationEntity
 import com.backendcreditos.mobile.data.ACTIVITY_LOG_MAX_ENTRIES
 import com.backendcreditos.mobile.data.ActivityLogEntity
 import com.backendcreditos.mobile.data.OfflineOperationEntity
@@ -113,6 +120,10 @@ import com.backendcreditos.mobile.data.PaymentEntity
 import com.backendcreditos.mobile.data.PortfolioRow
 import com.backendcreditos.mobile.network.ApiResult
 import com.backendcreditos.mobile.network.LoginResult
+import com.backendcreditos.mobile.location.currentLocation
+import com.backendcreditos.mobile.location.geoUriForLocation
+import com.backendcreditos.mobile.location.hasLocationPermission
+import com.backendcreditos.mobile.location.LocationLookup
 import com.backendcreditos.mobile.security.BiometricCredentialManager
 import com.backendcreditos.mobile.security.StoredSession
 import com.backendcreditos.mobile.ui.theme.CreditTheme
@@ -302,6 +313,8 @@ private fun operationDisplayName(kind: OperationKind): String = when (kind) {
     OperationKind.CREATE_COMMENT -> "Crear comentario"
     OperationKind.UPDATE_COMMENT -> "Editar comentario"
     OperationKind.DELETE_COMMENT -> "Eliminar comentario"
+    OperationKind.CREATE_LOCATION -> "Marcar ubicación de cobro"
+    OperationKind.DELETE_LOCATION -> "Eliminar ubicación de cobro"
     OperationKind.UPSERT_ALERT -> "Crear/editar alerta"
     OperationKind.CREATE_EXPENSE -> "Anotar gasto de la ruta"
     OperationKind.UPDATE_EXPENSE -> "Corregir gasto de la ruta"
@@ -410,6 +423,7 @@ private fun CreditApplicationScreen(
     var username by remember { mutableStateOf(session?.username.orEmpty()) }
     var password by remember { mutableStateOf("") }
     var branchList by remember { mutableStateOf(emptyList<BranchEntity>()) }
+    var branchOfficeFilter by rememberSaveable { mutableStateOf<String?>(null) }
     var rows by remember { mutableStateOf(emptyList<PortfolioRow>()) }
     var branchPayments by remember { mutableStateOf(emptyList<PaymentEntity>()) }
     var customerMatches by remember { mutableStateOf(emptyList<CustomerEntity>()) }
@@ -436,6 +450,7 @@ private fun CreditApplicationScreen(
     var watchedPaymentOperationIds by remember { mutableStateOf(emptySet<String>()) }
     val snackbarHostState = remember { SnackbarHostState() }
     var paymentRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.data.PaymentEntity>()) }
+    var creditLocationRows by remember { mutableStateOf(emptyList<CreditLocationEntity>()) }
     var operationRows by remember { mutableStateOf(emptyList<com.backendcreditos.mobile.data.OfflineOperationEntity>()) }
     var syncControl by remember { mutableStateOf<com.backendcreditos.mobile.data.SyncControlEntity?>(null) }
     var notice by remember { mutableStateOf("") }
@@ -446,6 +461,11 @@ private fun CreditApplicationScreen(
     var search by remember { mutableStateOf("") }
     var showLogoutConfirmation by remember { mutableStateOf(false) }
     var showRouteSweepConfirmation by remember { mutableStateOf(false) }
+    var showLocationNameDialog by remember { mutableStateOf(false) }
+    var locationNameDraft by remember { mutableStateOf("Casa") }
+    var pendingLocationName by remember { mutableStateOf<String?>(null) }
+    var grantedLocationName by remember { mutableStateOf<String?>(null) }
+    var locationToDelete by remember { mutableStateOf<CreditLocationEntity?>(null) }
     var pendingLogoutCount by remember { mutableStateOf(0) }
     var documentType by remember { mutableStateOf("") }
     var documentNumber by remember { mutableStateOf("") }
@@ -556,6 +576,17 @@ private fun CreditApplicationScreen(
         syncControl?.pauseReason == "PAYMENT" ||
             com.backendcreditos.mobile.security.paymentAccessBlocked(stored.paymentExpiresAt, currentTime)
     } == true
+    val locationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        if (grants.values.any { it }) {
+            grantedLocationName = pendingLocationName
+            pendingLocationName = null
+        } else {
+            pendingLocationName = null
+            notice = "Permiso de ubicación denegado. No se pudo marcar el punto."
+        }
+    }
 
     suspend fun loadLocal() {
         val current = session ?: return
@@ -572,6 +603,7 @@ private fun CreditApplicationScreen(
         // an abono shows the new row without waiting for a server round trip.
         selectedCreditId?.let { creditId ->
             paymentRows = app.database.localDao().payments(current.accountKey, branch, creditId)
+            creditLocationRows = app.repository.locationsForCredit(current.accountKey, branch, creditId)
         }
         syncControl = app.database.localDao().syncControl(current.accountKey)
     }
@@ -783,68 +815,6 @@ private fun CreditApplicationScreen(
         }
     }
 
-    suspend fun completeOnlineLogin(login: LoginResult): Boolean {
-        val previous = app.vault.readSession()
-        val newSession = StoredSession(
-            login.company.id.toString(), login.user.username, login.token,
-            userId = login.user.userId,
-            firstName = login.user.firstName, lastName = login.user.lastName,
-            branchExtraCharges = login.branches.associate { it.id.toString() to it.extraCharge },
-            employeeMaxCredit = login.user.employeeMaxCredit?.toString(),
-            isSuperAdministrator = login.user.isSuperAdministrator,
-            paymentExpiresAt = login.paymentExpiresAt?.toLong()
-        )
-        if (previous != null && previous.accountKey != newSession.accountKey) {
-            val unresolved = app.repository.unresolvedCount(previous.accountKey)
-            if (unresolved > 0) {
-                pendingLogoutCount = unresolved
-                showLogoutConfirmation = true
-                notice = "Cierra primero la cuenta guardada; sus operaciones no se pueden transferir a otra cuenta."
-                return false
-            }
-            app.repository.clearAccount(previous.accountKey)
-            app.vault.clearSession()
-        }
-        password = ""
-        session = newSession
-        app.vault.saveSession(newSession)
-        if (previous?.accountKey == newSession.accountKey &&
-            app.database.localDao().syncControl(newSession.accountKey)?.pauseReason in setOf("AUTH", "PAYMENT")
-        ) app.repository.setSyncPaused(newSession.accountKey, null)
-        syncControl = app.database.localDao().syncControl(newSession.accountKey)
-        when (val me = app.api.me(newSession.token)) {
-            is ApiResult.Success -> {
-                me.value.me?.let { user ->
-                    val refreshed = newSession.copy(
-                        userId = user.userId, firstName = user.firstName, lastName = user.lastName,
-                        employeeMaxCredit = user.employeeMaxCredit?.toString(),
-                        isSuperAdministrator = user.isSuperAdministrator
-                    )
-                    session = refreshed
-                    app.vault.saveSession(refreshed)
-                }
-                when (val branches = app.api.branches(newSession.token)) {
-                    is ApiResult.Success -> {
-                        branchList = branches.value.branches.map { BranchEntity(it.id.toString(), it.name, it.type) }
-                        val updated = (session ?: newSession).copy(
-                            branchExtraCharges = branches.value.branches.associate {
-                                it.id.toString() to it.extraCharge
-                            }
-                        )
-                        session = updated
-                        app.vault.saveSession(updated)
-                        enqueuePendingBranches(newSession)
-                        screen = Screen.BRANCHES
-                        return true
-                    }
-                    else -> report(branches)
-                }
-            }
-            else -> report(me)
-        }
-        return false
-    }
-
     suspend fun revalidateServerConnection() {
         val current = session ?: return
         when (val result = app.api.me(current.token)) {
@@ -899,6 +869,7 @@ private fun CreditApplicationScreen(
             inlinePaymentError = ""
             selectedCreditId = creditId
             paymentRows = app.database.localDao().payments(current.accountKey, branch, creditId)
+            creditLocationRows = app.repository.locationsForCredit(current.accountKey, branch, creditId)
             screen = Screen.CREDIT
             if (online) {
                 when (val result = app.repository.openPaymentHistory(current, branch, creditId)) {
@@ -910,6 +881,84 @@ private fun CreditApplicationScreen(
                 }
             }
         }
+    }
+
+    suspend fun markLocationHere(name: String) {
+            val current = session ?: return
+            val branch = current.selectedBranchId ?: return
+            val creditId = selectedCreditId ?: return
+            if (!hasLocationPermission(activity)) {
+                pendingLocationName = name
+                locationPermissionLauncher.launch(arrayOf(
+                    Manifest.permission.ACCESS_FINE_LOCATION,
+                    Manifest.permission.ACCESS_COARSE_LOCATION
+                ))
+                return
+            }
+            notice = "Buscando ubicación (GPS y red)…"
+            val fix = when (val lookup = currentLocation(activity)) {
+                is LocationLookup.Found -> lookup.fix
+                LocationLookup.ServicesOff -> {
+                    notice = "La ubicación del teléfono está apagada. Actívala en Ajustes > Ubicación y vuelve a intentar."
+                    runCatching {
+                        activity.startActivity(Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                    }
+                    return
+                }
+                LocationLookup.NoPermission -> {
+                    notice = "Falta el permiso de ubicación. Actívalo en Ajustes > Apps > Créditos > Permisos."
+                    return
+                }
+                LocationLookup.TimedOut -> {
+                    notice = "No se obtuvo ubicación en 30 segundos. Sal a un lugar abierto o activa el Wi-Fi y vuelve a intentar."
+                    return
+                }
+            }
+            val operation = app.repository.addLocation(
+                current, branch, creditId, name, fix.latitude, fix.longitude, fix.accuracyMeters
+            )
+            creditLocationRows = app.repository.locationsForCredit(current.accountKey, branch, creditId)
+            operationRows = operationRows + operation
+            SyncScheduler.enqueue(activity, current.accountKey, branch, expedited = online)
+            val accuracyText = fix.accuracyMeters?.let { " Precisión: ${it} m." }.orEmpty()
+            val warning = when {
+                (fix.accuracyMeters ?: 0) > 50 -> " La precisión es baja; si puedes, marca de nuevo al aire libre."
+                fix.ageSeconds > 0 -> " Se usó la última ubicación del teléfono (hace ${fix.ageSeconds} s)."
+                else -> ""
+            }
+            notice = if (online) "Ubicación guardada y enviándose.$accuracyText$warning"
+                else "Sin conexión: ubicación guardada y pendiente de envío.$accuracyText$warning"
+    }
+
+    suspend fun deleteLocation(location: CreditLocationEntity) {
+            val current = session ?: return
+            val branch = current.selectedBranchId ?: return
+            val creditId = selectedCreditId ?: return
+            val operation = app.repository.deleteLocation(current, branch, location)
+            creditLocationRows = app.repository.locationsForCredit(current.accountKey, branch, creditId)
+            operationRows = operationRows + operation
+            SyncScheduler.enqueue(activity, current.accountKey, branch, expedited = online)
+            notice = if (online) "Ubicación eliminada y enviándose." else "Ubicación eliminada; se enviará al recuperar señal."
+    }
+
+    fun openDirections(location: CreditLocationEntity) {
+            val intent = Intent(Intent.ACTION_VIEW, geoUriForLocation(location.latitude, location.longitude, location.name))
+            val chooser = Intent.createChooser(intent, "Cómo llegar")
+            try {
+                activity.startActivity(chooser)
+            } catch (_: android.content.ActivityNotFoundException) {
+                notice = "No hay una app instalada para abrir rutas (Maps o Waze)."
+            } catch (error: RuntimeException) {
+                notice = "No se pudo abrir la ruta: ${error.message.orEmpty()}"
+            }
+    }
+
+    LaunchedEffect(grantedLocationName) {
+        val name = grantedLocationName ?: return@LaunchedEffect
+        grantedLocationName = null
+        busy = true
+        markLocationHere(name)
+        busy = false
     }
 
     fun openCustomerLookup() {
@@ -973,6 +1022,126 @@ private fun CreditApplicationScreen(
         bankAccounts = app.repository.bankAccounts(current.accountKey, branch)
         refreshRouteCash()
     }
+
+    suspend fun openBranch(branch: BranchEntity) {
+        val current = session ?: return
+        val selected = current.copy(selectedBranchId = branch.id)
+        session = selected
+        app.vault.saveSession(selected)
+        screen = Screen.HOME
+        online = true
+        // Clear the previous branch's rows/matches right away instead of leaving
+        // them on screen while the new branch syncs; loadLocal() below repopulates
+        // them from this branch's own cache (may briefly be empty on first visit).
+        rows = emptyList()
+        branchPayments = emptyList()
+        customerMatches = emptyList()
+        pointedCreditId = null
+        pointerArmed = false
+        restorePointerScroll = false
+        inlinePaymentCreditId = null
+        watchedPaymentOperationIds = emptySet()
+        busy = true
+        loadLocal()
+        loadBranchPermissions()
+        if (syncAutoEnabled) {
+            SyncScheduler.schedulePeriodic(activity, selected.accountKey, branch.id, syncIntervalMinutes)
+        }
+        // Avoid throwing away and re-downloading a portfolio already cached on this
+        // device: if this branch was synced before, only pull what changed since then.
+        if (app.repository.hasCachedBranch(selected.accountKey, branch.id)) {
+            notice = "Actualizando la cartera de ${branch.name}…"
+            when (val result = app.repository.pullChanges(selected, branch.id)) {
+                is ApiResult.Success -> {
+                    notice = "Cartera de ${branch.name} al día."
+                    loadLocal()
+                    enqueuePendingBranches(selected)
+                }
+                else -> report(result)
+            }
+        } else {
+            notice = "Sincronizando la cartera de ${branch.name}…"
+            when (val result = app.repository.syncPortfolio(selected, branch.id)) {
+                is ApiResult.Success -> {
+                    app.repository.pullChanges(selected, branch.id)
+                    notice = "Cartera sincronizada (${result.value} créditos)."
+                    loadLocal()
+                    enqueuePendingBranches(selected)
+                }
+                else -> report(result)
+            }
+        }
+        busy = false
+    }
+
+    fun selectBranch(branch: BranchEntity) {
+        scope.launch { openBranch(branch) }
+    }
+
+    suspend fun completeOnlineLogin(login: LoginResult): Boolean {
+        val previous = app.vault.readSession()
+        val newSession = StoredSession(
+            login.company.id.toString(), login.user.username, login.token,
+            userId = login.user.userId,
+            firstName = login.user.firstName, lastName = login.user.lastName,
+            branchExtraCharges = login.branches.associate { it.id.toString() to it.extraCharge },
+            employeeMaxCredit = login.user.employeeMaxCredit?.toString(),
+            isSuperAdministrator = login.user.isSuperAdministrator,
+            paymentExpiresAt = login.paymentExpiresAt?.toLong()
+        )
+        if (previous != null && previous.accountKey != newSession.accountKey) {
+            val unresolved = app.repository.unresolvedCount(previous.accountKey)
+            if (unresolved > 0) {
+                pendingLogoutCount = unresolved
+                showLogoutConfirmation = true
+                notice = "Cierra primero la cuenta guardada; sus operaciones no se pueden transferir a otra cuenta."
+                return false
+            }
+            app.repository.clearAccount(previous.accountKey)
+            app.vault.clearSession()
+        }
+        password = ""
+        session = newSession
+        app.vault.saveSession(newSession)
+        if (previous?.accountKey == newSession.accountKey &&
+            app.database.localDao().syncControl(newSession.accountKey)?.pauseReason in setOf("AUTH", "PAYMENT")
+        ) app.repository.setSyncPaused(newSession.accountKey, null)
+        syncControl = app.database.localDao().syncControl(newSession.accountKey)
+        when (val me = app.api.me(newSession.token)) {
+            is ApiResult.Success -> {
+                me.value.me?.let { user ->
+                    val refreshed = newSession.copy(
+                        userId = user.userId, firstName = user.firstName, lastName = user.lastName,
+                        employeeMaxCredit = user.employeeMaxCredit?.toString(),
+                        isSuperAdministrator = user.isSuperAdministrator
+                    )
+                    session = refreshed
+                    app.vault.saveSession(refreshed)
+                }
+                when (val branches = app.api.branches(newSession.token)) {
+                    is ApiResult.Success -> {
+                        branchList = branches.value.branches.map { it.toEntity() }
+                        val updated = (session ?: newSession).copy(
+                            branchExtraCharges = branches.value.branches.associate {
+                                it.id.toString() to it.extraCharge
+                            }
+                        )
+                        session = updated
+                        app.vault.saveSession(updated)
+                        enqueuePendingBranches(newSession)
+                        branchOfficeFilter = null
+                        val onlyBranch = branchList.singleOrNull()
+                        if (onlyBranch != null) openBranch(onlyBranch) else screen = Screen.BRANCHES
+                        return true
+                    }
+                    else -> report(branches)
+                }
+            }
+            else -> report(me)
+        }
+        return false
+    }
+
 
 
     suspend fun loadDefaulters() {
@@ -1411,7 +1580,8 @@ private fun CreditApplicationScreen(
             )
             OperationKind.UPDATE_DOCUMENT, OperationKind.CREATE_EXPENSE, OperationKind.UPDATE_EXPENSE,
             OperationKind.DELETE_EXPENSE, OperationKind.CREATE_BASE, OperationKind.UPDATE_BASE,
-            OperationKind.DELETE_BASE -> throw IllegalArgumentException("Operación no disponible.")
+            OperationKind.DELETE_BASE, OperationKind.CREATE_LOCATION, OperationKind.DELETE_LOCATION ->
+                throw IllegalArgumentException("Operación no disponible.")
         }
         val operation = when (operationKind) {
             OperationKind.CREATE_CUSTOMER -> app.repository.createCustomerOffline(
@@ -1482,6 +1652,7 @@ private fun CreditApplicationScreen(
             online = false
             rows = emptyList()
             branchPayments = emptyList()
+            creditLocationRows = emptyList()
             operationRows = emptyList()
             syncControl = null
             activityLogRows = emptyList()
@@ -2033,11 +2204,6 @@ private fun CreditApplicationScreen(
                                     enabled = creditOnline && pointedCreditId != null,
                                     onClick = { showMoreMenu = false; pointedCreditId?.let(::assessCard) }
                                 )
-                                if (creditOnline) DropdownMenuItem(
-                                    text = { Text("Buscar cliente por documento") },
-                                    leadingIcon = { MenuIcon(R.drawable.ic_menu_search) },
-                                    onClick = { showMoreMenu = false; openCustomerLookup() }
-                                )
                                 if (online) DropdownMenuItem(
                                     text = { Text("Actualizar cartera") },
                                     leadingIcon = { MenuIcon(R.drawable.ic_menu_refresh) },
@@ -2122,7 +2288,7 @@ private fun CreditApplicationScreen(
                                     )
                                 }
                                 MenuSectionDivider()
-                                if (online) DropdownMenuItem(
+                                if (online && branchList.size > 1) DropdownMenuItem(
                                     text = { Text("Cambiar sucursal") },
                                     leadingIcon = { MenuIcon(R.drawable.ic_menu_branch) },
                                     onClick = { showMoreMenu = false; screen = Screen.BRANCHES }
@@ -2306,9 +2472,7 @@ private fun CreditApplicationScreen(
                                                 // would open an empty list unless we refresh it here.
                                                 when (val branches = app.api.branches(current.token)) {
                                                     is ApiResult.Success -> {
-                                                        branchList = branches.value.branches.map {
-                                                            BranchEntity(it.id.toString(), it.name, it.type)
-                                                        }
+                                                        branchList = branches.value.branches.map { it.toEntity() }
                                                         val updated = (session ?: current).copy(
                                                             branchExtraCharges = branches.value.branches.associate {
                                                                 it.id.toString() to it.extraCharge
@@ -2354,61 +2518,37 @@ private fun CreditApplicationScreen(
                 }
                 Screen.BRANCHES -> {
                     Text("Selecciona una sucursal", style = MaterialTheme.typography.headlineSmall)
-                    branchList.forEach { branch ->
-                        Card(Modifier.fillMaxWidth().clickable {
-                            val current = session ?: return@clickable
-                            val selected = current.copy(selectedBranchId = branch.id)
-                            session = selected
-                            app.vault.saveSession(selected)
-                            screen = Screen.HOME
-                            online = true
-                            // Clear the previous branch's rows/matches right away instead of leaving
-                            // them on screen while the new branch syncs; loadLocal() below repopulates
-                            // them from this branch's own cache (may briefly be empty on first visit).
-                            rows = emptyList()
-                            branchPayments = emptyList()
-                            customerMatches = emptyList()
-                            pointedCreditId = null
-                            pointerArmed = false
-                            restorePointerScroll = false
-                            inlinePaymentCreditId = null
-                            watchedPaymentOperationIds = emptySet()
-                            scope.launch {
-                                busy = true
-                                loadLocal()
-                                loadBranchPermissions()
-                                if (syncAutoEnabled) {
-                                    SyncScheduler.schedulePeriodic(activity, selected.accountKey, branch.id, syncIntervalMinutes)
-                                }
-                                // Avoid throwing away and re-downloading a portfolio already cached on this
-                                // device: if this branch was synced before, only pull what changed since then.
-                                if (app.repository.hasCachedBranch(selected.accountKey, branch.id)) {
-                                    notice = "Actualizando la cartera de ${branch.name}…"
-                                    when (val result = app.repository.pullChanges(selected, branch.id)) {
-                                        is ApiResult.Success -> {
-                                            notice = "Cartera de ${branch.name} al día."
-                                            loadLocal()
-                                            enqueuePendingBranches(selected)
-                                        }
-                                        else -> report(result)
-                                    }
-                                } else {
-                                    notice = "Sincronizando la cartera de ${branch.name}…"
-                                    when (val result = app.repository.syncPortfolio(selected, branch.id)) {
-                                        is ApiResult.Success -> {
-                                            app.repository.pullChanges(selected, branch.id)
-                                            notice = "Cartera sincronizada (${result.value} créditos)."
-                                            loadLocal()
-                                            enqueuePendingBranches(selected)
-                                        }
-                                        else -> report(result)
-                                    }
-                                }
-                                busy = false
+                    val offices = branchList.mapNotNull { branch ->
+                        branch.officeId?.let { it to (branch.officeName?.takeIf(String::isNotBlank) ?: "Oficina $it") }
+                    }.distinctBy { it.first }.sortedBy { it.second.lowercase() }
+                    val activeOffice = branchOfficeFilter?.takeIf { selected -> offices.any { it.first == selected } }
+                    if (offices.size > 1) {
+                        Text("Oficina", style = MaterialTheme.typography.labelLarge)
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            FilterChip(
+                                selected = activeOffice == null,
+                                onClick = { branchOfficeFilter = null },
+                                label = { Text("Todas (${branchList.size})") }
+                            )
+                            offices.forEach { (officeId, officeName) ->
+                                FilterChip(
+                                    selected = activeOffice == officeId,
+                                    onClick = { branchOfficeFilter = officeId },
+                                    label = { Text("$officeName (${branchList.count { it.officeId == officeId }})") }
+                                )
                             }
-                        }) {
+                        }
+                    }
+                    branchList.filter { activeOffice == null || it.officeId == activeOffice }.forEach { branch ->
+                        Card(Modifier.fillMaxWidth().clickable { selectBranch(branch) }) {
                             Column(Modifier.padding(16.dp)) {
                                 Text(branch.name, style = MaterialTheme.typography.titleMedium)
+                                if (activeOffice == null && offices.size > 1) branch.officeName?.let {
+                                    Text(it, style = MaterialTheme.typography.labelMedium)
+                                }
                                 Text("Solo se guardará la cartera vinculada a esta sucursal.")
                             }
                         }
@@ -2957,6 +3097,26 @@ private fun CreditApplicationScreen(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth()
                     )
+                    if (session == null && BuildConfig.DEBUG && BuildConfig.LOCAL_GRAPHQL_ENDPOINT.isNotBlank()) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            listOf(
+                                "Local (PC)" to BuildConfig.LOCAL_GRAPHQL_ENDPOINT,
+                                "Pruebas" to "https://api-pruebas.websdn.co/graphql"
+                            ).forEach { (label, preset) ->
+                                FilterChip(
+                                    selected = serverEndpoint == preset,
+                                    onClick = {
+                                        serverEndpoint = preset
+                                        serverEndpointError = null
+                                    },
+                                    label = { Text(label) }
+                                )
+                            }
+                        }
+                    }
                     if (session == null) {
                         Button(onClick = {
                             try {
@@ -3508,6 +3668,57 @@ private fun CreditApplicationScreen(
                             "pagos están en los tres punticos de abajo.",
                         style = MaterialTheme.typography.bodySmall
                     )
+                    HorizontalDivider()
+                    Text("Ubicaciones de cobro", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "Marca cada punto estando parado en el lugar. Luego usa «Cómo llegar» para abrir Maps o Waze.",
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                    Button(
+                        enabled = !busy && selectedCreditId != null,
+                        onClick = {
+                            locationNameDraft = "Casa"
+                            showLocationNameDialog = true
+                        }
+                    ) { Text("Marcar ubicación aquí") }
+                    if (creditLocationRows.isEmpty()) {
+                        Text("Esta tarjeta no tiene ubicaciones de cobro guardadas.")
+                    }
+                    creditLocationRows.forEach { location ->
+                        Card(Modifier.fillMaxWidth()) {
+                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                Row(
+                                    Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(location.name, style = MaterialTheme.typography.titleMedium)
+                                    if (location.pending) Text(
+                                        "Pendiente",
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+                                Text(
+                                    "${"%.6f".format(location.latitude)}, ${"%.6f".format(location.longitude)}" +
+                                        (location.accuracy?.let { " · precisión ${it} m" } ?: ""),
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                if ((location.accuracy ?: 0) > 50) {
+                                    Text(
+                                        "Precisión baja: si puedes, vuelve a marcar al aire libre.",
+                                        color = MaterialTheme.colorScheme.error,
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
+                                }
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    TextButton(onClick = { openDirections(location) }) { Text("Cómo llegar") }
+                                    TextButton(onClick = { locationToDelete = location }) { Text("Eliminar") }
+                                }
+                            }
+                        }
+                    }
+                    HorizontalDivider()
                     if (openPayment != null) Text(
                         if (openPayment.state == "created") {
                             "Este crédito ya tiene un abono registrado hoy (sin liquidar). Usa \"Editar\" en ese movimiento si necesitas corregirlo."
@@ -4214,7 +4425,8 @@ private fun CreditApplicationScreen(
                             OutlinedTextField(entityId, { entityId = it }, label = { Text("ID del pago *") }, modifier = Modifier.fillMaxWidth())
                         OperationKind.UPDATE_DOCUMENT, OperationKind.CREATE_EXPENSE,
                         OperationKind.UPDATE_EXPENSE, OperationKind.DELETE_EXPENSE,
-                        OperationKind.CREATE_BASE, OperationKind.UPDATE_BASE, OperationKind.DELETE_BASE ->
+                        OperationKind.CREATE_BASE, OperationKind.UPDATE_BASE, OperationKind.DELETE_BASE,
+                        OperationKind.CREATE_LOCATION, OperationKind.DELETE_LOCATION ->
                             Text("Los gastos y las bases se anotan en la pantalla «Gastos y bases».")
                     }
                     // Hidden for CREATE/UPDATE_PAYMENT too: it is an advanced optimistic-concurrency
@@ -4326,6 +4538,69 @@ private fun CreditApplicationScreen(
             dismissButton = {
                 TextButton(onClick = { showRouteSweepConfirmation = false }) { Text("No, dejarlos") }
             }
+        )
+    }
+
+    if (showLocationNameDialog) {
+        AlertDialog(
+            onDismissRequest = { showLocationNameDialog = false },
+            title = { Text("Marcar ubicación aquí") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Escribe un nombre corto para este punto de cobro.")
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf("Casa", "Negocio", "Trabajo").forEach { option ->
+                            FilterChip(
+                                selected = locationNameDraft == option,
+                                onClick = { locationNameDraft = option },
+                                label = { Text(option) }
+                            )
+                        }
+                    }
+                    OutlinedTextField(
+                        value = locationNameDraft,
+                        onValueChange = { locationNameDraft = it.take(40) },
+                        label = { Text("Nombre (máx. 40)") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    val safeName = locationNameDraft.trim()
+                    if (safeName.isBlank()) {
+                        notice = "Escribe un nombre para la ubicación."
+                    } else {
+                        showLocationNameDialog = false
+                        scope.launch {
+                            busy = true
+                            markLocationHere(safeName)
+                            busy = false
+                        }
+                    }
+                }) { Text("Guardar con GPS") }
+            },
+            dismissButton = { TextButton(onClick = { showLocationNameDialog = false }) { Text("Cancelar") } }
+        )
+    }
+
+    locationToDelete?.let { target ->
+        AlertDialog(
+            onDismissRequest = { locationToDelete = null },
+            title = { Text("Eliminar ubicación") },
+            text = { Text("Se eliminará «${target.name}» de esta tarjeta y se enviará el cambio al servidor.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    locationToDelete = null
+                    scope.launch {
+                        busy = true
+                        deleteLocation(target)
+                        busy = false
+                    }
+                }) { Text("Eliminar") }
+            },
+            dismissButton = { TextButton(onClick = { locationToDelete = null }) { Text("Cancelar") } }
         )
     }
 

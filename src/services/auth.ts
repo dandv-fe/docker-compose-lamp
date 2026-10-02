@@ -192,15 +192,17 @@ export async function listBranches(user: AuthUser) {
   const [rows] = admin
     ? await pool.execute(
       `SELECT s.idsucursal AS id, s.str_codigo AS name, s.str_tipo AS type,
-              s.str_cobro_adicional AS extraCharge
-       FROM tbl_sucursal s WHERE s.idglobal = ? ORDER BY s.idsucursal`,
+              s.str_cobro_adicional AS extraCharge, o.idoficina AS officeId, o.str_nombre AS officeName
+       FROM tbl_sucursal s
+       LEFT JOIN tbl_oficina o ON o.idoficina = s.idoficina AND o.idglobal = s.idglobal
+       WHERE s.idglobal = ? ORDER BY s.idsucursal`,
       [user.companyId],
     )
     : user.employeeId == null
       ? [[] as never, [] as never]
       : await pool.execute(
         `SELECT DISTINCT s.idsucursal AS id, s.str_codigo AS name, s.str_tipo AS type,
-                s.str_cobro_adicional AS extraCharge
+                s.str_cobro_adicional AS extraCharge, o.idoficina AS officeId, o.str_nombre AS officeName
          FROM tbl_sucursal s
          LEFT JOIN tbl_auth_sucursal a ON a.idsucursal = s.idsucursal
            AND a.idglobal = s.idglobal AND a.idempleado = ? AND a.str_estado <> 'inactivo'

@@ -93,6 +93,8 @@ object RouteGuard {
         OperationKind.CREATE_BASE -> "Base"
         OperationKind.UPDATE_BASE -> "Corrección de base"
         OperationKind.DELETE_BASE -> "Base borrada"
+        OperationKind.CREATE_LOCATION -> "Ubicación marcada"
+        OperationKind.DELETE_LOCATION -> "Ubicación borrada"
         else -> "Cambio"
     }
 }

@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.backendcreditos.mobile.momentMillis
 import com.backendcreditos.mobile.network.ApiResult
 import com.backendcreditos.mobile.network.CustomerDto
+import com.backendcreditos.mobile.network.CreditLocationDto
 import com.backendcreditos.mobile.network.ExpenseCatalogDto
 import com.backendcreditos.mobile.network.GraphQlApi
 import com.backendcreditos.mobile.network.OfflineOperationInput
@@ -55,6 +56,9 @@ class CreditRepository(
     suspend fun paymentsForBranch(accountKey: String, branchId: String): List<PaymentEntity> =
         dao.paymentsForBranch(accountKey, branchId)
 
+    suspend fun locationsForCredit(accountKey: String, branchId: String, creditId: String): List<CreditLocationEntity> =
+        dao.creditLocations(accountKey, branchId, creditId)
+
     suspend fun searchCustomers(accountKey: String, branchId: String, text: String): List<CustomerEntity> =
         dao.searchCustomers(accountKey, branchId, text)
 
@@ -65,7 +69,10 @@ class CreditRepository(
                     ?: return ApiResult.Rejected("Cliente no disponible para esta sucursal.")
                 val entity = dto.toEntity(account, branchId)
                 dao.putCustomers(listOf(entity))
+                dao.putCredits(dto.credits.filter { it.branchId.toString() == branchId }
+                    .map { it.toEntity(account, branchId) })
                 cacheLatestPayments(dto.credits, account, branchId)
+                cacheCreditLocations(dto.credits, account, branchId)
                 dao.syncCursor(account.accountKey, branchId)?.let { cursor ->
                     dao.setRecordVersions(
                         listOf(RecordVersionEntity(account.accountKey, branchId, "customer", entity.id, cursor)) +
@@ -94,7 +101,10 @@ class CreditRepository(
                 else {
                     val entity = dto.toEntity(account, branchId)
                     dao.putCustomers(listOf(entity))
+                    dao.putCredits(dto.credits.filter { it.branchId.toString() == branchId }
+                        .map { it.toEntity(account, branchId) })
                     cacheLatestPayments(dto.credits, account, branchId)
+                    cacheCreditLocations(dto.credits, account, branchId)
                     dao.syncCursor(account.accountKey, branchId)?.let { cursor ->
                         dao.setRecordVersions(
                             listOf(RecordVersionEntity(account.accountKey, branchId, "customer", entity.id, cursor)) +
@@ -151,9 +161,13 @@ class CreditRepository(
                         .map { it.toEntity(account, branchId) }
                     dao.putCredits(credits)
                     cacheLatestPayments(page.nodes.flatMap { it.credits }, account, branchId)
+                    cacheCreditLocations(page.nodes.flatMap { it.credits }, account, branchId)
                     dao.setRecordVersions(
                         customers.map { RecordVersionEntity(account.accountKey, branchId, "customer", it.id, page.snapshotCursor) } +
                             credits.map { RecordVersionEntity(account.accountKey, branchId, "credit", it.id, page.snapshotCursor) } +
+                            page.nodes.flatMap { it.credits }.flatMap { it.locations }.map {
+                                RecordVersionEntity(account.accountKey, branchId, "location", it.id, page.snapshotCursor)
+                            } +
                             page.nodes.flatMap { it.comments }.map {
                                 RecordVersionEntity(account.accountKey, branchId, "comment", it.id, page.snapshotCursor)
                             }
@@ -197,9 +211,11 @@ class CreditRepository(
                                         dao.putCredits(dto.credits.filter { it.branchId.toString() == branchId }
                                             .map { it.toEntity(account, branchId) })
                                         cacheLatestPayments(dto.credits, account, branchId)
+                                        cacheCreditLocations(dto.credits, account, branchId)
                                     }
                                     "CREDIT", "CARD" -> if (deleting) {
                                         dao.deletePaymentsForCredit(account.accountKey, branchId, recordId)
+                                        dao.deleteLocationsForCredit(account.accountKey, branchId, recordId)
                                         dao.deleteCredit(account.accountKey, branchId, recordId)
                                     } else change.payload?.let { payload ->
                                         val dto = json.decodeFromJsonElement(
@@ -207,6 +223,13 @@ class CreditRepository(
                                         )
                                         dao.putCredits(listOf(dto.toEntity(account, branchId)))
                                         cacheLatestPayments(listOf(dto), account, branchId)
+                                        cacheCreditLocations(listOf(dto), account, branchId)
+                                    }
+                                    "LOCATION" -> if (deleting) {
+                                        dao.deleteCreditLocation(account.accountKey, branchId, recordId)
+                                    } else change.payload?.let { payload ->
+                                        val dto = json.decodeFromJsonElement(CreditLocationDto.serializer(), payload)
+                                        dao.putCreditLocations(listOf(dto.toEntity(account, branchId)))
                                     }
                                     "PAYMENT", "DESCRIPTION" -> if (deleting) {
                                         dao.deletePayment(account.accountKey, branchId, recordId)
@@ -243,6 +266,7 @@ class CreditRepository(
                                     "CREDIT", "CARD" -> "credit"
                                     "PAYMENT", "DESCRIPTION" -> "payment"
                                     "COMMENT" -> "comment"
+                                    "LOCATION" -> "location"
                                     "ACCOUNTING" -> "accounting"
                                     else -> type.lowercase()
                                 }
@@ -301,14 +325,16 @@ class CreditRepository(
         }
         val isCreate = kind in setOf(
             OperationKind.CREATE_CUSTOMER, OperationKind.CREATE_CREDIT, OperationKind.CREATE_COMMENT,
-            OperationKind.CREATE_EXPENSE, OperationKind.CREATE_BASE
+            OperationKind.CREATE_LOCATION, OperationKind.CREATE_EXPENSE, OperationKind.CREATE_BASE
         )
+        val noBaseVersionNeeded = isCreate || kind == OperationKind.DELETE_LOCATION
         val effectiveBaseVersion = if (isCreate) null else baseVersion ?: run {
             val recordType = when (kind) {
                 OperationKind.UPDATE_CUSTOMER, OperationKind.UPDATE_DOCUMENT -> "customer"
                 OperationKind.CREATE_PAYMENT -> "credit"
                 OperationKind.CREATE_COMMENT, OperationKind.UPDATE_COMMENT, OperationKind.DELETE_COMMENT,
                 OperationKind.UPSERT_ALERT -> "comment"
+                OperationKind.DELETE_LOCATION -> "location"
                 OperationKind.UPDATE_PAYMENT, OperationKind.DELETE_PAYMENT -> "payment"
                 OperationKind.UPDATE_EXPENSE, OperationKind.DELETE_EXPENSE,
                 OperationKind.UPDATE_BASE, OperationKind.DELETE_BASE -> "accounting"
@@ -319,7 +345,7 @@ class CreditRepository(
                 ?: dao.syncCursor(account.accountKey, branchId)
                 ?: if (kind == OperationKind.UPSERT_ALERT) "0" else null
         }
-        require(isCreate || effectiveBaseVersion?.matches(Regex("\\d+")) == true) {
+        require(noBaseVersionNeeded || effectiveBaseVersion?.matches(Regex("\\d+")) == true) {
             "No se conoce la versión del servidor para este registro. Sincroniza la sucursal o ingresa su cursor base."
         }
         val operation = OfflineOperationEntity(
@@ -396,6 +422,53 @@ class CreditRepository(
             )))
         }
         return operation
+    }
+
+    suspend fun addLocation(
+        account: StoredSession,
+        branchId: String,
+        creditId: String,
+        name: String,
+        latitude: Double,
+        longitude: Double,
+        accuracy: Int?
+    ): OfflineOperationEntity = database.withTransaction {
+        val id = UUID.randomUUID().toString()
+        val mapped = OperationPayloadMapper.createLocation(id, creditId, name, latitude, longitude, accuracy)
+        val dependency = dao.openOperationsForBranch(account.accountKey, branchId)
+            .firstOrNull {
+                it.kind == OperationKind.CREATE_CREDIT && it.entityId == creditId &&
+                    it.status in setOf(OperationStatus.PENDING, OperationStatus.IN_FLIGHT)
+            }?.operationId
+        val operation = enqueue(
+            account, branchId, OperationKind.CREATE_LOCATION, mapped.entityId, mapped.payload,
+            dependsOnOperationId = dependency
+        )
+        dao.putCreditLocations(listOf(CreditLocationEntity(
+            accountKey = account.accountKey,
+            branchId = branchId,
+            id = id,
+            creditId = creditId,
+            name = name.trim(),
+            latitude = latitude,
+            longitude = longitude,
+            accuracy = accuracy,
+            createdAt = System.currentTimeMillis().toString(),
+            pending = true
+        )))
+        operation
+    }
+
+    suspend fun deleteLocation(
+        account: StoredSession,
+        branchId: String,
+        location: CreditLocationEntity
+    ): OfflineOperationEntity = database.withTransaction {
+        require(location.accountKey == account.accountKey && location.branchId == branchId) {
+            "La ubicación pertenece a otra cuenta o sucursal."
+        }
+        dao.deleteCreditLocation(account.accountKey, branchId, location.id)
+        enqueue(account, branchId, OperationKind.DELETE_LOCATION, location.id, OperationPayloadMapper.delete(location.id).payload)
     }
 
     suspend fun applyOptimisticCacheChange(
@@ -558,6 +631,26 @@ class CreditRepository(
                     )))
                 }
             }
+            OperationKind.CREATE_LOCATION -> {
+                val fields = payload as? JsonObject
+                if (fields != null) {
+                    dao.putCreditLocations(listOf(CreditLocationEntity(
+                        accountKey = operation.accountKey,
+                        branchId = operation.branchId,
+                        id = operation.entityId,
+                        creditId = fields["idtarjeta"].textOr("").orEmpty(),
+                        name = fields["nombre"].textOr("").orEmpty(),
+                        latitude = fields["latitud"].doubleOr(0.0) ?: 0.0,
+                        longitude = fields["longitud"].doubleOr(0.0) ?: 0.0,
+                        accuracy = fields["precision"].intOr(null),
+                        createdAt = operation.createdAt.toString(),
+                        pending = true
+                    )))
+                }
+            }
+            OperationKind.DELETE_LOCATION -> dao.deleteCreditLocation(
+                operation.accountKey, operation.branchId, operation.entityId
+            )
             OperationKind.CREATE_PAYMENT, OperationKind.UPDATE_PAYMENT -> {
                 val fields = payload as? JsonObject
                 val paymentId = if (operation.kind == OperationKind.CREATE_PAYMENT) {
@@ -633,6 +726,7 @@ class CreditRepository(
             dao.deleteCustomersOutsideBranch(accountKey, branchId)
             dao.deleteCreditsOutsideBranch(accountKey, branchId)
             dao.deletePaymentsOutsideBranch(accountKey, branchId)
+            dao.deleteCreditLocationsOutsideBranch(accountKey, branchId)
             dao.deleteCursorsOutsideBranch(accountKey, branchId)
             dao.deleteRecordVersionsOutsideBranch(accountKey, branchId)
             dao.deleteMarkedCreditsOutsideBranch(accountKey, branchId)
@@ -990,6 +1084,8 @@ class CreditRepository(
                 OperationKind.CREATE_EXPENSE, OperationKind.UPDATE_EXPENSE, OperationKind.DELETE_EXPENSE,
                 OperationKind.CREATE_BASE, OperationKind.UPDATE_BASE, OperationKind.DELETE_BASE ->
                     dao.deleteRouteEntry(operation.accountKey, operation.branchId, operation.entityId)
+                OperationKind.CREATE_LOCATION, OperationKind.DELETE_LOCATION ->
+                    dao.deleteCreditLocation(operation.accountKey, operation.branchId, operation.entityId)
                 else -> Unit
             }
             dao.discardResolvedOperation(operationId)
@@ -1009,6 +1105,7 @@ class CreditRepository(
         database.withTransaction {
             dao.deleteOperations(accountKey)
             dao.deletePayments(accountKey)
+            dao.deleteCreditLocations(accountKey)
             dao.deleteCredits(accountKey)
             dao.deleteCustomers(accountKey)
             dao.deleteSyncCursors(accountKey)
@@ -1067,6 +1164,12 @@ class CreditRepository(
                         "idcomentario" to "id", "str_comentario" to "comment",
                         "str_tipo" to "type", "idusuario" to "userId"
                     )
+                OperationKind.CREATE_LOCATION, OperationKind.DELETE_LOCATION ->
+                    mapOf(
+                        "idlocation" to "id", "idtarjeta" to "creditId", "str_nombre" to "name",
+                        "dec_latitud" to "latitude", "dec_longitud" to "longitude",
+                        "int_precision_m" to "accuracy", "idusuario" to "userId", "created_at" to "createdAt"
+                    )
                 else -> emptyMap()
             }
             aliases.forEach { (source, target) ->
@@ -1108,6 +1211,8 @@ class CreditRepository(
                 "payment" to setOf("id", "creditId", "amount", "description", "state", "createdAt", "updatedAt", "routeId")
             OperationKind.CREATE_COMMENT, OperationKind.UPDATE_COMMENT, OperationKind.DELETE_COMMENT ->
                 "comment" to setOf("id", "customerId", "comment", "type", "userId", "createdAt", "updatedAt")
+            OperationKind.CREATE_LOCATION, OperationKind.DELETE_LOCATION ->
+                "location" to setOf("id", "creditId", "name", "latitude", "longitude", "accuracy", "userId", "createdAt")
             OperationKind.UPSERT_ALERT ->
                 "alert" to setOf("id", "alerta")
             OperationKind.CREATE_EXPENSE, OperationKind.UPDATE_EXPENSE, OperationKind.DELETE_EXPENSE,
@@ -1126,6 +1231,8 @@ class CreditRepository(
                 setOf("routeId")
             OperationKind.CREATE_COMMENT, OperationKind.UPDATE_COMMENT, OperationKind.DELETE_COMMENT ->
                 setOf("customerId", "userId")
+            OperationKind.CREATE_LOCATION, OperationKind.DELETE_LOCATION ->
+                setOf("accuracy", "userId")
             OperationKind.UPSERT_ALERT -> emptySet()
             OperationKind.CREATE_EXPENSE, OperationKind.UPDATE_EXPENSE, OperationKind.DELETE_EXPENSE,
             OperationKind.CREATE_BASE, OperationKind.UPDATE_BASE, OperationKind.DELETE_BASE ->
@@ -1140,6 +1247,7 @@ class CreditRepository(
             OperationKind.CHANGE_CREDIT_STATUS, OperationKind.REORDER_CREDIT ->
                 setOf("value", "principal", "balance", "sortOrder", "profit", "additionalValue")
             OperationKind.UPDATE_PAYMENT, OperationKind.DELETE_PAYMENT -> setOf("amount")
+            OperationKind.CREATE_LOCATION, OperationKind.DELETE_LOCATION -> setOf("latitude", "longitude")
             else -> emptySet()
         }
         val selected = kotlinx.serialization.json.buildJsonObject {
@@ -1287,6 +1395,24 @@ class CreditRepository(
                     dao.deletePayment(operation.accountKey, operation.branchId, operation.entityId)
                     appliedServerState = true
                 }
+                OperationKind.CREATE_LOCATION -> {
+                    val dto = state?.let {
+                        runCatching { json.decodeFromJsonElement(CreditLocationDto.serializer(), it) }.getOrNull()
+                    }
+                    if (dto != null) {
+                        dao.putCreditLocations(listOf(dto.toEntity(
+                            StoredSession(operation.accountKey, "", ""), operation.branchId
+                        )))
+                    } else {
+                        val local = dao.creditLocation(operation.accountKey, operation.branchId, operation.entityId)
+                        if (local != null) dao.putCreditLocations(listOf(local.copy(pending = false)))
+                    }
+                    appliedServerState = true
+                }
+                OperationKind.DELETE_LOCATION -> {
+                    dao.deleteCreditLocation(operation.accountKey, operation.branchId, operation.entityId)
+                    appliedServerState = true
+                }
                 else -> Unit
             }
         }
@@ -1341,6 +1467,15 @@ class CreditRepository(
         val payments = credits.mapNotNull { it.latestPayment }
             .map { it.toEntity(account, branchId).preservingLocalOrigin(account, branchId) }
         if (payments.isNotEmpty()) dao.putPayments(payments)
+    }
+
+    private suspend fun cacheCreditLocations(
+        credits: List<com.backendcreditos.mobile.network.CreditDto>,
+        account: StoredSession,
+        branchId: String
+    ) {
+        val locations = credits.flatMap { it.locations }.map { it.toEntity(account, branchId) }
+        if (locations.isNotEmpty()) dao.putCreditLocations(locations)
     }
 
     private suspend fun PaymentEntity.preservingLocalOrigin(
@@ -1400,6 +1535,20 @@ class CreditRepository(
             origin = origin,
             creatorUserId = createdByUserId,
             bankAmount = bankAmount?.toString()
+        )
+
+    private fun CreditLocationDto.toEntity(account: StoredSession, branchId: String) =
+        CreditLocationEntity(
+            accountKey = account.accountKey,
+            branchId = branchId,
+            id = id,
+            creditId = creditId,
+            name = name,
+            latitude = latitude,
+            longitude = longitude,
+            accuracy = accuracy,
+            createdAt = createdAt,
+            pending = false
         )
 
     /** Sum of one payment split, or null when the operation did not send one. */

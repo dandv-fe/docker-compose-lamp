@@ -11,7 +11,7 @@ enum class OperationKind {
     CREATE_CUSTOMER, UPDATE_CUSTOMER, UPDATE_DOCUMENT, CREATE_CREDIT, UPDATE_CREDIT,
     UPDATE_CREDIT_TERMS, CREATE_PAYMENT, UPDATE_PAYMENT, DELETE_PAYMENT, DELETE_CREDIT,
     APPLY_DISCOUNT, ADD_INTEREST, CHANGE_CREDIT_STATUS, REORDER_CREDIT, CREATE_COMMENT,
-    UPDATE_COMMENT, DELETE_COMMENT, UPSERT_ALERT,
+    UPDATE_COMMENT, DELETE_COMMENT, CREATE_LOCATION, DELETE_LOCATION, UPSERT_ALERT,
     CREATE_EXPENSE, UPDATE_EXPENSE, DELETE_EXPENSE, CREATE_BASE, UPDATE_BASE, DELETE_BASE
 }
 
@@ -107,6 +107,25 @@ data class PaymentEntity(
 )
 
 @Entity(
+    tableName = "credit_locations",
+    primaryKeys = ["accountKey", "branchId", "id"],
+    indices = [Index(value = ["accountKey", "branchId", "creditId"])]
+)
+@Serializable
+data class CreditLocationEntity(
+    val accountKey: String,
+    val branchId: String,
+    val id: String,
+    val creditId: String,
+    val name: String,
+    val latitude: Double,
+    val longitude: Double,
+    val accuracy: Int?,
+    val createdAt: String?,
+    val pending: Boolean = false
+)
+
+@Entity(
     tableName = "offline_operations",
     indices = [
         Index(value = ["accountKey", "companyId", "branchId", "status", "createdAt"]),
@@ -136,7 +155,13 @@ data class OfflineOperationEntity(
     val rejectionCode: String? = null
 )
 
-data class BranchEntity(val id: String, val name: String, val type: String? = null)
+data class BranchEntity(
+    val id: String,
+    val name: String,
+    val type: String? = null,
+    val officeId: String? = null,
+    val officeName: String? = null
+)
 
 @Entity(tableName = "sync_control")
 data class SyncControlEntity(

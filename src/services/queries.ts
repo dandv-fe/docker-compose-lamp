@@ -126,6 +126,25 @@ async function addBranchCredits(
     for (const credit of rows as Array<Record<string, unknown>>) {
       credit.latestPayment = latestPaymentsByCredit.get(String(credit.id)) ?? null;
     }
+    const [locationRows] = await pool.execute(
+      `SELECT idlocation AS id,idtarjeta AS creditId,str_nombre AS name,
+              (dec_latitud + 0E0) AS latitude,(dec_longitud + 0E0) AS longitude,int_precision_m AS accuracy,
+              idusuario AS userId,created_at AS createdAt
+       FROM mobile_credit_location
+       WHERE idglobal = ? AND idsucursal = ? AND idtarjeta IN (${paymentPlaceholders})
+       ORDER BY created_at,idlocation`,
+      [companyId, branchId, ...creditIds],
+    );
+    const locationsByCredit = new Map<string, unknown[]>();
+    for (const location of locationRows as Array<Record<string, unknown>>) {
+      const key = String(location.creditId);
+      const existing = locationsByCredit.get(key) ?? [];
+      existing.push(location);
+      locationsByCredit.set(key, existing);
+    }
+    for (const credit of rows as Array<Record<string, unknown>>) {
+      credit.locations = locationsByCredit.get(String(credit.id)) ?? [];
+    }
   }
   for (const customer of customers) customer.credits = creditsByCustomer.get(Number(customer.id)) ?? [];
   return customers;
@@ -496,7 +515,7 @@ export async function syncChanges(context: AuthContext | null, branchId: number,
             record_id AS recordId, related_id AS relatedId, action, created_at AS createdAt
      FROM mobile_change_event
      WHERE idglobal = ? AND idsucursal = ? AND id > ? AND id <= ?
-       AND record_type IN ('customer','credit','payment','comment','route','receipt_sequence','accounting')
+       AND record_type IN ('customer','credit','payment','comment','location','route','receipt_sequence','accounting')
      ORDER BY id LIMIT ?`,
     [user.companyId, branchId, after, watermark, first + 1],
   );

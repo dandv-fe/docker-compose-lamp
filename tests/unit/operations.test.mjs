@@ -104,9 +104,25 @@ test('only route-day records are bound to the open route', () => {
     'APPLY_DISCOUNT', 'ADD_INTEREST', 'CREATE_EXPENSE', 'UPDATE_EXPENSE', 'DELETE_EXPENSE',
     'CREATE_BASE', 'UPDATE_BASE', 'DELETE_BASE']) assert.equal(isRouteBoundKind(kind), true, kind);
   for (const kind of ['CREATE_CUSTOMER', 'UPDATE_CUSTOMER', 'UPDATE_DOCUMENT', 'UPDATE_CREDIT',
-    'CREATE_COMMENT', 'UPSERT_ALERT', 'CHANGE_CREDIT_STATUS', 'REORDER_CREDIT']) {
+    'CREATE_COMMENT', 'CREATE_LOCATION', 'DELETE_LOCATION', 'UPSERT_ALERT', 'CHANGE_CREDIT_STATUS', 'REORDER_CREDIT']) {
     assert.equal(isRouteBoundKind(kind), false, kind);
   }
+});
+
+test('location operation payloads validate GPS bounds and trim names', () => {
+  const payload = parseOperationPayload('CREATE_LOCATION', {
+    idtarjeta: 'card-1', nombre: ' Casa ', latitud: 4.711, longitud: -74.072, precision: 12,
+  });
+  assert.deepEqual(payload, {
+    idtarjeta: 'card-1', nombre: 'Casa', latitud: 4.711, longitud: -74.072, precision: 12,
+  });
+  assert.doesNotThrow(() => parseOperationPayload('DELETE_LOCATION', {}));
+  assert.throws(
+    () => parseOperationPayload('CREATE_LOCATION', {
+      idtarjeta: 'card-1', nombre: '', latitud: 91, longitud: 0,
+    }),
+    { extensions: { code: 'VALIDATION_ERROR' } },
+  );
 });
 
 test('an invalid routeId is rejected before any database access', async () => {

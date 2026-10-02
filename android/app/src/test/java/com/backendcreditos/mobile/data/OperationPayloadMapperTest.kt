@@ -116,6 +116,20 @@ class OperationPayloadMapperTest {
         assertEquals("i/,c/,ab/,mn", (alert.payload as JsonObject).getValue("alerta").jsonPrimitive.content)
     }
 
+    @Test fun locationPayloadUsesSpanishBackendKeysAndGpsBounds() {
+        val mapped = OperationPayloadMapper.createLocation("loc-1", "card-1", " Casa ", 4.711, -74.072, 18)
+        val payload = mapped.payload as JsonObject
+        assertEquals("loc-1", mapped.entityId)
+        assertEquals(setOf("idtarjeta", "nombre", "latitud", "longitud", "precision"), payload.keys)
+        assertEquals("Casa", payload.getValue("nombre").jsonPrimitive.content)
+        assertThrows(IllegalArgumentException::class.java) {
+            OperationPayloadMapper.createLocation("loc-2", "card-1", "", 4.0, -74.0, null)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            OperationPayloadMapper.createLocation("loc-2", "card-1", "Casa", 91.0, -74.0, null)
+        }
+    }
+
     @Test fun bankSplitsTravelOnlyWhenChosenAndNeverExceedTheAmount() {
         val cash = OperationPayloadMapper.createPayment("c", "p", "100", "Abono").payload as JsonObject
         assertTrue("bancos" !in cash)

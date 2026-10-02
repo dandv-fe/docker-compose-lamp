@@ -7,7 +7,7 @@ object GraphQlDocuments {
             token expiresIn paymentExpiresAt
             user { userId companyId employeeId employeeMaxCredit isSuperAdministrator username firstName lastName companyName }
             company { id name }
-            branches { id name type extraCharge }
+            branches { id name type extraCharge officeId officeName }
           }
         }
     """
@@ -55,7 +55,7 @@ object GraphQlDocuments {
             token expiresIn paymentExpiresAt
             user { userId companyId employeeId employeeMaxCredit isSuperAdministrator username firstName lastName companyName }
             company { id name }
-            branches { id name type extraCharge }
+            branches { id name type extraCharge officeId officeName }
           }
         }
     """
@@ -63,11 +63,11 @@ object GraphQlDocuments {
         query Me {
           me {
             userId companyId employeeId employeeMaxCredit isSuperAdministrator username firstName lastName companyName
-            branches { id name type extraCharge }
+            branches { id name type extraCharge officeId officeName }
           }
         }
     """
-    const val BRANCHES = """query Branches { branches { id name type extraCharge } }"""
+    const val BRANCHES = """query Branches { branches { id name type extraCharge officeId officeName } }"""
     const val PERSON_DOCUMENT_TYPES = """
         query PersonDocumentTypes(${'$'}branchId: Int!) {
           personDocumentTypes(branchId: ${'$'}branchId) { name }
@@ -93,6 +93,7 @@ object GraphQlDocuments {
                 description sortOrder profit additionalNumber additionalValue receiptType receiptSeries receiptNumber
                 paymentSummary style note status createdEmployeeId agreementDate createdAt updatedAt bankFunded
                 latestPayment { id creditId amount description state createdAt updatedAt routeId createdByUserId createdByUsername origin bankAmount }
+                locations { id creditId name latitude longitude accuracy createdAt }
               }
               comments { id customerId comment type userId createdAt updatedAt }
             }
@@ -111,6 +112,7 @@ object GraphQlDocuments {
               description sortOrder profit additionalNumber additionalValue receiptType receiptSeries receiptNumber
               paymentSummary style note status createdEmployeeId agreementDate createdAt updatedAt bankFunded
               latestPayment { id creditId amount description state createdAt updatedAt routeId createdByUserId createdByUsername origin bankAmount }
+              locations { id creditId name latitude longitude accuracy createdAt }
             }
             comments { id customerId comment type userId createdAt updatedAt }
           }
@@ -127,6 +129,7 @@ object GraphQlDocuments {
               description sortOrder profit additionalNumber additionalValue receiptType receiptSeries receiptNumber
               paymentSummary style note status createdEmployeeId agreementDate createdAt updatedAt bankFunded
               latestPayment { id creditId amount description state createdAt updatedAt routeId createdByUserId createdByUsername origin bankAmount }
+              locations { id creditId name latitude longitude accuracy createdAt }
             }
             comments { id customerId comment type userId createdAt updatedAt }
           }

@@ -342,6 +342,22 @@ object OperationPayloadMapper {
         put("comentario", comment)
     })
 
+    fun createLocation(
+        id: String, creditId: String, name: String, latitude: Double, longitude: Double, accuracy: Int?
+    ) = MappedOperation(id, buildJsonObject {
+        val safeName = name.trim()
+        require(id.isNotBlank() && id.length <= 50 && creditId.isNotBlank() && creditId.length <= 50)
+        require(safeName.isNotEmpty() && safeName.length <= 40) { "El nombre debe tener entre 1 y 40 caracteres." }
+        require(latitude.isFinite() && latitude in -90.0..90.0) { "Latitud GPS inválida." }
+        require(longitude.isFinite() && longitude in -180.0..180.0) { "Longitud GPS inválida." }
+        require(accuracy == null || accuracy >= 0) { "Precisión GPS inválida." }
+        put("idtarjeta", creditId)
+        put("nombre", safeName)
+        put("latitud", JsonPrimitive(latitude))
+        put("longitud", JsonPrimitive(longitude))
+        if (accuracy != null) put("precision", JsonPrimitive(accuracy))
+    })
+
     fun upsertAlert(
         customerId: String, entityId: String, icon: String, color: String, subject: String, message: String
     ): MappedOperation {

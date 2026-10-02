@@ -126,7 +126,18 @@ data class UserWithBranchesDto(
 data class BranchesData(val branches: List<BranchDto>)
 
 @Serializable
-data class BranchDto(val id: Int, val name: String, val type: String? = null, val extraCharge: String)
+data class BranchDto(
+    val id: Int,
+    val name: String,
+    val type: String? = null,
+    val extraCharge: String,
+    val officeId: Int? = null,
+    val officeName: String? = null
+) {
+    fun toEntity() = com.backendcreditos.mobile.data.BranchEntity(
+        id.toString(), name, type, officeId?.toString(), officeName
+    )
+}
 
 @Serializable
 data class PersonDocumentTypesData(val personDocumentTypes: List<PersonDocumentTypeDto>)
@@ -219,7 +230,20 @@ data class CreditDto(
     val createdAt: String? = null,
     val updatedAt: String? = null,
     val bankFunded: Double? = null,
-    val latestPayment: PaymentDto? = null
+    val latestPayment: PaymentDto? = null,
+    val locations: List<CreditLocationDto> = emptyList()
+)
+
+@Serializable
+data class CreditLocationDto(
+    @Serializable(with = GraphQlIdSerializer::class) val id: String,
+    @Serializable(with = GraphQlIdSerializer::class) val creditId: String,
+    val name: String,
+    val latitude: Double,
+    val longitude: Double,
+    val accuracy: Int? = null,
+    val userId: Int? = null,
+    val createdAt: String? = null
 )
 
 @Serializable

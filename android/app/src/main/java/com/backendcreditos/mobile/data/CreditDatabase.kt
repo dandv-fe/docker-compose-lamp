@@ -30,6 +30,9 @@ interface LocalDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun putPayments(items: List<PaymentEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun putCreditLocations(items: List<CreditLocationEntity>)
+
     @Query("SELECT * FROM customers WHERE accountKey = :accountKey AND branchId = :branchId AND (firstName || ' ' || lastName LIKE '%' || :query || '%' OR documentNumber LIKE '%' || :query || '%') ORDER BY lastName, firstName LIMIT 100")
     suspend fun searchCustomers(accountKey: String, branchId: String, query: String): List<CustomerEntity>
 
@@ -83,6 +86,18 @@ interface LocalDao {
 
     @Query("DELETE FROM payments WHERE accountKey = :accountKey AND branchId = :branchId AND creditId = :creditId")
     suspend fun deletePaymentsForCredit(accountKey: String, branchId: String, creditId: String)
+
+    @Query("SELECT * FROM credit_locations WHERE accountKey = :accountKey AND branchId = :branchId AND creditId = :creditId ORDER BY createdAt, id")
+    suspend fun creditLocations(accountKey: String, branchId: String, creditId: String): List<CreditLocationEntity>
+
+    @Query("SELECT * FROM credit_locations WHERE accountKey = :accountKey AND branchId = :branchId AND id = :id LIMIT 1")
+    suspend fun creditLocation(accountKey: String, branchId: String, id: String): CreditLocationEntity?
+
+    @Query("DELETE FROM credit_locations WHERE accountKey = :accountKey AND branchId = :branchId AND id = :id")
+    suspend fun deleteCreditLocation(accountKey: String, branchId: String, id: String)
+
+    @Query("DELETE FROM credit_locations WHERE accountKey = :accountKey AND branchId = :branchId AND creditId = :creditId")
+    suspend fun deleteLocationsForCredit(accountKey: String, branchId: String, creditId: String)
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun addOperation(operation: OfflineOperationEntity)
@@ -154,6 +169,9 @@ interface LocalDao {
     @Query("DELETE FROM payments WHERE accountKey = :accountKey")
     suspend fun deletePayments(accountKey: String)
 
+    @Query("DELETE FROM credit_locations WHERE accountKey = :accountKey")
+    suspend fun deleteCreditLocations(accountKey: String)
+
     @Query("SELECT * FROM sync_control WHERE accountKey = :accountKey LIMIT 1")
     suspend fun syncControl(accountKey: String): SyncControlEntity?
 
@@ -195,6 +213,9 @@ interface LocalDao {
 
     @Query("DELETE FROM payments WHERE accountKey = :accountKey AND branchId != :activeBranchId")
     suspend fun deletePaymentsOutsideBranch(accountKey: String, activeBranchId: String)
+
+    @Query("DELETE FROM credit_locations WHERE accountKey = :accountKey AND branchId != :activeBranchId")
+    suspend fun deleteCreditLocationsOutsideBranch(accountKey: String, activeBranchId: String)
 
     @Query("DELETE FROM sync_cursors WHERE accountKey = :accountKey AND branchId != :activeBranchId")
     suspend fun deleteCursorsOutsideBranch(accountKey: String, activeBranchId: String)
@@ -315,13 +336,13 @@ interface LocalDao {
 
 @Database(
     entities = [
-        CustomerEntity::class, CreditEntity::class, PaymentEntity::class,
+        CustomerEntity::class, CreditEntity::class, PaymentEntity::class, CreditLocationEntity::class,
         OfflineOperationEntity::class, SyncControlEntity::class, SyncCursorEntity::class, RecordVersionEntity::class,
         MarkedCreditEntity::class, ReceiptSequenceEntity::class, ActivityLogEntity::class,
         RouteCashEntity::class, BankAccountEntity::class,
         RouteEntryEntity::class, RouteCatalogEntity::class
     ],
-    version = 15,
+    version = 16,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)
@@ -540,6 +561,24 @@ abstract class CreditDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE offline_operations ADD COLUMN routeId INTEGER")
                 db.execSQL("ALTER TABLE offline_operations ADD COLUMN rejectionCode TEXT")
                 db.execSQL("ALTER TABLE route_cash ADD COLUMN routeState TEXT")
+            }
+        }
+
+        val MIGRATION_15_16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """CREATE TABLE IF NOT EXISTS credit_locations (
+                        accountKey TEXT NOT NULL, branchId TEXT NOT NULL, id TEXT NOT NULL,
+                        creditId TEXT NOT NULL, name TEXT NOT NULL, latitude REAL NOT NULL,
+                        longitude REAL NOT NULL, accuracy INTEGER, createdAt TEXT,
+                        pending INTEGER NOT NULL DEFAULT 0,
+                        PRIMARY KEY(accountKey, branchId, id)
+                    )""".trimIndent()
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_credit_locations_accountKey_branchId_creditId " +
+                        "ON credit_locations(accountKey, branchId, creditId)"
+                )
             }
         }
     }

@@ -15,7 +15,7 @@ const operationKinds = [
   'CREATE_CUSTOMER', 'UPDATE_CUSTOMER', 'UPDATE_DOCUMENT', 'CREATE_CREDIT', 'UPDATE_CREDIT',
   'UPDATE_CREDIT_TERMS', 'CREATE_PAYMENT', 'UPDATE_PAYMENT', 'DELETE_PAYMENT', 'DELETE_CREDIT',
   'APPLY_DISCOUNT', 'ADD_INTEREST', 'CHANGE_CREDIT_STATUS', 'REORDER_CREDIT', 'CREATE_COMMENT',
-  'UPDATE_COMMENT', 'DELETE_COMMENT', 'UPSERT_ALERT',
+  'UPDATE_COMMENT', 'DELETE_COMMENT', 'CREATE_LOCATION', 'DELETE_LOCATION', 'UPSERT_ALERT',
   'CREATE_EXPENSE', 'UPDATE_EXPENSE', 'DELETE_EXPENSE',
   'CREATE_BASE', 'UPDATE_BASE', 'DELETE_BASE',
 ] as const;
@@ -83,6 +83,11 @@ type CreditRow = RowDataPacket & {
   iddetalleruta: number; dec_valor: number | string; dec_resta: number | string;
   dec_prestamo: number | string; str_estado: string; int_tiempo: number;
   dec_utilidad: number | string;
+};
+type LocationRow = RowDataPacket & {
+  idlocation: string; idglobal: number; idsucursal: number; idtarjeta: string;
+  str_nombre: string; dec_latitud: number | string; dec_longitud: number | string;
+  int_precision_m: number | null; idusuario: number; created_at: Date | string | null;
 };
 type SqlConnection = Omit<PoolConnection, 'execute'> & {
   execute<T = unknown>(sql: string, values?: unknown[]): Promise<[T, unknown]>;
@@ -833,6 +838,53 @@ async function executeOperation(
       await conn.execute('DELETE FROM tbl_comentarios WHERE idcomentario=? AND idusuario=?', [input.entityId, userId]);
       return { entityId: input.entityId, data: { id: input.entityId }, recordType: 'comment', action: 'DELETE', branchId: input.branchId, relatedId: String(comment.idcliente) };
     }
+    case 'CREATE_LOCATION': {
+      const credit = await loadCredit(conn, companyId, input.branchId, String(payload.idtarjeta));
+      const [existing] = await conn.execute<RowDataPacket[]>(
+        `SELECT idlocation FROM mobile_credit_location
+         WHERE idglobal=? AND idsucursal=? AND idtarjeta=? FOR UPDATE`,
+        [companyId, input.branchId, credit.idtarjeta],
+      );
+      if (existing.length >= 10) {
+        fail('VALIDATION_ERROR', 'Cada tarjeta admite máximo 10 ubicaciones de cobro');
+      }
+      await conn.execute(
+        `INSERT INTO mobile_credit_location
+         (idlocation,idglobal,idsucursal,idtarjeta,str_nombre,dec_latitud,dec_longitud,int_precision_m,idusuario,created_at)
+         VALUES (?,?,?,?,?,?,?,?,?,NOW())`,
+        [
+          input.entityId, companyId, input.branchId, credit.idtarjeta, payload.nombre,
+          payload.latitud, payload.longitud, payload.precision ?? null, userId,
+        ],
+      );
+      return {
+        entityId: input.entityId,
+        data: {
+          id: input.entityId, creditId: credit.idtarjeta, name: payload.nombre,
+          latitude: payload.latitud, longitude: payload.longitud, accuracy: payload.precision ?? null,
+          userId, createdAt: new Date().toISOString(),
+        },
+        recordType: 'location', action: 'INSERT', branchId: input.branchId, relatedId: credit.idtarjeta,
+      };
+    }
+    case 'DELETE_LOCATION': {
+      const [rows] = await conn.execute<LocationRow[]>(
+        `SELECT idlocation,idglobal,idsucursal,idtarjeta,str_nombre,dec_latitud,dec_longitud,
+                int_precision_m,idusuario,created_at
+         FROM mobile_credit_location
+         WHERE idlocation=? AND idglobal=? AND idsucursal=? FOR UPDATE`,
+        [input.entityId, companyId, input.branchId],
+      );
+      const location = rows[0];
+      if (!location) {
+        return { entityId: input.entityId, data: { id: input.entityId }, recordType: 'location', action: 'DELETE', branchId: input.branchId };
+      }
+      await conn.execute(
+        'DELETE FROM mobile_credit_location WHERE idlocation=? AND idglobal=? AND idsucursal=?',
+        [input.entityId, companyId, input.branchId],
+      );
+      return { entityId: input.entityId, data: { id: input.entityId }, recordType: 'location', action: 'DELETE', branchId: input.branchId, relatedId: location.idtarjeta };
+    }
     case 'UPSERT_ALERT': {
       const customer = await assertCustomerBranch(
         conn, companyId, input.branchId, Number(payload.idcliente),
@@ -1092,7 +1144,7 @@ export async function applyOfflineOperation(context: AuthContext | null, input: 
   if (!Number.isSafeInteger(input.branchId) || input.branchId < 1) fail('VALIDATION_ERROR', 'Invalid branchId');
   const routeId = input.routeId ?? null;
   if (routeId !== null && (!Number.isSafeInteger(routeId) || routeId < 1)) fail('VALIDATION_ERROR', 'Invalid routeId');
-  const entityIdMax = input.kind.includes('COMMENT') || input.kind.includes('CREDIT')
+  const entityIdMax = input.kind.includes('COMMENT') || input.kind.includes('CREDIT') || input.kind.includes('LOCATION')
     || input.kind.includes('PAYMENT') || input.kind.includes('EXPENSE')
     || input.kind.includes('BASE') || input.kind === 'UPSERT_ALERT' ? 50 : 100;
   if (input.entityId.length < 1 || input.entityId.length > entityIdMax) {
@@ -1113,8 +1165,9 @@ export async function applyOfflineOperation(context: AuthContext | null, input: 
   }
   const createsNewEntity = input.kind === 'CREATE_CUSTOMER' || input.kind === 'CREATE_CREDIT'
     || input.kind === 'CREATE_COMMENT' || input.kind === 'CREATE_EXPENSE'
-    || input.kind === 'CREATE_BASE';
-  if (!createsNewEntity && input.baseVersion === null) {
+    || input.kind === 'CREATE_BASE' || input.kind === 'CREATE_LOCATION';
+  const noBaseVersionNeeded = createsNewEntity || input.kind === 'DELETE_LOCATION';
+  if (!noBaseVersionNeeded && input.baseVersion === null) {
     fail('VALIDATION_ERROR', 'baseVersion is required when mutating an existing record');
   }
   const permission = permissionForOperation(input.kind, payload);
@@ -1165,7 +1218,7 @@ export async function applyOfflineOperation(context: AuthContext | null, input: 
     }
 
     const isCreate = createsNewEntity;
-    if (!isCreate) {
+    if (!noBaseVersionNeeded) {
       let events: RowDataPacket[];
       if (eventRecordType(input.kind) === 'customer') {
         const [customerRows] = await conn.execute<RowDataPacket[]>(
@@ -1241,6 +1294,7 @@ function eventRecordType(kind: Kind) {
   if (kind === 'CREATE_PAYMENT') return 'credit';
   if (kind.includes('PAYMENT')) return 'payment';
   if (kind.includes('COMMENT') || kind === 'UPSERT_ALERT') return 'comment';
+  if (kind.includes('LOCATION')) return 'location';
   return 'credit';
 }
 
@@ -1275,6 +1329,17 @@ async function loadCurrentRecord(
        WHERE c.idcliente=? AND c.idglobal=? AND ${branchScopeExists('c')}
        LIMIT 1`,
       [id, companyId, branchId, branchId, branchId],
+    );
+    return rows[0] ?? null;
+  }
+  if (kind.includes('LOCATION')) {
+    const [rows] = await conn.execute<RowDataPacket[]>(
+      `SELECT idlocation AS id,idtarjeta AS creditId,str_nombre AS name,
+              (dec_latitud + 0E0) AS latitude,(dec_longitud + 0E0) AS longitude,int_precision_m AS accuracy,
+              idusuario AS userId,created_at AS createdAt
+       FROM mobile_credit_location
+       WHERE idlocation=? AND idglobal=? AND idsucursal=? LIMIT 1`,
+      [id, companyId, branchId],
     );
     return rows[0] ?? null;
   }

@@ -50,9 +50,8 @@ function tombstone(event: SyncEventRow): SyncChange {
     createdAt: event.createdAt,
     payload: {
       id: event.recordId,
-      ...(event.recordType === 'comment' && event.relatedId
-        ? { customerId: Number(event.relatedId) }
-        : {}),
+      ...(event.recordType === 'comment' && event.relatedId ? { customerId: Number(event.relatedId) } : {}),
+      ...(event.recordType === 'location' && event.relatedId ? { creditId: event.relatedId } : {}),
       deleted: true,
     },
   };
@@ -135,6 +134,17 @@ export async function materializeSyncEvent(
              WHERE c.idcomentario=? AND l.idcliente=? AND ${branchScopeExists('cl')} LIMIT 1`;
       params = [user.companyId, event.recordId, event.relatedId, branchId, branchId, branchId];
       break;
+    case 'location':
+      if (!event.relatedId) return tombstone(event);
+      sql = `SELECT l.idlocation AS id,l.idtarjeta AS creditId,l.str_nombre AS name,
+                    (l.dec_latitud + 0E0) AS latitude,(l.dec_longitud + 0E0) AS longitude,
+                    l.int_precision_m AS accuracy,l.idusuario AS userId,l.created_at AS createdAt
+             FROM mobile_credit_location l
+             JOIN tbl_tarjetas t ON t.idtarjeta=l.idtarjeta AND t.idglobal=l.idglobal
+               AND t.idsucursal=l.idsucursal
+             WHERE l.idlocation=? AND l.idglobal=? AND l.idsucursal=? AND l.idtarjeta=? LIMIT 1`;
+      params = [event.recordId, user.companyId, branchId, event.relatedId];
+      break;
     case 'route':
       sql = `SELECT r.iddetalleruta AS id,r.str_estado AS status,
                     r.created_at AS createdAt,r.updated_at AS updatedAt
@@ -200,8 +210,40 @@ export async function materializeSyncEvent(
        WHERE l.idcliente=? ORDER BY c.created_at,c.idcomentario`,
       [record.id],
     ) as [Array<Record<string, unknown>>, unknown];
+    const creditIds = credits.map((credit) => String(credit.id));
+    if (creditIds.length) {
+      const [locations] = await execute(
+        `SELECT idlocation AS id,idtarjeta AS creditId,str_nombre AS name,
+                (dec_latitud + 0E0) AS latitude,(dec_longitud + 0E0) AS longitude,int_precision_m AS accuracy,
+                idusuario AS userId,created_at AS createdAt
+         FROM mobile_credit_location
+         WHERE idglobal=? AND idsucursal=? AND idtarjeta IN (${creditIds.map(() => '?').join(',')})
+         ORDER BY created_at,idlocation`,
+        [user.companyId, branchId, ...creditIds],
+      ) as [Array<Record<string, unknown>>, unknown];
+      const locationsByCredit = new Map<string, unknown[]>();
+      for (const location of locations) {
+        const key = String(location.creditId);
+        const existing = locationsByCredit.get(key) ?? [];
+        existing.push(location);
+        locationsByCredit.set(key, existing);
+      }
+      for (const credit of credits) credit.locations = locationsByCredit.get(String(credit.id)) ?? [];
+    }
     record.credits = credits;
     record.comments = comments;
+  }
+  if (event.recordType === 'credit') {
+    const [locations] = await execute(
+      `SELECT idlocation AS id,idtarjeta AS creditId,str_nombre AS name,
+              (dec_latitud + 0E0) AS latitude,(dec_longitud + 0E0) AS longitude,int_precision_m AS accuracy,
+              idusuario AS userId,created_at AS createdAt
+       FROM mobile_credit_location
+       WHERE idglobal=? AND idsucursal=? AND idtarjeta=?
+       ORDER BY created_at,idlocation`,
+      [user.companyId, branchId, record.id],
+    ) as [Array<Record<string, unknown>>, unknown];
+    record.locations = locations;
   }
 
   return { ...base, payload: record };

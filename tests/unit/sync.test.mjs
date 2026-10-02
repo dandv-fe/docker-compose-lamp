@@ -23,11 +23,12 @@ test('customer sync materializes only current customer, branch credits, and link
     }
     if (sql.includes('FROM tbl_tarjetas t')) return [[{ id: 'credit-1', customerId: 123 }], []];
     if (sql.includes('FROM tbl_comentarios_cliente l')) return [[{ id: 'comment-1', customerId: 123 }], []];
+    if (sql.includes('FROM mobile_credit_location')) return [[{ id: 'loc-1', creditId: 'credit-1', name: 'Casa' }], []];
     throw new Error(`Unexpected query: ${sql}`);
   };
   const change = await materializeSyncEvent(execute, user, 4, event());
   assert.equal(change.payload.email, 'branch-customer@example.invalid');
-  assert.deepEqual(change.payload.credits, [{ id: 'credit-1', customerId: 123 }]);
+  assert.deepEqual(change.payload.credits, [{ id: 'credit-1', customerId: 123, locations: [{ id: 'loc-1', creditId: 'credit-1', name: 'Casa' }] }]);
   assert.deepEqual(change.payload.comments, [{ id: 'comment-1', customerId: 123 }]);
   assert.match(calls[0].sql, /tbl_auth_sucursal/);
   assert.deepEqual(calls[0].params, ['123', 7, 4, 4, 4]);
@@ -48,6 +49,14 @@ test('physical delete events return tombstones without querying a removed row', 
   );
   assert.equal(queried, false);
   assert.deepEqual(change.payload, { id: 'comment-7', customerId: 123, deleted: true });
+});
+
+test('location delete tombstones include the related credit id', async () => {
+  const change = await materializeSyncEvent(
+    async () => { throw new Error('must not query'); },
+    user, 4, event({ recordType: 'location', recordId: 'loc-7', relatedId: 'credit-1', action: 'DELETE' }),
+  );
+  assert.deepEqual(change.payload, { id: 'loc-7', creditId: 'credit-1', deleted: true });
 });
 
 test('comment materialization is tied to the event customer and selected branch', async () => {

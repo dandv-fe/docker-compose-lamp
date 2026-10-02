@@ -35,6 +35,8 @@ const BranchType = new GraphQLObjectType({
     name: { type: new GraphQLNonNull(GraphQLString) },
     type: { type: GraphQLString },
     extraCharge: { type: new GraphQLNonNull(GraphQLString) },
+    officeId: { type: GraphQLInt },
+    officeName: { type: GraphQLString },
   },
 });
 
@@ -235,6 +237,20 @@ const RouteCashType = new GraphQLObjectType({
   },
 });
 
+const CreditLocationType = new GraphQLObjectType({
+  name: 'CreditLocation',
+  fields: {
+    id: { type: new GraphQLNonNull(GraphQLID) },
+    creditId: { type: new GraphQLNonNull(GraphQLID) },
+    name: { type: new GraphQLNonNull(GraphQLString) },
+    latitude: { type: new GraphQLNonNull(GraphQLFloat) },
+    longitude: { type: new GraphQLNonNull(GraphQLFloat) },
+    accuracy: { type: GraphQLInt },
+    userId: { type: GraphQLInt },
+    createdAt: { type: GraphQLString },
+  },
+});
+
 const CreditType = new GraphQLObjectType({
   name: 'Credit',
   fields: {
@@ -257,6 +273,10 @@ const CreditType = new GraphQLObjectType({
     createdAt: { type: GraphQLString }, updatedAt: { type: GraphQLString },
     bankFunded: { type: GraphQLFloat },
     latestPayment: { type: PaymentType },
+    locations: {
+      type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(CreditLocationType))),
+      resolve: (source) => (source as { locations?: unknown[] }).locations ?? [],
+    },
   },
 });
 
@@ -352,7 +372,7 @@ const OperationKind = new GraphQLEnumType({
     UPDATE_CREDIT: {}, UPDATE_CREDIT_TERMS: {}, CREATE_PAYMENT: {}, UPDATE_PAYMENT: {},
     DELETE_PAYMENT: {}, DELETE_CREDIT: {}, APPLY_DISCOUNT: {}, ADD_INTEREST: {},
     CHANGE_CREDIT_STATUS: {}, REORDER_CREDIT: {}, CREATE_COMMENT: {}, UPDATE_COMMENT: {},
-    DELETE_COMMENT: {}, UPSERT_ALERT: {}, CREATE_EXPENSE: {}, UPDATE_EXPENSE: {},
+    DELETE_COMMENT: {}, CREATE_LOCATION: {}, DELETE_LOCATION: {}, UPSERT_ALERT: {}, CREATE_EXPENSE: {}, UPDATE_EXPENSE: {},
     DELETE_EXPENSE: {}, CREATE_BASE: {}, UPDATE_BASE: {}, DELETE_BASE: {},
   },
 });

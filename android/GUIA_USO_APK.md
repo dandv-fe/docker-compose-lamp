@@ -60,13 +60,15 @@ La tarjeta y la Cola mostrarán el movimiento pendiente hasta que el servidor lo
 
 En **Abonos e historial completo** ves cada movimiento con importe, fecha, estado y la **resta** correspondiente. Esa resta se reconstruye con los datos guardados en el teléfono. Para corregir o eliminar un abono, abre su movimiento y usa **Editar** o **Eliminar**; solo se permite mientras siga en estado **Creado**. Un movimiento entregado o liquidado ya no se modifica desde aquí.
 
+En esa misma pantalla está **Ubicaciones de cobro**. Toca **Marcar ubicación aquí** estando parado en el punto real, escribe un nombre corto (por ejemplo Casa, Negocio o Trabajo) y acepta el permiso de ubicación. La APK guarda el GPS en el teléfono y lo envía por la cola aunque no haya internet. Si la precisión pasa de 50 m, conviene volver a marcar al aire libre. Cada punto tiene **Cómo llegar**, que abre Google Maps, Waze u otra app compatible; si el teléfono no tiene ninguna, verás un aviso. También puedes **Eliminar** un punto; el borrado se sincroniza igual que los demás cambios.
+
 En los tres puntos de esta pantalla están las acciones de la tarjeta: **Editar crédito**, **Cambiar estado**, **Reordenar**, **Aplicar descuento**, **Agregar interés**, **Actualizar pagos** (con internet) y **Eliminar crédito** (solo si su estado lo permite). Las operaciones se validan en el servidor y pueden requerir permisos.
 
-**Captura sugerida:** historial de movimientos y sus acciones.
+**Captura sugerida:** historial de movimientos, ubicaciones de cobro y sus acciones.
 
 ## 6. Buscar, crear y editar clientes
 
-- En **Más opciones > Buscar cliente por documento**, selecciona tipo de documento, escribe el número y consulta con internet. Revisa la persona y sus tarjetas antes de abrirla o crear otra.
+- En **Más opciones > Crear cliente**, selecciona tipo de documento, escribe el número y consulta con internet. Revisa la persona y sus tarjetas antes de abrirla o crear otra.
 - **Crear cliente** sigue la búsqueda: si ya existe, abre su registro en vez de duplicarlo. Si es nuevo, completa los datos y el **máximo cupo que apruebo**; la APK y el servidor verifican el límite autorizado para el empleado.
 - En la ficha del cliente puedes **Editar cliente**, **Agregar comentario** o **Crear / editar alerta**. Algunas correcciones avanzadas piden el identificador del registro.
 

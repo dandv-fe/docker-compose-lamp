@@ -42,6 +42,13 @@ const paymentFields = {
 const commentFields = {
   idcliente: z.number().int(), comentario: text(255), tipo: text(30),
 };
+const locationFields = {
+  idtarjeta: z.string().min(1).max(50),
+  nombre: z.string().trim().min(1).max(40),
+  latitud: number.min(-90).max(90),
+  longitud: number.min(-180).max(180),
+  precision: z.number().int().nonnegative().optional(),
+};
 // Route expenses and bases live in tbl_contabilidad_detalle. The amount always travels
 // positive and the server stores the sign webgoez expects (negative for an expense), so a
 // queued operation can never flip the cuadre by sending the wrong sign.
@@ -79,6 +86,8 @@ export const operationPayloadSchemas: Record<string, z.ZodTypeAny> = {
   CREATE_COMMENT: z.object(commentFields).strict(),
   UPDATE_COMMENT: z.object({ comentario: text(255) }).strict(),
   DELETE_COMMENT: z.object({}).strict(),
+  CREATE_LOCATION: z.object(locationFields).strict(),
+  DELETE_LOCATION: z.object({}).strict(),
   UPSERT_ALERT: z.object({
     idcliente: z.number().int(),
     icon: text(255),
