@@ -119,6 +119,10 @@ Queries:
 Mutations:
 
 * `login(companyId: Int!, username: String!, password: String!): AuthPayload!`
+* `startBiometricRegistration(deviceId: String!): BiometricChallenge!` — authenticated setup; returns a short-lived challenge to sign locally with Android biometrics
+* `finishBiometricRegistration(deviceId: String!, challengeId: ID!, publicKeySpki: String!, signature: String!): BiometricRegistrationResult!` — stores/updates the device public key for that user
+* `startBiometricLogin(companyId: Int!, username: String!, deviceId: String!): BiometricChallenge!` — returns a login challenge only when that account already has an active credential on that device
+* `biometricLogin(companyId: Int!, username: String!, deviceId: String!, challengeId: ID!, signature: String!): AuthPayload!` — verifies the challenge signature and issues the same auth payload as password login
 * `applyOfflineOperation(input: OfflineOperationInput!): OfflineOperationResult!`
 * `settleRoute(branchId: Int!, cash: Float!, coins: Float!, difference: Float!): RouteSettlement!` — hands the route over (see *Route settlement* below)
 
@@ -395,6 +399,20 @@ sucursal (ruta) may use. The office administrator authorizes accounts for the
 sucursales of their office in webgoez (`bancos_pago.php`). Both `bankAccounts`
 and the `bancos` validation only accept accounts linked to the operation's
 branch, so accounts existing before 004 must be authorized to be usable.
+
+## Biometric credential migration
+
+`migrations/005_biometric_credentials.sql` adds two additive tables:
+
+* `mobile_biometric_credential` stores the active **public key** per
+  `idglobal`/`idusuario`/`device_id`.
+* `mobile_biometric_challenge` stores short-lived one-time challenges for
+  enrollment/login (`str_purpose` = `ENROLL`/`LOGIN`), marked with `used_at`
+  after successful verification.
+
+The APK never sends raw biometrics. Android validates the biometric locally and
+uses the Keystore private key to sign server challenges; the backend verifies
+that signature with the stored public key and then issues the normal JWT.
 
 ## Payment author migration
 

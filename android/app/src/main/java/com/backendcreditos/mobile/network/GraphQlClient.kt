@@ -108,6 +108,66 @@ class GraphQlApi(private val client: GraphQlClient) {
             LoginData.serializer()
         )
 
+    suspend fun startBiometricRegistration(
+        token: String,
+        deviceId: String
+    ): ApiResult<StartBiometricRegistrationData> = client.execute(
+        GraphQlDocuments.START_BIOMETRIC_REGISTRATION,
+        buildJsonObject { put("deviceId", JsonPrimitive(deviceId)) },
+        StartBiometricRegistrationData.serializer(),
+        token
+    )
+
+    suspend fun finishBiometricRegistration(
+        token: String,
+        deviceId: String,
+        challengeId: String,
+        publicKeySpki: String,
+        signature: String
+    ): ApiResult<FinishBiometricRegistrationData> = client.execute(
+        GraphQlDocuments.FINISH_BIOMETRIC_REGISTRATION,
+        buildJsonObject {
+            put("deviceId", JsonPrimitive(deviceId))
+            put("challengeId", JsonPrimitive(challengeId))
+            put("publicKeySpki", JsonPrimitive(publicKeySpki))
+            put("signature", JsonPrimitive(signature))
+        },
+        FinishBiometricRegistrationData.serializer(),
+        token
+    )
+
+    suspend fun startBiometricLogin(
+        companyId: Int,
+        username: String,
+        deviceId: String
+    ): ApiResult<StartBiometricLoginData> = client.execute(
+        GraphQlDocuments.START_BIOMETRIC_LOGIN,
+        buildJsonObject {
+            put("companyId", JsonPrimitive(companyId))
+            put("username", JsonPrimitive(username))
+            put("deviceId", JsonPrimitive(deviceId))
+        },
+        StartBiometricLoginData.serializer()
+    )
+
+    suspend fun biometricLogin(
+        companyId: Int,
+        username: String,
+        deviceId: String,
+        challengeId: String,
+        signature: String
+    ): ApiResult<LoginData> = client.execute(
+        GraphQlDocuments.BIOMETRIC_LOGIN,
+        buildJsonObject {
+            put("companyId", JsonPrimitive(companyId))
+            put("username", JsonPrimitive(username))
+            put("deviceId", JsonPrimitive(deviceId))
+            put("challengeId", JsonPrimitive(challengeId))
+            put("signature", JsonPrimitive(signature))
+        },
+        LoginData.serializer()
+    )
+
     suspend fun branches(token: String): ApiResult<BranchesData> =
         client.execute(GraphQlDocuments.BRANCHES, buildJsonObject { }, BranchesData.serializer(), token)
 

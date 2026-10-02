@@ -34,6 +34,10 @@ class GraphQlContractTest {
 
     @Test fun loginUsesIntegerCompanyIdAndBackendAuthPayloadFields() {
         assertTrue(GraphQlDocuments.LOGIN.contains("companyId: Int!"))
+        assertTrue(GraphQlDocuments.START_BIOMETRIC_LOGIN.contains("startBiometricLogin"))
+        assertTrue(GraphQlDocuments.BIOMETRIC_LOGIN.contains("login: biometricLogin"))
+        assertTrue(GraphQlDocuments.START_BIOMETRIC_REGISTRATION.contains("startBiometricRegistration"))
+        assertTrue(GraphQlDocuments.FINISH_BIOMETRIC_REGISTRATION.contains("finishBiometricRegistration"))
         assertTrue(GraphQlDocuments.LOGIN.contains("token expiresIn paymentExpiresAt"))
         assertTrue(GraphQlDocuments.LOGIN.contains("user { userId companyId employeeId employeeMaxCredit isSuperAdministrator username firstName lastName companyName }"))
         assertTrue(GraphQlDocuments.LOGIN.contains("company { id name }"))
@@ -47,6 +51,11 @@ class GraphQlContractTest {
         assertEquals(150000.0, result.user.employeeMaxCredit!!, 0.0)
         assertEquals(1791763200000.0, result.paymentExpiresAt!!, 0.0)
         assertFalse(result.user.isSuperAdministrator)
+        val challenge = json.decodeFromString(
+            StartBiometricLoginData.serializer(),
+            """{"startBiometricLogin":{"challengeId":"abcd1234abcd1234abcd1234abcd1234","challenge":"Y2hhbGxlbmdl","expiresIn":300}}"""
+        ).startBiometricLogin
+        assertEquals(300, challenge.expiresIn)
         assertTrue(GraphQlDocuments.CUSTOMER_CANDIDATE.contains("personId customerId"))
         assertTrue(GraphQlDocuments.PERSON_DOCUMENT_TYPES.contains("personDocumentTypes"))
     }

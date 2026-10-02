@@ -11,6 +11,12 @@ import {
   restoreCredit, syncChanges, withdrawnOfPortfolio,
 } from '../services/queries.js';
 import { routeSettlement, settleRoute, routeExpenseCatalog, routeEntries } from '../services/settlement.js';
+import {
+  biometricLogin,
+  finishBiometricRegistration,
+  startBiometricLogin,
+  startBiometricRegistration,
+} from '../services/biometric.js';
 import { fail } from '../services/errors.js';
 import { z } from 'zod';
 
@@ -75,6 +81,22 @@ const AuthPayloadType = new GraphQLObjectType({
       },
     })) },
     branches: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(BranchType))) },
+  },
+});
+
+const BiometricChallengeType = new GraphQLObjectType({
+  name: 'BiometricChallenge',
+  fields: {
+    challengeId: { type: new GraphQLNonNull(GraphQLID) },
+    challenge: { type: new GraphQLNonNull(GraphQLString) },
+    expiresIn: { type: new GraphQLNonNull(GraphQLInt) },
+  },
+});
+
+const BiometricRegistrationResultType = new GraphQLObjectType({
+  name: 'BiometricRegistrationResult',
+  fields: {
+    enabled: { type: new GraphQLNonNull(GraphQLBoolean) },
   },
 });
 
@@ -427,6 +449,31 @@ const loginArgs = z.object({
   password: z.string(),
 });
 
+const biometricLoginStartArgs = z.object({
+  companyId: z.number().int().positive(),
+  username: z.string().min(1),
+  deviceId: z.string().min(8).max(120),
+});
+
+const biometricLoginArgs = z.object({
+  companyId: z.number().int().positive(),
+  username: z.string().min(1),
+  deviceId: z.string().min(8).max(120),
+  challengeId: z.string().length(32),
+  signature: z.string().min(32).max(4096),
+});
+
+const biometricRegistrationStartArgs = z.object({
+  deviceId: z.string().min(8).max(120),
+});
+
+const biometricRegistrationFinishArgs = z.object({
+  deviceId: z.string().min(8).max(120),
+  challengeId: z.string().length(32),
+  publicKeySpki: z.string().min(64).max(4096),
+  signature: z.string().min(32).max(4096),
+});
+
 const Query = new GraphQLObjectType({
   name: 'Query',
   fields: {
@@ -574,6 +621,63 @@ const Mutation = new GraphQLObjectType({
         const checked = loginArgs.safeParse(args);
         if (!checked.success) fail('VALIDATION_ERROR', 'Invalid login input');
         const payload = await login(checked.data.companyId, checked.data.username, checked.data.password);
+        return {
+          ...payload,
+          company: { id: payload.user.companyId, name: payload.user.companyName },
+        };
+      },
+    },
+    startBiometricRegistration: {
+      type: new GraphQLNonNull(BiometricChallengeType),
+      args: {
+        deviceId: { type: new GraphQLNonNull(GraphQLString) },
+      },
+      resolve: async (_source, args, context: { auth: AuthContext | null }) => {
+        const checked = biometricRegistrationStartArgs.safeParse(args);
+        if (!checked.success) fail('VALIDATION_ERROR', 'Invalid biometric registration input');
+        return startBiometricRegistration(auth(context), checked.data.deviceId);
+      },
+    },
+    finishBiometricRegistration: {
+      type: new GraphQLNonNull(BiometricRegistrationResultType),
+      args: {
+        deviceId: { type: new GraphQLNonNull(GraphQLString) },
+        challengeId: { type: new GraphQLNonNull(GraphQLID) },
+        publicKeySpki: { type: new GraphQLNonNull(GraphQLString) },
+        signature: { type: new GraphQLNonNull(GraphQLString) },
+      },
+      resolve: async (_source, args, context: { auth: AuthContext | null }) => {
+        const checked = biometricRegistrationFinishArgs.safeParse(args);
+        if (!checked.success) fail('VALIDATION_ERROR', 'Invalid biometric registration input');
+        return finishBiometricRegistration(auth(context), checked.data);
+      },
+    },
+    startBiometricLogin: {
+      type: new GraphQLNonNull(BiometricChallengeType),
+      args: {
+        companyId: { type: new GraphQLNonNull(GraphQLInt) },
+        username: { type: new GraphQLNonNull(GraphQLString) },
+        deviceId: { type: new GraphQLNonNull(GraphQLString) },
+      },
+      resolve: async (_source, args) => {
+        const checked = biometricLoginStartArgs.safeParse(args);
+        if (!checked.success) fail('VALIDATION_ERROR', 'Invalid biometric login input');
+        return startBiometricLogin(checked.data.companyId, checked.data.username, checked.data.deviceId);
+      },
+    },
+    biometricLogin: {
+      type: new GraphQLNonNull(AuthPayloadType),
+      args: {
+        companyId: { type: new GraphQLNonNull(GraphQLInt) },
+        username: { type: new GraphQLNonNull(GraphQLString) },
+        deviceId: { type: new GraphQLNonNull(GraphQLString) },
+        challengeId: { type: new GraphQLNonNull(GraphQLID) },
+        signature: { type: new GraphQLNonNull(GraphQLString) },
+      },
+      resolve: async (_source, args) => {
+        const checked = biometricLoginArgs.safeParse(args);
+        if (!checked.success) fail('VALIDATION_ERROR', 'Invalid biometric login input');
+        const payload = await biometricLogin(checked.data);
         return {
           ...payload,
           company: { id: payload.user.companyId, name: payload.user.companyName },

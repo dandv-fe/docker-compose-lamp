@@ -11,6 +11,27 @@ test('GraphQL exposes the stable login, query, and offline mutation contract', (
         token expiresIn user { userId companyId } company { id name } branches { id name }
       }
     }
+    mutation BiometricLogin(
+      $companyId: Int!, $username: String!, $deviceId: String!, $challengeId: ID!, $signature: String!
+    ) {
+      startBiometricLogin(companyId: $companyId, username: $username, deviceId: $deviceId) {
+        challengeId challenge expiresIn
+      }
+      biometricLogin(
+        companyId: $companyId, username: $username, deviceId: $deviceId,
+        challengeId: $challengeId, signature: $signature
+      ) {
+        token expiresIn user { userId companyId } company { id name } branches { id name }
+      }
+    }
+    mutation BiometricRegistration(
+      $deviceId: String!, $challengeId: ID!, $publicKeySpki: String!, $signature: String!
+    ) {
+      startBiometricRegistration(deviceId: $deviceId) { challengeId challenge expiresIn }
+      finishBiometricRegistration(
+        deviceId: $deviceId, challengeId: $challengeId, publicKeySpki: $publicKeySpki, signature: $signature
+      ) { enabled }
+    }
     query Sync($branchId: Int!, $after: String!) {
       me { userId }
       branches { id }

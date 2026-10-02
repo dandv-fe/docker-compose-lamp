@@ -15,6 +15,7 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import java.util.UUID
 
 @Serializable
 data class StoredSession(
@@ -31,15 +32,21 @@ data class StoredSession(
     val paymentExpiresAt: Long? = -1L
 ) {
     val accountKey: String
-        get() = MessageDigest.getInstance("SHA-256")
-            .digest("$companyId\u0000$username".toByteArray(Charsets.UTF_8))
-            .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+        get() = accountKeyFor(companyId, username)
+
+    companion object {
+        fun accountKeyFor(companyId: String, username: String): String =
+            MessageDigest.getInstance("SHA-256")
+                .digest("$companyId\u0000$username".toByteArray(Charsets.UTF_8))
+                .joinToString("") { byte -> "%02x".format(byte.toInt() and 0xff) }
+    }
 }
 
 class LocalVault(context: Context) {
     private val directory = context.noBackupFilesDir
     private val sessionFile = File(directory, "session.enc")
     private val databaseKeyFile = File(directory, "database-key.enc")
+    private val biometricDeviceFile = File(directory, "biometric-device-id.enc")
     private val json = Json
 
     @Synchronized
@@ -69,6 +76,16 @@ class LocalVault(context: Context) {
         val key = ByteArray(32).also(SecureRandom()::nextBytes)
         writeEncrypted(databaseKeyFile, key)
         return key
+    }
+
+    @Synchronized
+    fun biometricDeviceId(): String {
+        if (biometricDeviceFile.exists()) {
+            return String(readEncrypted(biometricDeviceFile), Charsets.UTF_8).trim()
+        }
+        val id = UUID.randomUUID().toString()
+        writeEncrypted(biometricDeviceFile, id.toByteArray(Charsets.UTF_8))
+        return id
     }
 
     private fun writeEncrypted(file: File, cleartext: ByteArray) {

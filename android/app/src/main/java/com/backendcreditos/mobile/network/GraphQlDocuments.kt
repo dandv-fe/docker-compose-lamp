@@ -11,6 +11,54 @@ object GraphQlDocuments {
           }
         }
     """
+    const val START_BIOMETRIC_REGISTRATION = """
+        mutation StartBiometricRegistration(${'$'}deviceId: String!) {
+          startBiometricRegistration(deviceId: ${'$'}deviceId) {
+            challengeId challenge expiresIn
+          }
+        }
+    """
+    const val FINISH_BIOMETRIC_REGISTRATION = """
+        mutation FinishBiometricRegistration(
+          ${'$'}deviceId: String!, ${'$'}challengeId: ID!, ${'$'}publicKeySpki: String!, ${'$'}signature: String!
+        ) {
+          finishBiometricRegistration(
+            deviceId: ${'$'}deviceId,
+            challengeId: ${'$'}challengeId,
+            publicKeySpki: ${'$'}publicKeySpki,
+            signature: ${'$'}signature
+          ) { enabled }
+        }
+    """
+    const val START_BIOMETRIC_LOGIN = """
+        mutation StartBiometricLogin(${'$'}companyId: Int!, ${'$'}username: String!, ${'$'}deviceId: String!) {
+          startBiometricLogin(companyId: ${'$'}companyId, username: ${'$'}username, deviceId: ${'$'}deviceId) {
+            challengeId challenge expiresIn
+          }
+        }
+    """
+    const val BIOMETRIC_LOGIN = """
+        mutation BiometricLogin(
+          ${'$'}companyId: Int!,
+          ${'$'}username: String!,
+          ${'$'}deviceId: String!,
+          ${'$'}challengeId: ID!,
+          ${'$'}signature: String!
+        ) {
+          login: biometricLogin(
+            companyId: ${'$'}companyId,
+            username: ${'$'}username,
+            deviceId: ${'$'}deviceId,
+            challengeId: ${'$'}challengeId,
+            signature: ${'$'}signature
+          ) {
+            token expiresIn paymentExpiresAt
+            user { userId companyId employeeId employeeMaxCredit isSuperAdministrator username firstName lastName companyName }
+            company { id name }
+            branches { id name type extraCharge }
+          }
+        }
+    """
     const val ME = """
         query Me {
           me {

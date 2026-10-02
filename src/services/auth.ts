@@ -117,6 +117,22 @@ export async function login(companyId: number, username: string, password: strin
   if (!row || row.str_estado === 'inactivo' || !legacyPasswordMatches(password, row.str_password)) {
     fail('UNAUTHENTICATED', 'Invalid credentials');
   }
+  return issueLoginPayload(row);
+}
+
+export async function loginWithTrustedUser(companyId: number, username: string) {
+  const [rows] = await pool.execute<UserRow[]>(
+    `${USER_SELECT} WHERE u.idglobal = ? AND u.str_user_name = ? LIMIT 1`,
+    [companyId, username],
+  );
+  const row = rows[0];
+  if (!row || row.str_estado === 'inactivo') {
+    fail('UNAUTHENTICATED', 'Invalid credentials');
+  }
+  return issueLoginPayload(row);
+}
+
+async function issueLoginPayload(row: UserRow) {
   const user = asAuthUser(row);
   const paymentExpiresAt = await companyPaymentExpiry(user.companyId);
   const expiresIn = secondsUntilNextMidnight();

@@ -27,3 +27,16 @@ test('payment author migration only adds nullable, re-runnable columns to tbl_de
   assert.doesNotMatch(authorMigration, /^\s*(?:DROP|UPDATE|DELETE|INSERT)\b/im);
   assert.doesNotMatch(authorMigration, /NOT NULL/);
 });
+
+const biometricMigration = await readFile(new URL('../../migrations/005_biometric_credentials.sql', import.meta.url), 'utf8');
+
+test('biometric migration stores public keys and one-time challenges without legacy table rewrites', () => {
+  assert.match(biometricMigration, /CREATE TABLE IF NOT EXISTS `mobile_biometric_credential`/);
+  assert.match(biometricMigration, /UNIQUE KEY `ux_biometric_user_device`/);
+  assert.match(biometricMigration, /`public_key_spki` TEXT NOT NULL/);
+  assert.match(biometricMigration, /CREATE TABLE IF NOT EXISTS `mobile_biometric_challenge`/);
+  assert.match(biometricMigration, /`challenge_base64` VARCHAR\(128\) NOT NULL/);
+  assert.match(biometricMigration, /FOREIGN KEY \(`idcredential`\)/);
+  assert.doesNotMatch(biometricMigration, /^\s*(?:DROP|ALTER)\s+TABLE\b/im);
+  assert.doesNotMatch(biometricMigration, /JSON_(?:OBJECT|ARRAY|EXTRACT)/i);
+});

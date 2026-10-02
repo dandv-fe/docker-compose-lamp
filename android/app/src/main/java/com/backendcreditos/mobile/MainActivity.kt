@@ -112,6 +112,8 @@ import com.backendcreditos.mobile.data.OperationStatus
 import com.backendcreditos.mobile.data.PaymentEntity
 import com.backendcreditos.mobile.data.PortfolioRow
 import com.backendcreditos.mobile.network.ApiResult
+import com.backendcreditos.mobile.network.LoginResult
+import com.backendcreditos.mobile.security.BiometricCredentialManager
 import com.backendcreditos.mobile.security.StoredSession
 import com.backendcreditos.mobile.ui.theme.CreditTheme
 import com.backendcreditos.mobile.ui.theme.TextScale
@@ -402,6 +404,8 @@ private fun CreditApplicationScreen(
     // `online` comes from a real authenticated server response. Android's network capability can
     // be transiently false after screen lock, especially on private Wi-Fi, even while the API works.
     val creditOnline = online
+    val biometricManager = remember { BiometricCredentialManager() }
+    val biometricDeviceId = remember { app.vault.biometricDeviceId() }
     var company by remember { mutableStateOf(session?.companyId.orEmpty()) }
     var username by remember { mutableStateOf(session?.username.orEmpty()) }
     var password by remember { mutableStateOf("") }
@@ -777,6 +781,68 @@ private fun CreditApplicationScreen(
                 }
             }
         }
+    }
+
+    suspend fun completeOnlineLogin(login: LoginResult): Boolean {
+        val previous = app.vault.readSession()
+        val newSession = StoredSession(
+            login.company.id.toString(), login.user.username, login.token,
+            userId = login.user.userId,
+            firstName = login.user.firstName, lastName = login.user.lastName,
+            branchExtraCharges = login.branches.associate { it.id.toString() to it.extraCharge },
+            employeeMaxCredit = login.user.employeeMaxCredit?.toString(),
+            isSuperAdministrator = login.user.isSuperAdministrator,
+            paymentExpiresAt = login.paymentExpiresAt?.toLong()
+        )
+        if (previous != null && previous.accountKey != newSession.accountKey) {
+            val unresolved = app.repository.unresolvedCount(previous.accountKey)
+            if (unresolved > 0) {
+                pendingLogoutCount = unresolved
+                showLogoutConfirmation = true
+                notice = "Cierra primero la cuenta guardada; sus operaciones no se pueden transferir a otra cuenta."
+                return false
+            }
+            app.repository.clearAccount(previous.accountKey)
+            app.vault.clearSession()
+        }
+        password = ""
+        session = newSession
+        app.vault.saveSession(newSession)
+        if (previous?.accountKey == newSession.accountKey &&
+            app.database.localDao().syncControl(newSession.accountKey)?.pauseReason in setOf("AUTH", "PAYMENT")
+        ) app.repository.setSyncPaused(newSession.accountKey, null)
+        syncControl = app.database.localDao().syncControl(newSession.accountKey)
+        when (val me = app.api.me(newSession.token)) {
+            is ApiResult.Success -> {
+                me.value.me?.let { user ->
+                    val refreshed = newSession.copy(
+                        userId = user.userId, firstName = user.firstName, lastName = user.lastName,
+                        employeeMaxCredit = user.employeeMaxCredit?.toString(),
+                        isSuperAdministrator = user.isSuperAdministrator
+                    )
+                    session = refreshed
+                    app.vault.saveSession(refreshed)
+                }
+                when (val branches = app.api.branches(newSession.token)) {
+                    is ApiResult.Success -> {
+                        branchList = branches.value.branches.map { BranchEntity(it.id.toString(), it.name, it.type) }
+                        val updated = (session ?: newSession).copy(
+                            branchExtraCharges = branches.value.branches.associate {
+                                it.id.toString() to it.extraCharge
+                            }
+                        )
+                        session = updated
+                        app.vault.saveSession(updated)
+                        enqueuePendingBranches(newSession)
+                        screen = Screen.BRANCHES
+                        return true
+                    }
+                    else -> report(branches)
+                }
+            }
+            else -> report(me)
+        }
+        return false
     }
 
     suspend fun revalidateServerConnection() {
@@ -2124,79 +2190,28 @@ private fun CreditApplicationScreen(
                         password, { password = it }, label = { Text("Contraseña") },
                         visualTransformation = PasswordVisualTransformation(), modifier = Modifier.fillMaxWidth()
                     )
+                    val trimmedCompany = company.trim()
+                    val trimmedUsername = username.trim()
+                    val companyId = trimmedCompany.toIntOrNull()
+                    val biometricAccountKey = if (companyId != null && companyId > 0 && trimmedUsername.isNotEmpty()) {
+                        StoredSession.accountKeyFor(trimmedCompany, trimmedUsername)
+                    } else null
+                    val biometricReady = biometricAccountKey != null &&
+                        biometricManager.hasCredential(biometricAccountKey)
                     Button(
                         enabled = !busy && company.isNotBlank() && username.isNotBlank() && password.isNotEmpty(),
                         onClick = {
                             scope.launch {
                                 busy = true
                                 notice = ""
-                                val previous = app.vault.readSession()
-                                val companyId = company.trim().toIntOrNull()
                                 if (companyId == null || companyId <= 0) {
                                     notice = "El ID de empresa debe ser un entero positivo."
                                     busy = false
                                     return@launch
                                 }
-                                when (val response = app.api.login(companyId, username.trim(), password)) {
+                                when (val response = app.api.login(companyId, trimmedUsername, password)) {
                                     is ApiResult.Success -> {
-                                        val login = response.value.login
-                                        val newSession = StoredSession(
-                                            login.company.id.toString(), login.user.username, login.token,
-                                            userId = login.user.userId,
-                                            firstName = login.user.firstName, lastName = login.user.lastName,
-                                            branchExtraCharges = login.branches.associate { it.id.toString() to it.extraCharge },
-                                            employeeMaxCredit = login.user.employeeMaxCredit?.toString(),
-                                            isSuperAdministrator = login.user.isSuperAdministrator,
-                                            paymentExpiresAt = login.paymentExpiresAt?.toLong()
-                                        )
-                                        if (previous != null && previous.accountKey != newSession.accountKey) {
-                                            val unresolved = app.repository.unresolvedCount(previous.accountKey)
-                                            if (unresolved > 0) {
-                                                pendingLogoutCount = unresolved
-                                                showLogoutConfirmation = true
-                                                notice = "Cierra primero la cuenta guardada; sus operaciones no se pueden transferir a otra cuenta."
-                                                busy = false
-                                                return@launch
-                                            }
-                                            app.repository.clearAccount(previous.accountKey)
-                                            app.vault.clearSession()
-                                        }
-                                        password = ""
-                                        session = newSession
-                                        app.vault.saveSession(newSession)
-                                        if (previous?.accountKey == newSession.accountKey &&
-                                            app.database.localDao().syncControl(newSession.accountKey)?.pauseReason in setOf("AUTH", "PAYMENT")
-                                        ) app.repository.setSyncPaused(newSession.accountKey, null)
-                                        syncControl = app.database.localDao().syncControl(newSession.accountKey)
-                                        when (val me = app.api.me(newSession.token)) {
-                                            is ApiResult.Success -> {
-                                                me.value.me?.let { user ->
-                                                    val refreshed = newSession.copy(
-                                                        userId = user.userId, firstName = user.firstName, lastName = user.lastName,
-                                                        employeeMaxCredit = user.employeeMaxCredit?.toString(),
-                                                        isSuperAdministrator = user.isSuperAdministrator
-                                                    )
-                                                    session = refreshed
-                                                    app.vault.saveSession(refreshed)
-                                                }
-                                                when (val branches = app.api.branches(newSession.token)) {
-                                                    is ApiResult.Success -> {
-                                                        branchList = branches.value.branches.map { BranchEntity(it.id.toString(), it.name, it.type) }
-                                                        val updated = (session ?: newSession).copy(
-                                                            branchExtraCharges = branches.value.branches.associate {
-                                                                it.id.toString() to it.extraCharge
-                                                            }
-                                                        )
-                                                        session = updated
-                                                        app.vault.saveSession(updated)
-                                                        enqueuePendingBranches(newSession)
-                                                        screen = Screen.BRANCHES
-                                                    }
-                                                    else -> report(branches)
-                                                }
-                                            }
-                                            else -> report(me)
-                                        }
+                                        completeOnlineLogin(response.value.login)
                                     }
                                     is ApiResult.AuthExpired ->
                                         notice = "Empresa, usuario o contraseña incorrectos."
@@ -2208,6 +2223,48 @@ private fun CreditApplicationScreen(
                             }
                         }
                     ) { Text(if (busy) "Conectando…" else "Iniciar sesión") }
+                    if (biometricReady) {
+                        OutlinedButton(
+                            enabled = !busy && deviceConnected,
+                            onClick = {
+                                scope.launch {
+                                    busy = true
+                                    notice = ""
+                                    val biometricCompanyId = companyId ?: return@launch
+                                    val accountKey = biometricAccountKey ?: return@launch
+                                    when (val start = app.api.startBiometricLogin(biometricCompanyId, trimmedUsername, biometricDeviceId)) {
+                                        is ApiResult.Success -> {
+                                            val challenge = start.value.startBiometricLogin
+                                            val signature = biometricManager.signChallenge(
+                                                activity,
+                                                accountKey,
+                                                challenge.challenge,
+                                                "Iniciar sesión con huella",
+                                                "Confirma tu identidad para continuar"
+                                            )
+                                            if (signature.isFailure) {
+                                                notice = signature.exceptionOrNull()?.message
+                                                    ?: "No se pudo completar la validación biométrica."
+                                                busy = false
+                                                return@launch
+                                            }
+                                            when (
+                                                val login = app.api.biometricLogin(
+                                                    biometricCompanyId, trimmedUsername, biometricDeviceId,
+                                                    challenge.challengeId, signature.getOrThrow()
+                                                )
+                                            ) {
+                                                is ApiResult.Success -> completeOnlineLogin(login.value.login)
+                                                else -> report(login)
+                                            }
+                                        }
+                                        else -> report(start)
+                                    }
+                                    busy = false
+                                }
+                            }
+                        ) { Text("Iniciar sesión con huella") }
+                    }
                     TextButton(onClick = {
                         settingsReturnScreen = Screen.LOGIN
                         serverEndpoint = app.connectionSettings.endpoint()
@@ -2918,6 +2975,93 @@ private fun CreditApplicationScreen(
                     }
                     val currentSession = session
                     val currentBranch = currentSession?.selectedBranchId
+                    if (currentSession != null) {
+                        HorizontalDivider()
+                        Text("Acceso con huella", style = MaterialTheme.typography.titleMedium)
+                        val biometricEnabled = biometricManager.hasCredential(currentSession.accountKey)
+                        Text(
+                            if (biometricEnabled) {
+                                "Activo en este dispositivo. La huella se valida localmente y el servidor guarda solo la clave pública."
+                            } else {
+                                "Activa la huella para futuros inicios de sesión en este dispositivo. La huella nunca sale del teléfono."
+                            },
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(
+                                enabled = !busy && online,
+                                onClick = {
+                                    scope.launch {
+                                        busy = true
+                                        val account = session
+                                        if (account == null) {
+                                            notice = "Inicia sesión primero para activar la huella."
+                                            busy = false
+                                            return@launch
+                                        }
+                                        if (!biometricEnabled) {
+                                            runCatching { biometricManager.ensureCredential(account.accountKey) }
+                                                .onFailure {
+                                                    notice = it.message ?: "No se pudo crear la credencial biométrica local."
+                                                    busy = false
+                                                    return@launch
+                                                }
+                                        }
+                                        val publicKey = runCatching {
+                                            biometricManager.ensureCredential(account.accountKey)
+                                        }.getOrElse {
+                                            notice = it.message ?: "No se pudo leer la clave biométrica local."
+                                            busy = false
+                                            return@launch
+                                        }
+                                        when (val start = app.api.startBiometricRegistration(account.token, biometricDeviceId)) {
+                                            is ApiResult.Success -> {
+                                                val challenge = start.value.startBiometricRegistration
+                                                val signature = biometricManager.signChallenge(
+                                                    activity,
+                                                    account.accountKey,
+                                                    challenge.challenge,
+                                                    "Activar inicio con huella",
+                                                    "Confirma para registrar este dispositivo"
+                                                )
+                                                if (signature.isFailure) {
+                                                    notice = signature.exceptionOrNull()?.message
+                                                        ?: "No se pudo completar la validación biométrica."
+                                                    busy = false
+                                                    return@launch
+                                                }
+                                                when (
+                                                    val finish = app.api.finishBiometricRegistration(
+                                                        account.token,
+                                                        biometricDeviceId,
+                                                        challenge.challengeId,
+                                                        publicKey,
+                                                        signature.getOrThrow()
+                                                    )
+                                                ) {
+                                                    is ApiResult.Success -> notice = "Huella activada para esta cuenta en este dispositivo."
+                                                    else -> report(finish)
+                                                }
+                                            }
+                                            else -> report(start)
+                                        }
+                                        busy = false
+                                    }
+                                }
+                            ) {
+                                Text(if (biometricEnabled) "Reactivar huella" else "Activar huella")
+                            }
+                            if (biometricEnabled) {
+                                OutlinedButton(
+                                    enabled = !busy,
+                                    onClick = {
+                                        biometricManager.clearCredential(currentSession.accountKey)
+                                        notice = "Huella desactivada en este dispositivo."
+                                    }
+                                ) { Text("Quitar de este dispositivo") }
+                            }
+                        }
+                    }
                     if (currentSession != null && currentBranch != null) {
                         HorizontalDivider()
                         Row(

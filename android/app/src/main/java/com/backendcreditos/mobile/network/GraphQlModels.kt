@@ -61,6 +61,25 @@ data class GraphQlEnvelope<T>(
 data class LoginData(@SerialName("login") val login: LoginResult)
 
 @Serializable
+data class BiometricChallengeData(val challengeId: String, val challenge: String, val expiresIn: Int)
+
+@Serializable
+data class StartBiometricRegistrationData(
+    val startBiometricRegistration: BiometricChallengeData
+)
+
+@Serializable
+data class FinishBiometricRegistrationData(
+    val finishBiometricRegistration: BiometricRegistrationResultData
+)
+
+@Serializable
+data class BiometricRegistrationResultData(val enabled: Boolean)
+
+@Serializable
+data class StartBiometricLoginData(val startBiometricLogin: BiometricChallengeData)
+
+@Serializable
 data class LoginResult(
     val token: String,
     val expiresIn: Int,
