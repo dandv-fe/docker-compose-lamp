@@ -36,6 +36,7 @@ Arriba verás:
 - **Abs**: tarjetas con abonos / tarjetas de la cartera.
 - **R**: recaudo de la ruta; **C**: créditos entregados.
 - **Caja**: efectivo esperado = base + recaudo en efectivo + otros ingresos − gastos − créditos pagados en efectivo. El dinero recibido o desembolsado por banco se muestra aparte y no se suma al efectivo del bolsillo.
+  El resumen encima de **Buscar…** aparece abreviado: **B** (base), **Ef** (recaudo en efectivo), **O** (otros ingresos), **C** (costo de créditos en efectivo), **G** (gastos), **Bco** (banco) y **Abs** (tarjetas con abono). Tócalo para ver los nombres completos en mayúsculas y negrita; otro toque lo vuelve a abreviar.
 
 La barra de progreso muestra el avance de tarjetas con abonos; mientras la app trabaja, indica actividad. Cada tarjeta puede marcarse con la **estrella**: las marcas solo existen en ese teléfono.
 

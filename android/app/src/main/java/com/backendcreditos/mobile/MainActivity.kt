@@ -570,6 +570,7 @@ private fun CreditApplicationScreen(
     var serverEndpointError by remember { mutableStateOf<String?>(null) }
     var markedCreditIds by remember { mutableStateOf(emptySet<String>()) }
     var showMoreMenu by remember { mutableStateOf(false) }
+    var expandedCashSummary by rememberSaveable { mutableStateOf(false) }
     var whatsAppOffer by remember { mutableStateOf<WhatsAppOffer?>(null) }
     var whatsAppOfferEnabled by remember { mutableStateOf(WhatsAppSettings.offerAfterSave(activity)) }
     val branchId = session?.selectedBranchId
@@ -2368,15 +2369,39 @@ private fun CreditApplicationScreen(
         ) {
             if (!serviceBlocked && account != null && branchId != null && screen !in setOf(Screen.LOGIN, Screen.BRANCHES)) {
                 val totals = routeSummary
+                val cash = pocketCash(totals, routeCash?.base, routeCash?.otherIncome, routeCash?.expenses)
                 Text(
-                    "Abs: ${totals.cardsWithPayments}/${totals.totalCards} · " +
-                        "R: ${formatCompactMoney(totals.collected)} · C: ${formatCompactMoney(totals.newCredits)}",
-                    style = MaterialTheme.typography.labelLarge,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.semantics {
+                    if (expandedCashSummary) {
+                        "BASE: ${formatCompactMoney(cash.base)}" +
+                            "\n+ RECAUDO EN EFECTIVO: ${formatCompactMoney(cash.cashCollected)}" +
+                            "\n+ OTROS INGRESOS: ${formatCompactMoney(cash.otherIncome)}" +
+                            "\n− COSTO DE CRÉDITOS EN EFECTIVO: ${formatCompactMoney(cash.cashCredits)}" +
+                            "\n− GASTOS EN EFECTIVO: ${formatCompactMoney(cash.expenses)}" +
+                            "\n= EFECTIVO DISPONIBLE: ${formatCompactMoney(cash.total)}" +
+                            "\nBANCO: RECIBIDO ${formatCompactMoney(cash.bankIn)} − ENTREGADO ${formatCompactMoney(cash.bankOut)}" +
+                            "\nTARJETAS CON ABONO: ${totals.cardsWithPayments}/${totals.totalCards}" +
+                            (if (routeCash == null) "\nSIN DATOS DE BASE/GASTOS" else "")
+                    } else {
+                        "B ${formatCompactMoney(cash.base)} + Ef ${formatCompactMoney(cash.cashCollected)}" +
+                            " + O ${formatCompactMoney(cash.otherIncome)} − C ${formatCompactMoney(cash.cashCredits)}" +
+                            " − G ${formatCompactMoney(cash.expenses)} = ${formatCompactMoney(cash.total)}" +
+                            "\nBco: +${formatCompactMoney(cash.bankIn)} −${formatCompactMoney(cash.bankOut)}" +
+                            " · Abs: ${totals.cardsWithPayments}/${totals.totalCards}" +
+                            (if (routeCash == null) " · sin base/gastos" else "")
+                    },
+                    style = if (expandedCashSummary) MaterialTheme.typography.bodyMedium else MaterialTheme.typography.bodySmall,
+                    fontWeight = if (expandedCashSummary) FontWeight.Bold else FontWeight.Normal,
+                    modifier = Modifier.fillMaxWidth().clickable(
+                        onClickLabel = if (expandedCashSummary) "Abreviar resumen" else "Explicar resumen"
+                    ) { expandedCashSummary = !expandedCashSummary }.semantics {
                         contentDescription = "Abonos ${totals.cardsWithPayments} de ${totals.totalCards} tarjetas, " +
-                            "recaudo ${formatCompactMoney(totals.collected)}, créditos ${formatCompactMoney(totals.newCredits)}"
+                            "recaudo total ${formatCompactMoney(totals.collected)}, créditos totales ${formatCompactMoney(totals.newCredits)}. " +
+                            "Caja de bolsillo ${formatCompactMoney(cash.total)}: base " +
+                            "${formatCompactMoney(cash.base)}, abonos en efectivo ${formatCompactMoney(cash.cashCollected)}, otro recaudo " +
+                            "${formatCompactMoney(cash.otherIncome)}, menos gastos ${formatCompactMoney(cash.expenses)} " +
+                            "y créditos en efectivo ${formatCompactMoney(cash.cashCredits)}" +
+                            ". Por banco: recibido ${formatCompactMoney(cash.bankIn)}, " +
+                                "pagado ${formatCompactMoney(cash.bankOut)}"
                     }
                 )
             }
@@ -2662,26 +2687,6 @@ private fun CreditApplicationScreen(
                             modifier = progressModifier
                         )
                     }
-                    val cash = pocketCash(routeSummary, routeCash?.base, routeCash?.otherIncome, routeCash?.expenses)
-                    val hasBank = cash.bankIn.signum() != 0 || cash.bankOut.signum() != 0
-                    Text(
-                        "Caja: ${formatCompactMoney(cash.total)} = B ${formatCompactMoney(cash.base)}" +
-                            " + R ${formatCompactMoney(cash.cashCollected)} + O ${formatCompactMoney(cash.otherIncome)}" +
-                            " − G ${formatCompactMoney(cash.expenses)} − C ${formatCompactMoney(cash.cashCredits)}" +
-                            (if (hasBank) " · Banco: +${formatCompactMoney(cash.bankIn)} −${formatCompactMoney(cash.bankOut)}" else "") +
-                            if (routeCash == null) " · sin datos de base/gastos" else "",
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.semantics {
-                            contentDescription = "Caja de bolsillo ${formatCompactMoney(cash.total)}: base " +
-                                "${formatCompactMoney(cash.base)}, abonos en efectivo ${formatCompactMoney(cash.cashCollected)}, otro recaudo " +
-                                "${formatCompactMoney(cash.otherIncome)}, menos gastos ${formatCompactMoney(cash.expenses)} " +
-                                "y créditos en efectivo ${formatCompactMoney(cash.cashCredits)}" +
-                                if (hasBank) ". Por banco: recibido ${formatCompactMoney(cash.bankIn)}, " +
-                                    "pagado ${formatCompactMoney(cash.bankOut)}" else ""
-                        }
-                    )
                     }
                     val filtered = visibleRows
                     LaunchedEffect(restorePointerScroll, pointedCreditId, filtered) {
