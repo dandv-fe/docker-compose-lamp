@@ -1,0 +1,1621 @@
+<!-- DataTables -->
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.colVis.min.js"></script>
+
+<script src="plugins/moment/moment.min.js"></script>
+<script src="plugins/moment/locales.js"></script>
+
+<!-- Tempusdominus Bootstrap 4 -->
+<script src="plugins/tempusdominus-bootstrap-4/js/tempusdominus-bootstrap-4.min.js"></script>
+
+
+<!-- SweetAlert2 -->
+
+
+<!--<script type="text/javascript" src="dist/scripts/Perfil.js"></script>-->
+
+
+
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+  <!-- Content Header (Page header) -->
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1>Acceder </h1>
+        </div>
+        <div class="col-sm-6">
+
+        </div>
+      </div>
+    </div><!-- /.container-fluid -->
+  </section>
+
+  <!-- Main content -->
+  <section class="content">
+    <div class="container-fluid">
+      <div class="row">
+        <?php
+          $idpersonaAcceder = intval($_SESSION['idpersona'] ?? ($userSession['usuario']->idpersona ?? 0));
+          $totalAhorrosUsuario = 0;
+          if ($idpersonaAcceder > 0) {
+            $sqlAhorrosUsuario = "SELECT COUNT(idahorro) AS total
+              FROM tbl_ahorros
+              WHERE idpersona = $idpersonaAcceder
+                AND UPPER(IFNULL(str_estado, '')) <> 'INACTIVO'";
+            $queryAhorrosUsuario = $conexion->query($sqlAhorrosUsuario);
+            $rowAhorrosUsuario = $queryAhorrosUsuario ? $queryAhorrosUsuario->fetch_object() : null;
+            $totalAhorrosUsuario = intval($rowAhorrosUsuario->total ?? 0);
+          }
+
+          $mostrarTabsEmpleado = !empty($userSession['usuario']->idempleado);
+          $mostrarTabsAhorro = $totalAhorrosUsuario > 0;
+          $tabPrincipalAcceder = $mostrarTabsEmpleado ? 'actividades' : ($mostrarTabsAhorro ? 'cuentas' : '');
+        ?>
+        <div class="col-md-4">
+
+          <!-- Profile Image -->
+          <div class="card card-primary card-outline">
+            <div class="card-body box-profile p-0">
+              <div class="text-center">
+                <img class="profile-user-img img-fluid img-circle" src="<?PHP echo $userSession['usuario']->str_logo;?>"
+                  alt="Logotipo">
+              </div>
+
+              <h3 class="profile-username text-center">
+                <?PHP echo $userSession['usuario']->str_razon_social;?>
+              </h3>
+
+
+              <ul class="list-group list-group-unbordered mb-3">
+                <li class="list-group-item">
+                  <b>
+                    <?PHP echo "Email";?>
+                  </b>
+                  <span id="txt_email_actual" class="float-right">
+                    <?PHP echo $userSession['usuario']->str_email;?>
+                  </span>
+                </li>
+                <li class="list-group-item">
+                  <b>Estado de Email</b>
+                  <span id="txt_estado_email_actual" class="float-right">
+                    <?php $isVerified = !empty($userSession['usuario']->str_email_verificado) && $userSession['usuario']->str_email_verificado !== '0'; ?>
+                    <?php if ($isVerified) { ?>
+                    <span class="badge badge-success">Verificado</span>
+                    <?php } else { ?>
+                    <span class="badge badge-warning mr-2">No verificado</span>
+                    <button id="btnEnviarVerificacion" class="btn btn-sm btn-outline-primary">Enviar enlace de
+                      verificación</button>
+                    <?php } ?>
+                  </span>
+                </li>
+                <?php  
+                $idempleado = intval($_SESSION['idempleado'] ?? 0);
+                $userIdEmpresa = intval($_SESSION['userEmpresa'] ?? 0);
+                if ($idempleado <= 0) {
+                  $fetch = (object) [
+                    'cargo' => $userSession['usuario']->str_cargo ?? 'Usuario',
+                    'actividades' => 0,
+                  ];
+                } else if($userSession['usuario']->str_cargo === 'Super Administrador' && $userSession['usuario']->str_tipo === 'publica'){
+                $sql = "SELECT
+                            str_cargo AS cargo,
+                          ( SELECT COUNT( idglobal ) FROM tbl_sucursal WHERE idglobal = $idglobal AND idoficina = $idoficina ) AS actividades,
+                          ( SELECT COUNT( idglobal ) FROM tbl_empleado WHERE idempleado <> $idempleado AND idglobal = $idglobal AND idoficina = $idoficina ) AS empleados,
+                          ( SELECT COUNT( t.idcliente ) FROM tbl_tarjetas t
+                          INNER JOIN tbl_sucursal s ON s.idsucursal = t.idsucursal
+                          WHERE t.idglobal = $idglobal
+                          AND s.idoficina = $idoficina) AS clientes
+                          FROM tbl_empleado WHERE  idempleado = $idempleado";
+                }else if($userSession['usuario']->str_cargo === 'Super Administrador' && $userSession['usuario']->str_tipo === 'servicio'){
+                  $sql = "SELECT
+                  str_cargo AS cargo,
+                  ( SELECT COUNT( idglobal ) FROM tbl_global WHERE idglobal <> $userIdEmpresa AND empresaid = $userIdEmpresa ) AS
+                    empresas,
+                    ( SELECT COUNT(s.idsucursal) FROM `tbl_global` g INNER JOIN
+                    tbl_sucursal s ON s.idglobal=g.idglobal
+                    WHERE g.empresaid=$userIdEmpresa AND
+                    g.idglobal<>$userIdEmpresa ) AS actividades,
+                      ( SELECT COUNT(e.idempleado)
+                      FROM `tbl_global` g INNER JOIN
+                      tbl_empleado e ON e.idglobal=g.idglobal
+                      WHERE g.empresaid=$userIdEmpresa AND
+                      g.idglobal<>$userIdEmpresa) AS empleados,
+                        ( SELECT COUNT(e.idcliente)
+                        FROM `tbl_global` g INNER JOIN
+                        tbl_clientes e ON e.idglobal=g.idglobal
+                        WHERE g.empresaid=$userIdEmpresa AND
+                        g.idglobal<>$userIdEmpresa) AS clientes
+                  
+                          FROM tbl_empleado WHERE idempleado = $idempleado AND str_estado<>'inactivo' ";
+                            
+                  
+                            
+                }else if($userSession['usuario']->str_cargo === 'Super Administrador' && $userSession['usuario']->str_tipo === 'servicio'){
+
+                }else{
+                  $sql = "SELECT
+                  str_cargo AS cargo,
+                  (SELECT COUNT( idsucursal ) FROM `tbl_auth_sucursal`
+                  WHERE idempleado=$idempleado) AS actividades
+                    FROM tbl_empleado WHERE idempleado = $idempleado";
+                }
+                if (!isset($fetch)) {
+                  $query = $conexion->query($sql);
+                  $fetch = $query->fetch_object();
+                }
+if (isset($userSession['usuario']->idempleado)){
+                  foreach ($fetch as $clave => $valor) { ?>
+                <li class="list-group-item">
+                  <b>
+                    <?PHP echo $clave;?>
+                  </b> <a class="float-right">
+                    <?PHP echo $valor;?>
+                  </a>
+                </li>
+                <?php }}
+                ?>
+
+
+                <?php if ($mostrarTabsAhorro): ?>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                  <b>Saldo Total</b>
+                  <a id="txt_saldo_ahorrador" class="float-right">$0.00</a>
+                </li>
+
+                <li id="saldos_tipos_ahorrador" class="p-0 border-0"></li>
+                <?php endif; ?>
+
+
+              </ul>
+
+
+
+
+
+            </div>
+            <!-- /.card-body -->
+          </div>
+          <!-- /.card -->
+          <!-- About Me Box -->
+          <div class="card card-primary">
+            <div class="card-header p-1">
+              <h3 class="card-title">Información</h3>
+              <div class="card-tools">
+                <form id="formAhorroEditar">
+                  <input type="hidden" id="txt_idglobal_ah">
+                  <input type="hidden" id="txt_idpersona_ah"
+                    value="<?php echo intval($_SESSION['idpersona'] ?? ($userSession['usuario']->idpersona ?? 0)); ?>">
+                  <button type="submit" class="btn btn-tool">
+                    <i class="fa-solid fa-user-pen fa-2xl" style="color: #ffffff"></i>
+                  </button>
+
+                </form>
+              </div>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body">
+              <strong><i class="fas fa-id-card mr-1"></i>
+                Documento de Identidad</strong>
+
+              <p class="text-muted">
+                <?php 
+                  $tipoDoc = $userSession['usuario']->str_tipo_documento ?? 'N/A';
+                  $numDoc = $userSession['usuario']->str_num_documento ?? 'No definido';
+                  echo $tipoDoc . ': ' . $numDoc;
+                ?>
+              </p>
+              <strong><i class="fas fa-phone mr-1"></i>
+                Teléfono</strong>
+
+              <p id="txt_tel_ahorrador" class="text-muted">
+                <?php echo $userSession['usuario']->str_telefono ?? 'No definido'; ?>
+              </p>
+
+
+
+              <ul id="txt_direccion_ahorrador" class="text-muted mb-2 pl-3">
+                <li><span class="text-dark font-weight-bold">Departamento: </span><span>
+                    <?php echo $userSession['usuario']->departamento ?? 'No definido'; ?>
+                  </span></li>
+                <li><span class="text-dark font-weight-bold">Ciudad: </span><span>
+                    <?php echo $userSession['usuario']->ciudad ?? 'No definido'; ?>
+                  </span></li>
+                <li><span class="text-dark font-weight-bold">Barrio: </span><span>
+                    <?php echo $userSession['usuario']->barrio ?? 'No definido'; ?>
+                  </span></li>
+                <li><span class="text-dark font-weight-bold">Dirección: </span><span>
+                    <?php echo $userSession['usuario']->direccion ?? 'No definido'; ?>
+                  </span></li>
+              </ul>
+
+              <div class="text-right mt-2">
+                <button type="button" id="btnAbrirPasswordReset" class="btn btn-outline-primary btn-sm"
+                  title="Restaurar clave">
+                  <i class="fa-solid fa-key mr-1"></i> Restaurar contraseña
+                </button>
+              </div>
+
+            </div>
+            <!-- /.card-body -->
+
+          </div>
+        </div>
+        <!-- /.col -->
+        <div class="col-12 col-md-8">
+          <div class="card card-primary card-outline card-tabs">
+            <div class="card-header p-0 pt-1 border-bottom-0">
+              <ul class="nav nav-tabs" id="custom-tabs-three-tab" role="tablist">
+                <?php if ($mostrarTabsEmpleado): ?>
+                <li class="nav-item">
+                  <a class="nav-link<?php echo $tabPrincipalAcceder === 'actividades' ? ' active' : ''; ?>"
+                    id="custom-tabs-three-home-tab" data-toggle="pill" href="#custom-tabs-three-home" role="tab"
+                    aria-controls="custom-tabs-three-home"
+                    aria-selected="<?php echo $tabPrincipalAcceder === 'actividades' ? 'true' : 'false'; ?>">ACTIVIDADES</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" id="custom-tabs-liquidar-tab" data-toggle="pill" href="#custom-tabs-liquidar"
+                    role="tab" aria-controls="custom-tabs-liquidar" aria-selected="false">SUELDO</a>
+                </li>
+                <?php endif; ?>
+                <?php if ($mostrarTabsAhorro): ?>
+                <li class="nav-item">
+                  <a class="nav-link<?php echo $tabPrincipalAcceder === 'cuentas' ? ' active' : ''; ?>"
+                    id="custom-tabs-cuentas-tab" data-toggle="pill" href="#custom-tabs-cuentas" role="tab"
+                    aria-controls="custom-tabs-cuentas"
+                    aria-selected="<?php echo $tabPrincipalAcceder === 'cuentas' ? 'true' : 'false'; ?>">MIS CUENTAS</a>
+                </li>
+
+                <li class="nav-item">
+                  <a class="nav-link" id="custom-tabs-movimientos-tab" data-toggle="pill"
+                    href="#custom-tabs-movimientos" role="tab" aria-controls="custom-tabs-movimientos"
+                    aria-selected="false">MOVIMIENTOS</a>
+                </li>
+                <?php endif; ?>
+
+              </ul>
+            </div>
+            <div class="card-body p-0">
+              <div class="tab-content" id="custom-tabs-three-tabContent">
+                <?php if($mostrarTabsEmpleado): ?>
+                <div class="tab-pane fade<?php echo $tabPrincipalAcceder === 'actividades' ? ' show active' : ''; ?>"
+                  id="custom-tabs-three-home" role="tabpanel" aria-labelledby="custom-tabs-three-home-tab">
+                  <?php if($userSession['usuario']->str_tipo === 'servicio'){ ?>
+                  <div class="card-header">
+                    <h3 class="card-title"> Lista de Empresas</h3>
+                  </div>
+
+                  <div class="card-body p-0">
+                    <table id="example2" class="table table-bordered table-hover">
+                      <thead>
+                        <tr>
+
+                          <th>Razón Social</th>
+                          <th>Super Administrador</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <?php 
+
+                        
+                        $sql = "SELECT refGlobal,
+                          razonSocial,
+                          estadoEmpresa,
+                          logo,
+                          superadmin,
+                          foto,
+                          telefono
+                          FROM `view_empresas_publica` 
+                          WHERE refEmpresa=$userIdEmpresa ORDER BY fecha_atEmpresa DESC";
+                          $query = $conexion->query($sql);
+                          while ($reg = $query->fetch_object()) { ?>
+
+                        <tr>
+
+                          <td>
+                            <div class="user-block ">
+                              <img class="img-circle img-bordered-sm" src="<?PHP echo $reg->logo;?>" alt="empleado">
+                              <span class="username">
+                                <a class="" href="#<?PHP echo $reg->refGlobal;?>">
+                                  <?PHP echo $reg->razonSocial;?>
+                                </a>
+
+                              </span>
+                            </div>
+                          </td>
+                          <td>
+                            <div class="user-block">
+                              <img class="img-circle img-bordered-sm" src="<?PHP echo $reg->foto;?>" alt="empleado">
+                              <span class="username">
+                                <a href="#">
+                                  <?PHP echo $reg->superadmin;?>
+                                </a>
+                              </span>
+                              <span class="description"> <b>Tel.: </b> <a class="lead text-lg" href="#">
+                                  <?PHP echo $reg->telefono;?>
+                                </a></span>
+                            </div>
+                          </td>
+                        </tr>
+                        <?php }
+                    ?>
+                      </tbody>
+                    </table>
+                  </div>
+                  <?php }else{ ?>
+                  <div class="card-header">
+                    <h3 class="card-title"> Lista de Actividades</h3>
+                  </div>
+
+                  <div class="card-body p-0">
+                    <table id="example2" class="table table-bordered table-hover">
+                      <thead>
+                        <tr>
+
+                          <th>Código</th>
+                          <th>Representante</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+
+                        <?php 
+                        if ($userSession['usuario']->str_cargo === 'Super Administrador' && $userSession['usuario']->str_tipo === 'publica'){
+
+                       
+                        $sql = "SELECT 
+                                s.idsucursal AS refSucursal,
+                                s.str_tipo AS tipo,
+                                s.str_codigo AS codigo,
+                                s.str_cobro_adicional as adicional,
+                                s.str_estado AS estado,
+                                CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado,
+                                p.str_tipo_documento AS t_documento,
+                                p.str_num_documento AS n_documento,
+                                p.str_telefono AS tel,
+                                p.str_foto AS foto,
+                                '' AS nameAuth
+                              FROM tbl_sucursal s INNER JOIN 
+                                tbl_empleado e ON e.idempleado=s.idempleado INNER JOIN
+                                tbl_persona p ON p.idpersona=e.idpersona
+                              where s.str_estado<>'inactiva' and s.idglobal=$idglobal AND s.idoficina = $idoficina order by s.idsucursal desc";
+                              }else{
+                                // empleados
+                                
+                              $sql = "SELECT
+                              s.idsucursal AS refSucursal,
+                              s.str_tipo AS tipo,
+                              s.str_codigo AS codigo,
+                              s.str_cobro_adicional as adicional,
+                              s.str_estado AS estado,
+                              CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado,
+                              p.str_tipo_documento AS t_documento,
+                              p.str_num_documento AS n_documento,
+                              p.str_telefono AS tel,
+                              p.str_foto AS foto,
+                              (SELECT
+                              GROUP_CONCAT(a.str_nombre SEPARATOR ',')
+                              FROM tbl_auths b INNER JOIN tbl_auth a ON a.idauth=b.idauth
+                              WHERE b.idauth_sucursal=au.idauth_sucursal
+                              ) AS nameAuth
+                              FROM `tbl_auth_sucursal` au INNER JOIN
+                              tbl_sucursal s ON s.idsucursal=au.idsucursal INNER JOIN
+                              tbl_empleado e ON e.idempleado=s.idempleado INNER JOIN
+                              tbl_persona p ON p.idpersona=e.idpersona
+                              where au.str_estado<>'inactivo' AND au.idempleado=$idempleado order by au.idsucursal desc";
+                              }
+                                $query = $conexion->query($sql);
+                                
+                                while ($reg = $query->fetch_object()) {
+                                  $seleted= $_SESSION['idsucursal']==$reg->refSucursal? 'checked':'';
+                               /* $allSucursal=array();
+                                  foreach ($allSucursal as $valor) {
+                                    $seleted= $_SESSION['idsucursal']==$valor[0]? 'checked':'';*/
+                                    
+                                    ?>
+                        <tr>
+                          <td>
+                            <div class="user-block ">
+                              <img class="img-circle img-bordered-sm" src="<?PHP echo $reg->foto;?>" alt="empleado">
+                              <span class="username mt-0">
+
+
+                                <div class="icheck-success d-inline">
+                                  <input id="checkboxMontarSeccion_<?PHP echo $reg->refSucursal;?>"
+                                    class="aMontarSeccionActividad" type="checkbox"
+                                    data-rseccion="<?PHP echo $_SESSION['idsucursal']==$reg->refSucursal? '':$reg->refSucursal;?>"
+                                    <?PHP echo $seleted;?>
+                                  >
+                                  <label for="checkboxMontarSeccion_<?PHP echo $reg->refSucursal;?>">
+                                    <?PHP echo $reg->tipo;?>:
+                                    <?PHP echo $reg->codigo;?>
+                                  </label>
+                                </div>
+
+                              </span>
+                            </div>
+                          </td>
+                          <td>
+                            <div class="user-block">
+                              <img class="img-circle img-bordered-sm" src="<?PHP echo '';?>" alt="empleado">
+                              <span class="username">
+                                <label class="m-0" for="checkboxMontarSeccion_<?PHP echo $reg->refSucursal;?>">
+                                  <?PHP echo $reg->empleado;?>
+                                </label>
+
+                              </span>
+                              <span class="description"> <b>Tel.: </b> <label class="lead text-lg m-0"
+                                  for="checkboxMontarSeccion_<?PHP echo $reg->refSucursal;?>">
+                                  <?PHP echo $reg->tel;?>
+                                </label></span>
+                            </div>
+                          </td>
+                        </tr>
+                        <?php }
+                  ?>
+                      </tbody>
+                    </table>
+                  </div>
+                  <?php }?>
+                </div>
+
+
+                <div class="tab-pane fade" id="custom-tabs-liquidar" role="tabpanel"
+                  aria-labelledby="custom-tabs-liquidar-tab">
+                  <div id="verLoadingNominaDetalle" class="overlay-wrapper">
+                    <div class="overlay dark">
+                      <i class="fas fa-3x fa-sync-alt fa-spin"></i>
+                      <div class="text-bold pt-2">Loading...</div>
+                    </div>
+                    Espere
+                  </div>
+                  <div id="verListadoNominaDetlles" class="card hide">
+                    <form id="formSearchNominaDetallado">
+                      <input value="<?PHP echo intval($_SESSION['idempleado'] ?? 0); ?>" type="hidden" name="txtUltimo"
+                        id="txtUltimo">
+                      <div class="card-header row m-0 p-0">
+
+                        <div class="col-md-6">
+                          <div class="form-group">
+                            <label>Desde:</label>
+                            <div class="input-group date " id="dateDeste" data-target-input="nearest">
+                              <input required type="text" class="form-control datetimepicker-input"
+                                data-target="#dateDeste" id="txtFechaDesde" name="txtFechaDesde" />
+                              <div class="input-group-append" data-target="#dateDeste" data-toggle="datetimepicker">
+                                <div class="input-group-text"><i class="fa fa-calendar"></i></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="col-md-6">
+                          <div class="form-group">
+                            <label>Hasta:</label>
+                            <div class="input-group date" id="dateHasta" data-target-input="nearest">
+                              <input required type="text" class="form-control datetimepicker-input"
+                                data-target="#dateHasta" id="txtFechaHasta" name="txtFechaHasta" />
+                              <div class="input-group-append" data-target="#dateHasta" data-toggle="datetimepicker">
+                                <div class="input-group-text"><i class="fa fa-calendar"></i></div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <input type="submit" style="display: none;">
+                    </form>
+
+                    <div class="card table-responsive p-0">
+
+                      <table class="table table-striped table-valign-middle">
+                        <thead>
+                          <tr>
+                            <th>Consepto</th>
+                            <th>Valor</th>
+                          </tr>
+                        </thead>
+                        <tbody id="trTableconsepto">
+
+
+                        </tbody>
+                      </table>
+
+                    </div>
+
+                    <!-- /.card-header -->
+                    <div class="card-body p-0">
+                      <table id="tblDetalleNomina" class="table table-bordered table-striped">
+                        <thead>
+                          <tr>
+                            <th>Fecha</th>
+                            <th>Valor</th>
+                            <th>Consepto</th>
+                            <th>detalle</th>
+
+                          </tr>
+                        </thead>
+                        <tbody></tbody>
+                        <tfoot>
+                          <tr>
+                            <th>Fecha</th>
+                            <th>Valor</th>
+                            <th>Consepto</th>
+                            <th>detalle</th>
+
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+
+                  </div>
+                </div>
+                <?php endif; ?>
+                <!-- Pestaña Mis Cuentas -->
+                <?php if ($mostrarTabsAhorro): ?>
+                <div class="tab-pane fade<?php echo $tabPrincipalAcceder === 'cuentas' ? ' show active' : ''; ?>"
+                  id="custom-tabs-cuentas" role="tabpanel" aria-labelledby="custom-tabs-cuentas-tab">
+                  <?php include "views/partials/exploradorCuentas.html"; ?>
+                </div>
+                <?php endif; ?>
+
+                <!-- Pestaña Movimientos -->
+                <?php if ($mostrarTabsAhorro): ?>
+                <div class="tab-pane fade" id="custom-tabs-movimientos" role="tabpanel"
+                  aria-labelledby="custom-tabs-movimientos-tab">
+                  <div id="verLoadingMovimientosTab" class="overlay-wrapper">
+                    <div class="overlay dark">
+                      <i class="fas fa-3x fa-sync-alt fa-spin"></i>
+                      <div class="text-bold pt-2">Cargando...</div>
+                    </div>
+                    Espere
+                  </div>
+                  <div id="verListadoMovimientosTab" class="card hide">
+                    <div class="card-header">
+                      <h3 class="card-title">Movimientos Recientes</h3>
+                    </div>
+                    <div class="card-body p-0">
+                      <table id="tblMovimientosUsuario" class="table table-bordered table-striped">
+                        <thead>
+                          <tr>
+                            <th>Fecha</th>
+                            <th>Ahorrador</th>
+                            <th>Cuenta</th>
+                            <th>Tipo de Movimiento</th>
+                            <th>Monto</th>
+                            <th>Descripción</th>
+                            <th>Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody id="cuerpoTablaMovimientos">
+                          <!-- Los datos se cargarán dinámicamente aquí -->
+                        </tbody>
+                        <tfoot>
+                          <tr>
+                            <th>Fecha</th>
+                            <th>Ahorrador</th>
+                            <th>Cuenta</th>
+                            <th>Tipo de Movimiento</th>
+                            <th>Monto</th>
+                            <th>Descripción</th>
+                            <th>Estado</th>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+                <?php endif; ?>
+
+              </div>
+            </div>
+          </div>
+        </div>
+      </div><!-- /.container-fluid -->
+  </section>
+  <!-- /.content -->
+</div>
+<!-- /.content-wrapper -->
+
+<div class="modal fade" id="modalEditarPersona" tabindex="-1" role="dialog" aria-labelledby="modalEditarPersonaLabel"
+  aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalEditarPersonaLabel">Editar persona</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form id="formEditarPersonaActual">
+        <div class="modal-body">
+          <input type="hidden" id="txtEditarPersonaId" name="idpersona">
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label for="txtEditarPersonaEmail">Email</label>
+              <input type="email" class="form-control" id="txtEditarPersonaEmail" name="email" maxlength="120">
+            </div>
+            <div class="form-group col-md-6">
+              <label for="txtEditarPersonaTelefono">Teléfono</label>
+              <input type="text" class="form-control" id="txtEditarPersonaTelefono" name="telefono" maxlength="30">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label for="txtEditarDepartamento">Departamento</label>
+              <input type="text" class="form-control" id="txtEditarDepartamento" name="departamento" maxlength="80">
+            </div>
+            <div class="form-group col-md-6">
+              <label for="txtEditarCiudad">Ciudad</label>
+              <input type="text" class="form-control" id="txtEditarCiudad" name="ciudad" maxlength="80">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group col-md-6">
+              <label for="txtEditarBarrio">Barrio</label>
+              <input type="text" class="form-control" id="txtEditarBarrio" name="barrio" maxlength="120">
+            </div>
+            <div class="form-group col-md-6">
+              <label for="txtEditarDireccion">Dirección</label>
+              <input type="text" class="form-control" id="txtEditarDireccion" name="direccion" maxlength="180">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalPasswordReset" tabindex="-1" role="dialog" aria-labelledby="modalPasswordResetLabel"
+  aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalPasswordResetLabel">Restaurar contraseña</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body pb-2">
+        <div class="form-group mb-2">
+          <div class="custom-control custom-radio custom-control-inline">
+            <input type="radio" id="modoPassAnterior" name="modoResetPassword" class="custom-control-input"
+              value="anterior" checked>
+            <label class="custom-control-label" for="modoPassAnterior">Recordando la clave anterior</label>
+          </div>
+          <div class="custom-control custom-radio custom-control-inline">
+            <input type="radio" id="modoPassCorreo" name="modoResetPassword" class="custom-control-input"
+              value="correo">
+            <label class="custom-control-label" for="modoPassCorreo">Recuperar por correo</label>
+          </div>
+        </div>
+
+        <form id="formCambioPasswordAnterior">
+          <div class="form-group">
+            <label for="txtPassActual">Clave actual</label>
+            <input type="password" class="form-control" id="txtPassActual" name="password_actual" maxlength="80"
+              required>
+          </div>
+          <div class="form-group">
+            <label for="txtPassNueva">Nueva clave</label>
+            <input type="password" class="form-control" id="txtPassNueva" name="password_nueva" maxlength="80" required>
+          </div>
+          <div class="form-group mb-0">
+            <label for="txtPassConfirmacion">Confirmar nueva clave</label>
+            <input type="password" class="form-control" id="txtPassConfirmacion" name="password_confirmacion"
+              maxlength="80" required>
+          </div>
+        </form>
+
+        <form id="formResetPasswordCorreo" class="d-none">
+          <div class="alert alert-info mb-2">
+            Se enviará una clave temporal al correo registrado de tu usuario.
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+        <button type="button" id="btnGuardarPasswordModal" class="btn btn-primary">Continuar</button>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+<!-- SweetAlert2 -->
+
+<style>
+  #txt_saldo_ahorrador {
+    font-weight: 700;
+    color: #28a745;
+  }
+
+  #txt_saldo_ahorrador.text-danger {
+    color: #dc3545 !important;
+  }
+
+  .ahorro-slide-track {
+    display: flex;
+    gap: .5rem;
+    overflow-x: auto;
+    padding-bottom: .25rem;
+  }
+
+  .ahorro-slide-card {
+    min-width: 220px;
+    border: 1px solid #dee2e6;
+    border-radius: .5rem;
+    padding: .6rem .75rem;
+    background: #fff;
+    cursor: pointer;
+    transition: all .2s ease;
+  }
+
+  .ahorro-slide-card:hover,
+  .ahorro-slide-card.active {
+    border-color: #007bff;
+    box-shadow: 0 0 0 .15rem rgba(0, 123, 255, .15);
+  }
+
+  .ahorro-ficha {
+    border: 1px solid #e9ecef;
+    border-radius: .5rem;
+    background: #fbfcfe;
+    padding: .75rem;
+  }
+
+  .txt-saldo-tipo-ahorrador {
+    font-weight: 700;
+    color: #28a745;
+  }
+
+  .txt-saldo-tipo-ahorrador.text-danger {
+    color: #dc3545 !important;
+  }
+</style>
+
+
+
+<script type="text/javascript">
+  $(".lia-perfil").addClass('active')
+  $("#spanAcceder").removeClass('hide');
+
+
+  //Date picker
+  const dateDesde = $('#dateDeste').datetimepicker({
+    format: 'YYYY-MM-DD',
+    date: moment().startOf('month'),
+    locale: 'es'
+  });
+
+
+  $("#example1")
+    .DataTable({
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#example1_wrapper .col-md-6:eq(0)");
+
+  $("#tblNomina")
+    .DataTable({
+      sort: false,
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#tblNomina_wrapper .col-md-6:eq(0)");
+
+  $("#tblDetalleNomina")
+    .DataTable({
+      sort: false,
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#tblDetalleNomina_wrapper .col-md-6:eq(0)");
+
+  $("#tblAhorros")
+    .DataTable({
+      sort: false,
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#tblAhorros_wrapper .col-md-6:eq(0)");
+
+  $("#tblMovimientosUsuario")
+    .DataTable({
+      sort: false,
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#tblMovimientosUsuario_wrapper .col-md-6:eq(0)");
+
+
+
+
+
+
+
+
+  $('#example2').DataTable({
+    "sort": false,
+    "paging": true,
+    "lengthChange": false,
+    "searching": true,
+    "ordering": true,
+    "info": true,
+    "autoWidth": false,
+    "responsive": true,
+    displayLength: 100
+  });
+
+
+  jQuery(document).ready(function () {
+    $('#custom-tabs-three-tab a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
+      if ($(e.target).attr('id') === 'custom-tabs-nomina-tab') {
+        listarNomina();
+      } else if ($(e.target).attr('id') === 'custom-tabs-liquidar-tab') {
+        $("form#formSearchNominaDetallado").submit()
+      } else if ($(e.target).attr('id') === 'custom-tabs-authorizations-tab') {
+        AuthorizacionEmpleado();
+      } else if ($(e.target).attr('id') === 'custom-tabs-cuentas-tab') {
+        listarMisAhorros();
+      } else if ($(e.target).attr('id') === 'custom-tabs-movimientos-tab') {
+        listarMovimientosUsuario();
+      }
+    })
+
+
+    $("form#formSearchNominaDetallado").submit(function (e) {
+      e.preventDefault();
+      // $("#txtUltimo").val($("#txtRefEmpleadoConfig").val());
+
+      listarNominaDetalle();
+    });
+
+    $("form#formAhorroEditar").submit(function (e) {
+      e.preventDefault();
+      abrirModalEditarPersona();
+    });
+
+    $("#btnAbrirPasswordReset").on('click', function () {
+      $("input[name='modoResetPassword'][value='anterior']").prop('checked', true).trigger('change');
+      $("#formCambioPasswordAnterior")[0].reset();
+      $('#modalPasswordReset').modal('show');
+    });
+
+    $("input[name='modoResetPassword']").on('change', function () {
+      const modo = $(this).val();
+      const porAnterior = modo === 'anterior';
+      $("#formCambioPasswordAnterior").toggleClass('d-none', !porAnterior);
+      $("#formResetPasswordCorreo").toggleClass('d-none', porAnterior);
+      $("#btnGuardarPasswordModal").text(porAnterior ? 'Actualizar clave' : 'Enviar al correo');
+    });
+
+    $("#btnGuardarPasswordModal").on('click', function () {
+      const modo = $("input[name='modoResetPassword']:checked").val();
+      if (modo === 'anterior') {
+        $("form#formCambioPasswordAnterior").trigger('submit');
+      } else {
+        $("form#formResetPasswordCorreo").trigger('submit');
+      }
+    });
+
+    $("form#formCambioPasswordAnterior").submit(function (e) {
+      e.preventDefault();
+      $.ajax({
+        url: 'ajax/UsuarioAjax.php?op=cambiarPasswordActual',
+        method: 'POST',
+        data: $(this).serialize(),
+        dataType: 'json',
+        success: function (resp) {
+          if (!(resp && resp.status === 'success')) {
+            Swal.fire({
+              icon: 'error',
+              title: 'No fue posible actualizar',
+              text: resp && resp.mensaje ? resp.mensaje : 'Error inesperado'
+            });
+            return;
+          }
+
+          $('#modalPasswordReset').modal('hide');
+          $("#formCambioPasswordAnterior")[0].reset();
+          Swal.fire({ icon: 'success', title: resp.mensaje || 'Clave actualizada' });
+        },
+        error: function (xhr) {
+          const detalle = (xhr && xhr.responseText) ? String(xhr.responseText).substring(0, 300) : 'Sin detalle';
+          Swal.fire({ icon: 'error', title: 'Error de servidor', text: detalle });
+        }
+      });
+    });
+
+    $("form#formResetPasswordCorreo").submit(function (e) {
+      e.preventDefault();
+      $.ajax({
+        url: 'ajax/UsuarioAjax.php?op=resetPasswordPorCorreo',
+        method: 'POST',
+        dataType: 'json',
+        success: function (resp) {
+          if (!(resp && resp.status === 'success')) {
+            Swal.fire({
+              icon: 'error',
+              title: 'No fue posible enviar',
+              text: resp && resp.mensaje ? resp.mensaje : 'Error inesperado'
+            });
+            return;
+          }
+
+          $('#modalPasswordReset').modal('hide');
+          Swal.fire({ icon: 'success', title: resp.mensaje || 'Correo enviado' });
+        },
+        error: function (xhr) {
+          const detalle = (xhr && xhr.responseText) ? String(xhr.responseText).substring(0, 300) : 'Sin detalle';
+          Swal.fire({ icon: 'error', title: 'Error de servidor', text: detalle });
+        }
+      });
+    });
+
+    $("form#formEditarPersonaActual").submit(function (e) {
+      e.preventDefault();
+
+      $.ajax({
+        url: 'ajax/UsuarioAjax.php?op=actualizarDatosPersonaActual',
+        method: 'POST',
+        data: $(this).serialize(),
+        dataType: 'json',
+        success: function (resp) {
+          if (!(resp && resp.status === 'success')) {
+            Swal.fire({
+              icon: 'error',
+              title: 'No fue posible guardar',
+              text: resp && resp.mensaje ? resp.mensaje : 'Error inesperado'
+            });
+            return;
+          }
+
+          renderDatosPersonaActual(resp.data || {});
+          $('#modalEditarPersona').modal('hide');
+          Swal.fire({ icon: 'success', title: resp.mensaje || 'Datos actualizados' });
+        },
+        error: function () {
+          Swal.fire({ icon: 'error', title: 'Error de servidor' });
+        }
+      });
+    });
+
+
+    $("#dateDeste").on("hide.datetimepicker", function (e) {
+      $("form#formSearchNominaDetallado").trigger('submit');
+    });
+    $("#dateHasta").on("hide.datetimepicker", function (e) {
+      $("form#formSearchNominaDetallado").trigger('submit');
+    });
+
+
+    $("#example2").on('change', '.aMontarSeccionActividad', function (e) {
+      e.preventDefault()
+      $(".aMontarSeccionActividad").attr('checked', false);
+      $.post("./ajax/UsuarioAjax.php", function (r) {
+        if (r === '0') {
+          location.reload(true);
+        }
+      });
+      $.getJSON("ajax/UsuarioAjax.php?op=IngresarSistemaActividad", { empresa: $(e.target).data('rseccion'), refSession: window.name }, function (r) {
+
+        if (r === 0) {
+          Toast.fire({
+            icon: 'error',
+            title: "ERROR INESPERADO"
+          })
+        } else {
+
+          window.name = r.session;
+          location.reload(true);
+        }
+      })
+    });
+
+    const tabActivaInicial = $('#custom-tabs-three-tab .nav-link.active').attr('id');
+    if (tabActivaInicial === 'custom-tabs-cuentas-tab') {
+      listarMisAhorros();
+    } else if (tabActivaInicial === 'custom-tabs-movimientos-tab') {
+      listarMovimientosUsuario();
+    } else if (tabActivaInicial === 'custom-tabs-liquidar-tab') {
+      $("form#formSearchNominaDetallado").submit();
+    }
+
+    cargarDatosPersonaActual();
+
+
+  })
+
+  let exploradorAhorrosData = [];
+  let exploradorAhorroIndex = -1;
+
+  function limpiarHtmlTexto(valor) {
+    return $('<div>').html(valor == null ? '' : String(valor)).text().trim();
+  }
+
+  function formatearMoneda(valor) {
+    const numero = parseFloat(valor);
+    const seguro = Number.isFinite(numero) ? numero : 0;
+    return '$' + seguro.toFixed(2);
+  }
+
+  function formatearMonedaGlobal(valor) {
+    if (typeof window.formatearMonedaPublica === 'function') {
+      return window.formatearMonedaPublica(valor, 2);
+    }
+    return formatearMoneda(valor);
+  }
+
+  function formatearMonedaVista(valor) {
+    const numero = parseFloat(valor);
+    const seguro = Number.isFinite(numero) ? numero : 0;
+    const salida = String(formatearMonedaGlobal(Math.abs(seguro)) || '0.00').trim().replace('-', '');
+    const base = salida.indexOf('$') === 0 ? salida : ('$' + salida);
+    return seguro < 0 ? ('-' + base) : base;
+  }
+
+  function aplicarColorSaldo($elemento, valor) {
+    if (!$elemento || !$elemento.length) return;
+    const numero = parseFloat(valor);
+    const esNegativo = Number.isFinite(numero) && numero < 0;
+    $elemento.toggleClass('text-danger', esNegativo);
+    $elemento.toggleClass('text-success', !esNegativo);
+  }
+
+  function obtenerMontoFirmadoPorTipo(tipo, valor, montoFirmadoBackend) {
+    const backend = parseFloat(montoFirmadoBackend);
+    if (Number.isFinite(backend)) {
+      return backend;
+    }
+
+    const tipoMov = limpiarHtmlTexto(tipo).toLowerCase();
+    const numero = parseFloat(valor);
+    const seguro = Number.isFinite(numero) ? numero : 0;
+
+    // Si el backend ya manda el signo, se respeta.
+    if (seguro < 0) return seguro;
+
+    const base = Math.abs(seguro);
+    return (tipoMov === 'retiro' || tipoMov === 'salida') ? -base : base;
+  }
+
+  function textoSeguro(valor, fallback) {
+    const limpio = limpiarHtmlTexto(valor);
+    return limpio || fallback;
+  }
+
+  function capitalizarPalabras(texto) {
+    const base = limpiarHtmlTexto(texto).toLowerCase();
+    if (!base) return 'Corriente';
+    return base.replace(/\b\w/g, function (char) {
+      return char.toUpperCase();
+    });
+  }
+
+  function normalizarCuentaAhorro(raw) {
+    if (Array.isArray(raw)) {
+      return {
+        nombre: limpiarHtmlTexto(raw[0]),
+        cuenta: limpiarHtmlTexto(raw[1]),
+        tipo: limpiarHtmlTexto(raw[2]),
+        authMov: limpiarHtmlTexto(raw[4]),
+        estado: limpiarHtmlTexto(raw[5]),
+        fecha: limpiarHtmlTexto(raw[6]),
+        idAhorro: parseInt(raw[8], 10) || 0,
+        saldo: parseFloat(raw[9]) || 0
+      };
+    }
+
+    const item = raw || {};
+    return {
+      nombre: limpiarHtmlTexto(item.str_name),
+      cuenta: limpiarHtmlTexto(item.id_cuenta),
+      tipo: limpiarHtmlTexto(item.str_tipo),
+      authMov: parseInt(item.bit_auth_movimientos, 10) === 1 ? 'SI' : 'NO',
+      estado: limpiarHtmlTexto(item.str_estado),
+      fecha: limpiarHtmlTexto(item.created_at),
+      idAhorro: parseInt(item.idahorro, 10) || 0,
+      saldo: parseFloat(item.saldo_real) || 0
+    };
+  }
+
+  function renderSaldosTiposAcceder(items) {
+    const $contenedor = $("#saldos_tipos_ahorrador");
+    if (!$contenedor.length) return;
+
+    const cuentas = Array.isArray(items) ? items : [];
+    const saldosPorTipo = {};
+    let total = 0;
+
+    cuentas.forEach(function (cuenta) {
+      const info = normalizarCuentaAhorro(cuenta);
+      const tipoRaw = info.tipo != null ? String(info.tipo).trim() : '';
+      const tipo = tipoRaw !== '' ? tipoRaw : 'corriente';
+      const saldo = info.saldo;
+      const saldoSeguro = Number.isFinite(saldo) ? saldo : 0;
+
+      total += saldoSeguro;
+      saldosPorTipo[tipo] = (saldosPorTipo[tipo] || 0) + saldoSeguro;
+    });
+
+    $contenedor.empty();
+
+    const tipos = Object.keys(saldosPorTipo);
+    if (!tipos.length) {
+      const $li = $('<li>').addClass('list-group-item d-flex justify-content-between align-items-center saldo-tipo-item');
+      const $label = $('<b>').text('Saldo Corriente');
+      const $valor = $('<a>').addClass('float-right txt-saldo-tipo-ahorrador').text(formatearMonedaVista(0));
+      aplicarColorSaldo($valor, 0);
+      $li.append($label).append($valor);
+      $contenedor.append($li);
+    } else {
+      tipos.forEach(function (tipo) {
+        const saldoTipo = saldosPorTipo[tipo];
+        const $li = $('<li>').addClass('list-group-item d-flex justify-content-between align-items-center saldo-tipo-item');
+        const $label = $('<b>').text('Saldo ' + capitalizarPalabras(tipo));
+        const $valor = $('<a>').addClass('float-right txt-saldo-tipo-ahorrador').text(formatearMonedaVista(saldoTipo));
+        aplicarColorSaldo($valor, saldoTipo);
+        $li.append($label).append($valor);
+        $contenedor.append($li);
+      });
+    }
+
+    $("#txt_saldo_ahorrador").text(formatearMonedaVista(total));
+    aplicarColorSaldo($("#txt_saldo_ahorrador"), total);
+  }
+
+  function renderEstadoEmailActual(data) {
+    const verificado = !!(data && data.email_verificado && data.email_verificado !== '0');
+    const html = verificado
+      ? '<span class="badge badge-success">Verificado</span>'
+      : '<span class="badge badge-warning mr-2">No verificado</span><button id="btnEnviarVerificacion" class="btn btn-sm btn-outline-primary">Enviar enlace de verificación</button>';
+
+    $("#txt_estado_email_actual").html(html);
+  }
+
+  function renderDatosPersonaActual(data) {
+    if (!data) return;
+
+    $("#txt_idpersona_ah").val(data.idpersona || '');
+    $("#txt_email_actual").text(textoSeguro(data.email, 'No definido'));
+    renderEstadoEmailActual(data);
+    $("#txt_tel_ahorrador").text(textoSeguro(data.telefono, 'No definido'));
+    $("#txt_direccion_ahorrador").html([
+      '<li><span class="text-dark font-weight-bold">Departamento: </span><span>' + textoSeguro(data.departamento, 'No definido') + '</span></li>',
+      '<li><span class="text-dark font-weight-bold">Ciudad: </span><span>' + textoSeguro(data.ciudad, 'No definido') + '</span></li>',
+      '<li><span class="text-dark font-weight-bold">Barrio: </span><span>' + textoSeguro(data.barrio, 'No definido') + '</span></li>',
+      '<li><span class="text-dark font-weight-bold">Dirección: </span><span>' + textoSeguro(data.direccion, 'No definido') + '</span></li>'
+    ].join(''));
+  }
+
+  function cargarDatosPersonaActual() {
+    $.ajax({
+      url: 'ajax/UsuarioAjax.php?op=datosPersonaActual',
+      method: 'GET',
+      dataType: 'json',
+      success: function (resp) {
+        if (resp && resp.status === 'success' && resp.data) {
+          renderDatosPersonaActual(resp.data);
+        }
+      }
+    });
+  }
+
+  function abrirModalEditarPersona() {
+    $.ajax({
+      url: 'ajax/UsuarioAjax.php?op=datosPersonaActual',
+      method: 'GET',
+      dataType: 'json',
+      success: function (resp) {
+        if (!(resp && resp.status === 'success' && resp.data)) {
+          Swal.fire({ icon: 'error', title: 'No fue posible cargar la persona' });
+          return;
+        }
+
+        const data = resp.data;
+        $("#txtEditarPersonaId").val(data.idpersona || '');
+        $("#txtEditarPersonaEmail").val(data.email || '');
+        $("#txtEditarPersonaTelefono").val(data.telefono || '');
+        $("#txtEditarDepartamento").val(data.departamento || '');
+        $("#txtEditarCiudad").val(data.ciudad || '');
+        $("#txtEditarBarrio").val(data.barrio || '');
+        $("#txtEditarDireccion").val(data.direccion || '');
+        $('#modalEditarPersona').modal('show');
+      },
+      error: function () {
+        Swal.fire({ icon: 'error', title: 'Error al consultar la persona' });
+      }
+    });
+  }
+
+  function listarMisAhorros() {
+    $("#verLoadingProductos").removeClass('hide');
+    $("#verListadoAhorros").addClass('hide');
+
+    const tabla = $('#tblAhorros').DataTable();
+    //http://projects.localhost/webgoez/ajax/AhorradoresAjax.php?op=listAhorrosPersona
+    $.ajax({
+      url: './ajax/AhorradoresAjax.php?op=listAhorrosPersona',
+      type: 'POST',
+      dataType: 'json',
+      success: function (datos) {
+        const items = Array.isArray(datos) ? datos : [];
+        tabla.clear().draw();
+
+        for (let i = 0; i < items.length; i++) {
+          const info = normalizarCuentaAhorro(items[i]);
+          const btnVer = '<button type="button" class="btn btn-info btn-sm btn-ver-ahorro" data-index="' + i + '"><i class="fas fa-eye"></i></button>';
+
+          tabla.row
+            .add([
+              info.nombre,
+              info.cuenta,
+              info.tipo,
+              formatearMonedaVista(info.saldo),
+              info.authMov,
+              info.estado,
+              info.fecha,
+              btnVer
+            ]).draw(false);
+        }
+
+        renderSaldosTiposAcceder(items);
+        renderExploradorAhorros(items);
+        $("#verLoadingProductos").addClass('hide');
+        $("#verListadoAhorros").removeClass('hide');
+      },
+      error: function (e) {
+        console.log(e.responseText);
+        tabla.clear().draw();
+        renderSaldosTiposAcceder([]);
+        renderExploradorAhorros([]);
+        $("#verLoadingProductos").addClass('hide');
+        $("#verListadoAhorros").removeClass('hide');
+      }
+    });
+  }
+
+  function renderExploradorAhorros(datos) {
+    const $track = $("#ahorroSlideTrack");
+    const $ficha = $("#ahorroFicha");
+    const $listaMovs = $("#fichaMovimientosLista");
+
+    $track.empty();
+    $listaMovs.empty();
+    exploradorAhorrosData = [];
+    exploradorAhorroIndex = -1;
+
+    const items = Array.isArray(datos) ? datos : [];
+    if (!items.length) {
+      $ficha.addClass('d-none');
+      $track.append($('<div>').addClass('text-muted small px-1').text('Sin cuentas disponibles.'));
+      return;
+    }
+
+    items.forEach(function (val, index) {
+      const info = normalizarCuentaAhorro(val);
+
+      exploradorAhorrosData.push(info);
+
+      const $card = $('<button type="button">')
+        .addClass('ahorro-slide-card btn btn-light text-left')
+        .attr('data-index', index);
+
+      $card.append($('<div>').addClass('font-weight-bold text-truncate').text(info.nombre || ('Cuenta #' + (index + 1))));
+      $card.append($('<small>').addClass('text-muted d-block').text('N° ' + (info.cuenta || '-')));
+      const $saldoCard = $('<small>').addClass('d-block').text(formatearMonedaVista(info.saldo));
+      aplicarColorSaldo($saldoCard, info.saldo);
+      $card.append($saldoCard);
+      $track.append($card);
+    });
+
+    $ficha.removeClass('d-none');
+    seleccionarAhorroSlide(0);
+  }
+
+  function seleccionarAhorroSlide(index) {
+    if (index < 0 || index >= exploradorAhorrosData.length) return;
+
+    exploradorAhorroIndex = index;
+    const info = exploradorAhorrosData[index];
+
+    $("#ahorroSlideTrack .ahorro-slide-card").removeClass('active');
+    const $card = $("#ahorroSlideTrack .ahorro-slide-card[data-index='" + index + "']").addClass('active');
+    if ($card.length && $card[0].scrollIntoView) {
+      $card[0].scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+    }
+
+    $("#fichaNombreAhorro").text(info.nombre || '-');
+    $("#fichaCuentaAhorro").text(info.cuenta || '-');
+    $("#fichaSaldoAhorro").text(formatearMonedaVista(info.saldo));
+    aplicarColorSaldo($("#fichaSaldoAhorro"), info.saldo);
+    $("#fichaTipoAhorro").text(info.tipo || '-');
+    $("#fichaEstadoAhorro").text(info.estado || '-');
+    $("#fichaMovimientosLista").empty();
+    $("#fichaMovimientosInfo").text('Ultimos movimientos de la cuenta seleccionada.');
+
+    if ($("#ficha-tab-movimientos").hasClass('active')) {
+      cargarMovimientosFicha(info.idAhorro);
+    }
+  }
+  function escapeHtml(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+  function getTipoLabel(mov) {
+    console.log(mov);
+
+    if (mov && mov.tipo_label) return mov.tipo_label;
+
+    var tipo = String((mov && mov.str_tipo) || '').toLowerCase();
+    if (tipo === 'aporte') return 'Aporte';
+    if (tipo === 'retiro') return 'Retiro';
+    if (tipo === 'ajuste') return 'Interés';
+    return mov && mov.str_tipo ? mov.str_tipo : '-';
+  }
+  function cargarMovimientosFicha(idAhorro) {
+    const $lista = $("#fichaMovimientosLista");
+    const $info = $("#fichaMovimientosInfo");
+    $lista.empty();
+
+    if (!idAhorro) {
+      $info.text('La cuenta no tiene identificador para consultar movimientos.');
+      return;
+    }
+
+    $info.text('Cargando movimientos...');
+
+    $.ajax({
+      url: './ajax/MiAhorroAjax.php?op=listMovimientos',
+      type: 'POST',
+      data: { idahorro: idAhorro },
+      dataType: 'json',
+      success: function (resp) {
+        const items = (resp && resp.status === 'success' && Array.isArray(resp.data)) ? resp.data.slice(0, 5) : [];
+        $lista.empty();
+
+        if (!items.length) {
+          $info.text('Sin movimientos registrados para esta cuenta.');
+          return;
+        }
+
+        $info.text('Mostrando los ultimos movimientos.');
+
+        items.forEach(function (mov) {
+          const fecha = limpiarHtmlTexto(mov.date_movimiento);
+          const tipo = limpiarHtmlTexto(mov.str_tipo);
+          const montoFirmado = obtenerMontoFirmadoPorTipo(tipo, mov.dec_valor, mov.monto_firmado);
+          const monto = formatearMonedaVista(montoFirmado);
+          const descripcion = limpiarHtmlTexto(mov.str_descripcion);
+          if (mov.str_tipo == 'retiro' || mov.str_tipo == 'aporte') {
+            mov.str_tipo = montoFirmado ? 'retiro' : 'aporte';
+          }
+
+          const $li = $('<li>').addClass('list-group-item py-2');
+          const $monto = $('<span>').text(monto);
+          aplicarColorSaldo($monto, montoFirmado);
+          $li.append($('<div>').addClass('d-flex justify-content-between').append(
+            $('<strong>').text(escapeHtml(getTipoLabel(mov))),
+            $monto
+          ));
+          $li.append($('<small>').addClass('text-muted d-block').text(fecha || '-'));
+          $li.append($('<small>').text(descripcion || 'Sin descripcion'));
+          $lista.append($li);
+        });
+      },
+      error: function () {
+        $info.text('No fue posible cargar movimientos en este momento.');
+      }
+    });
+  }
+
+  function listarMovimientosUsuario() {
+    $("#verLoadingMovimientosTab").removeClass('hide');
+    $("#verListadoMovimientosTab").addClass('hide');
+
+    const tabla = $('#tblMovimientosUsuario').DataTable();
+
+    $.ajax({
+      url: './ajax/MiAhorroAjax.php?op=listMovimientosPersona',
+      type: 'POST',
+      dataType: 'json',
+      success: function (resp) {
+        const items = (resp && resp.status === 'success' && Array.isArray(resp.data)) ? resp.data : [];
+        tabla.clear().draw();
+
+        for (let i = 0; i < items.length; i++) {
+          const val = items[i] || {};
+          const documento = [limpiarHtmlTexto(val.str_tipo_documento), limpiarHtmlTexto(val.str_num_documento)]
+            .filter(function (parte) { return parte && parte !== '-'; })
+            .join(': ');
+          const ahorrador = limpiarHtmlTexto(val.ahorrador);
+          const cuenta = limpiarHtmlTexto(val.id_cuenta);
+          const detalleCuenta = limpiarHtmlTexto(val.str_name);
+          const cuentaLabel = detalleCuenta ? (cuenta + ' - ' + detalleCuenta) : cuenta;
+          const montoFirmado = obtenerMontoFirmadoPorTipo(val.str_tipo, val.dec_valor, val.monto_firmado);
+          const montoHtml = '<span class="' + (montoFirmado < 0 ? 'text-danger' : 'text-success') + '">' + formatearMonedaVista(montoFirmado) + '</span>';
+          tabla.row
+            .add([
+              limpiarHtmlTexto(val.date_movimiento),
+              ahorrador + (documento ? ' (' + documento + ')' : ''),
+              cuentaLabel,
+              limpiarHtmlTexto(val.str_tipo),
+              montoHtml,
+              limpiarHtmlTexto(val.str_descripcion),
+              limpiarHtmlTexto(val.str_estado)
+            ]).draw(false);
+        }
+
+        $("#verLoadingMovimientosTab").addClass('hide');
+        $("#verListadoMovimientosTab").removeClass('hide');
+      },
+      error: function (e) {
+        console.log(e.responseText);
+        tabla.clear().draw();
+        $("#verLoadingMovimientosTab").addClass('hide');
+        $("#verListadoMovimientosTab").removeClass('hide');
+      }
+    });
+  }
+
+  $(document).on('click', '#ahorroSlideTrack .ahorro-slide-card', function () {
+    const index = parseInt($(this).attr('data-index'), 10);
+    seleccionarAhorroSlide(index);
+  });
+
+  $(document).on('click', '#tblAhorros .btn-ver-ahorro', function () {
+    const index = parseInt($(this).data('index'), 10);
+    if (Number.isInteger(index)) {
+      seleccionarAhorroSlide(index);
+    }
+  });
+
+  $(document).on('click', '#btnAhorroPrev', function () {
+    if (!exploradorAhorrosData.length) return;
+    const nuevo = exploradorAhorroIndex <= 0 ? exploradorAhorrosData.length - 1 : exploradorAhorroIndex - 1;
+    seleccionarAhorroSlide(nuevo);
+  });
+
+  $(document).on('click', '#btnAhorroNext', function () {
+    if (!exploradorAhorrosData.length) return;
+    const nuevo = exploradorAhorroIndex >= exploradorAhorrosData.length - 1 ? 0 : exploradorAhorroIndex + 1;
+    seleccionarAhorroSlide(nuevo);
+  });
+
+  $(document).on('shown.bs.tab', '#ficha-tab-movimientos', function () {
+    if (exploradorAhorroIndex < 0 || !exploradorAhorrosData.length) return;
+    cargarMovimientosFicha(exploradorAhorrosData[exploradorAhorroIndex].idAhorro);
+  });
+
+
+  function listarNominaDetalle() {
+
+    $("#verLoadingNominaDetalle").removeClass('hide')
+    $("#verListadoNominaDetlles").addClass('hide')
+    $.post("./ajax/UsuarioAjax.php", function (r) {
+      if (r === '0') {
+        location.reload(true);
+      }
+    });
+    var formData = new FormData($("form#formSearchNominaDetallado")[0]);
+
+    var tabla = $('#tblDetalleNomina').DataTable();
+    //console.log('bbb');
+    $.ajax({
+      url: './ajax/EmpleadoAjax.php?op=listNominaDetalle',
+      type: "POST",
+      data: formData,
+      contentType: false,
+      processData: false,
+      dataType: "json",
+      success: function (datos) {
+        const conseptos = Array.from(new Set(datos.map(x => capitalizarPalabras(x[2]))));
+        const trTableconsepto = conseptos.map(n => {
+          return `<tr>
+                    <td>
+                        ${n}
+                    </td>
+                    <td>
+                        $${datos.filter(x => capitalizarPalabras(x[2]) === n).map(m => m[1]).reduce((a, b) => parseFloat(a) + parseFloat(b), 0)}
+                    </td>
+                </tr>`
+        })
+        $("#trTableconsepto").html(trTableconsepto.join(''));
+
+        tabla.clear().draw();
+        for (let i = 0; i < datos.length; i++) {
+          const val = datos[i];
+
+
+          tabla.row
+            .add([
+              val[0],
+              val[1],
+              capitalizarPalabras(val[2]),
+              `<b>${val[5]} ${val[4]}:</b> ${val[3]}`,
+            ]).draw(false);
+        }
+        $("#verLoadingNominaDetalle").addClass('hide')
+        $("#verListadoNominaDetlles").removeClass('hide')
+      },
+      error: function (e) {
+        console.log(e.responseText);
+      }
+    });
+  }
+</script>
+
+<script>
+  // Solicitar enlace de verificación por email
+  $(document).on('click', '#btnEnviarVerificacion', function (e) {
+    e.preventDefault();
+    $.ajax({
+      url: 'ajax/UsuarioAjax.php?op=solicitarVerificacionEmail',
+      method: 'POST',
+      success: function (r) {
+        try { r = typeof r === 'string' ? JSON.parse(r) : r; } catch (e) { r = null; }
+        if (r && r.status === 'success') {
+          Swal.fire({ icon: 'success', title: r.mensaje });
+        } else {
+          let msg = (r && r.mensaje) ? r.mensaje : 'No se pudo enviar el enlace';
+          if (r && r.debug_url) { msg += `\nEnlace directo: ${r.debug_url}`; }
+          Swal.fire({ icon: 'error', title: 'Envío fallido', text: msg });
+        }
+      },
+      error: function () {
+        Swal.fire({ icon: 'error', title: 'Error de servidor' });
+      }
+    });
+  });
+</script>

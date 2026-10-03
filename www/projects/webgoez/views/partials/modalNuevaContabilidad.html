@@ -1,0 +1,127 @@
+<div class="modal fade" id="modal-NuevaContabilidad">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Nuevo Gasto</h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="formNuevaContabilidad">
+                <input type="hidden" name="txtOperacionContabilidad" id="txtOperacionContabilidad">
+                <input type="hidden" name="txtrefNominaHidden" id="txtrefNominaHidden">
+                <input type="hidden" name="txtrefSucursalHidden" id="txtrefSucursalHidden">
+
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group has-success">
+                                <label for="cboTipo_contabilidad">Categoria</label>
+                                <select required id="cboTipo_contabilidad" name="cboTipo_contabilidad"
+                                    class="form-control">
+
+                                </select>
+                            </div>
+
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group has-success">
+                                <label for="txtValorContabilidad"> Valor:</label>
+                                <input required type="number" id="txtValorContabilidad" name="txtValorContabilidad"
+                                    placeholder="0.00" class="form-control">
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div id="divcboNomina" class="hide">
+                        <div style="padding: 0; margin: 0; width: 100%;" class="row">
+                            <div class="col-md-12">
+                                <div class="form-group has-success">
+                                    <label for="cboNomina"> Nombre:</label>
+                                    <select required id="cboNomina" name="cboNomina" class="form-control">
+
+                                    </select>
+                                </div>
+
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <div style="padding: 0; margin: 0; width: 100%;" class="row">
+                        <div class="col-md-6">
+                            <div class="form-group has-success">
+                                <label for="cboDeContabilidad">De:</label>
+                                <!--<input required id="txtnameContyabilidad" type="text" maxlength="45"
+                                    name="txtnameContyabilidad" placeholder="" class="form-control" />-->
+                                    <select required name="cboDeContabilidad" id="cboDeContabilidad"  class="form-control">
+                                        
+                                        
+                                    </select>
+                            </div>
+
+                        </div>
+
+                        
+
+                        <div class="col-md-6">
+                            <div class="form-group has-success">
+                                <label for="txtdescripcionContabilidad">Descripcion:</label>
+                                
+                                <textarea name="txtdescripcionContabilidad" id="txtdescripcionContabilidad"class="form-control" cols="30" rows="2" maxlength="250"></textarea>
+                              
+                            </div>
+
+                        </div>
+                    </div>
+
+
+                </div>
+
+                <div class="modal-footer justify-content-between">
+                    <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+
+
+            </form>
+
+
+        </div>
+        <!-- /.modal-content -->
+    </div>
+    <!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<script type="text/javascript">
+    $(function () {
+        
+
+        $('#modal-NuevaContabilidad').on('show.bs.modal', function (e) {
+            ComboTipoContabilidad()
+        })
+       
+        $('#modal-NuevaContabilidad').on('hidden.bs.modal', function (e) {
+           $("form#formNuevaContabilidad").trigger('reset');
+           $( "form#formNuevaContabilidad input:hidden" ).val('')
+           $("#divcboNomina").addClass('hide')
+           $("#cboNomina").attr('required',false)
+        })
+        
+        function ComboTipoContabilidad() {
+            const operacion = $("#txtOperacionContabilidad").val()
+            $.post("./ajax/UsuarioAjax.php", function (r) {
+                if (r === '0') {
+                    location.reload(true);
+                }
+            });
+            $.get("./ajax/RecibirCuentasAjax.php?op=listTipoContabilidadS", { operacion }, function (r) {
+                $("#cboTipo_contabilidad").html(r);
+
+            })
+        }
+
+    });
+</script>

@@ -1,0 +1,472 @@
+<style>
+  .classDatamyt[type=number]::-webkit-inner-spin-button,
+  .classDatamyt[type=number]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .classDatamyt[type=number] {
+    -moz-appearance: textfield;
+  }
+
+
+
+  .btn-pulsado:active {
+    transform: scale(0.98);
+    /* Scaling button to 0.98 to its original size */
+    box-shadow: 3px 2px 22px 1px rgba(0, 0, 0, 0.24);
+    /* Lowering the shadow */
+  }
+</style>
+<script type="text/javascript" src="dist/scripts/partes/cajaRuta.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+<script type="text/javascript" src="dist/scripts/partes/detalleCobro.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+<input type="hidden" name="txtrefSucursalContabiliddHidden" id="txtrefSucursalContabiliddHidden">
+<div class="row">
+  <div class="col-md-6">
+    <?PHP
+    if(isset($_SESSION['userEmpresa']) || in_array('ver caja', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+      <div class="table-responsive">
+        <table class="table m-0">
+          <th>Caja</th>
+          <td id="textpcaja"></td>
+        </table>
+      </div>
+
+      <div id="alertNotGuardarEnContabilidad" class="alert alert-warning alert-dismissible">
+        <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+        <h5><i class="icon fas fa-info"></i> Importante!</h5>
+        Este es el primer guardado, Si se trata de un cobro viejo no se recomienda incluir estos 
+        datos a la contabilidad porque puede alterarla
+        <br/>
+         dar Click
+        <a href=""><i class="fa-solid fa-hand-point-right"></i>¡AQUI!</a> para no incluir 
+
+      </div>
+  
+
+      <?php    } ?>
+    
+
+
+    <p class="lead m-0">Recaudo</p>
+
+    <div class="table-responsive">
+      <table id="tblCuentasRecaudo" class="table">
+
+      </table>
+    </div>
+
+    <p class="lead">Creditos</p>
+
+    <div class="table-responsive">
+      <table id="tblCuentasCreditos" class="table">
+
+      </table>
+    </div>
+
+    <p class="lead">Informacion</p>
+    <div class="table-responsive">
+      <table id="tblCuentasInformacion" class="table">
+
+      </table>
+    </div>
+
+    <p class="lead">Bases</p>
+
+    <div class="table-responsive">
+      <table id="tblCuentasBases" style="margin: 0;" class="table">
+
+      </table>
+    </div>
+
+    <button id="iAaddNewBase" class="btn btn-tool btn-pulsado" style="float: right; font-weight: bold;"><i
+        class="fa-brands fa-google-plus fa-2xl " style="color: #0b7a1c; "></i>ANOTAR BASE</button>
+
+    <p class="lead" style="clear: both;">Gastos</p>
+
+    <div class="table-responsive">
+      <table id="tblCuentasGastos" style="margin: 0;" class="table">
+
+
+
+      </table>
+
+
+
+
+      <!--<i  class="fa fa-fw fa-plus-square-o text-blue pull-right"
+        style="font-size: 2rem; padding-top: 2px;"></i>-->
+    </div>
+
+
+    <button id="iAaddNewGasto" class="btn btn-tool btn-pulsado" style="float: right; font-weight: bold;"><i 
+        class="fa-brands fa-google-plus fa-2xl " style="color: #0636c6; "></i>CREAR GASTOS</button>
+
+
+
+
+    <form role="form" name="fromDataCobro" id="fromDataCobro" autocomplete="off">
+      <input type="hidden" id="thNumAleatorio" name="thNumAleatorio">
+      <input type="hidden" id="txtDiferenciaHidden" name="txtDiferenciaHidden">
+      <p class="lead m-0">Contabilidad</p>
+      <div class="table-responsive">
+        <table id="tblCuentasContabilidad" class="table">
+
+          <tr>
+            <th> <label for="inputBaseInformacion"> Base: </label></th>
+            <!-- La base se anota durante el día (puede ser una o varias); aquí solo se informa. -->
+            <td><input type="number" id="inputBaseInformacion"
+                name="inputBaseInformacion" placeholder="" class="form-control classDatamyt" readonly /></td>
+          </tr>
+          <tr>
+            <th> <label for="inputEfectivoInformacion"> Efectivo: </label></th>
+            <td><input onkeyup="return manejaronKeyEnter(event,this);" type="number" id="inputEfectivoInformacion"
+                name="inputEfectivoInformacion" placeholder="" class="form-control classDatamyt" required /></td>
+          </tr>
+          <tr>
+            <th> <label for="inputMonedaInformacion"> Monedas: </label></th>
+            <td><input onkeyup="return manejaronKeyEnter(event,this);" type="number" id="inputMonedaInformacion"
+                name="inputMonedaInformacion" class="form-control classDatamyt" required />
+            </td>
+          </tr>
+          <!--<tr>
+                  <th> <label for="inputSeguroInformacion"> Seguro: </label></th>
+                  <td>
+                    <input onkeydown="handleBtnTotalivar()" type="number" id="inputSeguroInformacion" name="inputSeguroInformacion"
+                      class="form-control classDatamyt" required />
+                  </td>
+                </tr>-->
+        </table>
+      </div>
+      <p class="text-muted" style="font-size: 28px;">Diferencia: <b id="txtDiferenciaCuentas"></b></p>
+      <!--<p class="text-red hide" id="errorSegurosIncorrectos">Seguros Incorrectos</p>-->
+      <div id="divBtnSubmit" class="col-12">
+        <!--<button class="btn btn-app hide" type="submit" id="btnDataCobro"
+          style="background-color: #061e6d; font-weight: bold; color: black; font-size: x-large;"><i class="fa fa-floppy-o "></i>
+          Bloquear</button>-->
+
+          <button class="btn btn-app hide" type="submit" id="btnDataCobro"
+          style="background-color: #5dc95d; "><i class="fa-solid fa-paper-plane fa-2xl" style="color: red;"></i><br>
+          <span style="color: black; font-weight: bold; font-size:large;">Enviar</span></button>
+        
+
+
+           <a class="btn btn-app" href="#" id="btnTotalizarDataCobro" style="float: right;">
+
+              <i class="fa-solid fa-calculator fa-2xl"></i><br>
+              Totalizar</a>
+
+
+              
+       
+
+         
+
+
+      </div>
+      <div id="btnSavedPermanente">
+             
+      </div>
+    </form>
+
+    <div id="infoModificarDetalleRuta" class="alert alert-info alert-dismissible">
+      <button type="button" class="close" data-dismiss="alert" aria-hidden="true">&times;</button>
+      <h5><i class="icon fas fa-info"></i> Importante!</h5>
+      Estos datos de contabilidad estan a un click de ser archivados, No se deben modificar Si
+      tiene que hacerlo dar Click
+      <a href=""><i class="fa-solid fa-hand-point-right"></i>¡AQUI!</a> para Desbloquear
+    </div>
+
+
+
+  </div>
+  <div class="col-md-6">
+
+
+    <div><!-- // tabla de creditos realizados -->
+      <div class="row">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header ">
+              <h3 class="card-title">Crédito</h3>
+              <div class="card-tools">
+
+                <button type="button" class="btn btn-tool" data-card-widget="maximize">
+                  <i class="fas fa-expand"></i>
+                </button>
+                <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                  <i class="fas fa-minus"></i>
+                </button>
+
+              </div>
+            </div>
+
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table id="tblTargetaNue" class="table table-bordered table-striped">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Costo</th>
+                      <th>Valor credito</th>
+                      <th>Seguro</th>
+                      <th>Inicial</th>
+                      <th>Concepto</th>
+                      <th>Nombre</th>
+                      <th>Cc</th>
+                      <th>Opciones</th>
+                    </tr>
+                    </tr>
+                  </thead>
+                  <tbody id="tdNue">
+                  </tbody>
+
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+
+
+
+    <div><!-- // Todos los recaudos-->
+      <div class="row">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Recaudo</h3>
+              <div class="card-tools">
+
+                <button type="button" class="btn btn-tool" data-card-widget="maximize">
+                  <i class="fas fa-expand"></i>
+                </button>
+                <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                  <i class="fas fa-minus"></i>
+                </button>
+
+              </div>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table id="tblRecaudo" class="table table-bordered table-striped">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Recaudo</th>
+                      <th>Cancelado</th>
+                      <th>Inicial</th>
+                      <th style="min-width: 240px;">nombre</th>
+                      <th>Cc</th>
+                      <th>Valor</th>
+                      <th>Costo</th>
+                    </tr>
+                    </tr>
+                  </thead>
+                  <tbody id="tdCan">
+                  </tbody>
+                  <tfoot id="tfResultado" style="background-color: #03214a; color: #fffefe;">
+
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="row">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Descuentos</h3>
+              <div class="card-tools">
+
+                <button type="button" class="btn btn-tool" data-card-widget="maximize">
+                  <i class="fas fa-expand"></i>
+                </button>
+                <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                  <i class="fas fa-minus"></i>
+                </button>
+
+              </div>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table id="tblDescuento" class="table table-bordered table-striped">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Descuento</th>
+                      <th>Detalle</th>
+                      <th>nombre</th>
+                      <th>Cc</th>
+                      <th>Valor</th>
+                      <th>Costo</th>
+                    </tr>
+                  </thead>
+
+                  <tbody id="tbodyDescuentos">
+                  </tbody>
+
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="row">
+        <div class="col-12">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">Cobro de intereses</h3>
+              <div class="card-tools">
+
+                <button type="button" class="btn btn-tool" data-card-widget="maximize">
+                  <i class="fas fa-expand"></i>
+                </button>
+                <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                  <i class="fas fa-minus"></i>
+                </button>
+
+              </div>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table id="tblRefinanciaciones" class="table table-bordered table-striped">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>intereces valor</th>
+                      <th>nombre</th>
+                      <th>Cc</th>
+                      <th>Valor</th>
+                      <th>Costo</th>
+                    </tr>
+                  </thead>
+
+                  <tbody id="tbodyRefinanciaciones">
+                  </tbody>
+
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="divAdministradores">
+      <div class="row">
+        <div class="col-12">
+          <div class="card bg-warning">
+            <div class="card-header">
+              <h3 class="card-title">DE ADMINISTRADORES</h3>
+              <div class="card-tools">
+
+                <button type="button" class="btn btn-tool" data-card-widget="maximize">
+                  <i class="fas fa-expand"></i>
+                </button>
+                <button type="button" class="btn btn-tool" data-card-widget="collapse">
+                  <i class="fas fa-minus"></i>
+                </button>
+
+              </div>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body p-0">
+              <p class="lead">Otros Gastos</p>
+              <div class="table-responsive">
+                <table id="tblCuentasOtrosGastos" style="margin: 0;" class="table">
+          
+          
+          
+                </table>
+              </div>
+              <p class="lead">Salidas</p>
+              <div class="table-responsive">
+                <table id="tblCuentasSalidas" style="margin: 0;" class="table">
+          
+          
+          
+                </table>
+              </div>
+              <p class="lead">Entradas</p>
+              <div class="table-responsive">
+                <table id="tblCuentasEntradas" style="margin: 0;" class="table">
+          
+          
+          
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+
+  </div>
+</div>
+
+<section id="cajaBolsilloDetalle" class="border-top mt-2 py-2" aria-live="polite">
+  <h5 class="mb-1">Movimientos de la ruta · Caja <strong id="cajaBolsilloTotal">Cargando…</strong></h5>
+  <div id="cajaBolsilloFormula" class="small text-muted"></div>
+  <div id="cajaBolsilloOtros" class="small"></div>
+  <div id="cajaBolsilloMovimientos"></div>
+</section>
+
+<script>
+  $(function () {
+    $("#tblRecaudo").DataTable({
+      "responsive": true, "lengthChange": false, "autoWidth": false,
+      "buttons": ["csv", "excel", "pdf", "print"]
+    }).buttons().container().appendTo('#tblRecaudo_wrapper .col-md-6:eq(0)');
+  });
+</script>
+<!-- La base se anota durante el día, una o varias veces, igual que en la APK. -->
+<div class="modal fade" id="modal-NuevaBase">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 class="modal-title" id="tituloModalBase">Anotar base</h4>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form id="formNuevaBase">
+        <input type="hidden" name="txtrefBaseHidden" id="txtrefBaseHidden">
+        <input type="hidden" name="txtrefSucursalHidden" id="txtrefSucursalBaseHidden">
+        <div class="modal-body">
+          <div class="form-group has-success">
+            <label for="txtValorBase">Valor que recibió:</label>
+            <input required type="number" min="1" step="any" id="txtValorBase" name="txtValorBase"
+              placeholder="0.00" class="form-control">
+          </div>
+          <div class="form-group has-success">
+            <label for="txtdescripcionBase">De dónde viene (opcional):</label>
+            <textarea name="txtdescripcionBase" id="txtdescripcionBase" class="form-control" cols="30" rows="2"
+              maxlength="250"></textarea>
+          </div>
+          <p class="text-muted m-0">Puede anotar varias bases en el día; se suman todas.</p>
+        </div>
+        <div class="modal-footer justify-content-between">
+          <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>

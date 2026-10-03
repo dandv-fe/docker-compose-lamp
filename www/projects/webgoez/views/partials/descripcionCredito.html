@@ -1,0 +1,493 @@
+<div class="card-footer p-0">
+  <div class="row pt-1">
+    <div class="col-12" id="accordion">
+      <div class="card card-success card-outline m-0">
+        <a id="collapseNineDescripcion" class="d-block w-100" data-toggle="collapse" href="#collapseNine">
+          <div class="card-header">
+            <h4 id="txtInformacion-info" class="card-title w-100">
+              DESCRIPCION
+            </h4>
+          </div>
+        </a>
+        <div id="collapseNine" class="collapse" data-parent="#accordion">
+          <div class="card-body p-0">
+
+            <div id="loadingDescripcion" class="overlay"><i class="fas fa-3x fa-sync-alt fa-spin"></i>
+              <div class="text-bold pt-2">Loading...</div>
+            </div>
+            <div id="cuerpoVisibleDescripcion">
+              <div class="row">
+                <div class="col-12 table-responsive">
+                  <div class="card">
+                    <!-- /.card-header -->
+                    <div class="card-body table-responsive p-0">
+                      <table id="tblDescripcionPanel" class="table table-hover text-nowrap">
+                        <thead>
+                          <tr>
+                            <th>#</th>
+                            <th>Abono</th>
+                            <th>resta</th>
+                            <th>Fecha</th>
+                            <th>Descripcion</th>
+                            <th></th>
+
+                          </tr>
+                        </thead>
+                        <tbody>
+
+
+                        </tbody>
+                      </table>
+                    </div>
+                    <!-- /.card-body -->
+                  </div>
+                </div>
+                <!-- /.col -->
+
+              </div>
+
+
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+
+  <div id="alertaDelCliente" class="hide">
+    <small id="smallBottonEliminarAlert"></small>
+    <h5><i id="iconDeAlertaDelCliente" class="icon fas fa-check"></i> <b id="tituloDeAlertaDelCliente">Alert!</b>
+    </h5>
+    <p id="txtDeAlertaDelCliente" class="m-0">Danger alert preview.</p>
+
+  </div>
+
+  <div class="row">
+    <div class="col-12">
+
+
+      <!--<div class="callout callout-info">
+                <h5><i class="fas fa-info"></i> Note:</h5>
+                This page has been enhanced for printing. Click the print button at the bottom of the invoice to test.
+            </div>-->
+
+
+      <!-- Main content -->
+      <div class="invoice ">
+        <!-- title row -->
+        <div class="row">
+          <div class="col-12">
+            <h4 class="mb-1">
+              <i class="fas fa-globe"></i> <b id="txtConseptoCredito-info"></b>
+              <small id="txtfecha-at-credito-info" class=""> </small>
+              <small id="txtfecha-at-credito-info2" class="float-right"> </small>
+            </h4>
+          </div>
+          <p id="txtDescripcionCredito-info" class="pl-3 mb-0"></p>
+        </div>
+        <!-- info row -->
+        <div class="row invoice-info">
+          <div class=" col-md-6  invoice-col">
+            <div class="table-responsive">
+              <table ondblclick="<?PHP
+                            if(isset($_SESSION['userEmpresa']) || in_array('editar credito', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+                                editCredito()
+                             <?php    } ?>" class="table m-0" style="cursor: pointer;">
+                <tr>
+                  <th style="width:50%" class="py-0">Serie:</th>
+                  <td class="py-0"># <b id="txtSerieCredito-info"></b></td>
+                </tr>
+                <tr>
+                  <th class="py-0">Obligación</th>
+                  <td class="py-0"># </small><b id="txtObligacioncredito-info"></b></td>
+                </tr>
+                <tr>
+                  <th class="py-0">Modo:</th>
+                  <td class="py-0"><b id="txtModoCredito-info"></b></td>
+                </tr>
+                <tr>
+                  <th class="py-0">Plazo:</th>
+                  <td class="py-0"> <b id="txtPlazo-info"></b></td>
+                </tr>
+              </table>
+            </div>
+
+
+          </div>
+          <!-- /.col -->
+          <div class=" col-md-6 invoice-col">
+            <div class="table-responsive">
+              <table class="table m-0">
+                <tr>
+                  <th class="py-0">Cuota</th>
+                  <td class="py-0"><b id="txtValorCuota-info"></b></td>
+                </tr>
+                <tr>
+                  <th class="py-0" style="width:50%">Pagas:</th>
+                  <td class="py-0"><b id="txtCuotasPagas-info"></b> </td>
+                </tr>
+
+                <!--<tr>
+                                    <th class="py-0">Acuerdo:</th>
+                                    <td class="py-0"> <b id="txtAcuerdo-info"></b></td>
+                                </tr>-->
+                <tr style="cursor: pointer;" data-toggle="modal" data-target="#modal-CambioEstado">
+                  <th class="py-0">Estado:</th>
+                  <td class="py-0"> <b id="txtEstado-info"></b></td>
+                </tr>
+
+                <?php //if($allSucursal[$indexAllSucursal][11]=='boleta') { ?>
+                <tr>
+                  <th class="py-0" style="width:50%">Número boleta:</th>
+                  <td class="py-0"><b id="txtNumBoleta-info"></b> </td>
+                </tr>
+                <?php //} ?>
+
+
+              </table>
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+      <!-- /.invoice -->
+    </div><!-- /.col -->
+  </div><!-- /.row -->
+
+
+
+</div>
+<!-- /.card-footer -->
+<script>
+  var tabla = $("#tblDescripcionPanel").DataTable({ 'sort': false })
+  $(function () {
+
+    $("#collapseNine").on('hide.bs.collapse', () => {
+      tabla.clear().draw();
+    })
+    $("#collapseNine").on('shown.bs.collapse', () => {
+      $("#loadingDescripcion").show()
+      $("#cuerpoVisibleDescripcion").hide()
+      listarDescripcionPanel()
+
+
+    });
+    $('body').on('focus', '.inputForEdit', function (e) {
+      e.target.previousElementSibling.classList.add('top')
+      e.target.previousElementSibling.classList.add('badge-success')
+      e.target.previousElementSibling.classList.add('focus')
+      e.target.parentNode.classList.add('focus')
+    });
+
+    $('body').on('blur', '.inputForEdit', function (e) {
+      e.target.value = e.target.value.trim()
+      if (e.target.value.trim().length === 0) {
+        e.target.previousElementSibling.classList.remove('top')
+        e.target.previousElementSibling.classList.remove('badge-success')
+      }
+
+      e.target.previousElementSibling.classList.remove('focus')
+      e.target.parentNode.classList.remove('focus')
+    });
+  });
+
+  function editCredito() {
+    const id = parseInt(sessionStorage.getItem('index'))
+
+    //console.log(ArrayTarjetas[id]);
+
+
+    Swal.fire({
+      title: "Editar Crédito?",
+      icon: "info",
+      html: `<br>
+                    <label class="labelForNuevoCredito top" for="txtFechaCredito_e">
+                        <span class="spanForNuevoCredito badge-success top">Fecha</span>
+                        <input value="${ArrayTarjetas[id].fecha_at}" type="datetime-local" id="txtFechaCredito_e"
+                            name="txtFechaCredito_e" class="form-control inputForNuevoCredito inputForEdit" />
+                    </label>
+                    <br>
+                    <label class="labelForNuevoCredito top" for="txtNumeroCredito_e">
+                        <span class="spanForNuevoCredito badge-success top">num Obligacion</span>
+                        <input value="${ArrayTarjetas[id].numero}" type="text" id="txtNumeroCredito_e"
+                            name="txtNumeroCredito_e" class="form-control inputForNuevoCredito inputForEdit" maxlength="12"
+                                />
+                    </label>
+                    <br>
+                    <label class="labelForNuevoCredito top" for="txtModoCredito_e">
+                        <span class="spanForNuevoCredito badge-success top">Modo</span>
+                        <select name="txtModoCredito_e" id="txtModoCredito_e" class="form-control inputForNuevoCredito inputForEdit">
+                                <option value="Diario" ${ArrayTarjetas[id].modo === 'Diario' ? 'selected' : ''}>Diario</option>
+                                <option value="Semanal" ${ArrayTarjetas[id].modo === 'Semanal' ? 'selected' : ''}>Semanal</option>
+                                <option value="Quincenal" ${ArrayTarjetas[id].modo === 'Quincenal' ? 'selected' : ''}>Quincenal</option>
+                                <option value="Mensual" ${ArrayTarjetas[id].modo === 'Mensual' ? 'selected' : ''}>Mensual</option>
+                               </select>
+                        
+                    </label>
+                    <br>
+                    <label class="labelForNuevoCredito top" for="txtPlazoCredito_e">
+                        <span class="spanForNuevoCredito badge-success top">Plazo</span>
+                        <input value="${ArrayTarjetas[id].plazo}" type="number" id="txtPlazoCredito_e"
+                            name="txtPlazoCredito_e" class="form-control inputForNuevoCredito inputForEdit" maxlength="12"
+                                />
+                    </label>
+                    <p>Cuota:</p>
+                `,
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Si, editar ahora!",
+      preConfirm: (login) => {
+        const fecha_ = document.getElementById("txtFechaCredito_e").value
+        const num_obligacion_ = document.getElementById("txtNumeroCredito_e").value
+        const modo_ = document.getElementById("txtModoCredito_e").value
+        const plazo_ = document.getElementById("txtPlazoCredito_e").value
+
+        const err = []
+        if (fecha_ === '' || num_obligacion_ === '' || modo_ === '' || plazo_ === '') err.push('Todos los campos son requeridos!')
+        if (err.length > 0) {
+          err.map(e => {
+            return Swal.showValidationMessage(e);
+          })
+        }
+        return [
+          fecha_,
+          num_obligacion_,
+          modo_,
+          plazo_
+        ];
+
+      },
+    }).then((result) => {
+      if (result.isConfirmed) {
+        //console.log(result);
+        $.post("./ajax/UsuarioAjax.php", function (r) {
+          if (r === '0') {
+            location.reload(true);
+          }
+        });
+
+        $.post("./ajax/CarteraAjax.php?op=SaveOrUpdateCredito", {
+          textRefTarjeta: ArrayTarjetas[id].refTarjeta,
+          fecha_at: result.value[0],
+          num_obligacion: result.value[1],
+          modo: result.value[2],
+          plazo: result.value[3]
+        }, function (r) {
+          if (r.indexOf("ERROR:") !== -1) {
+            Toast.fire({
+              icon: 'error',
+              title: r
+            })
+          } else {
+            Toast.fire({
+              icon: 'success',
+              title: r
+            })
+
+            listarRuta();
+          }
+
+        });
+
+      }
+    });
+  }
+
+  function listarDescripcionPanel() {
+
+    $.post("./ajax/UsuarioAjax.php", function (r) {
+      if (r === '0') {
+        location.reload(true);
+      }
+    });
+    let refTarjeta = $("#txtrefTarjetaHidden").val()
+
+
+    $.getJSON("./ajax/CarteraAjax.php?op=listarDescripcion", { refTarjeta },
+      function (data, textStatus, jqXHR) {
+        $("#loadingDescripcion").hide()
+        $("#cuerpoVisibleDescripcion").show()
+        let pagado = 0
+        const descriptions = data.map(a => {
+          pagado += parseFloat(a.abono)
+          //console.log(pagado);
+          a.resta = parseFloat(ArrayTarjetas.find(a => a.refTarjeta === refTarjeta).valor) + pagado
+          return a
+        })
+        descriptions.sort(function (a, b) {
+          if (a.fecha_at > b.fecha_at) {
+            return -1;
+          }
+          if (a.fecha_at < b.fecha_at) {
+            return 1;
+          }
+          // a must be equal to b
+          return 0;
+        });
+        tabla.clear().draw();
+        $.each(descriptions, function (key, value) {
+          // console.log(value);
+          let evebitarabono = ''
+          if (value.descripcion === 'Abono' || value.descripcio === 'Cancelado') {
+            evebitarabono = 'onclick="eliminarAbono(\'' + value.refDescripcion + '\')"'
+          }
+          tabla.row
+            .add([
+              parseInt(key) + 1,
+              value.abono,
+              value.resta.toFixed(2),
+              value.fecha_at,
+              value.descripcion,
+              value.estado === 'created' ? '<button ' + evebitarabono + ' class="btn btn-default"><i class="fa-solid fa-delete-left fa-2xl" style="color: #d60a1f;"></i></button>&nbsp;' +
+                '<button onclick="editarAbono(\'' + value.refDescripcion + '\',' + value.abono + ',' + value.resta.toFixed(2) + ')" class="btn btn-default"><i class="fa-solid fa-pen-to-square fa-2xl" style="color: #ee932b;"></i></button>' : value.estado
+            ])
+            .draw(false);
+        });
+
+      }
+    );
+  }
+
+  function eliminarAbono(params) {
+
+    Swal.fire({
+      title: "Eliminar Abono?",
+      text: "Se eliminara permanentemente este abono del cliente! \n Para eliminar escriba si o eliminar",
+      icon: "warning",
+      input: "text",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Si, eliminar ahora!",
+      preConfirm: (login) => {
+
+        if (login.toLowerCase() == 'si' || login.toLowerCase() == 'eliminar' || login.toLowerCase() == 'yes' || login.toLowerCase() == '1') {
+          return;
+        }
+        Swal.showValidationMessage(`
+                        Imposible eliminar : \r Tu desicion fue \r  ${login}
+                    `);
+
+      },
+    }).then((result) => {
+      if (result.isConfirmed) {
+        $.post("./ajax/UsuarioAjax.php", function (r) {
+          if (r === '0') {
+            location.reload(true);
+          }
+        });
+
+        $.post("./ajax/CarteraAjax.php?op=eliminarAbono", { refDescripcion: params }, function (r) {
+          if (r.indexOf("ERROR:") !== -1) {
+            Toast.fire({
+              icon: 'error',
+              title: r
+            })
+          } else {
+            Toast.fire({
+              icon: 'success',
+              title: r
+            })
+            listarRuta();
+          }
+
+        });
+
+      }
+    });
+  }
+  function editarAbono(refDescripcion, abono, resta) {
+
+    Swal.fire({
+      title: "Editar Abono?",
+      icon: "info",
+      html: `<br>
+                    <label class="labelForNuevoCredito top" for="txtValorAbono">
+                        <span class="spanForNuevoCredito badge-success top">Abono</span>
+                        <input value="${abono * -1}" type="number" id="txtValorAbono"
+                            name="txtValorAbono" class="form-control inputForNuevoCredito inputForEdit" maxlength="12"
+                                />
+                    </label>
+                    <br>
+                    <label class="labelForNuevoCredito top" for="txtValorResta">
+                        <span class="spanForNuevoCredito badge-success top">Resta</span>
+                        <input value="${resta}" type="number" id="txtValorResta"
+                            name="txtValorResta" class="form-control inputForNuevoCredito inputForEdit" maxlength="12"
+                                />
+                    </label>
+                `,
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Si, editar ahora!",
+      preConfirm: (login) => {
+        const abn = document.getElementById("txtValorAbono").value
+        const conf = document.getElementById("txtValorResta").value
+        const restaOriginal = resta - abono;
+        const nuevaResta = restaOriginal - parseFloat(abn)
+        const err = []
+        if (abn === '' || conf === '') err.push('Todos los campos son requeridos!')
+        if (parseFloat(abn) == abono * -1) err.push('Nada para actualizar!')
+        if (restaOriginal - parseFloat(abn) != parseFloat(conf) || parseFloat(conf) < 0 || parseFloat(conf) > restaOriginal) err.push('Error confirmacion de lo que resta')
+        if (err.length > 0) {
+          err.map(e => {
+            return Swal.showValidationMessage(e);
+          })
+        }
+        return [
+          abn,
+          conf
+        ];
+
+      },
+    }).then((result) => {
+      if (result.isConfirmed) {
+
+        $.post("./ajax/UsuarioAjax.php", function (r) {
+          if (r === '0') {
+            location.reload(true);
+          }
+        });
+
+        $.post("./ajax/CarteraAjax.php?op=SaveOrUpdateAbono", {
+          txtrefTarjetaHidden: null,
+          textRefDexcripcionHidden: refDescripcion,
+          txtCuotaHidden: result.value[0],
+          'txtconfirma-credito': result.value[1]
+        }, function (r) {
+          if (r.indexOf("ERROR:") !== -1) {
+            Toast.fire({
+              icon: 'error',
+              title: r
+            })
+          } else {
+            Toast.fire({
+              icon: 'success',
+              title: r
+            })
+
+            let abono2 = parseFloat(result.value[0]) * -1
+            let id = parseInt(sessionStorage.getItem('index'))
+            let resta2 = parseFloat(ArrayTarjetas[id].resta - abono)
+            ArrayTarjetas[id].recaudo = parseFloat(ArrayTarjetas[id].recaudo) + abono
+            ArrayTarjetas[id].recaudo = '' + abono2
+            resta2 += abono2
+            ArrayTarjetas[id].resta = '' + resta2
+            cargarDatosEnPanel()
+            enviarSumarRecaudoCreditos()
+          }
+
+        });
+
+      }
+    });
+  }
+
+</script>

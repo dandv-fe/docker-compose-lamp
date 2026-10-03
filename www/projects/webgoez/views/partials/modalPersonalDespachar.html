@@ -1,0 +1,67 @@
+<div class="modal fade" id="modal-personalDespachar">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title">Empleados</h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="formPersonalDespachar">
+                <input type="hidden" name="txtRefsucursalDespacharHidden" id="txtRefsucursalDespacharHidden">
+                <input type="hidden" name="txtRefDetalleRutaDespacharHidden" id="txtRefDetalleRutaDespacharHidden">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="form-group">
+                                <select id="cboEmpleadosDespachar" name="cboEmpleadosDespachar" class="duallistbox" multiple="multiple">
+                                    
+                                </select>
+                            </div>
+                            <!-- /.form-group -->
+                        </div>
+                        <!-- /.col -->
+                    </div>
+                </div>
+
+                <div class="modal-footer justify-content-between">
+                    <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
+                    <button type="submit" class="btn btn-primary">Despachar</button>
+                </div>
+
+
+            </form>
+
+
+        </div>
+        <!-- /.modal-content -->
+    </div>
+    <!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<script type="text/javascript">
+    //Bootstrap Duallistbox
+    $('.duallistbox').bootstrapDualListbox({
+  nonSelectedListLabel: 'NO DESPACHADOS',
+  selectedListLabel: 'SI DESPACHADOS',
+  preserveSelectionOnMove: 'moved',
+  moveOnSelect: false,
+  //nonSelectedFilter: ''
+})
+    $(function () {
+       /* $("#modal-personalDespachar").on('show.bs.modal', function (e) {
+          
+        })*/
+
+        function ComboEmpleadosDespachar() {
+            $('.duallistbox').bootstrapDualListbox('refresh', true);
+            $.get("./ajax/DespacharAjax.php?op=listEmpleados", function (r) {
+                console.log(r);
+                $("#cboEmpleadosDespachar").html(r);
+                $('.duallistbox').bootstrapDualListbox('refresh');
+            })
+        }
+
+    });
+</script>

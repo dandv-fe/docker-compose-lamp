@@ -1,0 +1,222 @@
+<!-- DataTables -->
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
+
+<!-- SweetAlert2 -->
+
+<!-- SweetAlert2 -->
+
+
+<script type="text/javascript" src="dist/scripts/Empresa.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+  <!-- Content Header (Page header) -->
+  <div class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1 class="m-0">Empresa</h1>
+        </div><!-- /.col -->
+      </div><!-- /.row -->
+    </div><!-- /.container-fluid -->
+  </div>
+  <!-- /.content-header -->
+  <!-- Main content -->
+  <section class="content">
+    <div class="container-fluid">
+      <div class="card card-default">
+
+
+        <div id="VerForm">
+          <form role="form" name="frmEmpresa" id="frmEmpresa" enctype="multipart/form-data">
+            <input id="txtidPublica" type="hidden" class="form-control" maxlength="32" name="txtidPublica" />
+            <div class="card-header">
+              <h3 class="card-title">Datos del cliente</h3>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body">
+
+              <?php include "views/partials/persona.html"; ?>
+
+              <div class="dropdown-divider"></div>
+              <div class="card-header">
+                <h3 class="card-title">Datos de usuario</h3>
+              </div>
+              <!-- /.row -->
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="form-group">
+                    <input id="txtRefUsuario" type="hidden" name="txtRefUsuario" />
+
+                    <label for="txt_Login">Usuario</label>
+                    <input value="" id="txt_Login" type="text" class="form-control" required="" maxlength="50"
+                      name="txt_Login" autofocus="" />
+
+
+                  </div>
+                </div>
+                <!-- /.col -->
+                <div class="col-md-6">
+
+                  <!-- /.form-group -->
+                  <div class="form-group">
+                    <label for="txt_Password">Contraseña</label>
+                    <input value="" id="txt_Password" type="text" class="form-control" maxlength="32"
+                      name="txt_Password" autofocus="" />
+                     
+                  </div>
+                  <!-- /.form-group -->
+                </div>
+                <!-- /.col -->
+              </div>
+
+
+
+              <div class="dropdown-divider"></div>
+
+              <div class="card-header">
+                <h3 class="card-title">Datos de la Empresa</h3>
+              </div>
+              <div class="row">
+
+                <div class="col-md-4">
+                  <div class="form-group">
+                    <input id="txtRefEmpresa" type="hidden" maxlength="100" name="txtRefEmpresa" />
+                    <label for="txtEmpresa">Nombre Empresa:</label>
+                    <input value="" id="txtEmpresa" type="text" maxlength="100" class="form-control" name="txtEmpresa"
+                      required="" placeholder="Ingrese el nombre de la empresa" autofocus="" />
+                  </div>
+                  <!-- /.form-group -->
+                </div>
+                <div class="col-md-4">
+                  <div class="form-group">
+                    <label for="txt_Maxsucursal">Maximo Rutas:</label>
+                    <input value="" id="txt_Maxsucursal" type="text" class="form-control" name="txt_Maxsucursal" />
+                    
+                  </div>
+                  <!-- /.form-group -->
+                </div>
+                <div class="col-md-4">
+                  <div class="form-group">
+                    <label for="txt_estado">Estado:</label>
+                    <select name="txt_estado" id="txt_estado" class="form-control" required>
+                      <option value="">--selecione--</option>
+                      <option value="activa" selected>activa</option>
+                      <option value="inativa">inativa</option>
+                      <option value="Otro">pago atrazado</option>
+                    </select>
+                  </div>
+                  <!-- /.form-group -->
+                </div>
+                <!-- /.col -->
+
+
+              </div>
+
+              <!-- /.row -->
+            </div>
+            <!-- /.card-body -->
+            <div class="card-footer">
+              <div class="row">
+                <div class="col-xs-8">
+                  <p>Opciones</p>
+                  <button class="btn btn-success" type="submit"><i class="fa fa-floppy-o"></i> Registrar</button>
+                  <a href="empresa.php" class="btn btn-primary"><i class="fa fa-remove"></i>
+                    Cancelar</a>
+                  <hr>
+                  <span class="lead text-primary"></span>
+                </div>
+
+              </div>
+              <span class="lead text-primary"></span>
+            </div>
+
+          </form>
+        </div>
+
+        <button id="btnNuevo" type="button" class="btn btn-primary float-left" style="width: 200px;margin: 5px;"
+          data-toggle="modal" data-target="#modal-xl">
+          <i class="fas fa-download"></i> Crear Cliente Empresa
+        </button>
+
+        <div id="VerListado">
+          <div class="row">
+            <div class="col-12">
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">Listado</h3>
+                </div>
+                <!-- /.card-header -->
+                <div class="card-body">
+                  <table id="tblEmpresa" class="table table-bordered table-striped">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Id</th>
+                        <th>Empresa</th>
+                        <th>SuperAdmin</th>
+                        <th>Actividad</th>
+                        <th>Empleados</th>
+                        <th>Clientes</th>
+                        <th>Opciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <th>#</th>
+                        <th>Id</th>
+                        <th>Empresa</th>
+                        <th>SuperAdmin</th>
+                        <th>Carteras(sucuesales)</th>
+                        <th>Empleados</th>
+                        <th>Clientes</th>
+                        <th>Opciones</th>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <!-- /.card -->
+    </div>
+  </section>
+  <?php  include "views/partials/modalSearchPersona.html"; ?>
+</div>
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+
+
+
+
+<script type="text/javascript">
+  // $("#li-manteniniento").addClass('menu-open')
+
+  $(".lia-clientes-o").addClass('active')
+  $("#spanEmpresas").removeClass('hide');
+  $("#tblEmpresa").DataTable({
+    "responsive": true, "lengthChange": false, "autoWidth": false,
+    "buttons": ["copy", "csv", "excel", "pdf", "print"]
+  }).buttons().container().appendTo('#tblEmpresa_wrapper .col-md-6:eq(0)');
+
+
+
+
+</script>

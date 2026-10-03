@@ -1,0 +1,271 @@
+<!-- SweetAlert2 -->
+
+<!-- DataTables -->
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
+
+<script type="text/javascript" src="dist/scripts/Sucursal.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+  <!-- Content Header (Page header) -->
+  <div class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1 class="m-0">carteras</h1>
+        </div><!-- /.col -->
+      </div><!-- /.row -->
+    </div><!-- /.container-fluid -->
+  </div>
+  <!-- /.content-header -->
+  <!-- Main content -->
+  <section class="content">
+    <div class="container-fluid">
+      <div class="card card-default">
+
+
+        <div id="VerForm">
+          <form role="form" name="frmSucursal" id="frmSucursal" enctype="multipart/form-data">
+            <div class="card-header">
+              <h3 class="card-title">Estos datos serán utilizados para el reporte de los comprobantes.
+              </h3>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body">
+              <div class="row justify-content-center">
+                <div class="col-md-8">
+                  <div class="form-group">
+                    <input id="txtIdSucursal" type="hidden" maxlength="50" name="txtIdSucursal" />
+                    <label for="txtRazon_Social" class="font-weight-bold">Razón Social (CODIGO):</label>
+                    <input id="txtRazon_Social" type="text" maxlength="7" class="form-control form-control-lg"
+                      name="txtRazon_Social" required="" placeholder="(CODIGO) Ingrese la razón Social de la Sucursal"
+                      autofocus="" />
+                  </div>
+                  <!-- /.form-group -->
+                </div>
+                <!-- /.col -->
+              </div>
+              <!-- /.row -->
+              <div class="row">
+                <div class="col-md-6">
+                  <div class="form-group">
+                    <label for="txtTelefono" class="font-weight-bold">Teléfono:</label>
+                    <input id="txtTelefono" type="text" maxlength="10" name="txtTelefono" required=""
+                      class="form-control form-control-lg" placeholder="Ingrese el teléfono" autofocus="" />
+                  </div>
+                  <!-- /.form-group -->
+                </div>
+                <!-- /.col -->
+                <div class="col-md-6">
+                  <div class="form-group">
+                    <label for="cboRepresentante" class="font-weight-bold">Representante:</label>
+                    <select required class="form-control form-control-lg" id="cboRepresentante" name="cboRepresentante">
+                    </select>
+                  </div>
+                  <!-- /.form-group -->
+                </div>
+                <!-- /.col -->
+                <div class="col-md-6">
+                  <div class="form-group">
+                    <label for="cboOficina" class="font-weight-bold">Oficina:</label>
+                    <select required class="form-control form-control-lg" id="cboOficina" name="cboOficina">
+                    </select>
+                  </div>
+                  <!-- /.form-group -->
+                </div>
+                <!-- /.col -->
+              </div>
+              <!-- /.row -->
+
+              <div class="row">
+                <div class="col-md-4">
+                  <div class="form-group">
+                    <label for="txtEstado" class="font-weight-bold">Estado:</label>
+                    <select required class="form-control form-control-lg" id="txtEstado" name="txtEstado">
+                      <option value="Disponible">Disponible</option>
+                      <option value="inactiva">Inactiva</option>
+                    </select>
+                  </div>
+                  <!-- /.form-group -->
+                </div>
+                <!-- /.col -->
+                <div class="col-md-4">
+                  <div class="form-group">
+                    <label for="txtTipo" class="font-weight-bold">Tipo:</label>
+                    <select required class="form-control form-control-lg" id="txtTipo" name="txtTipo">
+                      <option>Ruta</option>
+                      <option>PuntoVenta</option>
+                    </select>
+                  </div>
+                </div>
+                <!-- /.col -->
+                <div class="col-md-4">
+                  <div class="form-group">
+                    <label for="cboAdicional" class="font-weight-bold">Descuento adicional a préstamos:</label>
+                    <select required class="form-control form-control-lg" id="cboAdicional" name="cboAdicional">
+                      <option value="">--Seleccione--</option>
+                      <option value="seguro">Seguro</option>
+                      <option value="boleta">Boleta</option>
+                      <option value="ninguno">Ninguno</option>
+                    </select>
+                  </div>
+                </div>
+                <!-- /.col -->
+              </div>
+              <!-- /.row -->
+
+
+            </div>
+            <!-- /.card-body -->
+            <div class="card-footer text-center">
+              <button class="btn btn-success btn-lg mr-3" type="submit">
+                <i class="fa fa-save"></i> Registrar
+              </button>
+              <a href="sucursal.php" class="btn btn-secondary btn-lg">
+                <i class="fa fa-times"></i> Cancelar
+              </a>
+              <hr class="mt-3">
+              <span class="lead text-primary"></span>
+            </div>
+
+          </form>
+        </div>
+
+
+        <button id="btnNuevoSucursal" type="button" class="btn btn-primary float-left"
+          style="width: 200px;margin: 5px;">
+          <i class="fas fa-download"></i> Crear Cartera
+        </button>
+
+        <div id="VerListado">
+          <div class="row">
+            <div class="col-12">
+              <div class="card">
+                <div class="card-header">
+                  <h3 class="card-title">Listado</h3>
+                </div>
+                <!-- /.card-header -->
+                <div class="card-body">
+                  <table id="tblSucursal" class="table table-bordered table-striped">
+                    <thead>
+                      <tr>
+                        <th>#</th>
+                        <th>Código</th>
+                        <th>Oficina</th>
+                        <th>Representante</th>
+                        <th>Opciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                    <tfoot>
+                      <tr>
+                        <th>#</th>
+                        <th>Codigo</th>
+                        <th>Oficina</th>
+                        <th>Representante</th>
+                        <th>Opciones</th>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div id="VerConfiguracion">
+          <div class="card card-success">
+            <div class="card-header">
+              <h3 class="card-title">Configurar formularios &amp; Sucursal</h3>
+            </div>
+            <style>
+              .iCheckContenedor {
+                border: 1px solid #000;
+              }
+
+              .iCheckContenedor>legend {
+                width: auto;
+              }
+            </style>
+            <div class="card-body">
+
+              <fieldset class="iCheckContenedor">
+                <legend>Tarjetas</legend>
+                <!-- Minimal style -->
+                <div class="row">
+                  <div class="col-sm-6">
+                    <!-- checkbox -->
+                    <div class="form-group clearfix">
+                      <div class="icheck-primary d-inline">
+                        <input type="checkbox" id="checkboxPrimary3">
+                        <label for="checkboxPrimary3">
+                          Primary checkbox
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div class="col-sm-6">
+                    <!-- checkbox -->
+                    <div class="form-group clearfix">
+                      <div class="icheck-primary d-inline">
+                        <input type="checkbox" id="checkboxPrimary1">
+                        <label for="checkboxPrimary1">
+                          Primary checkbox
+                        </label>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              </fieldset>
+
+            </div>
+            <!-- /.card-body -->
+            <div class="card-footer">
+              Many more skins available. <a href="https://bantikyan.github.io/icheck-bootstrap/">Documentation</a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+      <!-- /.card -->
+    </div>
+  </section>
+</div>
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+
+<!-- SweetAlert2 -->
+
+
+<script type="text/javascript">
+  $("#li-manteniniento").addClass('menu-open')
+  $(".lia-mantenimiento").addClass('active')
+  $(".lia-sucursal").addClass('active')
+
+
+  $("#tblSucursal")
+    .DataTable({
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      displayLength: 200,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#tblSucursal_wrapper .col-md-6:eq(0)");
+</script>

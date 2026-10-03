@@ -1,0 +1,197 @@
+<!-- DataTables -->
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
+
+
+<!-- Tempusdominus Bootstrap 4 -->
+<link rel="stylesheet" href="plugins/tempusdominus-bootstrap-4/css/tempusdominus-bootstrap-4.min.css">
+
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.colVis.min.js"></script>
+
+
+<script src="plugins/moment/moment.min.js"></script>
+<script src="plugins/moment/locales.js"></script>
+
+<!-- Tempusdominus Bootstrap 4 -->
+<script src="plugins/tempusdominus-bootstrap-4/js/tempusdominus-bootstrap-4.min.js"></script>
+
+
+
+<script type="text/javascript"
+  src="dist/scripts/Rendimientos.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+  <!-- Content Header (Page header) -->
+  <div class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1 class="m-0">Rendimientos</h1>
+        </div><!-- /.col -->
+        <div class="col-sm-6">
+          <ol class="breadcrumb float-sm-right">
+
+          </ol>
+        </div><!-- /.col -->
+      </div><!-- /.row -->
+    </div><!-- /.container-fluid -->
+  </div>
+  <!-- /.content-header -->
+
+  <!-- Main content -->
+  <section class="content">
+    <div class="container-fluid">
+      <!-- Info boxes -->
+      <div class="row">
+        <div class="col-12 col-sm-6 col-md-3">
+          <div class="info-box">
+            <span class="info-box-icon bg-info elevation-1"><i class="fas fa-file-invoice-dollar"></i></span>
+
+            <div class="info-box-content">
+              <span class="info-box-text">Gastos</span>
+              <span id="resumenGastos" class="info-box-number">0.00</span>
+            </div>
+            <!-- /.info-box-content -->
+          </div>
+          <!-- /.info-box -->
+        </div>
+        <!-- /.col -->
+        <div class="col-12 col-sm-6 col-md-3">
+          <div class="info-box mb-3">
+            <span class="info-box-icon bg-danger elevation-1"><i class="fas fa-layer-group"></i></span>
+
+            <div class="info-box-content">
+              <span class="info-box-text">Suma</span>
+              <span id="resumenSuma" class="info-box-number">0.00</span>
+            </div>
+            <!-- /.info-box-content -->
+          </div>
+          <!-- /.info-box -->
+        </div>
+        <!-- /.col -->
+
+        <!-- fix for small devices only -->
+        <div class="clearfix hidden-md-up"></div>
+
+        <div class="col-12 col-sm-6 col-md-3">
+          <div class="info-box mb-3">
+            <span class="info-box-icon bg-success elevation-1"><i class="fas fa-wallet"></i></span>
+
+            <div class="info-box-content">
+              <span class="info-box-text">Saldo dis</span>
+              <span id="resumenSaldo" class="info-box-number">0.00</span>
+            </div>
+            <!-- /.info-box-content -->
+          </div>
+          <!-- /.info-box -->
+        </div>
+        <!-- /.col -->
+        <div class="col-12 col-sm-6 col-md-3">
+          <div class="info-box mb-3">
+            <span class="info-box-icon bg-warning elevation-1"><i class="fas fa-chart-line"></i></span>
+
+            <div class="info-box-content">
+              <span class="info-box-text">Crece</span>
+              <span id="resumenCrece" class="info-box-number">0.00</span>
+            </div>
+            <!-- /.info-box-content -->
+          </div>
+          <!-- /.info-box -->
+        </div>
+        <!-- /.col -->
+      </div>
+      <!-- /.row -->
+
+      <div class="card">
+        <div class="card-header">
+          <div class="d-flex flex-wrap align-items-center justify-content-between">
+            <h3 class="card-title mb-0">Rendimientos del Mes Actual: <b id="txtMesActual">-</b></h3>
+            <div class="d-flex align-items-end mt-2 mt-md-0">
+              <div class="mr-2">
+                <label class="mb-1">Mes</label>
+                <input id="txtPeriodoMes" type="month" class="form-control form-control-sm">
+              </div>
+              <button id="btnRecargarRendimientos" type="button" class="btn btn-info btn-sm mb-0">
+                <i class="fa-solid fa-arrows-rotate"></i> Consultar
+              </button>
+            </div>
+          </div>
+          <div class="row mt-2">
+            <div class="col-md-3">
+              <label class="mb-1">Desde</label>
+              <input id="txtFechaDesde" class="form-control" type="text" readonly>
+            </div>
+            <div class="col-md-3">
+              <label class="mb-1">Hasta</label>
+              <input id="txtFechaHasta" class="form-control" type="text" readonly>
+            </div>
+          </div>
+        </div>
+
+        <div class="card-body table-responsive p-0">
+
+          <table id="tblRendimientos" class="table table-bordered table-striped">
+            <thead>
+              <tr>
+                <th>Código</th>
+                <th>Recaudo</th>
+                <th>Prestamos</th>
+                <th>Venta</th>
+                <th>Seguro</th>
+                <th>Diferencia</th>
+                <th>Descuento</th>
+                <th>Utilidal</th>
+                <th>Uti-Neta</th>
+                <th>Gastos</th>
+                <th>Salida</th>
+                <th>Entrada</th>
+                <th>Crece</th>
+                <th>Sum-cart</th>
+                <th>Saldo disp</th>
+                <th>Total cartera</th>
+              </tr>
+            </thead>
+            <tbody>
+
+            </tbody>
+            <tfoot>
+              <tr>
+                <th>Código</th>
+                <th>Recaudo</th>
+                <th>Prestamos</th>
+                <th>Venta</th>
+                <th>Seguro</th>
+                <th>Diferencia</th>
+                <th>Descuento</th>
+                <th>Utilidal</th>
+                <th>Uti-Neta</th>
+                <th>Gastos</th>
+                <th>Salida</th>
+                <th>Entrada</th>
+                <th>Crece</th>
+                <th>Sum-cart</th>
+                <th>Saldo disp</th>
+                <th>Total cartera</th>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+    </div><!--/. container-fluid -->
+  </section>
+  <!-- /.content -->
+</div>

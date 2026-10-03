@@ -1,0 +1,136 @@
+<!-- SweetAlert2 -->
+
+
+<script type="text/javascript" src="dist/scripts/Global.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 class="m-0">Empresa</h1>
+                </div><!-- /.col -->
+            </div><!-- /.row -->
+        </div><!-- /.container-fluid -->
+    </div>
+    <!-- /.content-header -->
+    <!-- Main content -->
+    <section class="content">
+        <div class="container-fluid">
+            <div class="card card-default">
+
+
+                <div id="VerForm">
+                    <form role="form" name="frmGlobal" id="frmGlobal" enctype="multipart/form-data">
+                        <div class="card-header">
+                            <h3 class="card-title">Nueva</h3>
+                        </div>
+                        <!-- /.card-header -->
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <input id="txtIdGlobal" type="hidden" maxlength="100" name="txtIdGlobal" />
+                                        <label for="txtEmpresa">Nombre Empresa:</label>
+                                        <input id="txtEmpresa" type="text" maxlength="100" class="form-control"
+                                            name="txtEmpresa" required="" placeholder="Ingrese el nombre de la empresa"
+                                            autofocus="" />
+
+                                    </div>
+                                    <!-- /.form-group -->
+                                    <div class="form-group">
+                                        <label for="txtNombre_Impuesto">Impuesto:</label>
+                                        <input id="txtNombre_Impuesto" type="text" maxlength="5" class="form-control"
+                                            name="txtNombre_Impuesto" required=""
+                                            placeholder="Símbolo del impuesto: IVA, IGV..." />
+
+                                    </div>
+                                    <!-- /.form-group -->
+                                </div>
+                                <!-- /.col -->
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="txtPorcentaje_Impuesto">Porcentaje impuesto:</label>
+                                        <input id="txtPorcentaje_Impuesto" type="number" class="form-control"
+                                            name="txtPorcentaje_Impuesto" required=""
+                                            placeholder="Porcentaje del impuesto: 18, 19..." />
+
+                                    </div>
+                                    <!-- /.form-group -->
+                                    <div class="form-group">
+                                        <label for="txt_Moneda">Moneda:</label>
+
+                                        <select name="txt_Moneda" id="txt_Moneda" class="form-control">
+                                            <option value="1">peso colombiano</option>
+                                        </select>
+
+                                    </div>
+                                    <!-- /.form-group -->
+                                </div>
+                                <!-- /.col -->
+                            </div>
+                            <!-- /.row -->
+
+
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label for="imagenGlobal">Logo:</label>
+
+
+                                        <input id="imagenGlobal" type="file" class="form-control" name="imagenGlobal" />
+
+                                        <input id="txtRutaImgLogo" type="text" class="form-control"
+                                            name="txtRutaImgLogo" />
+
+                                    </div>
+                                    <!-- /.form-group -->
+                                </div>
+                                <!-- /.col -->
+
+                            </div>
+                            <!-- /.row -->
+                        </div>
+                        <!-- /.card-body -->
+                        <div class="card-footer">
+                            <button class="btn btn-success" type="submit"><i class="fa fa-floppy-o"></i> Guardar Cambios
+                            </button>
+                            <hr>
+                            <span class="lead text-primary"></span>
+                        </div>
+
+                    </form>
+                </div>
+
+
+
+            </div>
+            <!-- /.card -->
+        </div>
+    </section>
+</div>
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+
+<!-- SweetAlert2 -->
+
+
+
+<script type="text/javascript">
+    $("#li-manteniniento").addClass('menu-open')
+    $(".lia-mantenimiento").addClass('active')
+    $(".lia-global").addClass('active')
+
+</script>

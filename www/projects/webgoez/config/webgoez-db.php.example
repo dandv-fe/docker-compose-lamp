@@ -1,0 +1,28 @@
+<?php
+/**
+ * Plantilla para credenciales privadas de la base de datos.
+ *
+ * USO (cPanel/private path):
+ * 1) Copiar este archivo a la ruta privada fuera del repo, por ejemplo:
+ *    /home/usuario/config/webgoez-db.php
+ * 2) Editar los valores con las credenciales reales.
+ * 3) Ajustar permisos: `chmod 600 /home/usuario/config/webgoez-db.php`
+ * 4) Asegúrate de que `config/webgoez-db.php` esté en .gitignore y no se suba al repo.
+ *
+ * Conexion.php ya busca este archivo en varios lugares (HOME/config/webgoez-db.php,
+ * dir project/../../config/webgoez-db.php, etc.).
+ */
+
+return [
+    // Host de la base de datos
+    'host' => 'DB_HOST_PLACEHOLDER',
+
+    // Usuario con permisos limitados para la base de datos (no root en producción)
+    'user' => 'DB_USER_PLACEHOLDER',
+
+    // Contraseña segura (guardar en archivo con permisos estrictos)
+    'pass' => 'DB_PASS_PLACEHOLDER',
+
+    // Nombre de la base de datos
+    'name' => 'DB_NAME_PLACEHOLDER',
+];

@@ -1,0 +1,185 @@
+<div class="row">
+  <div class="col">
+    <div class="card card-widget">
+      <div class="card-body py-0">
+
+        <p id="txtCantidadComentarios" class="m-0"> </p>
+
+      </div>
+      <!-- /.card-body -->
+      <div class="card-footer card-comments pb-0">
+        <div class="card-footer pt-0">
+          <form id="formComentario">
+            <img class="img-fluid img-circle img-sm" src="<?php //echo $_SESSION['personPhoto']; ?>" alt="Us">
+            <!-- .img-push is used to add margin to elements next to floating images -->
+            <div class="img-push">
+              <input type="hidden" id="txtHiddenRefComentario" name="txtHiddenRefComentario">
+              <input type="hidden" id="txtHiddenRefCliente" name="txtHiddenRefCliente">
+              <input id="txtComentario" name="txtComentario" type="text" class="form-control form-control-sm"
+                placeholder="Presione enter para publicar comentario">
+            </div>
+          </form>
+
+        </div>
+
+
+
+        <div id="divcomentariosloading" class="overlay">
+          <i class="fa-solid fa-rotate fa-spin fa-2xl"></i>
+        </div>
+
+        <div id="divcomentarios"></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+  $(document).ready(function () {
+
+    $("#txtComentario").blur(function (e) {
+      if ($("#txtHiddenRefComentario").val() != '') {
+        $("form#formComentario").trigger('reset');
+        $("#formComentario input:hidden").val('')
+      }
+
+    });
+
+    $("form#formComentario").submit(function (e) {
+      e.preventDefault();
+      const id = parseInt(sessionStorage.getItem('index'))
+      $("#txtHiddenRefCliente").val(ArrayTarjetas[id].refCliente);
+      var formData = new FormData($("#formComentario")[0]);
+      saveOrUpdateComentarioIntermedio(formData)
+
+
+    });
+
+    function saveOrUpdateComentarioIntermedio(formData) {
+      if ($("#txtHiddenRefComentario").val() != '') {
+        Swal.fire({
+          title: "Editar Comentario?",
+          text: "Decea editar este \"comentario\" del cliente! \r Para editar escriba editar",
+          icon: "info",
+          input: "text",
+          showCancelButton: true,
+          confirmButtonColor: "#3085d6",
+          cancelButtonColor: "#d33",
+          confirmButtonText: "Si, editar ahora!",
+          preConfirm: (login) => {
+
+            if (login.toLowerCase() == 'si' || login.toLowerCase() == 'editar' || login.toLowerCase() == 'yes' || login.toLowerCase() == '1') {
+              return;
+            }
+            Swal.showValidationMessage(`
+                        Imposible eliminar : \r Tu desicion fue \r  ${login}
+                    `);
+
+          },
+        }).then((result) => {
+          if (result.isConfirmed) {
+            saveOrUpdateComentario(formData)
+          }
+        });
+      } else {
+        saveOrUpdateComentario(formData)
+      }
+    }
+
+    function saveOrUpdateComentario(formData) {
+      $.post("./ajax/UsuarioAjax.php", function (r) {
+        if (r === '0') {
+          location.reload(true);
+        }
+      });
+
+
+      $.ajax({
+
+        url: "./ajax/ClienteAjax.php?op=SaveOrupdateComentario",
+        type: "POST",
+        data: formData,
+        contentType: false,
+        processData: false,
+        success: function (datos) {
+
+          if (datos.indexOf("ERROR:") !== -1) {
+            Toast.fire({
+              icon: 'error',
+              title: datos,
+              position: 'top',
+            })
+
+          } else {
+            Toast.fire({
+              icon: 'success',
+              title: datos,
+              position: 'top',
+            })
+            $("#formComentario").trigger('reset')
+            $("#formComentario input:hidden").val('')
+            cargarDatosEnPanel()
+          }
+
+        }
+
+      });
+
+    }
+  });
+
+
+  function eliminarComentario(refComentario) {
+    Swal.fire({
+      title: "Eliminar Comentario?",
+      text: "Se eliminara permanentemente este \"comentario\" del cliente! \r Para eliminar escriba eliminar",
+      icon: "warning",
+      input: "text",
+      showCancelButton: true,
+      confirmButtonColor: "#3085d6",
+      cancelButtonColor: "#d33",
+      confirmButtonText: "Si, eliminar ahora!",
+      preConfirm: (login) => {
+
+        if (login.toLowerCase() == 'si' || login.toLowerCase() == 'eliminar' || login.toLowerCase() == 'yes' || login.toLowerCase() == '1') {
+          return;
+        }
+        Swal.showValidationMessage(`
+                        Emposible eliminar : \n Tu desicion fue \n  ${login}
+                    `);
+
+      },
+    }).then((result) => {
+      if (result.isConfirmed) {
+        $.post("./ajax/UsuarioAjax.php", function (r) {
+          if (r === '0') {
+            location.reload(true);
+          }
+        });
+
+        $.post("./ajax/ClienteAjax.php?op=eliminarComentario", { refComentario }, function (r) {
+          if (r.indexOf("ERROR:") !== -1) {
+            Toast.fire({
+              icon: 'error',
+              title: r
+            })
+          } else {
+            Toast.fire({
+              icon: 'success',
+              title: r
+            })
+            cargarDatosEnPanel()
+          }
+
+        });
+
+      }
+    });
+
+  }
+  function editComentario(refComentario, comentario) {
+
+    $("#txtHiddenRefComentario").val(refComentario);
+    $("#txtComentario").val(comentario);
+    $("#txtComentario").focus();
+  }
+</script>

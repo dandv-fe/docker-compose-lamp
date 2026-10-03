@@ -1,0 +1,677 @@
+<!-- Bootstrap4 Duallistbox -->
+<link rel="stylesheet" href="plugins/bootstrap4-duallistbox/bootstrap-duallistbox.min.css">
+
+<!-- DataTables -->
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css" />
+<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css" />
+<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css" />
+
+
+
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.colVis.min.js"></script>
+
+
+<script src="plugins/moment/moment.min.js"></script>
+<script src="plugins/moment/locales.js"></script>
+
+<!-- Tempusdominus Bootstrap 4 -->
+<script src="plugins/tempusdominus-bootstrap-4/js/tempusdominus-bootstrap-4.min.js"></script>
+
+
+
+
+
+
+<!-- SweetAlert2 -->
+<link rel="stylesheet" href="plugins/sweetalert2-theme-bootstrap-4/bootstrap-4.min.css" />
+<!-- SwalAlert2 -->
+
+
+
+<script type="text/javascript" src="dist/scripts/Empleado.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+
+<!-- Bootstrap4 Duallistbox -->
+<script src="plugins/bootstrap4-duallistbox/jquery.bootstrap-duallistbox.min.js"></script>
+
+
+
+<script>
+  var Toast = Swal.mixin({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    // timer: 2000,
+  });
+  function CrearIten(min, max) {
+    var num = Math.random() * (max - min) + min;
+    return num;
+  }
+</script>
+
+<?php  include "views/partials/modalDespidoEmpleado.html";   ?>
+
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+  <!-- Content Header (Page header) -->
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1 class="m-0">Empleados</h1>
+        </div>
+      </div>
+    </div>
+    <!-- /.container-fluid -->
+  </section>
+
+  <!-- Main content -->
+  <section class="content">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-12">
+          <div id="VerForm" class="card">
+            <form role="form" name="frmEmpleado" id="frmEmpleado" enctype="multipart/form-data">
+              <input id="txtidPublica" type="hidden" class="form-control" maxlength="32" name="txtidPublica" />
+              <input id="txtRefOficinaEmpleado" type="hidden" name="txtRefOficinaEmpleado" />
+              <div class="card-header">
+                <h3 class="card-title">Datos de persona</h3>
+              </div>
+              <!-- /.card-header -->
+              <div class="card-body">
+                <?php  include "views/partials/persona.html";   ?>
+
+                <div class="dropdown-divider"></div>
+                <div class="card-header">
+                  <h3 class="card-title">Datos de usuario</h3>
+                </div>
+                <!-- /.row -->
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="form-group">
+                      <input id="txtRefUsuario" type="hidden" name="txtRefUsuario" />
+
+                      <label for="txt_Login">Usuario</label>
+                      <input value="" id="txt_Login" type="text" class="form-control" required="" maxlength="50"
+                        name="txt_Login" autofocus="" />
+                    </div>
+                  </div>
+                  <!-- /.col -->
+                  <div class="col-md-6">
+                    <!-- /.form-group -->
+                    <div class="form-group">
+                      <label for="txt_Password">Clave</label>
+                      <input value="" id="txt_Password" type="text" class="form-control" maxlength="32"
+                        name="txt_Password" autofocus="" />
+                      <input id="txt_PasswordAt" type="hidden" name="txt_PasswordAt" />
+                    </div>
+                    <!-- /.form-group -->
+                  </div>
+                  <!-- /.col -->
+                </div>
+                <!-- /.row -->
+                <div class="dropdown-divider"></div>
+                <div class="card-header">
+                  <h3 class="card-title">Datos de empleado</h3>
+                </div>
+
+                <div class="row">
+                  <div class="col-12">
+                    <div class="row">
+                      <div class="col-md-4">
+                        <div class="form-group has-success">
+                          <label for="txt_fechaIngreso">Fecha Ingreso:</label>
+                          <input required id="txt_fechaIngreso" type="date" maxlength="2" name="txt_fechaIngreso"
+                            class="form-control" placeholder="Fecha De Ingreso" />
+                        </div>
+
+                      </div>
+
+                      <div class="col-md-4">
+                        <div class="form-group has-success">
+                          <input id="txtRefEmpleado" type="hidden" class="form-control" name="txtRefEmpleado" />
+
+                          <label for="txtApodo">Apodo:</label>
+                          <input value="" id="txtApodo" type="text" maxlength="50" name="txtApodo" class="form-control"
+                            placeholder="apodo" />
+                        </div>
+                      </div>
+
+                      <div class="col-md-4">
+                        <div class="form-group has-success">
+                          <label for="txtCargo">Cargo:</label>
+                          <input value="" id="txtCargo" type="text" maxlength="50" name="txtCargo" required=""
+                            class="form-control" placeholder="Cargo..." autofocus="" />
+                        </div>
+                      </div>
+
+
+                    </div>
+                    <div class="row">
+                      <div class="col-md-4">
+                        <div class="form-group has-success">
+                          <label for="txtMaxCredito">Máximo Crédito:</label>
+                          <div class="input-group">
+                            <div class="input-group-prepend">
+                              <span class="input-group-text">$</span>
+                            </div>
+                            <input value="0" id="txtMaxCredito" type="number" step="0.01" min="0" name="txtMaxCredito"
+                              class="form-control" placeholder="0.00" />
+                          </div>
+                          <small class="form-text text-muted">Monto máximo de crédito que puede otorgar este
+                            empleado</small>
+                        </div>
+                      </div>
+
+                      <div class="col-md-4">
+                        <div class="form-group has-success">
+                          <label for="cboOficinaEmpleado">Oficina</label>
+                          <select id="cboOficinaEmpleado" name="cboOficinaEmpleado" class="form-control">
+                            <option value="">Cargando...</option>
+                          </select>
+                          <small class="form-text text-muted">Seleccione la oficina donde trabajará el empleado</small>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- /.card-body -->
+
+              <div class="card-footer">
+                <div class="row">
+                  <div class="col-xs-8">
+                    <p>Opciones</p>
+                    <button id="btn-submit-empleado" class="btn btn-success" type="submit">
+                      <i class="fa fa-floppy-o"></i>
+                    </button>
+                    <a id="btnCancelarForm" href="#" class="btn btn-primary"><i class="fa fa-remove"></i> CANCELAR</a>
+                    <hr />
+                    <span class="lead text-primary"></span>
+                    <a id="a-btn-despedir-empleado" onclick="handleDespedirEmpleado()"
+                      class="btn btn-outline-danger btn-block btn-sm"><i class="fa fa-book"></i> DESPEDIR EMPLEADO</a>
+
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+          <!-- /.card -->
+
+
+          <button id="btnNuevoEmpleado" class="btn btn-primary mb-2" data-toggle="modal" data-target="#modal-xl">
+            <i class="fa fa-user-plus"></i> Nuevo Empleado
+          </button>
+
+          <div id="VerListado" class="card">
+            <div class="card-header">
+              <h3 class="card-title">Listado</h3>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body">
+              <table id="example1" class="table table-bordered table-striped">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th style="min-width: 150px;">Nombre</th>
+                    <th>Documento</th>
+                    <th style="min-width: 60px;">Inicio</th>
+                    <th>Estado</th>
+                    <th>Cargo</th>
+                    <th>Teléfono</th>
+                    <th>Foto</th>
+                    <th>Opciones</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot>
+                  <tr>
+                    <th>#</th>
+                    <th>Nombre</th>
+                    <th>Documento</th>
+                    <th>Inicio</th>
+                    <th>Estado</th>
+                    <th>Cargo</th>
+                    <th>Teléfono</th>
+                    <th>Foto</th>
+                    <th>Opciones</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <!-- /.card-body -->
+          </div>
+          <!-- /.card -->
+          <div id="VerConfiguracion" class="card">
+            <input type="hidden" id="txtRefEmpleadoConfig" />
+            <div class="row">
+              <div class="col-md-3">
+                <!-- Profile Image -->
+                <div class="card card-primary card-outline">
+                  <div class="card-body box-profile p-1">
+                    <div class="text-center">
+                      <img id="img_empleado" class="profile-user-img img-fluid img-circle" src=""
+                        alt="User profile picture" />
+                    </div>
+
+                    <h3 id="txt_name_empleado" class="profile-username text-center"></h3>
+
+                    <p id="txt_apodo_empleado" class="text-muted text-center mb-1">apodo falt</p>
+
+                    <ul class="list-group list-group-unbordered mb-3">
+                      <li class="list-group-item">
+                        <b>Sexo</b>
+                        <a id="txt_sexo_empleado" class="float-right"></a>
+                      </li>
+                      <li class="list-group-item">
+                        <b id="txt_tipo_documento_empleado"></b>
+                        <a id="txt_num_documento_empleado" class="float-right"></a>
+                        <!-- Profile Image -->
+                        <div class="clearfix"></div>
+                        <i id="editarDocumentoEmpleado" class="fa-solid fa-pen-to-square pr-1 float-right"
+                          data-editDocument=""></i>
+                      </li>
+                      <li class="list-group-item">
+                        <b>Tel</b>
+                        <a id="txt_tel_empleado" class="float-right"></a>
+                      </li>
+                      <li class="list-group-item">
+                        <b>Máximo Crédito</b>
+                        <a id="txt_max_credito_empleado" class="float-right">$0</a>
+                      </li>
+                    </ul>
+
+
+                  </div>
+                  <!-- /.card-body -->
+                </div>
+                <!-- /.card -->
+
+                <!-- About Me Box -->
+                <div class="card card-primary">
+                  <div class="card-header p-1">
+                    <h3 class="card-title">Informe</h3>
+                    <div class="card-tools">
+                      <form id="formEmpleadoEditar">
+                        <input type="hidden" id="txt_cargo_en">
+                        <input type="hidden" id="txt_t_documento_em">
+                        <input type="hidden" id="txt_n_documento_em">
+                        <button type="submit" class="btn btn-tool">
+                          <i class="fa-solid fa-user-pen fa-2xl" style="color: #511f21"></i>
+                        </button>
+
+                      </form>
+                    </div>
+                  </div>
+                  <!-- /.card-header -->
+                  <div class="card-body">
+
+                    <strong><i class="fas fa-map-marker-alt mr-1"></i>
+                      Direccion</strong>
+
+                    <p id="pTextDireccionEmpleado" class="text-muted"></p>
+
+
+
+                  </div>
+                  <!-- /.card-body -->
+                </div>
+                <!-- /.card -->
+              </div>
+              <div class="col-md-9">
+                <!-- tab del empleado -->
+                <div class="card card-primary card-tabs">
+                  <div class="card-header p-0 pt-1">
+                    <ul class="nav nav-tabs" id="custom-tabs-five-tab" role="tablist">
+                      <li class="nav-item">
+                        <a class="nav-link active" id="custom-tabs-liquidar-tab" data-toggle="pill"
+                          href="#custom-tabs-liquidar" role="tab" aria-controls="custom-tabs-liquidar"
+                          aria-selected="false">Sueldo
+                        </a>
+                      </li>
+                      <li class="nav-item">
+                        <a class="nav-link" id="custom-tabs-nomina-tab" data-toggle="pill" href="#custom-tabs-nomina"
+                          role="tab" aria-controls="custom-tabs-nomina" aria-selected="false">Nomina</a>
+                      </li>
+
+
+                      <li class="nav-item">
+                        <a class="nav-link" id="custom-tabs-authorizations-tab" data-toggle="pill"
+                          href="#custom-tabs-authorizations" role="tab" aria-controls="custom-tabs-authorizations"
+                          aria-selected="false">Autorizacion</a>
+                      </li>
+
+                      <li class="nav-item">
+                        <a class="nav-link" id="custom-tabs-asignarEmpleados-tab" data-toggle="pill"
+                          href="#custom-tabs-asignarEmpleados" role="tab" aria-controls="custom-tabs-asignarEmpleados"
+                          aria-selected="false">Empleados A Cargo</a>
+                      </li>
+
+                    </ul>
+                  </div>
+                  <div class="card-body p-0">
+                    <div class="tab-content" id="custom-tabs-five-tabContent">
+                      <!--ver lo que a recibido empleado ejem sueldo biaticos etc-->
+                      <div class="tab-pane fade show active" id="custom-tabs-liquidar" role="tabpanel"
+                        aria-labelledby="custom-tabs-liquidar-tab">
+
+                        <div id="verLoadingNominaDetalle" class="overlay-wrapper">
+                          <div class="overlay dark">
+                            <i class="fas fa-3x fa-sync-alt fa-spin"></i>
+                            <div class="text-bold pt-2">Loading...</div>
+                          </div>
+                          Espere
+                        </div>
+
+                        <div id="verListadoNominaDetlles" class="card hide">
+                          <form id="formSearchNominaDetallado">
+                            <input type="hidden" name="txtUltimo" id="txtUltimo">
+                            <div class="card-header row m-0 p-0">
+
+                              <div class="col-md-6">
+                                <div class="form-group">
+                                  <label>Desde:</label>
+                                  <div class="input-group date " id="dateDeste" data-target-input="nearest">
+                                    <input required type="text" class="form-control datetimepicker-input"
+                                      data-target="#dateDeste" id="txtFechaDesde" name="txtFechaDesde" />
+                                    <div class="input-group-append" data-target="#dateDeste"
+                                      data-toggle="datetimepicker">
+                                      <div class="input-group-text"><i class="fa fa-calendar"></i></div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                              <div class="col-md-6">
+                                <div class="form-group">
+                                  <label>Hasta:</label>
+                                  <div class="input-group date" id="dateHasta" data-target-input="nearest">
+                                    <input required type="text" class="form-control datetimepicker-input"
+                                      data-target="#dateHasta" id="txtFechaHasta" name="txtFechaHasta" />
+                                    <div class="input-group-append" data-target="#dateHasta"
+                                      data-toggle="datetimepicker">
+                                      <div class="input-group-text"><i class="fa fa-calendar"></i></div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            <input type="submit" style="display: none;">
+                          </form>
+
+                          <div class="card table-responsive p-0">
+
+                            <table class="table table-striped table-valign-middle">
+                              <thead>
+                                <tr>
+                                  <th>Consepto</th>
+                                  <th>Valor</th>
+                                </tr>
+                              </thead>
+                              <tbody id="trTableconsepto">
+
+
+                              </tbody>
+                            </table>
+
+                          </div>
+
+                          <!-- /.card-header -->
+                          <div class="card-body p-0">
+                            <table id="tblDetalleNomina" class="table table-bordered table-striped">
+                              <thead>
+                                <tr>
+                                  <th>Fecha</th>
+                                  <th>Valor</th>
+                                  <th>Consepto</th>
+                                  <th>detalle</th>
+
+                                </tr>
+                              </thead>
+                              <tbody></tbody>
+                              <tfoot>
+                                <tr>
+                                  <th>Fecha</th>
+                                  <th>Valor</th>
+                                  <th>Consepto</th>
+                                  <th>detalle</th>
+
+                                </tr>
+                              </tfoot>
+                            </table>
+                          </div>
+
+                          <!-- /.card-body -->
+                        </div>
+                      </div>
+                      <!--ver sueldo asignado empleado -->
+                      <div class="tab-pane fade" id="custom-tabs-nomina" role="tabpanel"
+                        aria-labelledby="custom-tabs-nomina-tab">
+                        <div id="verLoadingNomina" class="overlay-wrapper">
+                          <div class="overlay dark">
+                            <i class="fas fa-3x fa-sync-alt fa-spin"></i>
+                            <div class="text-bold pt-2">Loading...</div>
+                          </div>
+                          Espere
+                        </div>
+                        <div id="verListadoNomina" class="card hide">
+                          <div class="card-header">
+                            <button id="btnNuevoAcuerdoPago" data-toggle="modal" data-target="#modal-pactar-sueldo"
+                              class="btn btn-primary">
+                              <i class="fa fa-plus"></i> Sueldo Pactado
+                            </button>
+                          </div>
+                          <!-- /.card-header -->
+                          <div class="card-body p-0">
+                            <table id="tblNomina" class="table table-bordered table-striped">
+                              <thead>
+                                <tr>
+                                  <th>Fecha</th>
+                                  <th>Modo Sueldo</th>
+                                  <th>Sueldo</th>
+                                  <th>estado</th>
+                                </tr>
+                              </thead>
+                              <tbody></tbody>
+                              <tfoot>
+                                <tr>
+                                  <th>Fecha</th>
+                                  <th>Modo Sueldo</th>
+                                  <th>Sueldo</th>
+                                  <th>estado</th>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          </div>
+
+                          <!-- /.card-body -->
+                        </div>
+                      </div>
+
+                      <!--Dar permisos de empleado pasa el sitema-->
+                      <div class="tab-pane fade" id="custom-tabs-authorizations" role="tabpanel"
+                        aria-labelledby="custom-tabs-authorizations-tab">
+                        <div id="verLoadingPermisos" class="overlay-wrapper">
+                          <div class="overlay dark">
+                            <i class="fas fa-3x fa-sync-alt fa-spin"></i>
+                            <div class="text-bold pt-2">Loading...</div>
+                          </div>
+                          Espere
+                        </div>
+
+                        <div id="verListadoPermisos" class="row">
+
+
+                        </div>
+                      </div>
+
+                      <!--Asignar empleados a cargo de un empleado-->
+                      <div class="tab-pane fade" id="custom-tabs-asignarEmpleados" role="tabpanel"
+                        aria-labelledby="custom-tabs-asignarEmpleados-tab">
+
+                        <div id="verLoadingAsignarEmpleados" class="overlay-wrapper">
+                          <div class="overlay dark">
+                            <i class="fas fa-3x fa-sync-alt fa-spin"></i>
+                            <div class="text-bold pt-2">Loading...</div>
+                          </div>
+                          Espere
+                        </div>
+
+
+                        <div id="verListadoAsignarEmpleados" class="row">
+                          <div class="col-12">
+                            <form id="formAsignarEmpleado">
+                              <input type="hidden" id="txtrefEmpleadoFormAsignarEmpleadoHidden"
+                                name="txtrefEmpleadoFormAsignarEmpleadoHidden">
+                              <div class="form-group">
+                                <label>Seleccione el persona disponible para este empleado</label>
+                                <select id="cboEmpleadosAsignadosEmpleado" name="cboEmpleadosAsignadosEmpleado"
+                                  class="duallistbox" multiple="multiple">
+
+                                </select>
+                              </div>
+                              <div class="modal-footer justify-content-between">
+                                <button type="submit" class="btn btn-primary">Guardar</button>
+                              </div>
+                            </form>
+                          </div>
+
+                        </div>
+                      </div>
+
+
+
+
+
+                    </div>
+                    <!-- /.card -->
+                  </div>
+                  <!-- /.tab del empleado  -->
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- /.col -->
+        </div>
+        <!-- /.row -->
+      </div>
+      <!-- /.container-fluid -->
+  </section>
+  <!-- /.content -->
+
+  <?php  include "views/partials/modalSearchPersona.html"; ?>
+  <?php  include "views/partials/modalSueldoPactado.html"; ?>
+</div>
+<!-- /.content-wrapper -->
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+
+
+
+<!-- SweetAlert2 -->
+
+
+<script type="text/javascript">
+  $("#li-manteniniento").addClass("menu-open");
+  $(".lia-mantenimiento").addClass("active");
+  $(".lia-empleados").addClass("active");
+
+  $('.duallistbox').bootstrapDualListbox({
+    nonSelectedListLabel: 'NO ASIGNADO',
+    selectedListLabel: 'SI ASIGNADO',
+    preserveSelectionOnMove: 'moved',
+    moveOnSelect: false,
+    //nonSelectedFilter: ''
+  })
+
+
+  //Date picker
+  const dateDesde = $('#dateDeste').datetimepicker({
+    format: 'YYYY-MM-DD',
+    date: moment().startOf('month'),
+    locale: 'es'
+  });
+
+
+  // dateDesde.locale(tempusDominus.locales['es'].es);
+  //Date picker
+  $('#dateHasta').datetimepicker({
+    format: 'YYYY-MM-DD',
+    date: moment().endOf('month'),
+    locale: 'es'
+  });
+
+  //Date picker
+  $('#txt_fechaIngreso').datetimepicker({
+    format: 'YYYY-MM-DD',
+    date: moment().endOf('month'),
+    locale: 'es'
+  });
+
+
+
+  $("#example1")
+    .DataTable({
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      displayLength: 200,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#example1_wrapper .col-md-6:eq(0)");
+
+  $("#tblNomina")
+    .DataTable({
+      sort: false,
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#tblNomina_wrapper .col-md-6:eq(0)");
+
+  $("#tblDetalleNomina")
+    .DataTable({
+      sort: false,
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#tblDetalleNomina_wrapper .col-md-6:eq(0)");
+
+  $(function () { })
+
+
+
+
+</script>

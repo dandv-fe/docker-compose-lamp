@@ -1,0 +1,668 @@
+<!-- Bootstrap4 Duallistbox CSS -->
+<link rel="stylesheet" href="plugins/bootstrap4-duallistbox/bootstrap-duallistbox.min.css">
+
+<style>
+  .dual-listbox .dual-listbox__container {
+    font-family: inherit;
+  }
+
+  .card-header {
+    background: linear-gradient(45deg, #007bff, #0056b3);
+    color: white;
+    border-radius: 0.25rem 0.25rem 0 0;
+  }
+
+  .section-divider {
+    border-top: 2px solid #e9ecef;
+    margin: 30px 0;
+    padding-top: 30px;
+  }
+
+  .dual-listbox__search {
+    margin-bottom: 10px;
+  }
+
+  .dual-listbox__available,
+  .dual-listbox__selected {
+    border: 1px solid #ced4da;
+    border-radius: 0.25rem;
+  }
+
+  .btn-config {
+    background: linear-gradient(45deg, #28a745, #20c997);
+    border: none;
+    color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+
+  .btn-config:hover {
+    background: linear-gradient(45deg, #218838, #1e7e34);
+    color: white;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  }
+
+  .alert-info {
+    border-left: 4px solid #17a2b8;
+  }
+</style>
+
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+  <div class="container-fluid">
+    <!-- Header -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h3 class="card-title">
+              <i class="fas fa-tasks mr-2"></i>
+              Plan de Trabajo - Configuración de Oficinas
+            </h3>
+          </div>
+          <div class="card-body">
+            <div class="alert alert-info">
+              <i class="fas fa-info-circle mr-2"></i>
+              Configure las relaciones entre oficinas, sucursales y empleados para el plan de trabajo.
+              <strong>Solo se muestran recursos disponibles</strong> (sin asignar) y los ya asignados a la oficina
+              seleccionada.
+            </div>
+            <div id="estado_general" class="alert alert-secondary" style="display: none;">
+              <i class="fas fa-chart-bar mr-2"></i>
+              <span id="estado_general_texto">Seleccione una oficina para ver el estado de recursos</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Selector de Oficina -->
+    <div class="row mb-4">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h4 class="card-title">
+              <i class="fas fa-building mr-2"></i>
+              Seleccionar Oficina
+            </h4>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label for="oficina_select">Oficina a configurar:</label>
+              <select class="form-control" id="oficina_select">
+                <option value="">-- Seleccione una oficina --</option>
+                <!-- Las opciones se cargarán dinámicamente -->
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Configuración de Sucursales -->
+    <div class="row mb-4" id="sucursales_section" style="display: none;">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h4 class="card-title">
+              <i class="fas fa-store mr-2"></i>
+              Asignar Sucursales a la Oficina
+            </h4>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-12">
+                <div class="alert alert-info">
+                  <i class="fas fa-info-circle mr-2"></i>
+                  <strong>Instrucciones:</strong> En la izquierda se muestran las sucursales
+                  <strong>disponibles</strong>
+                  (sin asignar a ninguna oficina). En la derecha las <strong>ya asignadas</strong> a esta oficina.
+                  Use las flechas para mover entre las listas.
+                </div>
+                <select multiple="multiple" size="10" name="sucursales_duallistbox" id="sucursales_duallistbox">
+                  <!-- Las opciones se cargarán dinámicamente -->
+                </select>
+              </div>
+            </div>
+            <div class="row mt-3">
+              <div class="col-12">
+                <button type="button" class="btn btn-config" id="guardar_sucursales">
+                  <i class="fas fa-save mr-2"></i>
+                  Guardar Configuración de Sucursales
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Separador -->
+    <div class="section-divider" id="empleados_divider" style="display: none;"></div>
+
+    <!-- Configuración de Empleados -->
+    <div class="row mb-4" id="empleados_section" style="display: none;">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h4 class="card-title">
+              <i class="fas fa-users mr-2"></i>
+              Asignar Empleados a la Oficina
+            </h4>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-12">
+                <div class="alert alert-info">
+                  <i class="fas fa-info-circle mr-2"></i>
+                  <strong>Instrucciones:</strong> En la izquierda se muestran los empleados <strong>disponibles</strong>
+                  (sin asignar a ninguna oficina). En la derecha los <strong>ya asignados</strong> a esta oficina.
+                  Use las flechas para mover entre las listas.
+                </div>
+                <select multiple="multiple" size="10" name="empleados_duallistbox" id="empleados_duallistbox">
+                  <!-- Las opciones se cargarán dinámicamente -->
+                </select>
+              </div>
+            </div>
+            <div class="row mt-3">
+              <div class="col-12">
+                <button type="button" class="btn btn-config" id="guardar_empleados">
+                  <i class="fas fa-save mr-2"></i>
+                  Guardar Configuración de Empleados
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Resumen de Configuración -->
+    <div class="row mb-4" id="resumen_section" style="display: none;">
+      <div class="col-12">
+        <div class="card">
+          <div class="card-header">
+            <h4 class="card-title">
+              <i class="fas fa-clipboard-list mr-2"></i>
+              Resumen de Configuración
+            </h4>
+          </div>
+          <div class="card-body">
+            <div class="row">
+              <div class="col-md-6">
+                <h5 class="text-primary">
+                  <i class="fas fa-store mr-2"></i>
+                  Sucursales Asignadas
+                </h5>
+                <div id="resumen_sucursales" class="mb-3">
+                  <p class="text-muted">No hay sucursales asignadas</p>
+                </div>
+              </div>
+              <div class="col-md-6">
+                <h5 class="text-success">
+                  <i class="fas fa-users mr-2"></i>
+                  Empleados Asignados
+                </h5>
+                <div id="resumen_empleados" class="mb-3">
+                  <p class="text-muted">No hay empleados asignados</p>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-12 text-center">
+                <button type="button" class="btn btn-success btn-lg" id="finalizar_configuracion">
+                  <i class="fas fa-check-circle mr-2"></i>
+                  Finalizar Configuración del Plan de Trabajo
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading Modal -->
+<div class="modal fade" id="loadingModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered" role="document">
+    <div class="modal-content">
+      <div class="modal-body text-center">
+        <div class="spinner-border text-primary" role="status">
+          <span class="sr-only">Cargando...</span>
+        </div>
+        <p class="mt-2 mb-0">Procesando configuración...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<!-- Bootstrap4 Duallistbox -->
+<script src="plugins/bootstrap4-duallistbox/jquery.bootstrap-duallistbox.min.js"></script>
+
+<script>
+  //lia-plan-de-trabajo
+  $("#li-manteniniento").addClass('menu-open')
+  $(".lia-mantenimiento").addClass('active')
+  $(".lia-plan-de-trabajo").addClass('active')
+  $(document).ready(function () {
+    // Variables globales
+    let sucursalesDualListBox;
+    let empleadosDualListBox;
+    let oficinaSeleccionada = null;
+
+    // Inicializar la página
+    cargarOficinas();
+
+    // Event listener para cambio de oficina
+    $('#oficina_select').on('change', function () {
+      const oficinaId = $(this).val();
+      if (oficinaId) {
+        oficinaSeleccionada = oficinaId;
+        mostrarSeccionesConfiguracion();
+        cargarSucursales(oficinaId);
+        cargarEmpleados(oficinaId);
+      } else {
+        ocultarSeccionesConfiguracion();
+      }
+    });
+
+    // Event listeners para guardar configuraciones
+    $('#guardar_sucursales').on('click', function () {
+      guardarConfiguracionSucursales();
+    });
+
+    $('#guardar_empleados').on('click', function () {
+      guardarConfiguracionEmpleados();
+    });
+
+    $('#finalizar_configuracion').on('click', function () {
+      finalizarConfiguracion();
+    });
+
+    // Funciones principales
+    function cargarOficinas() {
+      $.ajax({
+        url: 'ajax/PlanTrabajoAjax.php?op=listarOficinas',
+        type: 'GET',
+        dataType: 'json',
+        success: function (response) {
+          if (response.ok) {
+            const select = $('#oficina_select');
+            response.data.forEach(oficina => {
+              select.append(`<option value="${oficina.id}">${oficina.nombre}</option>`);
+            });
+          } else {
+            Toast.fire({
+              icon: 'error',
+              title: 'Error al cargar oficinas'
+            });
+          }
+        },
+        error: function () {
+          Toast.fire({
+            icon: 'error',
+            title: 'Error de conexión al cargar oficinas'
+          });
+        }
+      });
+    }
+
+    function cargarSucursales(oficinaId) {
+      $.ajax({
+        url: 'ajax/PlanTrabajoAjax.php?op=listarSucursales&idoficina=' + oficinaId,
+        type: 'GET',
+        dataType: 'json',
+        success: function (response) {
+          if (response.ok) {
+            const select = $('#sucursales_duallistbox');
+            select.empty();
+
+            response.data.forEach(sucursal => {
+              const option = $(`<option value="${sucursal.id}">${sucursal.nombre}</option>`);
+              if (sucursal.asignada) {
+                option.prop('selected', true);
+              }
+              select.append(option);
+            });
+
+            // Destruir duallistbox anterior si existe
+            if (sucursalesDualListBox) {
+              select.bootstrapDualListbox('destroy');
+            }
+
+            // Inicializar Bootstrap Duallistbox para sucursales
+            sucursalesDualListBox = select.bootstrapDualListbox({
+              nonSelectedListLabel: 'Sucursales Disponibles para Asignar',
+              selectedListLabel: 'Sucursales Asignadas a esta Oficina',
+              preserveSelectionOnMove: 'moved',
+              moveOnSelect: false,
+              filterTextClear: 'Mostrar todas',
+              filterPlaceHolder: 'Buscar sucursales...',
+              moveSelectedLabel: 'Asignar a esta oficina →',
+              moveAllLabel: 'Asignar todas →',
+              removeSelectedLabel: '← Quitar de esta oficina',
+              removeAllLabel: '← Quitar todas',
+              infoText: 'Mostrando {0} sucursales',
+              infoTextFiltered: '<span class="badge badge-warning">Filtrado</span> {0} de {1}',
+              infoTextEmpty: 'No hay sucursales disponibles',
+              helperSelectNamePostfix: '_helper'
+            });
+
+            actualizarResumenSucursales();
+          } else {
+            Toast.fire({
+              icon: 'error',
+              title: 'Error al cargar sucursales'
+            });
+          }
+        },
+        error: function () {
+          Toast.fire({
+            icon: 'error',
+            title: 'Error de conexión al cargar sucursales'
+          });
+        }
+      });
+    }
+
+    function cargarEmpleados(oficinaId) {
+      $.ajax({
+        url: 'ajax/PlanTrabajoAjax.php?op=listarEmpleados&idoficina=' + oficinaId,
+        type: 'GET',
+        dataType: 'json',
+        success: function (response) {
+          if (response.ok) {
+            const select = $('#empleados_duallistbox');
+            select.empty();
+
+            response.data.forEach(empleado => {
+              const option = $(`<option value="${empleado.id}">${empleado.nombre}</option>`);
+              if (empleado.asignado) {
+                option.prop('selected', true);
+              }
+              select.append(option);
+            });
+
+            // Destruir duallistbox anterior si existe
+            if (empleadosDualListBox) {
+              select.bootstrapDualListbox('destroy');
+            }
+
+            // Inicializar Bootstrap Duallistbox para empleados
+            empleadosDualListBox = select.bootstrapDualListbox({
+              nonSelectedListLabel: 'Empleados Disponibles para Asignar',
+              selectedListLabel: 'Empleados Asignados a esta Oficina',
+              preserveSelectionOnMove: 'moved',
+              moveOnSelect: false,
+              filterTextClear: 'Mostrar todos',
+              filterPlaceHolder: 'Buscar empleados...',
+              moveSelectedLabel: 'Asignar a esta oficina →',
+              moveAllLabel: 'Asignar todos →',
+              removeSelectedLabel: '← Quitar de esta oficina',
+              removeAllLabel: '← Quitar todos',
+              infoText: 'Mostrando {0} empleados',
+              infoTextFiltered: '<span class="badge badge-warning">Filtrado</span> {0} de {1}',
+              infoTextEmpty: 'No hay empleados disponibles',
+              helperSelectNamePostfix: '_helper'
+            });
+
+            actualizarResumenEmpleados();
+          } else {
+            Toast.fire({
+              icon: 'error',
+              title: 'Error al cargar empleados'
+            });
+          }
+        },
+        error: function () {
+          Toast.fire({
+            icon: 'error',
+            title: 'Error de conexión al cargar empleados'
+          });
+        }
+      });
+    }
+
+    function mostrarSeccionesConfiguracion() {
+      $('#sucursales_section').fadeIn(500);
+      $('#empleados_divider').fadeIn(500);
+      $('#empleados_section').fadeIn(500);
+      $('#resumen_section').fadeIn(500);
+      $('#estado_general').fadeIn(500);
+      actualizarEstadoGeneral();
+    }
+
+    function actualizarEstadoGeneral() {
+      const oficinaSelecNombre = $('#oficina_select option:selected').text();
+      if (oficinaSelecNombre && oficinaSelecNombre !== '-- Seleccione una oficina --') {
+        const estadoTexto = `Configurando: <strong>${oficinaSelecNombre}</strong> - Mostrando solo recursos disponibles y asignados a esta oficina`;
+        $('#estado_general_texto').html(estadoTexto);
+        $('#estado_general').removeClass('alert-secondary').addClass('alert-primary');
+      }
+    }
+
+    function ocultarSeccionesConfiguracion() {
+      $('#sucursales_section').fadeOut(300);
+      $('#empleados_section').fadeOut(300);
+      $('#empleados_divider').fadeOut(300);
+      $('#resumen_section').fadeOut(300);
+      $('#estado_general').fadeOut(300);
+    }
+
+    function guardarConfiguracionSucursales() {
+      const sucursalesSeleccionadas = $('#sucursales_duallistbox').val();
+
+      $('#loadingModal').modal('show');
+
+      $.ajax({
+        url: 'ajax/PlanTrabajoAjax.php?op=guardarSucursales',
+        type: 'POST',
+        data: {
+          idoficina: oficinaSeleccionada,
+          sucursales: sucursalesSeleccionadas
+        },
+        dataType: 'json',
+        success: function (response) {
+          $('#loadingModal').modal('hide');
+
+          if (response.ok) {
+            Swal.fire({
+              icon: 'success',
+              title: '¡Configuración Guardada!',
+              text: `Se han asignado ${response.count} sucursales a la oficina.`,
+              showConfirmButton: false,
+              timer: 2000
+            });
+
+            actualizarResumenSucursales();
+          } else {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: response.msg
+            });
+          }
+        },
+        error: function () {
+          $('#loadingModal').modal('hide');
+          Swal.fire({
+            icon: 'error',
+            title: 'Error de conexión',
+            text: 'No se pudo guardar la configuración de sucursales'
+          });
+        }
+      });
+    }
+
+    function guardarConfiguracionEmpleados() {
+      const empleadosSeleccionados = $('#empleados_duallistbox').val();
+
+      $('#loadingModal').modal('show');
+
+      $.ajax({
+        url: 'ajax/PlanTrabajoAjax.php?op=guardarEmpleados',
+        type: 'POST',
+        data: {
+          idoficina: oficinaSeleccionada,
+          empleados: empleadosSeleccionados
+        },
+        dataType: 'json',
+        success: function (response) {
+          $('#loadingModal').modal('hide');
+
+          if (response.ok) {
+            Swal.fire({
+              icon: 'success',
+              title: '¡Configuración Guardada!',
+              text: `Se han asignado ${response.count} empleados a la oficina.`,
+              showConfirmButton: false,
+              timer: 2000
+            });
+
+            actualizarResumenEmpleados();
+          } else {
+            Swal.fire({
+              icon: 'error',
+              title: 'Error',
+              text: response.msg
+            });
+          }
+        },
+        error: function () {
+          $('#loadingModal').modal('hide');
+          Swal.fire({
+            icon: 'error',
+            title: 'Error de conexión',
+            text: 'No se pudo guardar la configuración de empleados'
+          });
+        }
+      });
+    }
+
+    function actualizarResumenSucursales() {
+      const sucursalesSeleccionadas = $('#sucursales_duallistbox').val();
+      const totalDisponibles = $('#sucursales_duallistbox option').not(':selected').length;
+      const resumenDiv = $('#resumen_sucursales');
+
+      if (sucursalesSeleccionadas && sucursalesSeleccionadas.length > 0) {
+        let html = '<ul class="list-unstyled">';
+        $('#sucursales_duallistbox option:selected').each(function () {
+          html += `<li><i class="fas fa-store text-primary mr-2"></i>${$(this).text()}</li>`;
+        });
+        html += '</ul>';
+        html += `<div class="mt-2">`;
+        html += `<span class="badge badge-success mr-2">${sucursalesSeleccionadas.length} asignadas</span>`;
+        html += `<span class="badge badge-secondary">${totalDisponibles} disponibles</span>`;
+        html += `</div>`;
+        resumenDiv.html(html);
+      } else {
+        resumenDiv.html(`
+                        <p class="text-muted">No hay sucursales asignadas a esta oficina</p>
+                        <span class="badge badge-secondary">${totalDisponibles} sucursales disponibles</span>
+                    `);
+      }
+    }
+
+    function actualizarResumenEmpleados() {
+      const empleadosSeleccionados = $('#empleados_duallistbox').val();
+      const totalDisponibles = $('#empleados_duallistbox option').not(':selected').length;
+      const resumenDiv = $('#resumen_empleados');
+
+      if (empleadosSeleccionados && empleadosSeleccionados.length > 0) {
+        let html = '<ul class="list-unstyled">';
+        $('#empleados_duallistbox option:selected').each(function () {
+          html += `<li><i class="fas fa-user text-success mr-2"></i>${$(this).text()}</li>`;
+        });
+        html += '</ul>';
+        html += `<div class="mt-2">`;
+        html += `<span class="badge badge-success mr-2">${empleadosSeleccionados.length} asignados</span>`;
+        html += `<span class="badge badge-secondary">${totalDisponibles} disponibles</span>`;
+        html += `</div>`;
+        resumenDiv.html(html);
+      } else {
+        resumenDiv.html(`
+                        <p class="text-muted">No hay empleados asignados a esta oficina</p>
+                        <span class="badge badge-secondary">${totalDisponibles} empleados disponibles</span>
+                    `);
+      }
+    }
+
+    function finalizarConfiguracion() {
+      const sucursalesCount = $('#sucursales_duallistbox').val() ? $('#sucursales_duallistbox').val().length : 0;
+      const empleadosCount = $('#empleados_duallistbox').val() ? $('#empleados_duallistbox').val().length : 0;
+      const oficinaNombre = $('#oficina_select option:selected').text();
+
+      Swal.fire({
+        title: '¿Finalizar Configuración?',
+        html: `
+                        <div class="text-left">
+                            <p><strong>Oficina:</strong> ${oficinaNombre}</p>
+                            <p><strong>Sucursales asignadas:</strong> ${sucursalesCount}</p>
+                            <p><strong>Empleados asignados:</strong> ${empleadosCount}</p>
+                        </div>
+                        <hr>
+                        <p>¿Está seguro de que desea finalizar la configuración del plan de trabajo?</p>
+                    `,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Sí, finalizar',
+        cancelButtonText: 'Cancelar'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          $('#loadingModal').modal('show');
+
+          $.ajax({
+            url: 'ajax/PlanTrabajoAjax.php?op=finalizarConfiguracion',
+            type: 'POST',
+            data: {
+              idoficina: oficinaSeleccionada
+            },
+            dataType: 'json',
+            success: function (response) {
+              $('#loadingModal').modal('hide');
+
+              if (response.ok) {
+                Swal.fire({
+                  icon: 'success',
+                  title: '¡Plan de Trabajo Configurado!',
+                  text: 'La configuración se ha guardado exitosamente.',
+                  confirmButtonColor: '#28a745'
+                }).then(() => {
+                  // Opcional: redirigir a otra página o limpiar formulario
+                  // window.location.href = 'index.php';
+                });
+              } else {
+                Swal.fire({
+                  icon: 'error',
+                  title: 'Error',
+                  text: response.msg
+                });
+              }
+            },
+            error: function () {
+              $('#loadingModal').modal('hide');
+              Swal.fire({
+                icon: 'error',
+                title: 'Error de conexión',
+                text: 'No se pudo finalizar la configuración'
+              });
+            }
+          });
+        }
+      });
+    }
+
+    // Event listeners adicionales para actualizar resumen en tiempo real
+    $(document).on('change', '#sucursales_duallistbox', function () {
+      actualizarResumenSucursales();
+    });
+
+    $(document).on('change', '#empleados_duallistbox', function () {
+      actualizarResumenEmpleados();
+    });
+  });
+</script>

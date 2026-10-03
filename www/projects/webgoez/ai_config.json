@@ -1,0 +1,19 @@
+{
+  "model": "gpt-5-mini",
+  "temperature": 0.1,
+  "top_p": 0.9,
+  "max_tokens": 512,
+  "streaming": true,
+  "frequency_penalty": 0,
+  "presence_penalty": 0,
+  "timeout_seconds": 10,
+  "retries": 1,
+  "deterministic_agent_steps": 5,
+  "deterministic_agent_step_timeout": 8,
+  "prepared_statements_required": true,
+  "db_service_name": "database",
+  "lint_command": "php -l",
+  "run_tests_command": "docker exec -it ${COMPOSE_PROJECT_NAME}-${PHPVERSION} php -l /var/www/html/projects/webgoez/model/CobroDetallado.php",
+  "cache_embeddings": true,
+  "cache_ttl_seconds": 86400
+}

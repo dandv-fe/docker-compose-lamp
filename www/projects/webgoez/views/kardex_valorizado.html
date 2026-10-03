@@ -1,0 +1,208 @@
+<!-- SweetAlert2 -->
+
+<!-- DataTables -->
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
+
+<script type="text/javascript"
+  src="dist/scripts/KardexValorizado.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+  <!-- Content Header (Page header) -->
+  <div class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1 class="m-0">kardex Valorizado</h1>
+        </div><!-- /.col -->
+      </div><!-- /.row -->
+    </div><!-- /.container-fluid -->
+  </div>
+  <!-- /.content-header -->
+  <!-- Main content -->
+  <section class="content">
+    <div class="container-fluid">
+      <div class="card card-default">
+
+        <!-- Resumen de totales -->
+        <div class="row mb-3">
+          <div class="col-lg-3 col-6">
+            <div class="small-box bg-info">
+              <div class="inner">
+                <h3 id="totalCaja">$0</h3>
+                <p>Total Caja</p>
+              </div>
+              <div class="icon">
+                <i class="fas fa-cash-register"></i>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-3 col-6">
+            <div class="small-box bg-success">
+              <div class="inner">
+                <h3 id="totalActivas">$0</h3>
+                <p>Total Activas</p>
+              </div>
+              <div class="icon">
+                <i class="fas fa-check-circle"></i>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-3 col-6">
+            <div class="small-box bg-warning">
+              <div class="inner">
+                <h3 id="totalMorosos">$0</h3>
+                <p>Total Morosos</p>
+              </div>
+              <div class="icon">
+                <i class="fas fa-exclamation-triangle"></i>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-3 col-6">
+            <div class="small-box bg-danger">
+              <div class="inner">
+                <h3 id="totalRetiradas">$0</h3>
+                <p>Total Retiradas</p>
+              </div>
+              <div class="icon">
+                <i class="fas fa-times-circle"></i>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-12">
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Listado</h3>
+              </div>
+              <!-- /.card-header -->
+              <div class="card-body p-0">
+                <table id="tblKardexValorizado" class="table table-bordered table-striped">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Código</th>
+                      <th>Caja</th>
+                      <th>n° A</th>
+                      <th>SumActivas</th>
+                      <th>n° M</th>
+                      <th>SumMorosos</th>
+                      <th>n° R</th>
+                      <th>SumRetiradas</th>
+                      <th>n°Clientes</th>
+
+                    </tr>
+                  </thead>
+                  <tbody>
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <th>#</th>
+                      <th>Código</th>
+                      <th>Caja</th>
+                      <th>n° A</th>
+                      <th>SumActivas</th>
+                      <th>n° M</th>
+                      <th>SumMorosos</th>
+                      <th>n° R</th>
+                      <th>SumRetiradas</th>
+                      <th>n°Clientes</th>
+
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+      </div>
+      <!-- /.card -->
+    </div>
+  </section>
+</div>
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+
+<!-- SweetAlert2 -->
+
+
+<script type="text/javascript">
+  $("#li-consultaCobros").addClass('menu-open')
+  $("#lia-consultaCobros").addClass('active')
+  $("#lia-consultaKardexValorizado").addClass('active')
+
+  // Función para calcular totales de las columnas
+  function calcularTotales() {
+    let totalCaja = 0;
+    let totalActivas = 0;
+    let totalMorosos = 0;
+    let totalRetiradas = 0;
+
+    // Recorrer todas las filas de la tabla
+    $('#tblKardexValorizado tbody tr').each(function () {
+      const fila = $(this);
+
+      // Obtener valores de las columnas (asumiendo que son las columnas 2, 4, 6, 8)
+      const caja = parseFloat(fila.find('td:eq(2)').text().replace(/[,$]/g, '')) || 0;
+      const activas = parseFloat(fila.find('td:eq(4)').text().replace(/[,$]/g, '')) || 0;
+      const morosos = parseFloat(fila.find('td:eq(6)').text().replace(/[,$]/g, '')) || 0;
+      const retiradas = parseFloat(fila.find('td:eq(8)').text().replace(/[,$]/g, '')) || 0;
+
+      totalCaja += caja;
+      totalActivas += activas;
+      totalMorosos += morosos;
+      totalRetiradas += retiradas;
+    });
+
+    // Actualizar los elementos del resumen
+    $('#totalCaja').text('$' + totalCaja.toLocaleString('es-CO', { minimumFractionDigits: 0 }));
+    $('#totalActivas').text('$' + totalActivas.toLocaleString('es-CO', { minimumFractionDigits: 0 }));
+    $('#totalMorosos').text('$' + totalMorosos.toLocaleString('es-CO', { minimumFractionDigits: 0 }));
+    $('#totalRetiradas').text('$' + totalRetiradas.toLocaleString('es-CO', { minimumFractionDigits: 0 }));
+  }
+
+  // Función que se ejecutará cuando la tabla esté lista
+  $(document).ready(function () {
+    // Verificar si la tabla ya está inicializada
+    if ($.fn.DataTable.isDataTable('#tblKardexValorizado')) {
+      // Si ya está inicializada, solo agregar el callback
+      const tabla = $('#tblKardexValorizado').DataTable();
+
+      // Agregar callback para calcular totales
+      tabla.on('draw.dt', function () {
+        calcularTotales();
+      });
+
+      // Calcular totales iniciales
+      setTimeout(calcularTotales, 100);
+    } else {
+      // Si no está inicializada, esperar un poco y volver a verificar
+      setTimeout(function () {
+        if ($.fn.DataTable.isDataTable('#tblKardexValorizado')) {
+          const tabla = $('#tblKardexValorizado').DataTable();
+          tabla.on('draw.dt', function () {
+            calcularTotales();
+          });
+          setTimeout(calcularTotales, 100);
+        }
+      }, 500);
+    }
+  });
+</script>

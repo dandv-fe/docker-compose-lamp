@@ -1,0 +1,214 @@
+<div class="modal fade" id="modal-descuento-or-masintereses">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 id="h4title" class="modal-title"></h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="formDescuentoOrMasIntereses">
+                <input type="hidden" id="txtFormTipo" name="txtFormTipo">
+                <input type="hidden" id="txtRefTarjeta" name="txtRefTarjeta">
+                <div class="modal-body">
+                    <div id="modaldivmaxintereses" class="row">
+                        <div class="col-md-6">
+                            <div class="form-group has-success">
+                                <label for="txtmodalFormModo">Modo:</label>
+                                <input type="text" name="txtmodalFormModo" id="txtmodalFormModo" class="form-control"
+                                    readonly>
+
+
+                            </div>
+
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group has-success">
+                                <label for="txtmodalplazo">Mas Plazo:</label>
+                                <input id="txtmodalplazo" type="number" maxlength="45" name="txtmodalplazo"
+                                    placeholder="0" class="form-control" autofocus />
+                            </div>
+
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group has-success">
+                                <label for="txtmodalFormValor">Valor:</label>
+                                <input onkeyup="return calcularNuevoSaldo(this)" type="number" placeholder="0.00"
+                                    required id="txtmodalFormValor" name="txtmodalFormValor" class="form-control" />
+
+
+                            </div>
+
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="form-group has-success">
+                                <label for="txtmodalDescripcion">Descripcion:</label>
+                                <textarea required id="txtmodalDescripcion" type="text" maxlength="45"
+                                    name="txtmodalDescripcion" placeholder="Descripcion..." class="form-control"
+                                    rows="3"></textarea>
+                            </div>
+
+                        </div>
+                    </div>
+
+                    <h4><small>Saldo Actual: $</small><b id="txtmodalvalor">120</b></h4>
+                    <h4><small>Nuevo Saldo: $</small><b id="txtmodalnuevovalor">120</b></h4>
+                </div>
+
+                <div class="modal-footer justify-content-between">
+                    <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+
+
+            </form>
+
+
+        </div>
+        <!-- /.modal-content -->
+    </div>
+    <!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<script type="text/javascript">
+    $(function () {
+        $("button#btnShowModalDescuento").click(function (e) {
+            $("#h4title").text('Descuento');
+            $("#txtFormTipo").val('Descuento');
+            const id = parseInt(sessionStorage.getItem('index'))
+            $('#modal-descuento-or-masintereses').modal('show')
+            $("#modaldivmaxintereses").hide();
+            $("#txtmodalFormModo").attr('required', false);
+            $("#txtmodalplazo").attr('required', false);
+            $("#txtmodalDescripcion").attr('required', true);
+            $("#txtRefTarjeta").val(ArrayTarjetas[id].refTarjeta);
+            $("#txtmodalvalor").text((parseFloat(ArrayTarjetas[id].resta)).toFixed(2));
+            $("#txtmodalnuevovalor").text((parseFloat(ArrayTarjetas[id].resta)).toFixed(2));
+            setTimeout(modaldesIntFocus, 300)
+        });
+
+        $("button#btnMAxInteres").click(function (e) {
+            const id = parseInt(sessionStorage.getItem('index'))
+            const tarjeta = ArrayTarjetas[id];
+            if (!tarjeta || ['created', 'entregando'].includes(tarjeta.estado)) {
+                Toast.fire({
+                    icon: 'error',
+                    title: 'No se pueden cobrar más intereses mientras la tarjeta esté en estado created o entregando'
+                });
+                return;
+            }
+            $("#h4title").text('Cobrar Intereses');
+            $("#txtFormTipo").val('Intereses');
+            $('#modal-descuento-or-masintereses').modal('show')
+            $("#modaldivmaxintereses").show();
+            $("#txtmodalFormModo").attr('required', true);
+            $("#txtmodalplazo").attr('required', true);
+            $("#txtmodalDescripcion").attr('required', false);
+            $("#txtmodalFormModo").val(ArrayTarjetas[id].modo);
+            $("#txtRefTarjeta").val(ArrayTarjetas[id].refTarjeta);
+            $("#txtmodalvalor").text((parseFloat(ArrayTarjetas[id].resta)).toFixed(2));
+            $("#txtmodalnuevovalor").text((parseFloat(ArrayTarjetas[id].resta)).toFixed(2));
+            setTimeout(modaldesIntFocus, 300)
+        });
+
+        $("form#formDescuentoOrMasIntereses").submit(function (e) {
+            e.preventDefault();
+            if ($("#txtFormTipo").val() === 'Intereses') {
+                const tarjeta = ArrayTarjetas.find(t => t.refTarjeta === $("#txtRefTarjeta").val());
+                if (!tarjeta || ['created', 'entregando'].includes(tarjeta.estado)) {
+                    Toast.fire({
+                        icon: 'error',
+                        title: 'No se pueden cobrar más intereses mientras la tarjeta esté en estado created o entregando'
+                    });
+                    return;
+                }
+            }
+
+            $.post("./ajax/UsuarioAjax.php", function (r) {
+                if (r === '0') {
+                    location.reload(true);
+                }
+            });
+
+            var refTarjeta = $("#txtRefTarjeta").val();
+            var formData = new FormData($("form#formDescuentoOrMasIntereses")[0]);
+
+            $.ajax({
+
+                url: "./ajax/CarteraAjax.php?op=SaveDescuentoMaxInteres",
+                type: "POST",
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function (datos) {
+                    console.log(datos);
+
+                    if (datos.indexOf("ERROR:") !== -1) {
+                        Toast.fire({
+                            icon: 'error',
+                            title: datos
+                        })
+                    } else {
+
+                        Toast.fire({
+                            icon: 'success',
+                            title: datos
+                        })
+                        $("#modal-descuento-or-masintereses").modal('hide');
+                        verLoadin('Listando ', 'Espere...')
+                        listarRuta();
+
+                    }
+
+                }
+
+            });
+        });
+
+
+
+
+        $('#modal-descuento-or-masintereses').on('hiddeen.bs.modal', function (e) {
+
+            $("#formDescuentoOrMasIntereses").trigger('reset');
+        })
+
+        function modaldesIntFocus(params) {
+            if ($("#txtFormTipo").val() === 'Intereses') {
+                $("#txtmodalplazo").focus();
+            } else {
+                $("#txtmodalFormValor").focus();
+            }
+
+        }
+
+    });
+
+
+
+
+
+
+
+
+    function calcularNuevoSaldo(e) {
+        if (ArrayTarjetas.length > 0) {
+            if ($("#txtFormTipo").val() === 'Intereses') {
+                const id = parseInt(sessionStorage.getItem('index'))
+                $("#txtmodalvalor").text((parseFloat(ArrayTarjetas[id].resta)).toFixed(2));
+                $("#txtmodalnuevovalor").text(( parseFloat(ArrayTarjetas[id].resta) + (parseFloat($(e).val()) || 0)).toFixed(2));
+            } else {
+                const id = parseInt(sessionStorage.getItem('index'))
+                $("#txtmodalvalor").text(( parseFloat(ArrayTarjetas[id].resta)).toFixed(2));
+                $("#txtmodalnuevovalor").text((parseFloat(ArrayTarjetas[id].resta) - (parseFloat($(e).val()) || 0)).toFixed(2));
+            }
+
+        }
+
+    }
+</script>

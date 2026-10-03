@@ -1,0 +1,108 @@
+<div class="modal fade" id="modal-xl">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h4 id="titleModalBuscarPersona" class="modal-title">Buscar usuario</h4>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form id="formBuscarPersona">
+        <input id="refBuscarPersona" type="hidden" name="refPersona">
+        <div class="modal-body">
+          <div class="row">
+            <div class="col-md-6">
+              <div class="form-group has-success">
+                <label for="cboBusTipo_Documento">Tipo Documento:</label>
+                <select required id="cboBusTipo_Documento" name="cboBusTipo_Documento" class="form-control">
+
+                </select>
+              </div>
+
+            </div>
+
+            <div class="col-md-6">
+              <div class="form-group has-success">
+                <label for="txtbusNum_Documento">Documento:</label>
+                <input required id="txtbusNum_Documento" type="text" maxlength="45" name="txtbusNum_Documento"
+                  placeholder="" class="form-control" />
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer justify-content-between">
+          <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
+          <button id="btnSubmitFormBuscarPersona" type="submit" class="btn btn-primary">Buscar</button>
+        </div>
+
+
+      </form>
+
+
+    </div>
+    <!-- /.modal-content -->
+  </div>
+  <!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<script type="text/javascript">
+  $(function () {
+    $('#modal-xl').on('show.bs.modal', function (e) {
+      // Asegurar que el combo se cargue al mostrar el modal y luego enfocar
+      ComboTipo_Documento();
+      setTimeout(numdocumentoFocus, 300)
+    })
+    $('#modal-xl').on('hide.bs.modal', function (e) {
+      $("#titleModalBuscarPersona").text("Buscar usuario");
+      $("#btnSubmitFormBuscarPersona").text("Buscar");
+      $("form#formBuscarPersona :hidden").val("")
+      $('form#formBuscarPersona').trigger("reset");
+      ComboTipo_Documento();
+    })
+    function numdocumentoFocus() {
+      $("#txtbusNum_Documento").focus();
+    }
+
+    ComboTipo_Documento();
+    function ComboTipo_Documento() {
+
+      $.get("./ajax/DocSucursalAjax.php?op=listTipoDoc", { tipo: 'Persona' }, function (r) {
+        const select = $("#cboBusTipo_Documento");
+        select.html(r);
+        // Seleccionar por defecto la opción correspondiente a cédula de ciudadanía
+        try {
+          const strip = s => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+          const opt = select.find('option').filter(function () {
+            return strip($(this).text()).includes('cedula');
+          }).first();
+          if (opt.length) {
+            select.val(opt.val());
+          } else {
+            // fallback: buscar abreviaturas comunes o valores conocidos
+            const opt2 = select.find('option').filter(function () {
+              const t = strip($(this).text());
+              return t.includes('cc') || $(this).val() === 'CC' || $(this).val() === '1';
+            }).first();
+            if (opt2.length) select.val(opt2.val());
+          }
+
+          // Si por alguna razón quedó seleccionado un placeholder, forzar la cédula
+          const selectedText = (select.find('option:selected').text() || '').toLowerCase();
+          if (/selecciona|seleccione|comprobante/.test(selectedText)) {
+            if (opt.length) select.val(opt.val());
+          }
+
+          select.trigger('change');
+        } catch (e) {
+          console.error('Error al seleccionar tipo de documento por defecto', e);
+        }
+
+      })
+    }
+
+  });
+
+</script>

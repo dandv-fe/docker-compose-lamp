@@ -1,0 +1,118 @@
+<div class="modal fade" id="modal-CambioEstado">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 id="h4title" class="modal-title"></h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="formCambioEstado">
+                <input type="hidden" id="txtRefTarjetaCambiEstado" name="txtRefTarjetaCambiEstado">
+                <div class="modal-body">
+                    <div id="modaldivmaxintereses" class="row">
+                        <div class="col-md-12">
+                            <p id="ptxtInformacion1" class="hide"> Estos estados quitan la tarjeta de esta ventana</p>
+                            <div class="form-group has-success">
+                                <label for="txtmodalFormEstado">Estados:</label>
+                                <select name="txtmodalFormEstado" id="txtmodalFormEstado" class="form-control">
+                                    <option value="">--selecione--</option>
+                                    <?PHP
+                                if(isset($_SESSION['userEmpresa']) || in_array('pasar a morosos', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+                                    <option value="moroso">moroso</option>
+                                 <?php    } ?>
+                                 <?PHP
+                                if(isset($_SESSION['userEmpresa']) || in_array('pasar a retirados', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+                                    <option value="fallecio">fallecio</option>
+                                    <option value="discapacitado">discapacitado</option>
+                                 <?php    } ?>
+                                   
+                                    
+                                    <option value="otro">otro</option>
+                                </select>
+
+
+                            </div>
+
+                        </div>
+
+                        <div id="divOtroEstado" class="col-md-12 hide">
+                            <p> Estos estados no quitan la tarjeta </p>
+                            <div class="form-group has-success">
+                                <label for="txtmodalOtroEstado">Otro Estado:</label>
+                                <input id="txtmodalOtroEstado" type="text" maxlength="45" name="txtmodalOtroEstado"
+                                    placeholder="Otro Estado..." class="form-control" />
+                            </div>
+
+                        </div>
+                    </div>
+
+
+                    <h4><small>Estado Actual: </small><b id="txtmodalEstado"></b></h4>
+                    <h4><small>Nuevo Estado: </small><b id="txtmodalnuevoestado"></b></h4>
+                </div>
+
+                <div class="modal-footer justify-content-between">
+                    <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
+                    <button type="submit" class="btn btn-primary">Actualizar</button>
+                </div>
+
+
+            </form>
+
+
+        </div>
+        <!-- /.modal-content -->
+    </div>
+    <!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<script type="text/javascript">
+    $(function () {
+        $('#modal-CambioEstado').on('show.bs.modal', function (e) {
+            $("#formCambioEstado").trigger('reset');
+            let id = parseInt(sessionStorage.getItem('index'))
+            $("#txtRefTarjetaCambiEstado").val($("#txtrefTarjetaHidden").val());
+            $("#txtmodalEstado").text(ArrayTarjetas[id].estado);
+            $("#ptxtInformacion1").addClass('hide');
+            $("#divOtroEstado").addClass('hide');
+        })
+        $("#formCambioEstado").submit(function (e) {
+            e.preventDefault();
+            $.post("./ajax/UsuarioAjax.php", function (r) {
+                if (r === '0') {
+                    location.reload(true);
+                }
+            });
+            var formData = new FormData($("form#formCambioEstado")[0]);
+
+            $.ajax({
+
+                url: "./ajax/CarteraAjax.php?op=UpdateEstado",
+                type: "POST",
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function (datos) {
+
+                    if (datos.indexOf("ERROR:") !== -1) {
+                        Toast.fire({
+                            icon: 'error',
+                            title: datos
+                        })
+                    } else {
+                        Toast.fire({
+                            icon: 'success',
+                            title: datos
+                        })
+                        $('#modal-CambioEstado').modal('hide');
+                        listarRuta();
+                    }
+
+                }
+
+            });
+        });
+    });
+</script>

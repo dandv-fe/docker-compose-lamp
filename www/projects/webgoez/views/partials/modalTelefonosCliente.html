@@ -1,0 +1,38 @@
+<div class="modal fade" id="modal-telefonos-cliente" tabindex="-1" role="dialog"
+  aria-labelledby="titulo-telefonos-cliente" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="titulo-telefonos-cliente">Teléfonos del cliente</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <p id="estado-telefonos-cliente" role="status" aria-live="polite"></p>
+        <ul id="lista-telefonos-cliente" class="list-unstyled mb-0"></ul>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="gestionar-telefonos-cliente">Gestionar teléfonos</button>
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+      <div class="modal fade" id="modal-gestion-telefonos-cliente" tabindex="-1" role="dialog"
+        aria-labelledby="titulo-gestion-telefonos-cliente" aria-hidden="true">
+        <div class="modal-dialog" role="document"><div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title" id="titulo-gestion-telefonos-cliente">Gestionar teléfonos</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+          </div>
+          <div class="modal-body">
+            <p>El historial no se borra. Los teléfonos INCORRECTOS no se usan en WhatsApp. Selecciona primero otro teléfono principal para corregir el principal actual.</p>
+            <p id="estado-gestion-telefonos-cliente" role="status" aria-live="polite"></p>
+            <ul id="lista-gestion-telefonos-cliente" class="list-unstyled mb-0"></ul>
+          </div>
+          <div class="modal-footer"><button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button></div>
+        </div></div>
+      </div>

@@ -1,0 +1,189 @@
+{
+  // === CONFIGURACIÓN GITHUB COPILOT MÁXIMO RENDIMIENTO ===
+  
+  // Copilot - Configuración principal
+  "github.copilot.enable": {
+    "*": true,
+    "yaml": true,
+    "plaintext": true,
+    "markdown": true,
+    "php": true,
+    "javascript": true,
+    "html": true,
+    "css": true,
+    "sql": true,
+    "json": true
+  },
+  
+  // Copilot - Sugerencias mejoradas
+  "github.copilot.advanced": {},
+  "github.copilot.editor.enableAutoCompletions": true,
+  "github.copilot.editor.enableCodeActions": true,
+  "github.copilot.editor.iterativeFixing": true,
+  
+  // Copilot Chat - Configuración optimizada
+  "github.copilot.chat.followUps": "on",
+  "github.copilot.chat.localeOverride": "es",
+  "github.copilot.chat.welcomeMessage": "never",
+  
+  // IntelliSense y autocompletado mejorado
+  "editor.suggestSelection": "first",
+  "editor.acceptSuggestionOnEnter": "on",
+  "editor.acceptSuggestionOnCommitCharacter": true,
+  "editor.quickSuggestions": {
+    "other": true,
+    "comments": false,
+    "strings": true
+  },
+  "editor.quickSuggestionsDelay": 10,
+  "editor.suggestOnTriggerCharacters": true,
+  "editor.wordBasedSuggestions": "allDocuments",
+  "editor.parameterHints.enabled": true,
+  "editor.inlineSuggest.enabled": true,
+  "editor.inlineSuggest.showToolbar": "always",
+  
+  // Configuración general del editor
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": true,
+  "editor.formatOnType": true,
+  "editor.insertSpaces": true,
+  "editor.tabSize": 3,
+  "editor.detectIndentation": false,
+  "editor.autoIndent": "full",
+  "editor.bracketPairColorization.enabled": true,
+  "editor.guides.bracketPairs": true,
+  "editor.showFoldingControls": "always",
+  "editor.foldingStrategy": "indentation",
+  
+  // Configuraciones específicas por lenguaje optimizadas para Copilot
+  "[php]": {
+    "editor.defaultFormatter": "bmewburn.vscode-intelephense-client",
+    "editor.insertSpaces": true,
+    "editor.tabSize": 3,
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "editor.formatOnType": true,
+    "editor.autoIndent": "full",
+    "editor.quickSuggestions": {
+      "other": true,
+      "comments": true,
+      "strings": true
+    },
+    "editor.inlineSuggest.enabled": true,
+    "editor.suggest.insertMode": "replace",
+    "editor.suggest.filterGraceful": true,
+    "editor.wordBasedSuggestions": "allDocuments"
+  },
+  
+  "[html]": {
+    "editor.defaultFormatter": "vscode.html-language-features",
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true,
+    "editor.quickSuggestions": {
+      "other": true,
+      "comments": true,
+      "strings": true
+    }
+  },
+  
+  "[javascript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features",
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.organizeImports": "explicit"
+    }
+  },
+  
+  "[css]": {
+    "editor.defaultFormatter": "vscode.css-language-features",
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true
+  },
+  
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features",
+    "editor.tabSize": 2,
+    "editor.formatOnSave": true
+  },
+  
+  "[sql]": {
+    "editor.tabSize": 2,
+    "editor.insertSpaces": true,
+    "editor.formatOnSave": true,
+    "editor.quickSuggestions": {
+      "other": true,
+      "comments": false,
+      "strings": true
+    }
+  },
+  
+  // PHP Intelephense - Configuración optimizada para Copilot
+  "php.suggest.basic": false,
+  "php.validate.enable": true,
+  "intelephense.files.maxSize": 5000000,
+  "intelephense.completion.insertUseDeclaration": true,
+  "intelephense.completion.fullyQualifyGlobalConstantsAndFunctions": false,
+  "intelephense.format.enable": true,
+  "intelephense.diagnostics.enable": true,
+  "intelephense.diagnostics.run": "onType",
+  "intelephense.trace.server": "off",
+  
+  // Archivos y directorios
+  "files.associations": {
+    "*.php": "php",
+    "*.inc": "php",
+    "*.phtml": "php",
+    "*.tpl": "html"
+  },
+  "files.exclude": {
+    "**/vendor/**": false,
+    "**/node_modules/**": true,
+    "**/.git/**": true,
+    "**/tmp/**": true,
+    "**/cache/**": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/bower_components": true,
+    "**/tmp": true,
+    "**/cache": true,
+    "**/*.min.js": true,
+    "**/*.min.css": true
+  },
+  
+  // Explorador de archivos
+  "explorer.confirmDelete": false,
+  "explorer.confirmDragAndDrop": false,
+  "explorer.openEditors.visible": 1,
+  
+  // Terminal integrado
+  "terminal.integrated.defaultProfile.linux": "bash",
+  "terminal.integrated.fontSize": 14,
+  
+  // Workspace trust
+  "security.workspace.trust.untrustedFiles": "open",
+  
+  // Telemetría y privacidad
+  "telemetry.telemetryLevel": "error",
+  
+  // Emmet para HTML/CSS
+  "emmet.includeLanguages": {
+    "php": "html"
+  },
+  "emmet.triggerExpansionOnTab": true,
+  
+  // Git
+  "git.autofetch": true,
+  "git.confirmSync": false,
+  "git.enableSmartCommit": true,
+  
+  // Breadcrumbs
+  "breadcrumbs.enabled": true,
+  "breadcrumbs.showFiles": true,
+  "breadcrumbs.showFunctions": true,
+  "breadcrumbs.showVariables": true
+}

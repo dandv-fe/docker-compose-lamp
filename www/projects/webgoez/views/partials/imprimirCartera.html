@@ -1,0 +1,73 @@
+<div class="card">
+  <div class="card-header">
+    <h3 class="card-title">Impresion de la ruta</h3>
+  </div>
+  <!-- /.card-header -->
+  <div class="card-body">
+    <table id="tblImprimirCartera" class="table table-bordered table-hover">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Resta</th>
+          <th>Costo</th>
+          <th>Credito</th>
+          <th>Fecha</th>
+          <th>Cliente</th>
+          <th>Documento</th>
+          <th>Telefono</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+      <tfoot>
+        <tr>
+          <th>#</th>
+          <th>Resta</th>
+          <th>Costo</th>
+          <th>Credito</th>
+          <th>Fecha</th>
+          <th>Cliente</th>
+          <th>Documento</th>
+          <th>Telefono</th>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  <!-- /.card-body -->
+</div>
+
+<script>
+  $(document).ready(function () {
+    $("#tblImprimirCartera")
+      .DataTable({
+        sort: false,
+        responsive: true,
+        lengthChange: false,
+        autoWidth: false,
+        buttons: ["copy", "csv", "excel", "pdf", "print", "colvis"],
+      })
+      .buttons()
+      .container()
+      .appendTo("#tblImprimirCartera_wrapper .col-md-6:eq(0)");
+  });
+
+  function listarParaImprimir(t) {
+    const tabla = $("#tblImprimirCartera").DataTable();
+    tabla.clear().draw();
+    for (let i = 0; i < t.length; i++) {
+      const val = t[i];
+      console.log(val);
+      tabla.row
+        .add([
+          i + 1,
+          val.resta,
+          val.costo,
+          val.valor,
+          val.fecha_at.substring(10, 0),
+          val.cliente,
+          val.n_documento,
+          val.tel,
+        ])
+        .draw(false);
+    }
+  }
+</script>

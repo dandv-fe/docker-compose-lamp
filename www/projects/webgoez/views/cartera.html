@@ -1,0 +1,1233 @@
+<!-- SweetAlert2 -->
+
+<link rel="stylesheet" href="plugins/sweetalert2-theme-bootstrap-4/bootstrap-4.min.css" />
+<link rel="stylesheet" href="//code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css" />
+
+<!-- SweetAlert2 -->
+
+<!-- jQuery UI 1.11.4 -->
+<!-- DataTables -->
+
+
+
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css" />
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/jquery-ui/jquery-ui.min.js"></script>
+<script src="plugins/moment/moment.min.js"></script>
+<script src="plugins/moment/locale/es.js"></script>
+<script type="text/javascript" src="dist/scripts/Cartera.js?v=<?php echo $infoSistemaCuentas['version']; ?>-telefonos-historial"></script>
+
+
+<style>
+  .Table {
+    display: table;
+    width: 100%;
+  }
+
+  .Title {
+    display: table-caption;
+    text-align: center;
+    font-weight: bold;
+    font-size: larger;
+  }
+
+  .Heading {
+    display: table-row;
+    font-weight: bold;
+    text-align: center;
+  }
+
+  .Row {
+    display: table-row;
+  }
+
+  .Cell {
+    width: 50%;
+    display: table-cell;
+    border: solid;
+
+    border-width: thin;
+    border-radius: 1em/5em;
+
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+
+  .smalPanelValores {
+    width: 33.3%;
+    display: table-cell;
+    border: solid;
+
+    border-width: thin;
+    border-radius: 5em/5em;
+
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+
+  .smalPanelValores h4 {
+    margin: 0;
+  }
+
+  .Cell input {
+    display: block;
+    width: 100%;
+    height: 47px;
+    font-size: 1.8rem;
+    -webkit-appearance: textfield !important;
+    margin: 0;
+    -moz-appearance: textfield !important;
+  }
+
+  .Heading .derecha {
+    width: 16px;
+    text-align: left;
+    padding: 0;
+  }
+
+  .Heading .izquierda {
+    width: 16px;
+    text-align: right;
+    padding: 0;
+  }
+
+  .Cell input::-webkit-inner-spin-button,
+  .Cell input::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+
+  .Cell input {
+    -moz-appearance: textfield;
+  }
+
+  .clienteHeader {
+    font-weight: bold;
+  }
+
+  .bResultadoValores {
+    font-size: 1.5rem;
+  }
+</style>
+<script>
+  let banderasavedcredito = 0
+  var Toast = Swal.mixin({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    timer: 2000,
+  });
+  function CrearIten(min, max) {
+    var num = Math.random() * (max - min) + min;
+    return num;
+  }
+</script>
+
+<?php
+include "views/partials/modalNuevaContabilidad.html";
+?>
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+  <!-- Content Header (Page header) -->
+
+  <!-- /.content-header -->
+  <!-- Main content -->
+  <section class="content p-0">
+    <div class="container-fluid">
+      <div id="verEcabezado" class="card-header p-0">
+        <nav class="navbar navbar-expand p-0">
+          <!-- Left navbar links -->
+          <ul id="txth3Diferenciapanel" class="navbar-nav"></ul>
+
+          <!-- Right navbar links -->
+          <ul class="navbar-nav ml-auto">
+            <!-- Navbar Search -->
+            <li id="inputBuscarClienteRuta" class="nav-item">
+              <a class="nav-link" data-widget="navbar-search" data-target="#navbar-search1" href="#" role="button">
+                <i class="fas fa-search"></i>
+              </a>
+              <div class="navbar-search-block" id="navbar-search1">
+                <form onsubmit="buscarClienteRuta(event)" class="form-inline">
+                  <div class="input-group input-group-sm">
+                    <input id="buscarClientePannel" class="form-control form-control-navbar" type="search"
+                      placeholder="Search" aria-label="Search" />
+                    <div class="input-group-append">
+                      <button class="btn btn-navbar" type="submit">
+                        <i class="fas fa-search"></i>
+                      </button>
+                      <button class="btn btn-navbar" type="button" data-widget="navbar-search">
+                        <i class="fas fa-times"></i>
+                      </button>
+                    </div>
+                  </div>
+                </form>
+              </div>
+            </li>
+            <!-- Right navbar links -->
+
+            <li class="nav-item dropdown">
+              <a class="nav-link" style="font-size:large;" data-toggle="dropdown" href="#">
+                <i id="canpanaAbonos" class="far fa-bell" style="font-size: 1.5rem;"></i>
+                <span id="txtCantidadAbonos" style="font-weight: bold;  font-size: .78rem; ;"
+                  class="badge badge-warning navbar-badge">1</span>
+              </a>
+              <div class="dropdown-menu dropdown-menu-lg dropdown-menu-right">
+                <div class="dropdown-divider"></div>
+                <a href="#" class="dropdown-item">
+                  <i class="fas fa-envelope mr-2"></i> Recaudo
+                  <span class="float-right text-muted text-sm">$<i class="txtRecaudoSuma"></i></span>
+                </a>
+                <div class="dropdown-divider"></div>
+                <a href="#" class="dropdown-item">
+                  <i class="fas fa-users mr-2"></i> Creditos
+                  <span class="float-right text-muted text-sm">$<i class="txtCreditosSuma"></i></span>
+                </a>
+                <div class="dropdown-divider"></div>
+                <a href="#" class="dropdown-item">
+                  <i class="fas fa-file mr-2"></i> Seguros
+                  <span class="float-right text-muted text-sm">$<i class="txtSegurosSuma"></i></span>
+                </a>
+                <?PHP
+                  if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('ver suma cartera', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+                <div class="dropdown-divider"></div>
+                <a href="#" class="dropdown-item">
+                  <i class="fas fa-file mr-2"></i> Cartera
+                  <span class="float-right text-muted text-sm">$<i class="txtCarteraSuma"></i></span>
+                </a>
+                <?php    } ?>
+
+
+                <?php
+                if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('ver cuentas detalladas',
+                array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+                <div class="dropdown-divider"></div>
+                <button onclick="verformRecibirCuentas();" class="dropdown-item dropdown-footer">
+                  Ver Detallado
+                </button>
+                <?php    } ?>
+
+              </div>
+            </li>
+          </ul>
+        </nav>
+      </div>
+
+      <div id="verMenus" class="row">
+        <div class="col-md-12">
+          <div class="card card-widget mb-0">
+            <div class="card-header p-0">
+              <div class="card-header d-flex p-0">
+                <div class="btn-group">
+
+                  <button type="button" class="btn btn-default" data-toggle="modal" data-target="#modal-xl">
+                    Nuevo
+                  </button>
+
+
+
+                  <button type="button" class="btn btn-default dropdown-toggle dropdown-hover dropdown-icon"
+                    data-toggle="dropdown">
+                    <span class="sr-only">Toggle Dropdown</span>
+                  </button>
+
+                  <div class="dropdown-menu" role="menu">
+
+                    <!--<button onclick="verSubirTarjetasEcxel();" class="dropdown-item">
+                    Subir desde excel
+                  </button>-->
+
+                    <button onclick="verFormPanel();" class="dropdown-item">
+                      Abonar
+                    </button>
+                    <button type="button" class="dropdown-item" data-toggle="modal"
+                      data-target="#modal-xl-alertaClente">
+                      Agregar Alerta
+                    </button>
+                    <?PHP
+                    if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('ordenar', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+                    <button class="dropdown-item" data-toggle="modal" data-target="#modal-enrrutar">
+                      Mover ordenar
+                    </button>
+                    <?php    } ?>
+                    <?php
+                    if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('descuento', array_column($_SESSION['AUTHS'],
+                    'nombre'))){ ?>
+                    <button id="btnShowModalDescuento" class="dropdown-item">
+                      Descuento
+                    </button>
+                    <?php    } ?>
+                    <?php
+                    if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('cobrar intereser', array_column($_SESSION['AUTHS'],
+                    'nombre'))){ ?>
+                    <button id="btnMAxInteres" class="dropdown-item">
+                      Mas Intereses
+                    </button>
+                    <?php    } ?>
+                    <?php
+                    if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('ver cuentas detalladas',
+                    array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+                    <button onclick="verformRecibirCuentas();" class="dropdown-item">
+                      Cuentas
+                    </button>
+                    <?php    } ?>
+                    <?php
+                    if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('imprimir', array_column($_SESSION['AUTHS'],
+                    'nombre'))){ ?>
+                    <div class="dropdown-divider"></div>
+                    <button onclick="verImprimir();" class="dropdown-item">
+                      Imprimir
+                    </button>
+
+                    <?php    } ?>
+                  </div>
+
+                  <small>N° <i id="txtposition" style="font-size: 24px"></i></small>
+                </div>
+
+                <ul class="nav nav-pills ml-auto p-0">
+                  <li class="nav-item dropdown">
+                    <h4>
+                      <small id="txtviewrecaudopanel" class="txtviewpanel">Recaudo:</small>
+                      <b class="txtviewpanel">$</b><i class="txtRecaudoSuma txtviewpanel"></i>
+                      <small id="txtviewcreditospanel" class="txtviewpanel">creditos:</small>
+                      <b class="txtviewpanel">$</b><i class="txtCreditosSuma txtviewpanel"></i>
+                    </h4>
+                  </li>
+                </ul>
+              </div>
+              <!-- /.card-header -->
+            </div>
+          </div>
+          <div id="resumenCajaCartera" class="small px-2 py-1 border-bottom" style="overflow-x:auto; white-space:nowrap" title="Efectivo esperado en la ruta" aria-live="polite">
+            Caja: Cargando…
+          </div>
+        </div>
+      </div>
+
+      <div id="verLoadin" style="display: none">
+        <div class="row">
+          <div class="col-md-12">
+            <!-- Box Comment -->
+
+            <div class="card card-warning">
+              <div class="card-header">
+                <h3 id="txtTitleLoading" class="card-title">Loading state</h3>
+              </div>
+              <div id="txtinfoLoading" class="card-body">
+                The body of the card
+              </div>
+              <!-- /.card-body -->
+              <!-- Loading (remove the following to stop the loading)-->
+              <div class="overlay">
+                <i class="fa-solid fa-rotate fa-spin fa-2xl"></i>
+              </div>
+              <!-- end loading -->
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="verPanel">
+        <div class="row">
+          <div class="col-md-12">
+            <!-- Box Comment -->
+            <div id="panelVewNoDatos" class="card card-primary">
+              <div class="card-header">
+                <h3 class="card-title">Resuldado</h3>
+
+                <div class="card-tools">
+                  <button type="button" class="btn btn-tool" data-card-widget="card-refresh" data-source="cartera.php"
+                    data-source-selector="#card-refresh-content">
+                    <i class="fas fa-sync-alt"></i>
+                  </button>
+                </div>
+                <!-- /.card-tools -->
+              </div>
+              <!-- /.card-header -->
+              <div class="card-body">
+                <p>
+                  NO hay tarjetas para mostrar click
+                  <small><button type="button" class="btn btn-default" data-toggle="modal" data-target="#modal-xl">
+                      ¡AQUI!
+                    </button></small>
+                  para crear contenido
+                </p>
+              </div>
+              <!-- /.card-body -->
+            </div>
+
+            <div id="panelVewDatos" class="card card-widget">
+              <div class="card-header p-0">
+                <!-- para la calificacion ¡PENDIENTE¡!
+                <div class="ribbon-wrapper">
+                  <div id="txtClienteCalificacion" class="ribbon bg-default"></div>
+                </div>
+              -->
+                <div class="user-block">
+                  <img id="foto-cliente-panel" class="img-circle" src="" alt="User Image" />
+                  <span onclick="searchInfoEsteCliente()" class="username usernamecluente"><a href="#"
+                      id="nombre-cliente-panel"></a></span>
+                  <span class="description ge-danger" style="min-height: 20px">
+                    <b>Referencia: </b><a id="apodo-cliente-panel" href="#"> </a></span>
+                  <span class="description ge-danger" style="min-height: 20px">
+                    <b>Ocupacion: </b><a id="ocupacion-cliente-panel" href="#"> </a></span>
+                  <span class="description"><b id="t_documento-cliente-panel"></b>:
+                    <a id="documento-cliente-panel"
+                      style="font-weight: bold; font-family: Arial, Helvetica, sans-serif; font-size: larger;" href="#">
+                    </a></span>
+                  <span class="description">
+                    <p id="telefono-cliente-panel" class="text-danger m-0"
+                      role="button" tabindex="0" aria-haspopup="dialog" aria-controls="modal-telefonos-cliente"
+                      style="cursor: pointer; font-weight: bold; font-family: Arial, Helvetica, sans-serif; font-size: larger; display: block;"
+                      href="#"></p>
+                  </span>
+                </div>
+              </div>
+
+              <!-- /.card-header -->
+              <div class="card-body p-0">
+                <div class="Table">
+                  <div class="Row">
+                    <div class="smalPanelValores">
+                      <h4>
+                        <small id="txtValorViewPanel">Valor:&nbsp;$</small><b id="bResultadoValoresValor"
+                          class="bResultadoValores text-right">
+                        </b>
+                      </h4>
+                    </div>
+                    <div class="smalPanelValores">
+                      <h4>
+                        <small id="txtCostoViewPanel">Costo:&nbsp;$</small><b id="bResultadoValoresCosto"
+                          class="bResultadoValores"></b>
+                      </h4>
+                    </div>
+                    <div id="divPanelAdicional" class="smalPanelValores">
+                      <h4>
+                        <small id="txtSeguroViewPanel">
+                          <?php //echo $allSucursal[$indexAllSucursal][11]=='boleta'? 'Boleta': 'Seguro' ?>:&nbsp;$
+                        </small><b id="bResultadoValoresSeguro" class="bResultadoValores"></b>
+                      </h4>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- /.card-body -->
+              <div class="card-footer card-comments p-0">
+                <div class="Table">
+
+                  <div class="Title">
+                    <div id="styloResta" class="card card-outline card-primary m-0">
+
+                      <div class="card-header p-0">
+                        <h1 id="recaudo-cliente-panel" style="
+                        width: 50%;
+                        background-color: #05f579;
+                        font-size: 2rem;
+                        font-weight: bold;
+                      " class="card-title hide">
+                          Danger
+                        </h1>
+                        <h1 id="resta-cliente-panel" style="
+                            width: 100%;
+                            font-size: 2rem;
+                            font-weight: bold;
+                          " class="card-title">
+                          Danger
+                        </h1>
+
+                      </div>
+
+                      <div class="overlay" style="background-color: rgba(0, 0, 0, 0)">
+                        <div onclick="ditetion('one')" style="width: 5%; height: 100%">
+                          <i class="fa-solid fa-forward-fast fa-rotate-180 fa-xl" style="color: #055df5"></i>
+                        </div>
+                        <div style="width: 90%; height: 100%; text-align: left"></div>
+                        <div onclick="ditetion('last')" style="width: 5%; height: 100%">
+                          <i class="fa-solid fa-forward-fast fa-xl" style="color: #055df5"></i>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div id="styloResta" class="card card-outline card-primary m-0">
+                    <div id="divPagoBancoAbono" class="row m-1">
+                      <div class="col-12 col-md-4 px-1">
+                        <label for="cboBancoPagoAbono" class="small mb-0">Medio de pago del abono *</label>
+                        <select id="cboBancoPagoAbono" name="cboBancoPagoAbono" form="formAddAbonoConfirma" class="form-control form-control-sm" required>
+                          <option value="">Seleccione el medio de pago</option>
+                          <option value="0">Efectivo</option>
+                        </select>
+                      </div>
+                      <div class="col-12 col-md-4 px-1 divDetallePagoBancoAbono hide">
+                        <input id="txtValorBancoPagoAbono" name="txtValorBancoPagoAbono" form="formAddAbonoConfirma" type="number" step="0.01" min="0" class="form-control form-control-sm" placeholder="¿Cuánto entró por banco?" />
+                      </div>
+                      <div class="col-12 col-md-4 px-1 divDetallePagoBancoAbono hide">
+                        <input id="txtReferenciaBancoPagoAbono" name="txtReferenciaBancoPagoAbono" form="formAddAbonoConfirma" type="text" maxlength="50" class="form-control form-control-sm" placeholder="Referencia (opcional)" />
+                      </div>
+                      <div id="divVueltoBancoAbono" class="col-12 px-1 hide">
+                        <label class="text-danger small mb-0">
+                          <input id="chkVueltoBancoAbono" type="checkbox" /> Le devuelvo <span id="txtVueltoBancoAbonoTexto">0</span> en efectivo
+                        </label>
+                      </div>
+                      <input id="txtVueltoBancoPagoAbono" name="txtVueltoBancoPagoAbono" form="formAddAbonoConfirma" type="hidden" value="0" />
+                    </div>
+                    <div class="Heading">
+                      <div class="Cell derecha">
+                        <button onclick="ditetion('back')" type="button" class="btn btn-block btn-default">
+                          <i class="fa-regular fa-hand-point-left fa-2xl my-3" style="color: #055df5"></i>
+                        </button>
+                      </div>
+
+                      <div class="Cell">
+                        <form id="formAddAbono" autocomplete="off">
+                          <input onkeyup="return presionoAbono(this,event);" id="txtAbono-credito"
+                            name="txtAbono-credito" type="number" class="form-control p-0" placeholder="Abono" />
+                        </form>
+                      </div>
+                      <div class="Cell">
+                        <form id="formAddAbonoConfirma" autocomplete="off">
+                          <input type="hidden" id="textRefDexcripcionHidden" name="textRefDexcripcionHidden" />
+                          <input type="hidden" id="txtrefTarjetaHidden" name="txtrefTarjetaHidden" />
+                          <input type="hidden" id="txtCuotaHidden" name="txtCuotaHidden" />
+                          <input onkeyup="return presionoConfirmar(this);" id="txtconfirma-credito"
+                            name="txtconfirma-credito" type="number" class="form-control p-0" placeholder="Confirma" />
+                          <button id="btnsubmitAddAbono" type="submit" style="display: none"></button>
+                        </form>
+                      </div>
+
+                      <div class="Cell izquierda">
+                        <button onclick="ditetion('nex')" type="button" class="btn btn-block btn-default">
+                          <i class="fa-regular fa-hand-point-left fa-flip-horizontal fa-2xl my-3"
+                            style="color: #055df5"></i>
+                        </button>
+                      </div>
+                    </div>
+                    <div id="loadinSavedAdd" class="overlay">
+                      <i class="fa-solid fa-rotate fa-spin fa-2xl"></i>
+                    </div>
+                  </div>
+
+
+
+
+                </div>
+              </div>
+              <!-- /.card-footer -->
+              <div id="ultimo-abono-panel" class="card-body py-2"
+                data-viewer-user-id="<?php echo (int)($_SESSION['idusuario'] ?? 0); ?>" style="display: none">
+                <strong>Último registro</strong>
+                <div><strong id="ultimo-abono-tipo"></strong> · <span id="ultimo-abono-importe"></span></div>
+                <div id="ultimo-abono-detalle">Detalle: <span id="ultimo-abono-descripcion"></span></div>
+                <div>Origen: <span id="ultimo-abono-origen"></span></div>
+                <div>Sincronización: <span id="ultimo-abono-sincronizacion"></span></div>
+                <div>Registrado por: <span id="ultimo-abono-usuario"></span></div>
+                <div>Estado: <span id="ultimo-abono-estado"></span></div>
+                <small id="ultimo-abono-fecha"></small>
+              </div>
+              <?php include "views/partials/descripcionCredito.html"; ?>
+              <div id="usuario_quien_creo"> </div>
+              <?php include "views/partials/comentarios-cliente.html";?>
+            </div>
+            <!-- /.card -->
+          </div>
+          <!-- /.col -->
+        </div>
+      </div>
+      <!--/.verPannel -->
+
+      <div id="verFormCliente" class="card" style="display: none">
+        <div class="row">
+          <div class="col-md-12">
+            <form role="form" name="frmCliente" id="frmCliente" enctype="multipart/form-data">
+              <div class="card-header">
+                <h3 class="card-title">Datos de persona</h3>
+              </div>
+              <!-- /.card-header -->
+              <div class="card-body">
+                <?php include "views/partials/persona.html"; ?>
+
+                <div class="dropdown-divider"></div>
+                <div class="card-header">
+                  <h3 class="card-title">Datos del cliente</h3>
+                </div>
+                <div class="row">
+                  <div class="col-md-4">
+                    <div class="form-group has-success">
+                      <label for="txtEstadoCliente">Estado:</label>
+                      <select name="txtEstadoCliente" id="txtEstadoCliente" class="form-control" required>
+                        <option value="">--selecione--</option>
+                        <option value="activo" selected>activo</option>
+                        <option value="inactivo">inactivo</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="col-md-4">
+                    <div class="form-group has-success">
+                      <input id="txtRefCliente" type="hidden" name="txtRefCliente" />
+
+                      <label for="txt_max_credito">Máximo cupo que apruebo:</label>
+                      <input id="txt_max_credito" type="number" min="0" step="0.01" name="txt_max_credito" required
+                        class="form-control" placeholder="Máximo cupo que apruebo" value="" />
+                      <?php if (!isset($_SESSION['userEmpresa'])) { ?>
+                        <small id="limiteCupoEmpleado" class="form-text text-muted"
+                          <?php if ($maxCupoEmpleado !== null) { ?>data-max="<?php echo htmlspecialchars((string)$maxCupoEmpleado, ENT_QUOTES, 'UTF-8'); ?>"<?php } ?>>
+                          <?php if ($maxCupoEmpleado !== null) { ?>
+                            Límite autorizado al crear un cliente: <?php echo htmlspecialchars((string)$maxCupoEmpleado, ENT_QUOTES, 'UTF-8'); ?>
+                          <?php } else { ?>
+                            No se encontró el cupo autorizado del empleado; no se puede aprobar un cliente nuevo.
+                          <?php } ?>
+                        </small>
+                      <?php } ?>
+                    </div>
+                  </div>
+
+                  <div class="col-md-4">
+                    <div class="form-group has-success">
+                      <label for="txtApodo">Referencia:</label>
+                      <input value="" id="txtApodo" type="text" maxlength="50" name="txtApodo" class="form-control"
+                        placeholder="Referencia..." autofocus="" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- /.card-header -->
+              <div class="card-footer">
+                <div class="row">
+                  <div class="col-xs-8">
+                    <p>Opciones</p>
+                    <button class="btn btn-success" type="submit">
+                      <i class="fa fa-floppy-o"></i> Registrar
+                    </button>
+                    <a id="btnCancelarForm" href="#" class="btn btn-primary"><i class="fa fa-remove"></i> Cancelar</a>
+                    <hr />
+                    <span class="lead text-primary"></span>
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+      <!--/.verFormCliente-->
+
+      <div id="verInformacionCliente" class="card" style="display: none">
+        <input id="referencia-cliente" name="referencia-cliente" type="hidden" form="formSaveNewCredit" />
+        <div class="row">
+          <div class="col-md-3">
+            <!-- Profile Image -->
+            <div class="card card-primary card-outline">
+              <div class="card-body box-profile p-1">
+                <div class="text-center">
+                  <img id="img-cliente" class="profile-user-img img-fluid img-circle" src=""
+                    alt="User profile picture" />
+                </div>
+
+                <h3 id="txt-name-cliente" class="profile-username text-center"></h3>
+
+                <p id="txt-apodo-cliente" class="text-muted text-center mb-1"></p>
+
+                <ul class="list-group list-group-unbordered mb-3">
+                  <li class="list-group-item">
+                    <b>Sexo</b>
+                    <a id="txt-sexo-cliente" class="float-right"></a>
+                  </li>
+
+                  <li class="list-group-item pb-1">
+
+                    <b id="txt-tipo-documento-cliente"></b>
+                    <a id="txt-num-documento-cliente" class="float-right"></a>
+                    <div class="clearfix"></div>
+                    <i id="editarDocumentoCliente" class="fa-solid fa-pen-to-square pr-1 float-right"
+                      data-editDocument=""></i>
+                  </li>
+                  <li class="list-group-item">
+                    <b>Tel</b> <a id="txt-tel-cliente" class="float-right"></a>
+                  </li>
+                  <li class="list-group-item">
+                    <b>Max-Credito</b> <a id="txt-maxcredi-cliente" class="float-right"></a>
+                  </li>
+                  <li class="list-group-item">
+                    <b>Cupo</b> <a id="txt-cupo-cliente" class="float-right"></a>
+                  </li>
+                </ul>
+
+                <?PHP
+                if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('nueva tarjeta', array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+                <button class="btn btn-primary btn-block" data-toggle="modal" data-target="#modal-nuevo-credito">
+                  <b>Crear Tarjeta</b>
+                </button>
+                <?php } ?>
+
+
+              </div>
+              <!-- /.card-body -->
+            </div>
+            <!-- /.card -->
+
+            <!-- About Me Box -->
+            <div class="card card-primary">
+              <div class="card-header p-1">
+                <h3 class="card-title">Informe</h3>
+                <div class="card-tools">
+                  <form id="formBuscarClienteEditar">
+                    <?php
+                  if(isset($_SESSION['userEmpresa']) || $administraOficinaActual || in_array('crear cliente',
+                  array_column($_SESSION['AUTHS'], 'nombre')) || in_array('editar cliente',
+                  array_column($_SESSION['AUTHS'], 'nombre'))){ ?>
+                    <button type="submit" class="btn btn-tool">
+                      <i class="fa-solid fa-user-pen fa-2xl" style="color: #511f21"></i>
+                    </button>
+                    <?php } ?>
+
+                    <button onclick="verFormPanel()" type="button" class="btn btn-tool">
+                      <i class="fa-solid fa-table-columns fa-2xl"></i>
+                    </button>
+                  </form>
+                </div>
+              </div>
+              <!-- /.card-header -->
+              <div class="card-body">
+
+
+                <strong><i class="fas fa-map-marker-alt mr-1"></i> Direccion</strong>
+
+                <p id="pTxtDireccionCliente" class="text-muted"></p>
+
+
+                <hr />
+
+
+              </div>
+              <!-- /.card-body -->
+            </div>
+            <!-- /.card -->
+          </div>
+          <!-- /.col -->
+
+          <div class="col-md-9">
+
+
+
+            <div class="card card-outline card-primary">
+              <div class="card-header">
+                <h3 class="card-title">Historial Creditos</h3>
+              </div>
+              <!-- /.card-header -->
+              <div class="card-body p-0">
+                <!-- TABLE: LATEST ORDERS -->
+
+                <div class="box-body">
+                  <div class="box">
+                    <div class="box-header text-center">
+                      <h3 class="box-title">Activas</h3>
+                    </div>
+                    <!-- /.box-header -->
+                    <div class="box-body">
+                      <div class="table-responsive">
+                        <table class="table m-0">
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th style="width: 100px">Fecha</th>
+                              <th>Ruta</th>
+                              <th>Consepto</th>
+                              <th>Valor</th>
+                              <th>Costo</th>
+                              <th>Resta</th>
+                              <th>Estado</th>
+                              <th>Abonos</th>
+                            </tr>
+                          </thead>
+                          <tbody id="tbody-tarjetas-activas-cliente"></tbody>
+                          <tfoot>
+                            <tr>
+                              <th>#</th>
+                              <th>Fecha</th>
+                              <th>Ruta</th>
+                              <th>Consepto</th>
+                              <th>Valor</th>
+                              <th>Costo</th>
+                              <th>Resta</th>
+                              <th>Estado</th>
+                              <th>Abonos</th>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                      <!-- /.table-responsive -->
+                    </div>
+                  </div>
+                </div>
+
+                <div class="box-body">
+                  <div class="box">
+                    <div class="dropdown-divider"></div>
+                    <div class="dropdown-divider"></div>
+                    <div class="box-header text-center">
+                      <h3 class="box-title">CANCELADAS</h3>
+                    </div>
+                    <!-- /.box-header -->
+                    <div class="dropdown-divider"></div>
+
+                    <div class="box-body">
+                      <div class="table-responsive">
+                        <table class="table m-0">
+                          <thead>
+                            <tr>
+                              <th>#</th>
+                              <th style="width: 100px">Fecha-Ini</th>
+                              <th>Ruta</th>
+                              <th>Consepto</th>
+                              <th>Valor</th>
+
+                              <th>Costo</th>
+                              <th>fecha-Fin</th>
+                              <th>Cancelo</th>
+                              <th>Como Pago</th>
+                            </tr>
+                          </thead>
+                          <tbody id="tbody-tarjetas-canceladas-cliente"></tbody>
+                          <tfoot>
+                            <tr>
+                              <th>#</th>
+                              <th style="width: 100px">Fecha-Ini</th>
+                              <th>Ruta</th>
+                              <th>Consepto</th>
+                              <th>Valor</th>
+
+                              <th>Costo</th>
+                              <th>fecha-Fin</th>
+                              <th>Cancelo</th>
+                              <th>Como Pago</th>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      </div>
+                      <!-- /.table-responsive -->
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <!-- /.card-body -->
+            </div>
+            <!-- /.card -->
+          </div>
+          <!-- /.col -->
+        </div>
+        <!-- /.row -->
+      </div>
+      <!--/.verInformacionCliente-->
+
+      <div id="verImprimir" style="display: none">
+        <?php
+                include "views/partials/imprimirCartera.html";
+            ?>
+      </div>
+
+      <div id="verformRecibirCuentas" class="card" style="display: none">
+        <!-- /.card-header -->
+        <div class="card-body p-0">
+          <?php
+                include "views/form/formContabilidadDetalleRuta.html";
+            ?>
+        </div>
+      </div>
+
+      <div id="verOrdenarMultiple" class="card" style="display: none">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="ion ion-clipboard mr-1"></i>
+            To Do List
+          </h3>
+
+          <div class="card-tools">
+            <ul class="pagination pagination-sm">
+              <li class="page-item">
+                <a href="#" class="page-link">&laquo;</a>
+              </li>
+              <li class="page-item"><a href="#" class="page-link">1</a></li>
+              <li class="page-item"><a href="#" class="page-link">2</a></li>
+              <li class="page-item"><a href="#" class="page-link">3</a></li>
+              <li class="page-item">
+                <a href="#" class="page-link">&raquo;</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <!-- /.card-header -->
+        <div class="card-body">
+          <ul class="todo-list" data-widget="todo-list">
+            <li>
+              <!-- drag handle -->
+              <span class="handle">
+                <i class="fas fa-ellipsis-v"></i>
+                <i class="fas fa-ellipsis-v"></i>
+              </span>
+              <!-- checkbox -->
+              <div class="icheck-primary d-inline ml-2">
+                <input type="checkbox" value="" name="todo1" id="todoCheck1" />
+                <label for="todoCheck1"></label>
+              </div>
+              <!-- todo text -->
+              <span class="text">Design a nice theme</span>
+              <!-- Emphasis label -->
+              <small class="badge badge-danger"><i class="far fa-clock"></i> 2 mins</small>
+              <!-- General tools such as edit or delete-->
+              <div class="tools">
+                <i class="fas fa-edit"></i>
+                <i class="fas fa-trash-o"></i>
+              </div>
+            </li>
+            <li>
+              <span class="handle">
+                <i class="fas fa-ellipsis-v"></i>
+                <i class="fas fa-ellipsis-v"></i>
+              </span>
+              <div class="icheck-primary d-inline ml-2">
+                <input type="checkbox" value="" name="todo2" id="todoCheck2" checked />
+                <label for="todoCheck2"></label>
+              </div>
+              <span class="text">Make the theme responsive</span>
+              <small class="badge badge-info"><i class="far fa-clock"></i> 4 hours</small>
+              <div class="tools">
+                <i class="fas fa-edit"></i>
+                <i class="fas fa-trash-o"></i>
+              </div>
+            </li>
+            <li>
+              <span class="handle">
+                <i class="fas fa-ellipsis-v"></i>
+                <i class="fas fa-ellipsis-v"></i>
+              </span>
+              <div class="icheck-primary d-inline ml-2">
+                <input type="checkbox" value="" name="todo3" id="todoCheck3" />
+                <label for="todoCheck3"></label>
+              </div>
+              <span class="text">Let theme shine like a star</span>
+              <small class="badge badge-warning"><i class="far fa-clock"></i> 1 day</small>
+              <div class="tools">
+                <i class="fas fa-edit"></i>
+                <i class="fas fa-trash-o"></i>
+              </div>
+            </li>
+            <li>
+              <span class="handle">
+                <i class="fas fa-ellipsis-v"></i>
+                <i class="fas fa-ellipsis-v"></i>
+              </span>
+              <div class="icheck-primary d-inline ml-2">
+                <input type="checkbox" value="" name="todo4" id="todoCheck4" />
+                <label for="todoCheck4"></label>
+              </div>
+              <span class="text">Let theme shine like a star</span>
+              <small class="badge badge-success"><i class="far fa-clock"></i> 3 days</small>
+              <div class="tools">
+                <i class="fas fa-edit"></i>
+                <i class="fas fa-trash-o"></i>
+              </div>
+            </li>
+            <li>
+              <span class="handle">
+                <i class="fas fa-ellipsis-v"></i>
+                <i class="fas fa-ellipsis-v"></i>
+              </span>
+              <div class="icheck-primary d-inline ml-2">
+                <input type="checkbox" value="" name="todo5" id="todoCheck5" />
+                <label for="todoCheck5"></label>
+              </div>
+              <span class="text">Check your messages and notifications</span>
+              <small class="badge badge-primary"><i class="far fa-clock"></i> 1 week</small>
+              <div class="tools">
+                <i class="fas fa-edit"></i>
+                <i class="fas fa-trash-o"></i>
+              </div>
+            </li>
+            <li>
+              <span class="handle">
+                <i class="fas fa-ellipsis-v"></i>
+                <i class="fas fa-ellipsis-v"></i>
+              </span>
+              <div class="icheck-primary d-inline ml-2">
+                <input type="checkbox" value="" name="todo6" id="todoCheck6" />
+                <label for="todoCheck6"></label>
+              </div>
+              <span class="text">Let theme shine like a star</span>
+              <small class="badge badge-secondary"><i class="far fa-clock"></i> 1 month</small>
+              <div class="tools">
+                <i class="fas fa-edit"></i>
+                <i class="fas fa-trash-o"></i>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <!-- /.card-body -->
+        <div class="card-footer clearfix">
+          <button type="button" class="btn btn-primary float-right">
+            <i class="fas fa-plus"></i> Add item
+          </button>
+        </div>
+      </div>
+
+      <div id="verSubirTarjetasEcxel" class="card">
+        <div class="card-header">
+          <h3 class="card-title">
+            <i class="ion ion-clipboard mr-1"></i>
+            To Do List
+          </h3>
+
+          <div class="card-tools">
+            <ul class="pagination pagination-sm">
+              <li class="page-item">
+                <a href="#" class="page-link">&laquo;</a>
+              </li>
+              <li class="page-item"><a href="#" class="page-link">1</a></li>
+              <li class="page-item"><a href="#" class="page-link">2</a></li>
+              <li class="page-item"><a href="#" class="page-link">3</a></li>
+              <li class="page-item">
+                <a href="#" class="page-link">&raquo;</a>
+              </li>
+            </ul>
+          </div>
+        </div>
+        <!-- /.card-header -->
+        <div class="card-body">
+          <ul class="todo-list" data-widget="todo-list">
+            <li>
+              <!-- drag handle -->
+              <span class="handle">
+                <i class="fas fa-ellipsis-v"></i>
+                <i class="fas fa-ellipsis-v"></i>
+              </span>
+              <!-- checkbox -->
+              <div class="icheck-primary d-inline ml-2">
+                <input type="checkbox" value="" name="todo1" id="todoCheck1" />
+                <label for="todoCheck1"></label>
+              </div>
+              <!-- todo text -->
+              <span class="text">Design a nice theme</span>
+              <!-- Emphasis label -->
+              <small class="badge badge-danger"><i class="far fa-clock"></i> 2 mins</small>
+              <!-- General tools such as edit or delete-->
+              <div class="tools">
+                <i class="fas fa-edit"></i>
+                <i class="fas fa-trash-o"></i>
+              </div>
+            </li>
+            <li>
+              <span class="handle">
+                <i class="fas fa-ellipsis-v"></i>
+                <i class="fas fa-ellipsis-v"></i>
+              </span>
+              <div class="icheck-primary d-inline ml-2">
+                <input type="checkbox" value="" name="todo2" id="todoCheck2" checked />
+                <label for="todoCheck2"></label>
+              </div>
+              <span class="text">Make the theme responsive</span>
+              <small class="badge badge-info"><i class="far fa-clock"></i> 4 hours</small>
+              <div class="tools">
+                <i class="fas fa-edit"></i>
+                <i class="fas fa-trash-o"></i>
+              </div>
+            </li>
+            <li>
+              <span class="handle">
+                <i class="fas fa-ellipsis-v"></i>
+                <i class="fas fa-ellipsis-v"></i>
+              </span>
+              <div class="icheck-primary d-inline ml-2">
+                <input type="checkbox" value="" name="todo3" id="todoCheck3" />
+                <label for="todoCheck3"></label>
+              </div>
+              <span class="text">Let theme shine like a star</span>
+              <small class="badge badge-warning"><i class="far fa-clock"></i> 1 day</small>
+              <div class="tools">
+                <i class="fas fa-edit"></i>
+                <i class="fas fa-trash-o"></i>
+              </div>
+            </li>
+            <li>
+              <span class="handle">
+                <i class="fas fa-ellipsis-v"></i>
+                <i class="fas fa-ellipsis-v"></i>
+              </span>
+              <div class="icheck-primary d-inline ml-2">
+                <input type="checkbox" value="" name="todo4" id="todoCheck4" />
+                <label for="todoCheck4"></label>
+              </div>
+              <span class="text">Let theme shine like a star</span>
+              <small class="badge badge-success"><i class="far fa-clock"></i> 3 days</small>
+              <div class="tools">
+                <i class="fas fa-edit"></i>
+                <i class="fas fa-trash-o"></i>
+              </div>
+            </li>
+            <li>
+              <span class="handle">
+                <i class="fas fa-ellipsis-v"></i>
+                <i class="fas fa-ellipsis-v"></i>
+              </span>
+              <div class="icheck-primary d-inline ml-2">
+                <input type="checkbox" value="" name="todo5" id="todoCheck5" />
+                <label for="todoCheck5"></label>
+              </div>
+              <span class="text">Check your messages and notifications</span>
+              <small class="badge badge-primary"><i class="far fa-clock"></i> 1 week</small>
+              <div class="tools">
+                <i class="fas fa-edit"></i>
+                <i class="fas fa-trash-o"></i>
+              </div>
+            </li>
+            <li>
+              <span class="handle">
+                <i class="fas fa-ellipsis-v"></i>
+                <i class="fas fa-ellipsis-v"></i>
+              </span>
+              <div class="icheck-primary d-inline ml-2">
+                <input type="checkbox" value="" name="todo6" id="todoCheck6" />
+                <label for="todoCheck6"></label>
+              </div>
+              <span class="text">Let theme shine like a star</span>
+              <small class="badge badge-secondary"><i class="far fa-clock"></i> 1 month</small>
+              <div class="tools">
+                <i class="fas fa-edit"></i>
+                <i class="fas fa-trash-o"></i>
+              </div>
+            </li>
+          </ul>
+        </div>
+        <!-- /.card-body -->
+        <div class="card-footer clearfix">
+          <button type="button" class="btn btn-primary float-right">
+            <i class="fas fa-plus"></i> Add item
+          </button>
+        </div>
+      </div>
+
+
+      <style>
+        /*Reposo*/
+        .divForNuevoCredito {
+          margin-bottom: 2px;
+          padding-top: 10px;
+        }
+
+        .spanForNuevoCredito,
+        .inputForNuevoCredito {
+          font: 16px/16px Verdana;
+        }
+
+        .labelForNuevoCredito {
+          display: block;
+          width: 100%;
+          border: 2px solid silver;
+          margin: 0;
+          position: relative;
+          box-sizing: border-box;
+          border-radius: 4px;
+          transition: 0.29s;
+        }
+
+        .labelForNuevoCredito .inputForNuevoCredito {
+          display: block;
+          width: 100%;
+          border: none;
+          background: transparent;
+          outline: none;
+        }
+
+        .labelForNuevoCredito .spanForNuevoCredito {
+          color: silver;
+          position: absolute;
+          top: 8px;
+          left: 10px;
+          transition: 0.29s;
+        }
+
+        /*Foco*/
+        .labelForNuevoCredito.focus {
+          border-color: aquamarine;
+        }
+
+        .labelForNuevoCredito .spanForNuevoCredito.focus {
+          color: aquamarine;
+        }
+
+        /*Top*/
+        .labelForNuevoCredito .spanForNuevoCredito.top {
+          left: 2px;
+          top: -10px;
+          font-size: 12px;
+
+          padding: 0 5px;
+        }
+      </style>
+    </div>
+  </section>
+
+  <?php  include "views/partials/modalSearchPersona.html"; ?>
+  <?php  include "views/partials/modalAlertasCliente.html"; ?>
+  <?php  include "views/partials/modalTelefonosCliente.html"; ?>
+  <script type="text/javascript"
+    src="dist/scripts/NuevoCredito.js?v=<?php echo $infoSistemaCuentas['version']; ?>-cuota-inicial"></script>
+
+  <?php 
+  include "views/partials/modalNuevoCredito.html"; 
+   include "views/partials/modalEnrrutarOrdenar.html"; 
+  include "views/partials/modalDescuentoOrMasIntereses.html";
+  include "views/partials/modalCambioEstado.html";
+  include "views/partials/modalHistorialPagos.html";
+   ?>
+</div>
+<a id="back-to-top" href="#" class="btn btn-primary back-to-top" role="button" aria-label="Scroll to top"
+  style="z-index: 99999999">
+  <i class="fas fa-chevron-up"></i>
+</a>
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.colVis.min.js"></script>
+
+<script type="text/javascript">
+
+  $("#li-creditos").addClass("menu-open");
+  $("#lia-creditos").addClass("active");
+  $("#lia-cartera").addClass("active");
+
+
+
+  if (screen.width < 700) {
+    const textVal = "R";
+    const textCos = "C";
+    $("#txtviewrecaudopanel").text(textVal);
+    $("#txtviewcreditospanel").text(textCos);
+
+    $(".txtviewpanel").css({
+      "font-size": "1.5rem",
+    });
+  }
+
+  $(function () {
+
+
+
+    /*
+        $("#sortable").sortable({
+            revert: true
+        });
+        $("#draggable").draggable({
+            connectToSortable: "#sortable",
+            helper: "clone",
+            revert: "invalid"
+        });
+        $("ul, li").disableSelection();*/
+  });
+</script>

@@ -1,0 +1,849 @@
+<!-- Bootstrap4 Duallistbox -->
+<link rel="stylesheet" href="plugins/bootstrap4-duallistbox/bootstrap-duallistbox.min.css">
+
+<!-- DataTables -->
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css" />
+<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css" />
+<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css" />
+
+
+
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.colVis.min.js"></script>
+
+
+<script src="plugins/moment/moment.min.js"></script>
+<script src="plugins/moment/locales.js"></script>
+
+<!-- Tempusdominus Bootstrap 4 -->
+<script src="plugins/tempusdominus-bootstrap-4/js/tempusdominus-bootstrap-4.min.js"></script>
+
+
+
+
+
+
+<!-- SweetAlert2 -->
+<link rel="stylesheet" href="plugins/sweetalert2-theme-bootstrap-4/bootstrap-4.min.css" />
+<!-- SwalAlert2 -->
+
+
+
+<script type="text/javascript"
+  src="dist/scripts/Ahorradores.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+
+<!-- Bootstrap4 Duallistbox -->
+<script src="plugins/bootstrap4-duallistbox/jquery.bootstrap-duallistbox.min.js"></script>
+
+
+
+<script>
+  var Toast = Swal.mixin({
+    toast: true,
+    position: "top-end",
+    showConfirmButton: false,
+    // timer: 2000,
+  });
+  function CrearIten(min, max) {
+    var num = Math.random() * (max - min) + min;
+    return num;
+  }
+</script>
+
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+  <!-- Content Header (Page header) -->
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1 class="m-0">Ahorradores</h1>
+        </div>
+      </div>
+    </div>
+    <!-- /.container-fluid -->
+  </section>
+
+  <!-- Main content -->
+  <section class="content">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-12">
+          <div id="VerForm" class="card">
+            <form role="form" name="frmAhorro" id="frmAhorro" enctype="multipart/form-data">
+              <input id="txtidPublica" type="hidden" class="form-control" maxlength="32" name="txtidPublica" />
+              <div class="card-header">
+                <h3 class="card-title">Datos de persona</h3>
+              </div>
+              <!-- /.card-header -->
+              <div class="card-body">
+                <?php  include "views/partials/persona.html";   ?>
+                <div class="dropdown-divider"></div>
+                <div class="card-header">
+                  <h3 class="card-title">Datos de usuario</h3>
+                </div>
+                <!-- /.row -->
+                <div class="row">
+                  <div class="col-md-6">
+                    <div class="form-group">
+                      <input id="txtRefUsuario" type="hidden" name="txtRefUsuario" />
+
+                      <label for="txt_Login">Usuario</label>
+                      <input value="" id="txt_Login" type="text" class="form-control" required="" maxlength="50"
+                        name="txt_Login" autofocus="" />
+                    </div>
+                  </div>
+                  <!-- /.col -->
+                  <div class="col-md-6">
+                    <!-- /.form-group -->
+                    <div class="form-group">
+                      <label for="txt_Password">Clave</label>
+                      <input value="" id="txt_Password" type="text" class="form-control" maxlength="32"
+                        name="txt_Password" autofocus="" />
+                      <input id="txt_PasswordAt" type="hidden" name="txt_PasswordAt" />
+                    </div>
+                    <!-- /.form-group -->
+                  </div>
+                  <!-- /.col -->
+                </div>
+
+
+
+
+
+              </div>
+              <!-- /.card-body -->
+
+              <div class="card-footer">
+                <div class="row">
+                  <div class="col-xs-8">
+                    <p>Opciones</p>
+                    <button id="btn-submit-ahorro" class="btn btn-success" type="submit">
+                      <i class="fa fa-piggy-bank"></i> GUARDAR AHORRO
+                    </button>
+                    <a id="btnCancelarForm" href="#" class="btn btn-primary"><i class="fa fa-remove"></i> CANCELAR</a>
+                    <hr />
+                    <span class="lead text-primary"></span>
+
+                  </div>
+                </div>
+              </div>
+            </form>
+          </div>
+          <!-- /.card -->
+
+
+          <button id="btnNuevoAhorrador" class="btn btn-primary mb-2" data-toggle="modal" data-target="#modal-xl">
+            <i class="fa fa-user-plus"></i> Nuevo Ahorrador
+          </button>
+
+          <div id="VerListado" class="card">
+            <div class="card-header">
+              <h3 class="card-title">Listado</h3>
+            </div>
+            <!-- /.card-header -->
+            <div class="card-body">
+              <table id="example1" class="table table-bordered table-striped">
+                <thead>
+                  <tr>
+                    <th style="min-width: 150px;">Nombre</th>
+                    <th>Documento</th>
+                    <th>Teléfono</th>
+                    <th>Email</th>
+                    <th>Dirección</th>
+                    <th>Fecha Creación</th>
+                    <th>Opciones</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot>
+                  <tr>
+                    <th style="min-width: 150px;">Nombre</th>
+                    <th>Documento</th>
+                    <th>Teléfono</th>
+                    <th>Email</th>
+                    <th>Dirección</th>
+                    <th>Fecha Creación</th>
+                    <th>Opciones</th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <!-- /.card-body -->
+          </div>
+          <!-- /.card -->
+          <div id="VerConfiguracion" class="card">
+            <div class="card-header d-flex justify-content-between align-items-center perfil-header-sticky">
+              <h3 class="card-title mb-0">Perfil del ahorrador</h3>
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="ListadoAhorradores()">
+                <i class="fas fa-arrow-left mr-1"></i> Atrás
+              </button>
+            </div>
+            <input type="hidden" id="txtRefAhorroConfig" />
+            <div class="row">
+              <div class="col-md-3">
+                <!-- Profile Image -->
+                <div class="card card-primary card-outline">
+                  <div class="card-body box-profile p-1">
+                    <div class="text-center">
+                      <img id="img_ahorrador" class="profile-user-img img-fluid img-circle" src=""
+                        alt="User profile picture" />
+                    </div>
+
+                    <h3 id="txt_name_ahorrador" class="profile-username text-center"></h3>
+                    <strong class="d-flex align-items-center justify-content-center mb-1">
+                      <i class="fas fa-venus-mars mr-1"></i>
+                      <span id="txt_sexo_ahorrador" class="text-muted"></span>
+                    </strong>
+                    <ul class="list-group list-group-unbordered mb-3">
+
+                      <li class="list-group-item d-flex align-items-center flex-nowrap py-2">
+                        <i id="editarDocumentoAhorrador" class="fa-solid fa-pen-to-square mr-2"
+                          data-editDocument=""></i>
+                        <span id="txt_tipo_documento_ahorrador" class="badge badge-light mr-2"></span>
+                        <span id="txt_num_documento_ahorrador" class="font-weight-bold text-truncate"></span>
+                      </li>
+
+
+                      <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <b>Saldo Total</b>
+                        <a id="txt_saldo_ahorrador" class="float-right">$0.00</a>
+                      </li>
+
+                      <li id="saldos_tipos_ahorrador" class="p-0 border-0"></li>
+
+
+                    </ul>
+
+
+                  </div>
+                  <!-- /.card-body -->
+                </div>
+                <!-- /.card -->
+
+                <!-- About Me Box -->
+                <div class="card card-primary">
+                  <div class="card-header p-1">
+                    <h3 class="card-title">Información</h3>
+                    <div class="card-tools">
+                      <form id="formAhorroEditar">
+                        <input type="hidden" id="txt_idglobal_ah">
+                        <input type="hidden" id="txt_idpersona_ah">
+                        <button type="submit" class="btn btn-tool">
+                          <i class="fa-solid fa-piggy-bank fa-2xl" style="color: #511f21"></i>
+                        </button>
+
+                      </form>
+                    </div>
+                  </div>
+                  <!-- /.card-header -->
+                  <div class="card-body">
+
+                    <strong><i class="fas fa-phone mr-1"></i>
+                      Teléfono</strong>
+
+                    <p id="txt_tel_ahorrador" class="text-muted">No definido</p>
+
+                    <strong><i class="fas fa-envelope mr-1"></i>
+                      Email</strong>
+
+                    <p id="txt_email_ahorrador" class="text-muted">No definido</p>
+
+                    <strong><i class="fas fa-map-marker-alt mr-1"></i>
+                      Dirección</strong>
+
+                    <ul id="txt_direccion_ahorrador" class="text-muted mb-2 pl-3">
+                      <li>No definido</li>
+                    </ul>
+
+                  </div>
+                  <!-- /.card-body -->
+                </div>
+                <!-- /.card -->
+              </div>
+              <div class="col-md-9">
+                <!-- tab del ahorrador -->
+                <div class="card card-primary card-tabs">
+                  <div class="card-header p-0 pt-1">
+                    <ul class="nav nav-tabs" id="custom-tabs-five-tab" role="tablist">
+                      <li class="nav-item">
+                        <a class="nav-link active" id="custom-tabs-productos-tab" data-toggle="pill"
+                          href="#custom-tabs-productos" role="tab" aria-controls="custom-tabs-productos"
+                          aria-selected="true">Productos
+                        </a>
+                      </li>
+
+                      <li class="nav-item">
+                        <a class="nav-link" id="custom-tabs-movimientos-tab" data-toggle="pill"
+                          href="#custom-tabs-movimientos" role="tab" aria-controls="custom-tabs-movimientos"
+                          aria-selected="false">Movimientos</a>
+                      </li>
+
+                    </ul>
+                  </div>
+                  <div class="card-body p-0">
+                    <div class="tab-content" id="custom-tabs-five-tabContent">
+                      <!--ver ahorros-->
+                      <div class="tab-pane fade show active" id="custom-tabs-productos" role="tabpanel"
+                        aria-labelledby="custom-tabs-productos-tab">
+
+                        <?php $mostrarBtnAjusteIntereses = true; include "views/partials/exploradorCuentas.html"; ?>
+                      </div>
+
+                      <div class="tab-pane fade" id="custom-tabs-movimientos" role="tabpanel"
+                        aria-labelledby="custom-tabs-movimientos-tab">
+                        <div id="verLoadingMovimientos" class="overlay-wrapper">
+                          <div class="overlay dark">
+                            <i class="fas fa-3x fa-sync-alt fa-spin"></i>
+                            <div class="text-bold pt-2">Cargando...</div>
+                          </div>
+                          Espere
+                        </div>
+
+                        <div id="verListadoMovimientos" class="card hide">
+                          <div class="card-header">
+                            <h3 class="card-title">Movimientos de la persona</h3>
+                          </div>
+                          <div class="card-body p-0">
+                            <table id="tblMovimientos" class="table table-bordered table-striped">
+                              <thead>
+                                <tr>
+                                  <th>Fecha</th>
+                                  <th>Cuenta</th>
+                                  <th>Tipo</th>
+                                  <th>Monto</th>
+                                  <th>Descripción</th>
+                                  <th>Estado</th>
+                                </tr>
+                              </thead>
+                              <tbody></tbody>
+                              <tfoot>
+                                <tr>
+                                  <th>Fecha</th>
+                                  <th>Cuenta</th>
+                                  <th>Tipo</th>
+                                  <th>Monto</th>
+                                  <th>Descripción</th>
+                                  <th>Estado</th>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!--ver ganancias del ahorro -->
+                      <div class="tab-pane fade" id="custom-tabs-ganancias" role="tabpanel"
+                        aria-labelledby="custom-tabs-ganancias-tab">
+                        <div id="verLoadingGanancias" class="overlay-wrapper">
+                          <div class="overlay dark">
+                            <i class="fas fa-3x fa-sync-alt fa-spin"></i>
+                            <div class="text-bold pt-2">Cargando...</div>
+                          </div>
+                          Espere
+                        </div>
+                        <div id="verListadoGanancias" class="card hide">
+                          <div class="card-header">
+                            <h3 class="card-title">Historial de Ganancias</h3>
+                          </div>
+                          <!-- /.card-header -->
+                          <div class="card-body p-0">
+                            <table id="tblGanancias" class="table table-bordered table-striped">
+                              <thead>
+                                <tr>
+                                  <th>Fecha</th>
+                                  <th>Porcentaje</th>
+                                  <th>Ganancia</th>
+                                </tr>
+                              </thead>
+                              <tbody></tbody>
+                              <tfoot>
+                                <tr>
+                                  <th>Fecha</th>
+                                  <th>Porcentaje</th>
+                                  <th>Ganancia</th>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          </div>
+
+                          <!-- /.card-body -->
+                        </div>
+                      </div>
+
+                      <!--Configuración del ahorro-->
+                      <div class="tab-pane fade" id="custom-tabs-configuracion" role="tabpanel"
+                        aria-labelledby="custom-tabs-configuracion-tab">
+                        <div class="card">
+                          <div class="card-header">
+                            <h3 class="card-title">Configuración de Ahorro</h3>
+                          </div>
+                          <div class="card-body">
+                            <form id="formConfiguracionAhorro">
+                              <input type="hidden" id="txtIdAhorroConfig" name="txtIdAhorroConfig">
+
+                              <div class="row">
+                                <div class="col-md-6">
+                                  <div class="form-group">
+                                    <label for="txtPorcentajeConfig">Porcentaje de Ahorro (%EA):</label>
+                                    <input type="number" class="form-control" id="txtPorcentajeConfig"
+                                      $("#li-ahorros").addClass("menu-open"); $(".lia-ahorros").addClass("active");
+                                      $(".lia-corresponsales").addClass("active"); name="txtPorcentajeConfig"
+                                      step="0.01" min="0" max="100">
+                                  </div>
+                                </div>
+                                <div class="col-md-6">
+                                  <div class="form-group">
+                                    <label for="cboPagoUtilidadConfig">Tipo de Pago:</label>
+                                    <select class="form-control" id="cboPagoUtilidadConfig"
+                                      name="cboPagoUtilidadConfig">
+                                      <option value="">Seleccione...</option>
+                                      <option value="automatico">Automático</option>
+                                      <option value="manual">Manual</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div class="row">
+                                <div class="col-md-6">
+                                  <div class="form-group">
+                                    <label for="chkAuthMovimientosConfig">
+                                      <input type="checkbox" id="chkAuthMovimientosConfig"
+                                        name="chkAuthMovimientosConfig">
+                                      Autorizar Movimientos
+                                    </label>
+                                    <span id="indicadorAuthMov" class="badge badge-secondary ml-2">No autorizado</span>
+                                  </div>
+                                </div>
+                                <div class="col-md-6">
+                                  <div class="form-group">
+                                    <label for="cboEstadoConfig">Estado:</label>
+                                    <select class="form-control" id="cboEstadoConfig" name="cboEstadoConfig">
+                                      <option value="">Seleccione...</option>
+                                      <option value="ACTIVO">Activo</option>
+                                      <option value="INACTIVO">Inactivo</option>
+                                      <option value="SUSPENDIDO">Suspendido</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </div>
+
+                              <div class="modal-footer justify-content-between">
+                                <button type="submit" class="btn btn-primary">Guardar Configuración</button>
+                              </div>
+                            </form>
+                          </div>
+                        </div>
+                      </div>
+
+
+
+
+
+                    </div>
+                    <!-- /.card -->
+                  </div>
+                  <!-- /.tab del empleado  -->
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- /.col -->
+        </div>
+        <!-- /.row -->
+      </div>
+      <!-- /.container-fluid -->
+  </section>
+  <!-- /.content -->
+
+  <?php  include "views/partials/modalSearchPersona.html"; ?>
+  <?php  include "views/partials/modalSueldoPactado.html"; ?>
+
+  <!-- Modal Editar Configuración Ahorro -->
+  <div class="modal fade" id="modalEditarAhorroConfig" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-md" role="document">
+      <form id="formEditarAhorroConfig">
+        <div class="modal-content">
+          <div class="modal-header py-2">
+            <h5 class="modal-title"><i class="fas fa-edit"></i> Editar Parámetros del Ahorro</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body py-2">
+            <input type="hidden" id="editAhorroId" name="txtIdAhorroConfig" />
+            <div class="row">
+              <div class="col-md-6">
+                <div class="form-group mb-2">
+                  <label for="editPorcentaje">Porcentaje (%EA)</label>
+                  <input type="number" step="0.01" min="0" max="100" id="editPorcentaje" name="txtPorcentajeConfig"
+                    class="form-control" />
+                </div>
+              </div>
+              <div class="col-md-6">
+                <div class="form-group mb-2">
+                  <label for="editPagoUtilidad">Tipo de Pago</label>
+                  <select id="editPagoUtilidad" name="cboPagoUtilidadConfig" class="form-control">
+                    <option value="">Seleccione...</option>
+                    <option value="automatico">Automático</option>
+                    <option value="manual">Manual</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6">
+                <div class="form-group mb-2">
+                  <label for="editEstado">Estado</label>
+                  <select id="editEstado" name="cboEstadoConfig" class="form-control">
+                    <option value="">Seleccione...</option>
+                    <option value="ACTIVO">Activo</option>
+                    <option value="INACTIVO">Inactivo</option>
+                    <option value="SUSPENDIDO">Suspendido</option>
+                  </select>
+                </div>
+              </div>
+              <div class="col-md-6 d-flex align-items-center">
+                <div class="form-group mb-0 mt-3">
+                  <div class="custom-control custom-checkbox">
+                    <input type="checkbox" class="custom-control-input" id="editAuthMovimientos"
+                      name="chkAuthMovimientosConfig">
+                    <label class="custom-control-label" for="editAuthMovimientos">Autorizar Movimientos</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer py-2">
+            <button type="submit" class="btn btn-warning">
+              <i class="fa fa-save"></i> Actualizar
+            </button>
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Nuevo Movimiento -->
+  <div class="modal fade" id="modalMovimiento" tabindex="-1" role="dialog">
+    <div class="modal-dialog modal-md" role="document">
+      <form id="formMovimientoAhorro">
+        <div class="modal-content">
+          <div class="modal-header py-2">
+            <h5 class="modal-title"><i class="fa fa-plus"></i> Nuevo Movimiento</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body py-2">
+            <input type="hidden" id="idahorroMovimiento" name="idahorroMovimiento" />
+            <div class="form-group mb-2">
+              <label for="cboTipoMovimiento">Tipo</label>
+              <select id="cboTipoMovimiento" name="cboTipoMovimiento" class="form-control" required>
+                <option value="">Seleccione...</option>
+                <option value="aporte">Aporte</option>
+                <option value="retiro">Retiro</option>
+                <option value="ajuste">Ajuste</option>
+              </select>
+            </div>
+            <div class="form-group mb-2">
+              <label for="txtValorMovimiento">Monto</label>
+              <input type="number" step="0.01" min="0" id="txtValorMovimiento" name="txtValorMovimiento"
+                class="form-control" required />
+            </div>
+            <div class="form-group mb-2">
+              <label for="txtDescripcionMovimiento">Descripción</label>
+              <textarea id="txtDescripcionMovimiento" name="txtDescripcionMovimiento" rows="2" maxlength="255"
+                class="form-control" required></textarea>
+            </div>
+          </div>
+          <div class="modal-footer py-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="fa fa-save"></i> Guardar
+            </button>
+            <button type="button" class="btn btn-secondary" data-dismiss="modal">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<!-- /.content-wrapper -->
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+
+
+
+<!-- SweetAlert2 -->
+
+
+<script type="text/javascript">
+  $("#li-ahorros").addClass("menu-open");
+  $(".lia-ahorros").addClass("active");
+  $(".lia-ahorradores").addClass("active");
+
+  $('.duallistbox').bootstrapDualListbox({
+    nonSelectedListLabel: 'NO ASIGNADO',
+    selectedListLabel: 'SI ASIGNADO',
+    preserveSelectionOnMove: 'moved',
+    moveOnSelect: false,
+    //nonSelectedFilter: ''
+  })
+
+
+  // Inicialización básica para ahorros
+  // Los date pickers se configurarán según sea necesario
+
+
+
+  $("#example1")
+    .DataTable({
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      displayLength: 200,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#example1_wrapper .col-md-6:eq(0)");
+
+  $("#tblMovimientos")
+    .DataTable({
+      sort: false,
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#tblMovimientos_wrapper .col-md-6:eq(0)");
+
+  $("#tblGanancias")
+    .DataTable({
+      sort: false,
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+    })
+    .buttons()
+    .container()
+    .appendTo("#tblGanancias_wrapper .col-md-6:eq(0)");
+
+  $(function () { })
+
+  $(document).on("click", "#btnGuardarAjusteIntereses", function () {
+    const refAhorro = $("#txtRefAhorroConfig").val();
+
+    if (!refAhorro) {
+      if (typeof Toast !== "undefined") {
+        Toast.fire({ icon: "warning", title: "Seleccione una cuenta para registrar el ajuste." });
+      }
+      return;
+    }
+
+    if ($("#formMovimientoAhorro").length) {
+      $("#formMovimientoAhorro")[0].reset();
+    }
+
+    $("#idahorroMovimiento").val(refAhorro);
+    $("#cboTipoMovimiento").val("ajuste");
+    $("#txtDescripcionMovimiento").val("Aporte de intereses");
+    $("#modalMovimiento .modal-title").html('<i class="fas fa-balance-scale"></i> Aportar intereses');
+    $("#modalMovimiento").modal("show");
+  });
+
+  if (typeof window.formatearMonedaPublica === "function") {
+    $("#txt_saldo_ahorrador").text('$' + window.formatearMonedaPublica(0, 2));
+    $("#fichaSaldoAhorro").text('$' + window.formatearMonedaPublica(0, 2));
+  } else if (typeof window.formatearMonedaGlobal === "function") {
+    $("#txt_saldo_ahorrador").text('$' + window.formatearMonedaGlobal(0));
+    $("#fichaSaldoAhorro").text('$' + window.formatearMonedaGlobal(0));
+  }
+
+  $("#tblAhorros")
+    .DataTable({
+      sort: false,
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      buttons: [
+        { extend: "csv", title: "Cuentas Productos", filename: "Cuentas_Productos" },
+        { extend: "excel", title: "Cuentas Productos", filename: "Cuentas_Productos" },
+        { extend: "pdf", title: "Cuentas Productos", filename: "Cuentas_Productos" },
+        { extend: "print", title: "Cuentas Productos" },
+        "colvis"
+      ],
+    })
+    .buttons()
+    .container()
+    .appendTo("#tblAhorros_wrapper .col-md-6:eq(0)");
+
+
+
+
+</script>
+
+<!-- Estilos locales para mejorar apariencia y centrar -->
+<style>
+  /* Centrado y tarjeta más atractiva */
+  .card.card-primary.card-outline .box-profile {
+    text-align: center;
+  }
+
+  .profile-user-img {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border: 4px solid #fff;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  }
+
+  #txt_name_ahorrador {
+    font-weight: 700;
+    font-size: 1.15rem;
+  }
+
+  #pTextPorcentajeAhorro_small {
+    font-weight: 600;
+    color: #1e88e5;
+  }
+
+  #txt_saldo_header {
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #28a745;
+  }
+
+  #txt_saldo_ahorrador {
+    font-weight: 700;
+    color: #28a745;
+  }
+
+  .ahorro-slide-track {
+    display: flex;
+    gap: .5rem;
+    overflow-x: auto;
+    padding-bottom: .25rem;
+  }
+
+  .ahorro-slide-card {
+    min-width: 220px;
+    border: 1px solid #dee2e6;
+    border-radius: .5rem;
+    padding: .6rem .75rem;
+    background: #fff;
+    cursor: pointer;
+    transition: all .2s ease;
+  }
+
+  .ahorro-slide-card:hover,
+  .ahorro-slide-card.active {
+    border-color: #007bff;
+    box-shadow: 0 0 0 .15rem rgba(0, 123, 255, .15);
+  }
+
+  .ahorro-ficha {
+    border: 1px solid #e9ecef;
+    border-radius: .5rem;
+    background: #fbfcfe;
+    padding: .75rem;
+  }
+
+  .txt-saldo-tipo-ahorrador {
+    font-weight: 700;
+    color: #28a745;
+  }
+
+  .card-header.d-flex {
+    background: linear-gradient(90deg, #f8f9fa, #ffffff);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.04);
+  }
+
+  .btn-success {
+    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.15);
+    border: none;
+  }
+
+  #verListadoMovimientos .card-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  #verListadoMovimientos .card-header .border-left {
+    border-left: none;
+  }
+
+  #verListadoMovimientos .card-header .btn {
+    min-width: 220px;
+  }
+
+  /* Ajustes responsivos */
+  @media (min-width: 992px) {
+    #verListadoMovimientos .card-header {
+      padding: 1.1rem 1.5rem;
+    }
+
+    #verListadoMovimientos .card-header .btn {
+      min-width: 200px;
+    }
+  }
+
+  @media (max-width: 767px) {
+    #txt_saldo_header {
+      font-size: 1.1rem;
+    }
+
+    .profile-user-img {
+      width: 90px;
+      height: 90px;
+    }
+  }
+
+  #VerConfiguracion .card.card-primary .card-body .text-muted,
+  #txt_sexo_ahorrador.text-muted {
+    color: #5f6770 !important;
+  }
+
+  .perfil-header-sticky {
+    position: sticky;
+    top: 0;
+    z-index: 1020;
+    background: #ffffff;
+  }
+</style>

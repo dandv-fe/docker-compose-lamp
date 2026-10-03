@@ -1,0 +1,246 @@
+<!-- DataTables -->
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
+<!-- Content Wrapper. Contains page content -->
+<div class="content-wrapper">
+  <!-- Content Header (Page header) -->
+  <section class="content-header">
+    <div class="container-fluid">
+      <div class="row mb-2">
+        <div class="col-sm-6">
+          <h1>Corresponsal ⚡</h1>
+
+        </div>
+
+      </div>
+    </div><!-- /.container-fluid -->
+  </section>
+
+  <!-- Main content -->
+  <section class="content">
+    <div class="container-fluid">
+      <div class="row">
+        <div class="col-12">
+          <div class="card card-outline card-primary shadow-sm">
+            <div class="card-header">
+              <small class="text-muted">Red de apoyo y gestión 🤝</small>
+            </div>
+            <div class="card-body">
+              <div class="row">
+                <div class="col-12 col-md-6 col-lg-4 mb-3">
+                  <label class="font-weight-bold mb-1">Nombre del ahorro</label>
+                  <div class="input-group">
+                    <div class="input-group-prepend">
+                      <span class="input-group-text"><i class="fas fa-user"></i></span>
+                    </div>
+                    <input id="txt_corresponsal_nombre" type="text" class="form-control" placeholder="Nombre del ahorro"
+                      readonly>
+                  </div>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-4 mb-3">
+                  <label class="font-weight-bold mb-1">Número de cuenta</label>
+                  <div class="input-group">
+                    <div class="input-group-prepend">
+                      <span class="input-group-text"><i class="fas fa-hashtag"></i></span>
+                    </div>
+                    <input id="txt_corresponsal_cuenta" type="text" class="form-control" placeholder="0000-00" readonly>
+                  </div>
+                </div>
+
+                <div class="col-12 col-md-6 col-lg-4 mb-3">
+                  <label class="font-weight-bold mb-1">Saldo disponible</label>
+                  <div class="small-box bg-success mb-0">
+                    <div class="inner">
+                      <h3 id="txt_corresponsal_saldo" class="mb-0">$0.00</h3>
+                      <p class="mb-0">Disponible para operar</p>
+                    </div>
+                    <div class="icon">
+                      <i class="fas fa-wallet"></i>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row mt-2">
+                <div class="col-12">
+                  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3">
+                    <h5 class="mb-2 mb-md-0">Tabla de movimientos</h5>
+                    <div class="btn-group" role="group" aria-label="Acciones de cuenta">
+                      <button type="button" class="btn btn-success" id="btnAbrirTransferenciaCorresponsal">
+                        <i class="fas fa-paper-plane mr-1"></i> Enviar Efectivo
+                      </button>
+                      <button type="button" class="btn btn-warning" id="btnAbrirRetiroCorresponsal">
+                        <i class="fas fa-hand-holding-usd mr-1"></i> Retirar Efectivo
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="table-responsive">
+                    <table id="tablaMovimientosCorresponsal"
+                      class="table table-bordered table-striped table-hover w-100">
+                      <thead>
+                        <tr>
+                          <th>Fecha</th>
+                          <th>Tipo</th>
+                          <th>Descripción</th>
+                          <th>Referencia</th>
+                          <th class="text-right">Valor</th>
+                          <th class="text-right">Saldo</th>
+                        </tr>
+                      </thead>
+                      <tbody id="tbodyMovimientosCorresponsal">
+                        <tr>
+                          <td colspan="6" class="text-center text-muted">Sin movimientos registrados</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- /.col -->
+      </div>
+      <!-- /.row -->
+    </div>
+    <!-- /.container-fluid -->
+  </section>
+  <!-- /.content -->
+</div>
+
+<div class="modal fade" id="modalRetiroCorresponsal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Entregar retiro temporal</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <form id="formRetiroCorresponsal" autocomplete="off">
+        <div class="modal-body">
+          <div class="form-group">
+            <label for="txtRetiroCuenta">Número de cuenta</label>
+            <input type="text" id="txtRetiroCuenta" class="form-control" placeholder="Ej: 123-01" required>
+          </div>
+
+          <div class="form-group">
+            <label for="txtRetiroValor">Valor</label>
+            <input type="number" id="txtRetiroValor" class="form-control" min="1" step="0.01" required>
+          </div>
+
+          <div class="form-group mb-0">
+            <label for="txtRetiroCodigo">Código temporal</label>
+            <input type="text" id="txtRetiroCodigo" class="form-control" maxlength="12"
+              placeholder="Código recibido por correo" required>
+            <small class="form-text text-muted">El código debe tener menos de 30 minutos de generado.</small>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-warning" id="btnConfirmarRetiroCorresponsal">Entregar dinero</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalTransferenciaCorresponsal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Transferir efectivo</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+          <span aria-hidden="true">&times;</span>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3 text-muted" id="txtPasoTransferencia">Paso 1 de 4</div>
+
+        <form id="formTransferenciaCorresponsal" autocomplete="off">
+          <div class="step-transfer" data-step="1">
+            <div class="form-group">
+              <label for="txtTransferenciaValor">Valor a transferir</label>
+              <input type="number" min="1" step="0.01" class="form-control" id="txtTransferenciaValor"
+                placeholder="Ingrese el valor">
+              <small class="form-text text-muted">Debe ser mayor a 0 y no superar el saldo disponible.</small>
+            </div>
+          </div>
+
+          <div class="step-transfer d-none" data-step="2">
+            <div class="form-group">
+              <label for="txtTransferenciaCuenta">Número de cuenta destino</label>
+              <input type="text" class="form-control" id="txtTransferenciaCuenta" placeholder="Ej: 123-01">
+              <small class="form-text text-muted">Escriba el número de cuenta para validar.</small>
+            </div>
+          </div>
+
+          <div class="step-transfer d-none" data-step="3">
+            <h6 class="mb-3">Validación de datos</h6>
+            <div class="table-responsive">
+              <table class="table table-sm table-bordered mb-0">
+                <tbody>
+                  <tr>
+                    <th style="width: 40%;">Valor</th>
+                    <td id="txtResumenValor">-</td>
+                  </tr>
+                  <tr>
+                    <th>Cuenta destino</th>
+                    <td id="txtResumenCuenta">-</td>
+                  </tr>
+                  <tr>
+                    <th>Titular destino</th>
+                    <td id="txtResumenTitular">Pendiente de validar</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="step-transfer d-none" data-step="4">
+            <div class="alert alert-success mb-0">
+              <strong>Listo para finalizar:</strong> La transferencia se registrará al confirmar este paso.
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer d-flex justify-content-between">
+        <button type="button" class="btn btn-outline-secondary" id="btnPasoAnteriorTransferencia">Anterior</button>
+        <button type="button" class="btn btn-primary" id="btnPasoSiguienteTransferencia">Siguiente</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.colVis.min.js"></script>
+
+
+<!-- JS personalizado (después de DataTables) -->
+<script src="dist/scripts/corresponsal.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+
+
+
+<script>
+
+  $(".lia-corresponsal").addClass("active");
+
+
+
+
+
+</script>

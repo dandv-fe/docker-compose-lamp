@@ -1,0 +1,17 @@
+<?php
+/**
+ * Plantilla para credenciales privadas de Cloudflare R2 (u otros S3 compatibles).
+ * Colocar en la ruta privada del servidor (fuera del repo) y proteger con permisos.
+ * Ejemplo de ruta: /home/usuario/config/webgoez-r2.php
+ *
+ * Valores de ejemplo: reemplazar por los reales y no subirlos al control de versiones.
+ */
+
+return [
+    'bucket' => 'R2_BUCKET_PLACEHOLDER',
+    'account_id' => 'TU_ACCOUNT_ID', // Lo encuentras en la URL o el panel de R2
+    'access_key_id' => 'R2_ACCESS_KEY_ID_PLACEHOLDER',
+    'secret_access_key' => 'R2_SECRET_ACCESS_KEY_PLACEHOLDER',
+    'endpoint' => 'https://<ACCOUNT_ID>.r2.cloudflarestorage.com',
+    'region' => 'auto'
+];

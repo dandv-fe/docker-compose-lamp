@@ -1,0 +1,244 @@
+
+<!-- SweetAlert2 -->
+
+<!-- SweetAlert2 bootstrtap-->
+
+<!-- DataTables -->
+<link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
+<link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
+
+<script type="text/javascript" src="dist/scripts/recibir_cuentas.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+<!-- Content Wrapper. Contains page content -->
+
+<?php
+include "views/partials/modalNuevaContabilidad.html";
+?>
+
+
+<div class="content-wrapper">
+    <!-- Content Header (Page header) -->
+    <div class="content-header">
+        <div class="container-fluid">
+            <div class="row mb-2">
+                <div class="col-sm-6">
+                    <h1 id="txtTituloRecibir" class="m-0">carteras</h1>
+                </div><!-- /.col -->
+            </div><!-- /.row -->
+        </div><!-- /.container-fluid -->
+    </div>
+    <!-- /.content-header -->
+    <!-- Main content -->
+    <section class="content">
+        <div class="container-fluid">
+            <!-- Info boxes -->
+            
+            <!-- /.row -->
+            <div class="card card-default">
+                <div id="VerListado">
+                    <div class="row">
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box">
+                                <span class="info-box-icon bg-info elevation-1"><i
+                                        class="fa-solid fa-hand-holding-dollar"></i></span>
+        
+                                <div class="info-box-content">
+                                    <span class="info-box-text">Base</span>
+                                    <span id="txtBaseCuentasRecibir" class="info-box-number">
+        
+                                    </span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box mb-3">
+                                <span class="info-box-icon bg-danger elevation-1"><i
+                                        class="fa-solid fa-file-invoice-dollar"></i></span>
+        
+                                <div class="info-box-content">
+                                    <span class="info-box-text">Gastos</span>
+                                    <span id="txtGastosCuentasRecibir" class="info-box-number"></span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+                        <!-- /.col -->
+        
+                        <!-- fix for small devices only -->
+                        <div class="clearfix hidden-md-up"></div>
+        
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box mb-3">
+                                <span class="info-box-icon bg-warning elevation-1"><i
+                                        class="fa-solid fa-magnifying-glass-dollar"></i></span>
+        
+                                <div class="info-box-content">
+                                    <span class="info-box-text">Diferencias</span>
+                                    <span id="txtDiferenciasCuentasRecibir" class="info-box-number"></span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+        
+                        <div class="col-12 col-sm-6 col-md-3">
+                            <div class="info-box mb-3">
+                                <span class="info-box-icon bg-warning elevation-1"><i
+                                        class="fa-solid fa-dollar-sign"></i></span>
+        
+                                <div class="info-box-content">
+                                    <span class="info-box-text">Efectivo</span>
+                                    <span id="txtEfectivoCuentasRecibir" class="info-box-number"></span>
+                                </div>
+                                <!-- /.info-box-content -->
+                            </div>
+                            <!-- /.info-box -->
+                        </div>
+        
+        
+        
+                    </div>
+
+                    <style>
+                        #tblRecibir th:nth-child(3) {
+                            padding-left: 3px;
+                            padding-right: 3px;
+                        }
+
+                        #tblRecibir td:nth-child(3){
+                            background-color: #cfe1f0;
+                            padding-left: 3px;
+                            padding-right: 3px;
+                        }
+                       
+
+                        #tblRecibir td:nth-child(7), td:nth-child(8){
+                            background-color: #e8eb50;
+
+                        }
+                    </style>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h3 class="card-title">Listado de actividades</h3>
+                                </div>
+                                <!-- /.card-header -->
+                                <div class="card-body">
+                                    
+                                    <table id="tblRecibir" class="table table-bordered table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Código</th>
+                                                <th>Recaudo</th>
+                                                <th>#</th>
+                                                <th>Credito</th>
+                                                <th>Descuento</th>
+
+
+                                                <th>Base</th>
+                                                <th>E-monedas</th>
+                                                <th>Efectivo</th>
+                                                <th>E-Seguro</th>
+                                                <th>Diferencia</th>
+                                                <th>Gastos</th>
+                                                <th>Descripción Gastos</th>
+                                                <th>OtrosGastos</th>
+                                                <th>Descripcion OtGastos</th>
+                                                <th>Salida</th>
+                                                <th>Descripcion Salidas</th>
+                                                <th>Entrada</th>
+                                                <th>Descripcion entradas</th>
+                                                <th>Operación</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                        </tbody>
+                                        <tfoot>
+                                            <tr>
+                                                <th>Código</th>
+                                                <th>Recaudo</th>
+                                                <th>#</th>
+                                                <th>Credito</th>
+                                                <th>Descuento</th>
+
+
+                                                <th>Base</th>
+                                                <th>E-monedas</th>
+                                                <th>Efectivo</th>
+                                                <th>E-Seguro</th>
+                                                <th>Diferencia</th>
+                                                <th>Gastos</th>
+                                                <th>Descripcion Gastos</th>
+                                                <th>OtrosGastos</th>
+                                                <th>Descripcion OtGastos</th>
+                                                <th>Salida</th>
+                                                <th>Descripción Salidas</th>
+                                                <th>Entrada</th>
+                                                <th>Descripcion entradas</th>
+                                                <th>Operación</th>
+                                            </tr>
+                                        </tfoot>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="VerformContabilidad" class="card" style="display: none;">
+
+                    <!-- /.card-header -->
+                    <div class="card-body p-0">
+
+                        <?php
+                               include "views/form/formContabilidadDetalleRuta.html";
+                            ?>
+
+                    </div>
+
+                </div>
+
+
+            </div>
+            <!-- /.card -->
+        </div>
+    </section>
+</div>
+
+<!-- DataTables  & Plugins -->
+<script src="plugins/datatables/jquery.dataTables.min.js"></script>
+<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
+<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
+<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
+<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
+<script src="plugins/jszip/jszip.min.js"></script>
+<script src="plugins/pdfmake/pdfmake.min.js"></script>
+<script src="plugins/pdfmake/vfs_fonts.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
+<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
+
+
+<script type="text/javascript">
+    $(".lia-recibir").addClass('active')
+    $("#spanRecibir").removeClass('hide');
+    $("#tblRecibir")
+    .DataTable({
+
+      sort: false,
+      responsive: true,
+      lengthChange: false,
+      autoWidth: false,
+      buttons: ["csv", "excel", "pdf", "print", "colvis"],
+      displayLength: 100,
+    })
+    .buttons()
+    .container()
+    .appendTo("#tblRecibir_wrapper .col-md-6:eq(0)");
+</script>

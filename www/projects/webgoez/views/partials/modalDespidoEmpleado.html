@@ -1,0 +1,752 @@
+<div class="modal fade" id="modal-despido-empleado">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header bg-gradient-danger">
+                <h4 class="modal-title text-white">
+                    <i class="fas fa-user-slash fa-lg mr-2"></i> 
+                    <strong>Registrar Despido de Empleado</strong>
+                </h4>
+                <button type="button" class="close text-white" data-dismiss="modal" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+            <form id="formDespidoEmpleado">
+                <!-- Campos ocultos -->
+                <input type="hidden" name="txtIdEmpleadoDespido" id="txtIdEmpleadoDespido">
+                <input type="hidden" name="txtIdGlobalDespido" id="txtIdGlobalDespido">
+                <input type="hidden" name="txtIdEmpleadoDespedir" id="txtIdEmpleadoDespedir">
+                
+                <div class="modal-body" style="background-color: #f4f6f9;">
+                    <!-- Información del empleado -->
+                    <div class="callout callout-info shadow-sm">
+                        <h5><i class="icon fas fa-user-circle fa-lg mr-2"></i> <strong>Información del Empleado</strong></h5>
+                        <div class="row mt-3">
+                            <div class="col-md-4">
+                                <p class="mb-2">
+                                    <i class="fas fa-user text-info mr-2"></i>
+                                    <strong>Nombre:</strong><br>
+                                    <span id="txtNombreEmpleadoDespido" class="ml-4 text-dark"></span>
+                                </p>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-2">
+                                    <i class="fas fa-briefcase text-info mr-2"></i>
+                                    <strong>Cargo:</strong><br>
+                                    <span id="txtCargoEmpleadoDespido" class="ml-4 text-dark"></span>
+                                </p>
+                            </div>
+                            <div class="col-md-4">
+                                <p class="mb-2">
+                                    <i class="fas fa-id-card text-info mr-2"></i>
+                                    <strong>Documento:</strong><br>
+                                    <span id="txtDocumentoEmpleadoDespido" class="ml-4 text-dark"></span>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Datos principales del despido -->
+                    <div class="card card-danger card-outline shadow-sm">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="fas fa-exclamation-triangle mr-2"></i>
+                                <strong>Datos del Despido</strong>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="txtFechaDespido">
+                                            <i class="far fa-calendar-times text-danger mr-1"></i>
+                                            Fecha de Despido <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group date" id="datepickerDespido" data-target-input="nearest">
+                                            <div class="input-group-prepend" data-target="#datepickerDespido" 
+                                                 data-toggle="datetimepicker">
+                                                <span class="input-group-text bg-danger">
+                                                    <i class="far fa-calendar-alt text-white"></i>
+                                                </span>
+                                            </div>
+                                            <input required type="text" class="form-control datetimepicker-input" 
+                                                   data-target="#datepickerDespido" id="txtFechaDespido" name="txtFechaDespido" 
+                                                   placeholder="YYYY-MM-DD" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="txtFechaUltimoTrabajo">
+                                            <i class="far fa-calendar-check text-warning mr-1"></i>
+                                            Fecha Último Día Trabajado
+                                        </label>
+                                        <div class="input-group date" id="datepickerUltimoTrabajo" data-target-input="nearest">
+                                            <div class="input-group-prepend" data-target="#datepickerUltimoTrabajo" 
+                                                 data-toggle="datetimepicker">
+                                                <span class="input-group-text bg-warning">
+                                                    <i class="far fa-calendar-alt text-white"></i>
+                                                </span>
+                                            </div>
+                                            <input type="text" class="form-control datetimepicker-input" 
+                                                   data-target="#datepickerUltimoTrabajo" id="txtFechaUltimoTrabajo" 
+                                                   name="txtFechaUltimoTrabajo" placeholder="YYYY-MM-DD" />
+                                        </div>
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-info-circle mr-1"></i>
+                                            Si difiere de la fecha de despido
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label for="cboTipoDespido">
+                                            <i class="fas fa-list-ul text-danger mr-1"></i>
+                                            Tipo de Despido <span class="text-danger">*</span>
+                                        </label>
+                                        <select required id="cboTipoDespido" name="cboTipoDespido" class="form-control form-control-lg">
+                                            <option value="">-- Seleccione el tipo de despido --</option>
+                                            <option value="despido_justificado">
+                                                🔴 Despido Justificado
+                                            </option>
+                                            <option value="despido_injustificado">
+                                                🟠 Despido Injustificado
+                                            </option>
+                                            <option value="renuncia_voluntaria">
+                                                🟢 Renuncia Voluntaria
+                                            </option>
+                                            <option value="terminacion_contrato">
+                                                🔵 Terminación de Contrato
+                                            </option>
+                                            <option value="reduccion_personal">
+                                                🟡 Reducción de Personal
+                                            </option>
+                                            <option value="incapacidad_permanente">
+                                                🟣 Incapacidad Permanente
+                                            </option>
+                                            <option value="jubilacion">
+                                                ⚪ Jubilación
+                                            </option>
+                                            <option value="otro">
+                                                ⚫ Otro
+                                            </option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label for="txtMotivoDespido">
+                                            <i class="fas fa-comment-dots text-danger mr-1"></i>
+                                            Motivo del Despido <span class="text-danger">*</span>
+                                        </label>
+                                        <textarea required id="txtMotivoDespido" name="txtMotivoDespido" 
+                                                  class="form-control" rows="4" 
+                                                  placeholder="Describa detalladamente el motivo del despido..."></textarea>
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-pencil-alt mr-1"></i>
+                                            Sea específico y detallado en la descripción
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Autorización -->
+                    <div class="card card-warning card-outline shadow-sm">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="fas fa-user-shield mr-2"></i>
+                                <strong>Autorización del Despido</strong>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="txtAutorizadoPor">
+                                            <i class="fas fa-user-tie text-warning mr-1"></i>
+                                            Autorizado Por
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text bg-warning">
+                                                    <i class="fas fa-signature text-white"></i>
+                                                </span>
+                                            </div>
+                                            <input type="text" id="txtAutorizadoPor" name="txtAutorizadoPor" 
+                                                   class="form-control" maxlength="100" 
+                                                   placeholder="Nombre de quien autoriza el despido" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="txtCargoAutoriza">
+                                            <i class="fas fa-id-badge text-warning mr-1"></i>
+                                            Cargo de Quien Autoriza
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text bg-warning">
+                                                    <i class="fas fa-briefcase text-white"></i>
+                                                </span>
+                                            </div>
+                                            <input type="text" id="txtCargoAutoriza" name="txtCargoAutoriza" 
+                                                   class="form-control" maxlength="100" 
+                                                   placeholder="Cargo de quien autoriza" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Liquidación -->
+                    <div class="card card-success card-outline shadow-sm">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="fas fa-money-bill-wave mr-2"></i>
+                                <strong>Compensación fraude</strong>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="txtMontoTotal">
+                                            <i class="fas fa-clipboard-check text-success mr-1"></i>
+                                            Monto fraude total <span class="text-danger">*</span>
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text bg-danger text-white">
+                                                    <i class="fas fa-coins"></i>
+                                                </span>
+                                            </div>
+                                            <input type="number" id="txtMontoTotal" name="txtMontoTotal" 
+                                                   class="form-control form-control-lg" step="0.01" min="0" 
+                                                   placeholder="0.00" />
+                                            <div class="input-group-append">
+                                                <span class="input-group-text bg-danger text-white">$</span>
+                                            </div>
+                                        </div>
+                                        
+                                    </div>
+                                </div>
+
+                                <div class="col-md-6">
+                                    <div class="form-group">
+                                        <label for="txtMontoLiquidacion">
+                                            <i class="fas fa-dollar-sign text-success mr-1"></i>
+                                            Monto fraude pendiente de recuperación
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="input-group-prepend">
+                                                <span class="input-group-text bg-success text-white">
+                                                    <i class="fas fa-coins"></i>
+                                                </span>
+                                            </div>
+                                            <input type="number" id="txtMontoLiquidacion" name="txtMontoLiquidacion" 
+                                                   class="form-control form-control-lg" step="0.01" min="0" 
+                                                   placeholder="0.00" />
+                                            <div class="input-group-append">
+                                                <span class="input-group-text bg-success text-white">$</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Documentación -->
+                    <div class="card card-primary card-outline shadow-sm">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="fas fa-folder-open mr-2"></i>
+                                <strong>Documentación y Entrega</strong>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="cboEntregaDocumentos">
+                                            <i class="fas fa-file-alt text-primary mr-1"></i>
+                                            Entrega de Documentos <span class="text-danger">*</span>
+                                        </label>
+                                        <select required id="cboEntregaDocumentos" name="cboEntregaDocumentos" 
+                                                class="form-control form-control-lg">
+                                            <option value="pendiente">⏳ Pendiente</option>
+                                            <option value="parcial">⚠️ Parcial</option>
+                                            <option value="completa">✅ Completa</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="cboActaFirmada">
+                                            <i class="fas fa-file-signature text-primary mr-1"></i>
+                                            Acta Firmada <span class="text-danger">*</span>
+                                        </label>
+                                        <select required id="cboActaFirmada" name="cboActaFirmada" class="form-control form-control-lg">
+                                            <option value="pendiente">⏳ Pendiente</option>
+                                            <option value="si">✅ Sí</option>
+                                            <option value="no">❌ No</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div class="col-md-4">
+                                    <div class="form-group">
+                                        <label for="cboDerechoRecontratacion">
+                                            <i class="fas fa-redo text-primary mr-1"></i>
+                                            Derecho a Recontratación <span class="text-danger">*</span>
+                                        </label>
+                                        <select required id="cboDerechoRecontratacion" name="cboDerechoRecontratacion" 
+                                                class="form-control form-control-lg">
+                                            <option value="si">✅ Sí</option>
+                                            <option value="no">❌ No</option>
+                                            <option value="condicional">⚠️ Condicional</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-12">
+                                    <div class="form-group">
+                                        <label for="txtDocumentosEntregados">
+                                            <i class="fas fa-list-check text-primary mr-1"></i>
+                                            Lista de Documentos Entregados
+                                        </label>
+                                        <textarea id="txtDocumentosEntregados" name="txtDocumentosEntregados" 
+                                                  class="form-control" rows="3" 
+                                                  placeholder="Ejemplo: Carnet de identificación, uniformes, llaves, equipos, etc."></textarea>
+                                        <small class="form-text text-muted">
+                                            <i class="fas fa-lightbulb mr-1"></i>
+                                            Liste todos los documentos y elementos entregados por el empleado
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Observaciones -->
+                    <div class="card card-secondary card-outline shadow-sm">
+                        <div class="card-header">
+                            <h3 class="card-title">
+                                <i class="fas fa-sticky-note mr-2"></i>
+                                <strong>Observaciones Adicionales</strong>
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group mb-0">
+                                <label for="txtObservaciones">
+                                    <i class="fas fa-comment-medical text-secondary mr-1"></i>
+                                    Notas y Comentarios
+                                </label>
+                                <textarea id="txtObservaciones" name="txtObservaciones" 
+                                          class="form-control" rows="3" 
+                                          placeholder="Agregue cualquier observación, nota o comentario adicional sobre el proceso de despido..."></textarea>
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle mr-1"></i>
+                                    Campo opcional para información complementaria
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Advertencia final -->
+                    <div class="alert alert-warning shadow-sm" role="alert">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            <strong>Advertencia Importante</strong>
+                        </h5>
+                        <hr>
+                        <p class="mb-0">
+                            <i class="fas fa-shield-alt mr-2"></i>
+                            Al confirmar este formulario, el empleado será marcado como <strong>INACTIVO</strong> 
+                            en el sistema y se registrará permanentemente el motivo del despido.
+                        </p>
+                    </div>
+                </div>
+
+                <div class="modal-footer bg-light">
+                    <button type="button" class="btn btn-secondary btn-lg" data-dismiss="modal">
+                        <i class="fas fa-times-circle mr-2"></i> Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-danger btn-lg shadow-sm">
+                        <i class="fas fa-check-circle mr-2"></i> Confirmar y Registrar Despido
+                    </button>
+                </div>
+            </form>
+        </div>
+        <!-- /.modal-content -->
+    </div>
+    <!-- /.modal-dialog -->
+</div>
+<!-- /.modal -->
+
+<script type="text/javascript">
+    $(function () {
+        // Inicializar datepickers
+        $('#datepickerDespido').datetimepicker({
+            format: 'YYYY-MM-DD',
+            locale: 'es',
+            defaultDate: moment()
+        });
+
+        $('#datepickerUltimoTrabajo').datetimepicker({
+            format: 'YYYY-MM-DD',
+            locale: 'es'
+        });
+
+       
+    });
+
+    function handleDespedirEmpleado() {
+      var empleadoId = $('#txtRefEmpleado').val();
+      var empleadoNombre = $('#txt_Nombre').val()+' '+$('#txt_Apellido').val();
+      var empleadoCargo = $('#txtCargo').val();
+      var empleadoDocumento = $('#txt_num_Documento').val();
+
+      abrirModalDespido(empleadoId, empleadoNombre, empleadoCargo, empleadoDocumento);
+      
+    }
+
+    // Función global para abrir el modal de despido
+    function abrirModalDespido(empleadoId, empleadoNombre, empleadoCargo, empleadoDocumento) {
+        // Establecer datos del empleado
+        $('#txtIdEmpleadoDespedir').val(empleadoId);
+        $('#txtNombreEmpleadoDespido').text(empleadoNombre || 'N/A');
+        $('#txtCargoEmpleadoDespido').text(empleadoCargo || 'N/A');
+        $('#txtDocumentoEmpleadoDespido').text(empleadoDocumento || 'N/A');
+        
+        // Establecer fecha actual
+        $('#txtFechaDespido').val(moment().format('YYYY-MM-DD'));
+        
+        // Abrir modal
+        $('#modal-despido-empleado').modal('show');
+    }
+
+    // Evento al cerrar el modal
+    $('#modal-despido-empleado').on('hide.bs.modal', function (e) {
+        // Limpiar formulario al cerrar
+        $('form#formDespidoEmpleado').trigger("reset");
+        $('#txtNombreEmpleadoDespido').text('');
+        $('#txtCargoEmpleadoDespido').text('');
+        $('#txtDocumentoEmpleadoDespido').text('');
+        $('#txtIdEmpleadoDespedir').val('');
+        $('#txtMontoLiquidacion').prop('disabled', false);
+    });
+
+    // Validación del formulario
+    $('#formDespidoEmpleado').on('submit', function(e) {
+        e.preventDefault();
+        
+        // Validar que se haya seleccionado un empleado
+        if (!$('#txtIdEmpleadoDespedir').val()) {
+            Toast.fire({
+                icon: 'error',
+                title: 'Debe seleccionar un empleado'
+            });
+            return false;
+        }
+
+        // Obtener datos del formulario para mostrar en confirmación
+        var nombreEmpleado = $('#txtNombreEmpleadoDespido').text();
+        var tipoDespido = $('#cboTipoDespido option:selected').text().trim();
+        var fechaDespido = $('#txtFechaDespido').val();
+        var derechoRecontratacion = $('#cboDerechoRecontratacion option:selected').text().trim();
+
+        // Confirmación mejorada con más detalles
+        Swal.fire({
+            title: '⚠️ ¿Está completamente seguro?',
+            html: `
+                <div style="text-align: left; padding: 20px;">
+                    <p style="font-size: 16px; margin-bottom: 15px;">
+                        <strong>Está a punto de registrar el despido del siguiente empleado:</strong>
+                    </p>
+                    <div style="background-color: #f8f9fa; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                        <p style="margin: 5px 0;">
+                            <i class="fas fa-user text-primary"></i> 
+                            <strong>Empleado:</strong> ${nombreEmpleado}
+                        </p>
+                        <p style="margin: 5px 0;">
+                            <i class="fas fa-calendar text-danger"></i> 
+                            <strong>Fecha:</strong> ${fechaDespido}
+                        </p>
+                        <p style="margin: 5px 0;">
+                            <i class="fas fa-list-ul text-warning"></i> 
+                            <strong>Tipo:</strong> ${tipoDespido}
+                        </p>
+                        <p style="margin: 5px 0;">
+                           <i class="fas fa-redo text-danger"></i> 
+                            <strong>Derecho a Recontratación:</strong> ${derechoRecontratacion}
+                        </p>
+                    </div>
+                    <div style="background-color: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; border-radius: 4px;">
+                        <p style="margin: 0; color: #856404;">
+                            <i class="fas fa-exclamation-triangle"></i> 
+                            <strong>Importante:</strong> Esta acción cambiará el estado del empleado a 
+                            <strong style="color: #d33;">INACTIVO</strong> y registrará el despido de forma permanente.
+                        </p>
+                    </div>
+                </div>
+            `,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: '<i class="fas fa-check-circle mr-2"></i> Sí, confirmar despido',
+            cancelButtonText: '<i class="fas fa-times-circle mr-2"></i> No, cancelar',
+            reverseButtons: true,
+            customClass: {
+                popup: 'swal-wide',
+                confirmButton: 'btn-lg',
+                cancelButton: 'btn-lg'
+            },
+            showClass: {
+                popup: 'animate__animated animate__fadeInDown'
+            },
+            hideClass: {
+                popup: 'animate__animated animate__fadeOutUp'
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                registrarDespidoEmpleado();
+            }
+        });
+    });
+
+    // Función para registrar el despido
+    function registrarDespidoEmpleado() {
+        var formData = new FormData($('#formDespidoEmpleado')[0]);
+        
+        $.ajax({
+            url: 'ajax/EmpleadoAjax.php?op=registrarDespido',
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            beforeSend: function() {
+                Swal.fire({
+                    title: '<i class="fas fa-spinner fa-spin"></i> Procesando...',
+                    html: `
+                        <div style="padding: 20px;">
+                            <p style="font-size: 16px; margin-bottom: 15px;">
+                                Registrando despido del empleado
+                            </p>
+                            <div class="progress" style="height: 25px;">
+                                <div class="progress-bar progress-bar-striped progress-bar-animated bg-danger" 
+                                     role="progressbar" 
+                                     style="width: 100%">
+                                    <strong>Guardando información...</strong>
+                                </div>
+                            </div>
+                        </div>
+                    `,
+                    allowOutsideClick: false,
+                    showConfirmButton: false,
+                    customClass: {
+                        popup: 'swal-wide'
+                    }
+                });
+            },
+            success: function(response) {
+                try {
+                    var data = typeof response === 'string' ? JSON.parse(response) : response;
+                    
+                    if (data.status === 'success') {
+                        Swal.fire({
+                            title: '✅ ¡Despido Registrado!',
+                            html: `
+                                <div style="padding: 20px; text-align: center;">
+                                    <div style="font-size: 80px; color: #28a745; margin-bottom: 20px;">
+                                        <i class="fas fa-check-circle"></i>
+                                    </div>
+                                    <p style="font-size: 18px; color: #333; margin-bottom: 15px;">
+                                        ${data.mensaje || 'El despido ha sido registrado correctamente'}
+                                    </p>
+                                    <div style="background-color: #d4edda; padding: 15px; border-radius: 8px; border-left: 4px solid #28a745;">
+                                        <p style="margin: 0; color: #155724;">
+                                            <i class="fas fa-info-circle"></i> 
+                                            El empleado ha sido marcado como <strong>INACTIVO</strong> en el sistema
+                                        </p>
+                                    </div>
+                                </div>
+                            `,
+                            icon: 'success',
+                            confirmButtonText: '<i class="fas fa-check mr-2"></i> Aceptar',
+                            confirmButtonColor: '#28a745',
+                            customClass: {
+                                popup: 'swal-wide',
+                                confirmButton: 'btn-lg'
+                            },
+                            showClass: {
+                                popup: 'animate__animated animate__bounceIn'
+                            }
+                        }).then(() => {
+                            $('#modal-despido-empleado').modal('hide');
+                            // Recargar la tabla de empleados
+                            if (typeof ListadoEmpleado === 'function') {
+                                ListadoEmpleado();
+                            }
+                        });
+                    } else {
+                        Swal.fire({
+                            title: '❌ Error al Registrar',
+                            html: `
+                                <div style="padding: 20px; text-align: center;">
+                                    <div style="font-size: 80px; color: #dc3545; margin-bottom: 20px;">
+                                        <i class="fas fa-times-circle"></i>
+                                    </div>
+                                    <p style="font-size: 16px; color: #333;">
+                                        ${data.mensaje || 'No se pudo registrar el despido'}
+                                    </p>
+                                </div>
+                            `,
+                            icon: 'error',
+                            confirmButtonText: '<i class="fas fa-redo mr-2"></i> Entendido',
+                            confirmButtonColor: '#dc3545',
+                            customClass: {
+                                popup: 'swal-wide',
+                                confirmButton: 'btn-lg'
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error('Error parsing response:', e);
+                    Swal.fire({
+                        title: '⚠️ Error de Sistema',
+                        html: `
+                            <div style="padding: 20px;">
+                                <p style="font-size: 16px; color: #333;">
+                                    Error al procesar la respuesta del servidor
+                                </p>
+                                <div style="background-color: #f8d7da; padding: 15px; border-radius: 8px; margin-top: 15px;">
+                                    <code style="color: #721c24;">${e.message}</code>
+                                </div>
+                            </div>
+                        `,
+                        icon: 'error',
+                        confirmButtonText: 'Cerrar',
+                        confirmButtonColor: '#dc3545'
+                    });
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('AJAX Error:', error);
+                Swal.fire({
+                    title: '🔌 Error de Conexión',
+                    html: `
+                        <div style="padding: 20px; text-align: center;">
+                            <div style="font-size: 80px; color: #ffc107; margin-bottom: 20px;">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <p style="font-size: 16px; color: #333; margin-bottom: 15px;">
+                                Error en la comunicación con el servidor
+                            </p>
+                            <div style="background-color: #fff3cd; padding: 15px; border-radius: 8px;">
+                                <p style="margin: 0; color: #856404;">
+                                    <strong>Error:</strong> ${error}
+                                </p>
+                            </div>
+                        </div>
+                    `,
+                    icon: 'error',
+                    confirmButtonText: '<i class="fas fa-redo mr-2"></i> Reintentar',
+                    confirmButtonColor: '#ffc107',
+                    customClass: {
+                        popup: 'swal-wide',
+                        confirmButton: 'btn-lg'
+                    }
+                });
+            }
+        });
+    }
+</script>
+
+<style>
+    .swal-wide {
+        width: 600px !important;
+    }
+    
+    #modal-despido-empleado .form-control-lg {
+        font-size: 1rem;
+        padding: 0.5rem 1rem;
+    }
+    
+    #modal-despido-empleado .card {
+        margin-bottom: 1.5rem;
+        border: none;
+    }
+    
+    #modal-despido-empleado .card-outline {
+        border-top: 3px solid;
+    }
+    
+    #modal-despido-empleado .shadow-sm {
+        box-shadow: 0 .125rem .25rem rgba(0,0,0,.075) !important;
+    }
+    
+    #modal-despido-empleado .callout {
+        border-left: 5px solid;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    #modal-despido-empleado .callout-info {
+        border-left-color: #17a2b8;
+        background-color: #d1ecf1;
+    }
+    
+    #modal-despido-empleado textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+    
+    #modal-despido-empleado .input-group-text {
+        min-width: 45px;
+        justify-content: center;
+    }
+    
+    #modal-despido-empleado .bg-gradient-danger {
+        background: linear-gradient(to right, #dc3545, #c82333) !important;
+    }
+    
+    #modal-despido-empleado .modal-body {
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+    
+    /* Animación para los inputs al hacer focus */
+    #modal-despido-empleado .form-control:focus {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+        transform: scale(1.01);
+        transition: all 0.2s ease;
+    }
+    
+    /* Estilo para los selectores */
+    #modal-despido-empleado select.form-control {
+        cursor: pointer;
+    }
+    
+    /* Mejorar apariencia de las cards */
+    #modal-despido-empleado .card-header {
+        background-color: rgba(0,0,0,.03);
+        border-bottom: 1px solid rgba(0,0,0,.125);
+    }
+</style>
