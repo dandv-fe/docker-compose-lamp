@@ -1,5 +1,24 @@
 Para mejorar  la contabilidad de las carteras de prestamos
 
+## Teléfonos del cliente en cartera
+
+Al pulsar el teléfono principal se abre una lista de solo lectura con el historial
+de la persona, sin números duplicados. El principal sigue mostrándose igual y
+las ediciones no borran los teléfonos anteriores registrados por otros usuarios.
+Antes del despliegue aplicar manualmente `sql/007_customer_phones.sql` en cada base
+usada por PHP (MariaDB 10.2+); consultar [dependencias y pruebas](sql/TELEFONOS_CLIENTE.md).
+No se instalan migraciones automáticamente ni se recuperan teléfonos perdidos antes de 007.
+
+El pie de esta lista tiene **Gestionar teléfonos**, que abre un modal separado
+para marcar INCORRECTO, restaurar deliberadamente y elegir otro principal válido.
+La lista original sigue siendo solo lectura. No se eliminan números; cualquier
+usuario autenticado autorizado al cliente/sucursal puede corregir, sin `editar cliente`.
+**Selecciona primero otro teléfono principal** antes de marcar el principal actual.
+Los INCORRECTOS quedan en historial y no se usan en WhatsApp de la APK ni se cuentan.
+Aplicar manualmente 001–008 y después `sql/009_customer_phone_validity.sql`
+(idéntica a la migración backend) en la base compartida; se audita el usuario
+de sesión y la fecha de la última corrección, no un autor histórico inexistente.
+
 ## Caja de bolsillo en cartera
 
 En la cabecera de `cartera.php`, una línea compacta muestra el efectivo esperado:

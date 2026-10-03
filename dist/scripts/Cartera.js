@@ -1,6 +1,182 @@
 let ArrayTarjetas = new Object()
 let nombre
 let banderaListComentarios
+let solicitudTelefonosCliente = null
+let versionTelefonosCliente = 0
+let solicitudGestionTelefonos = null
+let versionGestionTelefonos = 0
+let tarjetaGestionTelefonos = null
+let csrfGestionTelefonos = null
+let guardandoGestionTelefonos = false
+
+function cerrarGestionTelefonosCliente() {
+    versionGestionTelefonos++
+    if (solicitudGestionTelefonos) solicitudGestionTelefonos.abort()
+    solicitudGestionTelefonos = null
+    tarjetaGestionTelefonos = null
+    csrfGestionTelefonos = null
+    guardandoGestionTelefonos = false
+    $("#lista-gestion-telefonos-cliente").empty()
+    $("#estado-gestion-telefonos-cliente").text('')
+}
+
+function gestionTelefonosSigueSeleccionada(version, tarjeta) {
+    const actual = ArrayTarjetas[parseInt(sessionStorage.getItem('index') || '0', 10)]
+    return version === versionGestionTelefonos && actual && tarjeta &&
+        actual.refTarjeta === tarjeta.refTarjeta && actual.refSucursal === tarjeta.refSucursal
+}
+
+function pintarGestionTelefonosCliente(respuesta) {
+    if (!Array.isArray(respuesta.telefonos) || typeof respuesta.csrf !== 'string') {
+        $("#estado-gestion-telefonos-cliente").text('Respuesta inválida al gestionar teléfonos.')
+        return
+    }
+    csrfGestionTelefonos = respuesta.csrf
+    if (typeof respuesta.principal === 'string' && tarjetaGestionTelefonos) {
+        if (tarjetaGestionTelefonos.refCliente) {
+            Object.values(ArrayTarjetas).forEach(tarjeta => {
+                if (tarjeta.refCliente === tarjetaGestionTelefonos.refCliente) tarjeta.tel = respuesta.principal
+            })
+        }
+        $("#telefono-cliente-panel").text(respuesta.principal)
+    }
+    $("#lista-gestion-telefonos-cliente").empty()
+    const principalIncorrecto = respuesta.telefonos.some(t => t.primary && t.invalid)
+    $("#estado-gestion-telefonos-cliente").text(principalIncorrecto
+        ? 'El principal está marcado INCORRECTO por una edición antigua. No se usará en WhatsApp. Selecciona otro principal válido o restáuralo deliberadamente.'
+        : respuesta.telefonos.length ? '' : 'Sin teléfonos registrados.')
+    respuesta.telefonos.forEach(telefono => {
+        const fila = $('<li>').addClass('mb-3')
+        $('<div>').text(telefono.phone + (telefono.primary ? ' · PRINCIPAL' : '') +
+            (telefono.invalid ? ' · INCORRECTO' : '')).appendTo(fila)
+        if (telefono.validityChangedAt) {
+            $('<small>').text('Última corrección: ' + telefono.validityChangedAt +
+                ' · usuario ' + telefono.validityChangedBy).appendTo(fila)
+        }
+        if (telefono.normalizedPhone) {
+            $('<button>').attr('type', 'button').addClass('btn btn-sm btn-outline-warning ml-2')
+                .text(telefono.invalid ? 'Restaurar' : 'Marcar incorrecto')
+                .on('click', () => mutarGestionTelefonoCliente(telefono, telefono.invalid ? 'restaurar' : 'incorrecto'))
+                .appendTo(fila)
+            if (!telefono.invalid && !telefono.primary) {
+                $('<button>').attr('type', 'button').addClass('btn btn-sm btn-outline-primary ml-2')
+                    .text('Seleccionar principal').on('click', () => mutarGestionTelefonoCliente(telefono, 'principal'))
+                    .appendTo(fila)
+            }
+        } else {
+            $('<div>').text('Histórico sin formato válido para WhatsApp.').appendTo(fila)
+        }
+        fila.appendTo('#lista-gestion-telefonos-cliente')
+    })
+}
+
+function mostrarGestionTelefonosCliente() {
+    const tarjeta = ArrayTarjetas[parseInt(sessionStorage.getItem('index') || '0', 10)]
+    cerrarGestionTelefonosCliente()
+    tarjetaGestionTelefonos = tarjeta
+    const version = versionGestionTelefonos
+    const consulta = $("#modal-telefonos-cliente")
+    const abrirGestion = () => {
+        if (gestionTelefonosSigueSeleccionada(version, tarjeta)) {
+            $("#modal-gestion-telefonos-cliente").modal('show')
+        }
+    }
+    if (consulta.hasClass('show')) {
+        consulta.off('hidden.bs.modal.abrirGestionTelefonos')
+            .one('hidden.bs.modal.abrirGestionTelefonos', abrirGestion)
+            .modal('hide')
+    } else {
+        abrirGestion()
+    }
+    if (!tarjeta) {
+        $("#estado-gestion-telefonos-cliente").text('Selecciona un cliente en la cartera.')
+        return
+    }
+    $("#estado-gestion-telefonos-cliente").text('Cargando teléfonos…')
+    solicitudGestionTelefonos = $.getJSON('./ajax/GestionTelefonosClienteAjax.php', {
+        idtarjeta: tarjeta.refTarjeta, idsucursal: tarjeta.refSucursal
+    }).done(respuesta => {
+        if (gestionTelefonosSigueSeleccionada(version, tarjeta)) pintarGestionTelefonosCliente(respuesta)
+    }).fail((xhr, estado) => {
+        if (estado !== 'abort' && gestionTelefonosSigueSeleccionada(version, tarjeta)) {
+            $("#estado-gestion-telefonos-cliente").text(xhr.responseJSON && xhr.responseJSON.error ||
+                'No se pudo cargar la gestión de teléfonos.')
+        }
+    })
+}
+
+function mutarGestionTelefonoCliente(telefono, accion) {
+    const tarjeta = tarjetaGestionTelefonos
+    const version = versionGestionTelefonos
+    if (guardandoGestionTelefonos || !csrfGestionTelefonos || !gestionTelefonosSigueSeleccionada(version, tarjeta)) return
+    if (accion === 'incorrecto' && telefono.primary) {
+        $("#estado-gestion-telefonos-cliente").text('Selecciona primero otro teléfono principal antes de marcar este como incorrecto.')
+        return
+    }
+    const mensaje = accion === 'incorrecto' ? '¿Marcar este teléfono INCORRECTO? Se conserva el historial y se excluye de WhatsApp.'
+        : accion === 'restaurar' ? '¿Restaurar este teléfono como válido? Volverá a estar disponible para WhatsApp.'
+            : '¿Usar este teléfono como principal en todas las tarjetas del cliente?'
+    if (!confirm(mensaje + '\n' + telefono.phone)) return
+    guardandoGestionTelefonos = true
+    $("#estado-gestion-telefonos-cliente").text('Guardando…')
+    solicitudGestionTelefonos = $.ajax({
+        url: './ajax/GestionTelefonosClienteAjax.php', method: 'POST', dataType: 'json',
+        data: { idtarjeta: tarjeta.refTarjeta, idsucursal: tarjeta.refSucursal,
+            telefono: telefono.normalizedPhone, accion, csrf: csrfGestionTelefonos }
+    }).done(respuesta => {
+        if (gestionTelefonosSigueSeleccionada(version, tarjeta)) pintarGestionTelefonosCliente(respuesta)
+    }).fail((xhr, estado) => {
+        if (estado !== 'abort' && gestionTelefonosSigueSeleccionada(version, tarjeta)) {
+            $("#estado-gestion-telefonos-cliente").text(xhr.responseJSON && xhr.responseJSON.error ||
+                'No se pudo guardar. Abre nuevamente Gestionar teléfonos para verificar el estado.')
+        }
+    }).always(() => {
+        if (gestionTelefonosSigueSeleccionada(version, tarjeta)) guardandoGestionTelefonos = false
+    })
+}
+
+function cerrarTelefonosCliente() {
+    versionTelefonosCliente++
+    if (solicitudTelefonosCliente) solicitudTelefonosCliente.abort()
+    solicitudTelefonosCliente = null
+    $("#lista-telefonos-cliente").empty()
+    $("#estado-telefonos-cliente").text('')
+}
+
+function mostrarTelefonosCliente() {
+    const tarjeta = ArrayTarjetas[parseInt(sessionStorage.getItem('index') || '0', 10)]
+    cerrarTelefonosCliente()
+    const version = versionTelefonosCliente
+    $("#modal-telefonos-cliente").modal('show')
+    if (!tarjeta) {
+        $("#estado-telefonos-cliente").text('Selecciona un cliente en la cartera.')
+        return
+    }
+    $("#estado-telefonos-cliente").text('Cargando teléfonos…')
+    const sigueSeleccionado = () => {
+        const actual = ArrayTarjetas[parseInt(sessionStorage.getItem('index') || '0', 10)]
+        return version === versionTelefonosCliente && actual &&
+            actual.refTarjeta === tarjeta.refTarjeta && actual.refSucursal === tarjeta.refSucursal
+    }
+    solicitudTelefonosCliente = $.getJSON('./ajax/TelefonosClienteAjax.php', {
+        idtarjeta: tarjeta.refTarjeta,
+        idsucursal: tarjeta.refSucursal
+    }).done(function (respuesta) {
+        if (!sigueSeleccionado()) return
+        if (!Array.isArray(respuesta.telefonos)) {
+            $("#estado-telefonos-cliente").text('Respuesta inválida al consultar los teléfonos.')
+            return
+        }
+        $("#estado-telefonos-cliente").text(respuesta.telefonos.length ? '' : 'Sin teléfonos registrados.')
+        respuesta.telefonos.forEach(telefono => {
+            $('<li>').text(telefono).appendTo('#lista-telefonos-cliente')
+        })
+    }).fail(function (xhr, estado) {
+        if (estado === 'abort' || !sigueSeleccionado()) return
+        $("#estado-telefonos-cliente").text(xhr.responseJSON && xhr.responseJSON.error ||
+            'No se pudieron cargar los teléfonos. Inténtalo de nuevo.')
+    })
+}
 const getDiaSemana = x => {
     const diasSemana = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
     return diasSemana[x];
@@ -10,6 +186,20 @@ var sleepES5 = function (ms) {
     while (new Date().getTime() < esperarHasta) continue;
 };
 jQuery(document).ready(function () {
+    $("#telefono-cliente-panel").off('.telefonosCliente')
+        .on('click.telefonosCliente', mostrarTelefonosCliente)
+        .on('keydown.telefonosCliente', function (e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault()
+                mostrarTelefonosCliente()
+            }
+        })
+    $("#modal-telefonos-cliente").off('.telefonosCliente')
+        .on('hide.bs.modal.telefonosCliente', cerrarTelefonosCliente)
+    $("#gestionar-telefonos-cliente").off('.telefonosCliente')
+        .on('click.telefonosCliente', mostrarGestionTelefonosCliente)
+    $("#modal-gestion-telefonos-cliente").off('.telefonosCliente')
+        .on('hide.bs.modal.telefonosCliente', cerrarGestionTelefonosCliente)
     $("#editarDocumentoCliente").click(function (e) {
         $("#titleModalBuscarPersona").text("Editar Documento");
 
@@ -497,6 +687,8 @@ function changeEstadoRestaStylo(op) {
 
 // listar la ruta
 function listarRuta(nextIndex) {
+    cerrarTelefonosCliente()
+    $("#modal-telefonos-cliente").modal('hide')
     $.post("./ajax/UsuarioAjax.php", function (r) {
         if (r === '0') {
             location.reload(true);
@@ -531,6 +723,14 @@ function listarRuta(nextIndex) {
 
 }
 
+function textoResumenCajaCartera(t) {
+    const dinero = valor => '$' + Number(valor).toLocaleString('es-CO', { maximumFractionDigits: 2 })
+    return `B ${dinero(t.base)} + Ef ${dinero(t.recaudo - t.recaudoBanco)}` +
+        ` + O ${dinero(t.otro)} − C ${dinero(t.creditos - t.creditosBanco)}` +
+        ` − G ${dinero(t.gastos)} = ${dinero(t.efectivo)}` +
+        ` · Banco: +${dinero(t.recaudoBanco)} −${dinero(t.creditosBanco)}`
+}
+
 function actualizarResumenCajaCartera() {
     const linea = $("#resumenCajaCartera")
     if (!linea.length) return
@@ -539,11 +739,7 @@ function actualizarResumenCajaCartera() {
             linea.text("Caja: Sin ruta abierta")
             return
         }
-        const t = respuesta.totales
-        const dinero = valor => '$' + Number(valor).toLocaleString('es-CO', { maximumFractionDigits: 2 })
-        linea.text(`Caja = ${dinero(t.efectivo)} = ${dinero(0)} + Base ${dinero(t.base)} + Recaudo ${dinero(t.recaudo)}` +
-            ` + Otro recaudo ${dinero(t.otro)} − Banco ${dinero(t.recaudoBanco)}` +
-            ` − Gastos ${dinero(t.gastos)} − Créditos ${dinero(t.creditos - t.creditosBanco)}`)
+        linea.text(textoResumenCajaCartera(respuesta.totales))
     }).fail(function () {
         linea.text("Caja: No disponible; actualice la cartera")
     })
@@ -678,6 +874,8 @@ function formatearNombrePersona(nombre) {
 }
 
 function cargarDatosEnPanel() {
+    cerrarTelefonosCliente()
+    $("#modal-telefonos-cliente").modal('hide')
     $("#usuario_quien_creo").html('');
     if (ArrayTarjetas.length === 0) return
 

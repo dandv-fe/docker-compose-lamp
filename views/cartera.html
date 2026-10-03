@@ -15,7 +15,7 @@
 <script src="plugins/jquery-ui/jquery-ui.min.js"></script>
 <script src="plugins/moment/moment.min.js"></script>
 <script src="plugins/moment/locale/es.js"></script>
-<script type="text/javascript" src="dist/scripts/Cartera.js?v=<?php echo $infoSistemaCuentas['version']; ?>-cuota-inicial"></script>
+<script type="text/javascript" src="dist/scripts/Cartera.js?v=<?php echo $infoSistemaCuentas['version']; ?>-telefonos-historial"></script>
 
 
 <style>
@@ -377,6 +377,7 @@ include "views/partials/modalNuevaContabilidad.html";
                     </a></span>
                   <span class="description">
                     <p id="telefono-cliente-panel" class="text-danger m-0"
+                      role="button" tabindex="0" aria-haspopup="dialog" aria-controls="modal-telefonos-cliente"
                       style="cursor: pointer; font-weight: bold; font-family: Arial, Helvetica, sans-serif; font-size: larger; display: block;"
                       href="#"></p>
                   </span>
@@ -1165,6 +1166,7 @@ include "views/partials/modalNuevaContabilidad.html";
 
   <?php  include "views/partials/modalSearchPersona.html"; ?>
   <?php  include "views/partials/modalAlertasCliente.html"; ?>
+  <?php  include "views/partials/modalTelefonosCliente.html"; ?>
   <script type="text/javascript"
     src="dist/scripts/NuevoCredito.js?v=<?php echo $infoSistemaCuentas['version']; ?>-cuota-inicial"></script>
 
