@@ -80,6 +80,11 @@ object RouteGuard {
     }
 
     fun kindLabel(kind: OperationKind): String = when (kind) {
+        OperationKind.ADD_CUSTOMER_PHONE -> "Nuevo teléfono de WhatsApp"
+        OperationKind.SELECT_CUSTOMER_PHONE -> "Teléfono principal de WhatsApp"
+        OperationKind.SET_CUSTOMER_PHONE_VALIDITY -> "Corregir teléfono del cliente"
+        OperationKind.RECORD_WHATSAPP_OPEN -> "Apertura de WhatsApp (no entrega)"
+        OperationKind.RECORD_WHATSAPP_RECEIPT -> "Reenvío de comprobante por WhatsApp (no entrega)"
         OperationKind.CREATE_CREDIT -> "Tarjeta nueva"
         OperationKind.DELETE_CREDIT -> "Tarjeta borrada"
         OperationKind.CREATE_PAYMENT -> "Abono"

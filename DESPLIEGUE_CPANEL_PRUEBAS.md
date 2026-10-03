@@ -50,6 +50,11 @@ Los archivos están en [`migrations/`](migrations/). Usa un usuario con permisos
 | 4 | `004_bank_holder_branches.sql` | Titular y oficina de cuentas, y autorización por sucursal. Requiere 003. |
 | 5 | `005_biometric_credentials.sql` | Credenciales biométricas por dispositivo y retos temporales. |
 | 6 | `006_credit_locations.sql` | Ubicaciones GPS de cobro por tarjeta para la APK. |
+| 7 | `007_customer_phones.sql` | Historial por empresa/persona, normalización, backfill y dos triggers para conservar teléfonos viejos y nuevos, incluso escritos por PHP. |
+| 8 | `008_whatsapp_open_usage.sql` | Contador compartido y última apertura de WhatsApp por empresa/persona/teléfono; no cuenta entregas ni modifica el principal. |
+| 9 | `009_customer_phone_validity.sql` | Marca reversible de teléfonos INCORRECTOS (ver sección 009). |
+| 10 | `010_whatsapp_receipt_open.sql` | Tabla `mobile_whatsapp_receipt_open`: contador oculto de aperturas externas de comprobantes por tarjeta/abono. No cuenta envíos ni entregas. |
+| 11 | `011_whatsapp_receipt_links.sql` | Tabla `mobile_whatsapp_receipt_link`: hash del token, snapshot fijo y vigencia/revocación de enlaces de comprobante. No guarda imágenes ni altera tablas legadas. |
 
 Desde la carpeta del backend, ejecuta **uno por uno**, revisando el resultado después de cada archivo:
 
@@ -60,9 +65,19 @@ mysql -h HOST_MARIADB -u USUARIO_MIGRACION -p NOMBRE_BD_PRUEBAS < migrations/003
 mysql -h HOST_MARIADB -u USUARIO_MIGRACION -p NOMBRE_BD_PRUEBAS < migrations/004_bank_holder_branches.sql
 mysql -h HOST_MARIADB -u USUARIO_MIGRACION -p NOMBRE_BD_PRUEBAS < migrations/005_biometric_credentials.sql
 mysql -h HOST_MARIADB -u USUARIO_MIGRACION -p NOMBRE_BD_PRUEBAS < migrations/006_credit_locations.sql
+mysql -h HOST_MARIADB -u USUARIO_MIGRACION -p NOMBRE_BD_PRUEBAS < migrations/007_customer_phones.sql
+mysql -h HOST_MARIADB -u USUARIO_MIGRACION -p NOMBRE_BD_PRUEBAS < migrations/008_whatsapp_open_usage.sql
 ```
 
 Las migraciones 005 y 006 deben estar aplicadas antes de publicar una APK/backend que use inicio con huella o ubicaciones de cobro; son idempotentes, pero revísalas igual una por una.
+
+**007 es manual e idempotente; no se ejecuta al arrancar la API.** Requiere MariaDB 10.2+ y permisos de creación de funciones/procedimientos (`CREATE ROUTINE`, `ALTER ROUTINE`, `EXECUTE`) además de tablas/índices/triggers. Asegura que el definidor de los triggers pueda ejecutar `mobile_remember_phone` y `mobile_normalize_phone` e insertar en `mobile_customer_phone`. El usuario de la API necesita **SELECT** sobre la nueva tabla; la API modifica únicamente `tbl_persona.str_telefono` y los triggers guardan la historia. No cambies permisos de producción durante esta prueba.
+
+Comprueba en el clon que coexisten `trg_mobile_phone_ai`, `trg_mobile_phone_au` y los triggers de sincronización de persona de 001; no los reemplaza. `tbl_persona.str_telefono` sigue siendo el principal compatible con PHP. Hay un único principal por cliente/persona, compartido entre tarjetas/sucursales; los valores legados inválidos quedan visibles, con normalización nula, nunca elegibles para WhatsApp. **No se pueden recuperar teléfonos sobrescritos antes de esta migración**, salvo que existan respaldos históricos externos.
+
+**008 es manual e idempotente, posterior a 007**, sin reemplazar sus funciones/triggers ni datos. El migrador necesita `ALTER`; el usuario API también necesita `UPDATE` de `whatsapp_open_count` y `whatsapp_last_opened_at` en `mobile_customer_phone`. Los contadores empiezan en cero, compartidos entre cobradores y sucursales autorizadas. Los recibos transaccionales impiden duplicar aperturas al reenviar la misma operación. Agregar/seleccionar teléfonos y registrar aperturas no requieren `editar cliente`, pero siempre verifican acceso a sucursal y cliente/empresa. La edición completa conserva sus permisos. El selector de destinatario no cambia el principal; el sistema no puede comprobar envío o entrega.
+
+Verificación local opcional (no producción): `tests/customer-phones.local.mjs` exige el hostname obtenido directamente del contenedor `webgoez-mariadb10` y la base `websdnco_db_webgoez`. `--apply` aplica 007 dos veces; `--apply-usage` aplica 008 dos veces sin ejecutar 007. Sin banderas no ejecuta DDL. Verifica funciones/triggers con rollback y operaciones reales con fixtures sintéticos aislados que deben confirmar temporalmente para ser visibles desde las conexiones de la API, eliminados en `finally`. Comprueba permisos, idempotencia, conteo compartido, principal y sincronización. Requiere permisos de inserción/borrado de fixtures; puede dejar huecos normales en AUTO_INCREMENT. No se incluye en `npm test`.
 
 **Alto si falla una instrucción.** La 001 no es reejecutable completa: sus `CREATE VIEW` y `CREATE TRIGGER` no llevan `IF NOT EXISTS`. Revisa cuáles objetos ya se crearon y cuál fue el error; restaura el clon desde el respaldo o solicita ayuda antes de reintentar. En MariaDB 10.11 con phpMyAdmin, la conexión puede usar `utf8mb4_unicode_ci` mientras `mobile_change_event.record_id` usa `utf8mb4_general_ci`; la versión actual de la vista `mobile_customer_branch` establece explícitamente el cotejo de la comparación para evitar el error `#1267`. Cambiar el cotejo predeterminado de la base **no** modifica las columnas ya creadas ni sustituye esta corrección. Los demás archivos tienen instrucciones repetibles, pero tampoco reparan automáticamente cambios parciales ni datos bancarios preexistentes.
 
@@ -138,3 +153,37 @@ El paquete ZIP de pruebas preparado junto con esta guía ya incluye el resultado
 En la pantalla de la aplicación Node usa **Run NPM Install** para instalar las dependencias de ejecución desde `package.json`/`package-lock.json`. La app ya viene compilada; no pulses *Run JS script* para ejecutar el SQL ni uses `npm run dev`. Configura las variables privadas en el gestor de entorno de cPanel, sin capturas ni mensajes que muestren sus valores. Una vez disponibles las dependencias y las variables, usa **Restart** en la app Node. Si cPanel indica que no admite `dist/index.js` como archivo de inicio o hay un error ESM, no muevas el código a la raíz pública ni cambies a Development para ocultarlo: revisa el log de la aplicación y el mecanismo de arranque del proveedor.
 
 **Punto actual para continuar juntos:** subir el paquete ya compilado a la carpeta privada de la nueva aplicación Node y verificar sus tres entradas (`package.json`, `package-lock.json` y `dist/index.js`) antes de instalar dependencias. No introducir aún credenciales en chat ni conectar la APK a este servidor hasta que la API responda por HTTPS y se haya comprobado que usa `websdnco_dev`.
+## Migración 009: correcciones reversibles
+
+Después de 001–008, aplicar manualmente `migrations/009_customer_phone_validity.sql`
+con un cliente que admita `DELIMITER`; requiere permisos para alterar tablas/triggers.
+La copia `webgoez/sql/009_customer_phone_validity.sql` debe mantenerse idéntica.
+Es idempotente; no elimina ni restaura teléfonos y no reemplaza los triggers de 007.
+El trigger de validez requiere `mobile_change_event` y `mobile_customer_branch` de 001.
+Respaldar y verificar base/host antes de ejecutar. No se ha aplicado a producción.
+
+## Migración 010: contador oculto de reenvíos de comprobantes
+
+Después de 001–009, aplicar manualmente `migrations/010_whatsapp_receipt_open.sql`
+(idempotente, solo `CREATE TABLE IF NOT EXISTS`; requiere permiso CREATE). Opcional:
+`APP_TIME_ZONE` (por defecto `America/Bogota`) define el "hoy" de los reenvíos. Solo se
+reenvían tarjetas/abonos de hoy en estado `created`/`entregando`; el contador no se muestra
+en ninguna pantalla ni en GraphQL y solo mide aperturas externas, no mensajes enviados.
+No se ha aplicado a producción.
+
+## Migración 011: enlaces públicos con snapshot inmutable
+
+Después de 001–010, aplica manualmente `migrations/011_whatsapp_receipt_links.sql` y verifica la
+tabla en la base de pruebas antes de cualquier despliegue. Solo crea una tabla y es re-ejecutable.
+El enlace es un bearer secreto de 256 bits, válido 30 días; se almacena solo su SHA-256 y puede
+revocarse por usuarios con acceso autorizado a la sucursal. La revocación no requiere que el pago
+de la cuenta siga vigente. No se aplica a producción en esta etapa.
+
+Define `PUBLIC_RECEIPT_ORIGIN` en el entorno del API: solo origen (sin ruta ni parámetros), HTTPS
+obligatorio en producción. Para pruebas en la Wi-Fi local se puede usar temporalmente
+`http://<IP-LAN-del-computador>:3000`; no será accesible fuera de esa red y no debe usarse con
+clientes release ni en redes públicas. La APK agrega el enlace solo después de emitirlo en línea;
+si la tarjeta/abono aún no está en el servidor, permite enviar solo el texto o esperar sincronización.
+El contenido público es un snapshot al emitir, no una consulta viva; la imagen PNG se genera en
+memoria y no queda como archivo. No es factura electrónica. Protege el enlace como dato sensible y
+configura el proxy para omitir/redactar el path `/comprobante/` en sus access logs.

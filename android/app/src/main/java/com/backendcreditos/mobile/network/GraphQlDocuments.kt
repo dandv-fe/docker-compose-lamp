@@ -87,6 +87,7 @@ object GraphQlDocuments {
             nodes {
               id companyId personId firstName lastName sex birthDate
               documentType documentNumber phone email photo occupation personStatus personNote
+              phones { id phone normalizedPhone whatsappOpenCount whatsappLastOpenedAt invalid validityChangedBy validityChangedAt }
               department city neighborhood street maxCredit nickname note status rating guarantorPersonId
               credits {
                 id companyId branchId customerId routeId saleId concept value frequency term principal balance
@@ -106,6 +107,7 @@ object GraphQlDocuments {
           customerById(branchId: ${'$'}branchId, id: ${'$'}id) {
             id companyId personId firstName lastName sex birthDate
             documentType documentNumber phone email photo occupation personStatus personNote
+            phones { id phone normalizedPhone whatsappOpenCount whatsappLastOpenedAt invalid validityChangedBy validityChangedAt }
             department city neighborhood street maxCredit nickname note status rating guarantorPersonId
             credits {
               id companyId branchId customerId routeId saleId concept value frequency term principal balance
@@ -123,6 +125,7 @@ object GraphQlDocuments {
           customerByDocument(branchId: ${'$'}branchId, documentType: ${'$'}documentType, documentNumber: ${'$'}documentNumber) {
             id companyId personId firstName lastName sex birthDate
             documentType documentNumber phone email photo occupation personStatus personNote
+            phones { id phone normalizedPhone whatsappOpenCount whatsappLastOpenedAt invalid validityChangedBy validityChangedAt }
             department city neighborhood street maxCredit nickname note status rating guarantorPersonId
             credits {
               id companyId branchId customerId routeId saleId concept value frequency term principal balance
@@ -206,6 +209,30 @@ object GraphQlDocuments {
     const val RECEIPT_SEQUENCES = """
         query ReceiptSequences(${'$'}branchId: Int!) {
           receiptSequences(branchId: ${'$'}branchId) { id documentType series lastNumber }
+        }
+    """
+    const val ISSUE_RECEIPT_LINK = """
+        mutation IssueReceiptLink(
+          ${'$'}branchId: Int!, ${'$'}customerId: Int!, ${'$'}kind: String!,
+          ${'$'}recordId: ID!, ${'$'}format: String!
+        ) {
+          issueReceiptLink(
+            branchId: ${'$'}branchId, customerId: ${'$'}customerId, kind: ${'$'}kind,
+            recordId: ${'$'}recordId, format: ${'$'}format
+          ) { id url expiresAt }
+        }
+    """
+    const val RECEIPT_LINKS = """
+        query ReceiptLinks(${'$'}branchId: Int!, ${'$'}afterId: ID) {
+          receiptLinks(branchId: ${'$'}branchId, afterId: ${'$'}afterId) {
+            receiptLinks { id kind receiptType receiptSeries receiptNumber format createdAt expiresAt }
+            hasMore
+          }
+        }
+    """
+    const val REVOKE_RECEIPT_LINK = """
+        mutation RevokeReceiptLink(${'$'}branchId: Int!, ${'$'}id: ID!) {
+          revokeReceiptLink(branchId: ${'$'}branchId, id: ${'$'}id)
         }
     """
     const val DEFAULTERS_OF_PORTFOLIO = """

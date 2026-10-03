@@ -397,6 +397,59 @@ class GraphQlApi(private val client: GraphQlClient) {
         )
     }
 
+    suspend fun issueReceiptLink(
+        token: String, branchId: String, customerId: String, kind: String, recordId: String, format: String
+    ): ApiResult<IssueReceiptLinkData> {
+        val numericBranchId = branchId.toIntOrNull()
+            ?: return ApiResult.Rejected("La sucursal debe tener un ID numérico.")
+        val numericCustomerId = customerId.toIntOrNull()
+            ?: return ApiResult.Rejected("El cliente debe tener un ID numérico.")
+        return client.execute(
+            GraphQlDocuments.ISSUE_RECEIPT_LINK,
+            buildJsonObject {
+                put("branchId", JsonPrimitive(numericBranchId))
+                put("customerId", JsonPrimitive(numericCustomerId))
+                put("kind", JsonPrimitive(kind))
+                put("recordId", JsonPrimitive(recordId))
+                put("format", JsonPrimitive(format))
+            },
+            IssueReceiptLinkData.serializer(),
+            token
+        )
+    }
+
+    suspend fun receiptLinks(
+        token: String, branchId: String, afterId: String? = null
+    ): ApiResult<ReceiptLinksData> {
+        val numericBranchId = branchId.toIntOrNull()
+            ?: return ApiResult.Rejected("La sucursal debe tener un ID numérico.")
+        return client.execute(
+            GraphQlDocuments.RECEIPT_LINKS,
+            buildJsonObject {
+                put("branchId", JsonPrimitive(numericBranchId))
+                put("afterId", afterId?.let(::JsonPrimitive) ?: JsonNull)
+            },
+            ReceiptLinksData.serializer(),
+            token
+        )
+    }
+
+    suspend fun revokeReceiptLink(
+        token: String, branchId: String, id: String
+    ): ApiResult<RevokeReceiptLinkData> {
+        val numericBranchId = branchId.toIntOrNull()
+            ?: return ApiResult.Rejected("La sucursal debe tener un ID numérico.")
+        return client.execute(
+            GraphQlDocuments.REVOKE_RECEIPT_LINK,
+            buildJsonObject {
+                put("branchId", JsonPrimitive(numericBranchId))
+                put("id", JsonPrimitive(id))
+            },
+            RevokeReceiptLinkData.serializer(),
+            token
+        )
+    }
+
     suspend fun defaultersOfPortfolio(token: String, branchId: String): ApiResult<DefaultersOfPortfolioData> {
         val numericBranchId = branchId.toIntOrNull()
             ?: return ApiResult.Rejected("La sucursal debe tener un ID numérico.")

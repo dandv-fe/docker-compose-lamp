@@ -53,6 +53,10 @@ class RouteGuardTest {
         assertFalse(RouteGuard.isRouteBound(OperationKind.CREATE_CUSTOMER))
         assertFalse(RouteGuard.isRouteBound(OperationKind.CREATE_COMMENT))
         assertFalse(RouteGuard.isRouteBound(OperationKind.UPDATE_CREDIT))
+        assertFalse(RouteGuard.isRouteBound(OperationKind.ADD_CUSTOMER_PHONE))
+        assertFalse(RouteGuard.isRouteBound(OperationKind.SELECT_CUSTOMER_PHONE))
+        assertFalse(RouteGuard.isRouteBound(OperationKind.SET_CUSTOMER_PHONE_VALIDITY))
+        assertFalse(RouteGuard.isRouteBound(OperationKind.RECORD_WHATSAPP_OPEN))
     }
 
     @Test

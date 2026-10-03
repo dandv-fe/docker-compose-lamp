@@ -45,6 +45,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
@@ -148,7 +149,7 @@ private fun connectionStatus(authExpired: Boolean, online: Boolean, autoSync: Bo
     else -> ConnectionStatus(Color(0xFFE53935), "Sin conexión con el servidor")
 }
 
-private enum class Screen { LOGIN, BRANCHES, HOME, CUSTOMER, CUSTOMER_LOOKUP, CREDIT, CARD_ASSESSMENT, QUEUE, COMPOSER, DEFAULTERS, WITHDRAWN, CANCELLED, PORTFOLIO_CLIENTS, SYNC_SETTINGS, MARKED, SETTLEMENT, ROUTE_ENTRIES }
+private enum class Screen { LOGIN, BRANCHES, HOME, CUSTOMER, CUSTOMER_PHONES, CUSTOMER_LOOKUP, CREDIT, CARD_ASSESSMENT, QUEUE, COMPOSER, DEFAULTERS, WITHDRAWN, CANCELLED, PORTFOLIO_CLIENTS, SYNC_SETTINGS, MARKED, SETTLEMENT, ROUTE_ENTRIES }
 
 private fun themeModeLabel(mode: ThemeMode): String = when (mode) {
     ThemeMode.SYSTEM -> "Sistema"
@@ -296,6 +297,11 @@ class MainActivity : FragmentActivity() {
  * found the technical English identifiers confusing ("una lista rara").
  */
 private fun operationDisplayName(kind: OperationKind): String = when (kind) {
+    OperationKind.ADD_CUSTOMER_PHONE -> "Crear teléfono de WhatsApp"
+    OperationKind.SELECT_CUSTOMER_PHONE -> "Seleccionar teléfono de WhatsApp"
+    OperationKind.SET_CUSTOMER_PHONE_VALIDITY -> "Corregir teléfono del cliente"
+    OperationKind.RECORD_WHATSAPP_OPEN -> "Registrar apertura de WhatsApp"
+    OperationKind.RECORD_WHATSAPP_RECEIPT -> "Reenvío de comprobante por WhatsApp"
     OperationKind.CREATE_CUSTOMER -> "Crear cliente"
     OperationKind.UPDATE_CUSTOMER -> "Editar cliente"
     OperationKind.UPDATE_DOCUMENT -> "Editar documento"
@@ -459,6 +465,10 @@ private fun CreditApplicationScreen(
     var routeCash by remember { mutableStateOf<com.backendcreditos.mobile.data.RouteCashEntity?>(null) }
     var busy by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
+    var showPortfolioSearch by remember { mutableStateOf(false) }
+    var alwaysShowPortfolioSearch by remember {
+        mutableStateOf(PortfolioDisplaySettings.alwaysShowSearch(activity))
+    }
     var showLogoutConfirmation by remember { mutableStateOf(false) }
     var showRouteSweepConfirmation by remember { mutableStateOf(false) }
     var showLocationNameDialog by remember { mutableStateOf(false) }
@@ -573,6 +583,16 @@ private fun CreditApplicationScreen(
     var expandedCashSummary by rememberSaveable { mutableStateOf(false) }
     var whatsAppOffer by remember { mutableStateOf<WhatsAppOffer?>(null) }
     var whatsAppOfferEnabled by remember { mutableStateOf(WhatsAppSettings.offerAfterSave(activity)) }
+    var showReceiptLinkManager by remember { mutableStateOf(false) }
+    var receiptLinkManagerBusy by remember { mutableStateOf(false) }
+    var receiptLinkManagerBranch by remember { mutableStateOf<String?>(null) }
+    var receiptLinkSummaries by remember {
+        mutableStateOf(emptyList<com.backendcreditos.mobile.network.ReceiptLinkSummaryDto>())
+    }
+    var receiptLinkManagerHasMore by remember { mutableStateOf(false) }
+    var receiptLinkToRevoke by remember {
+        mutableStateOf<com.backendcreditos.mobile.network.ReceiptLinkSummaryDto?>(null)
+    }
     val branchId = session?.selectedBranchId
     val account = session
     val serviceBlocked = account?.let { stored ->
@@ -595,6 +615,9 @@ private fun CreditApplicationScreen(
         val current = session ?: return
         val branch = current.selectedBranchId ?: return
         rows = app.repository.portfolio(current.accountKey, branch)
+        customer?.let { selected ->
+            customer = app.database.localDao().customer(current.accountKey, branch, selected.id) ?: selected
+        }
         branchPayments = app.repository.paymentsForBranch(current.accountKey, branch)
         customerMatches = app.repository.searchCustomers(current.accountKey, branch, search)
         operationRows = app.repository.queuedOperations(current)
@@ -1386,13 +1409,247 @@ private fun CreditApplicationScreen(
     fun collectorName(current: StoredSession): String =
         listOfNotNull(current.firstName, current.lastName).joinToString(" ").trim()
 
-    fun openWhatsApp(offer: WhatsAppOffer) {
+    fun loadReceiptLinkManager() {
+        val current = session
+        val branch = current?.selectedBranchId
+        if (current == null || branch == null || !online) {
+            notice = "Conéctate y selecciona una sucursal para administrar sus enlaces."
+            return
+        }
+        receiptLinkManagerBusy = true
+        scope.launch {
+            try {
+                when (val result = app.api.receiptLinks(current.token, branch)) {
+                    is ApiResult.Success -> {
+                        receiptLinkSummaries = result.value.receiptLinks.receiptLinks
+                        receiptLinkManagerHasMore = result.value.receiptLinks.hasMore
+                        receiptLinkManagerBranch = branch
+                        showReceiptLinkManager = true
+                    }
+                    is ApiResult.AuthExpired -> notice = result.message
+                    is ApiResult.Conflict -> notice = result.message
+                    is ApiResult.PermissionRejected -> notice = result.message
+                    is ApiResult.Rejected -> notice = result.message
+                    is ApiResult.Retryable -> notice = "No se pudieron cargar los enlaces: ${result.message}"
+                }
+            } catch (error: Exception) {
+                notice = "No se pudieron cargar los enlaces: ${error.message ?: "error de conexión"}."
+            } finally { receiptLinkManagerBusy = false }
+        }
+    }
+
+    fun loadOlderReceiptLinks() {
+        val current = session
+        val branch = receiptLinkManagerBranch
+        val afterId = receiptLinkSummaries.lastOrNull()?.id
+        if (current == null || branch == null || afterId == null || !online || receiptLinkManagerBusy) return
+        receiptLinkManagerBusy = true
+        scope.launch {
+            try {
+                when (val result = app.api.receiptLinks(current.token, branch, afterId)) {
+                    is ApiResult.Success -> {
+                        receiptLinkSummaries =
+                            (receiptLinkSummaries + result.value.receiptLinks.receiptLinks).distinctBy { it.id }
+                        receiptLinkManagerHasMore = result.value.receiptLinks.hasMore
+                    }
+                    is ApiResult.AuthExpired -> notice = result.message
+                    is ApiResult.Conflict -> notice = result.message
+                    is ApiResult.PermissionRejected -> notice = result.message
+                    is ApiResult.Rejected -> notice = result.message
+                    is ApiResult.Retryable -> notice = "No se pudieron cargar enlaces anteriores: ${result.message}"
+                }
+            } catch (error: Exception) {
+                notice = "No se pudieron cargar enlaces anteriores: ${error.message ?: "error de conexión"}."
+            } finally { receiptLinkManagerBusy = false }
+        }
+    }
+
+    suspend fun openWhatsApp(offer: WhatsAppOffer): Boolean {
+        val current = session
+        if (current == null || current.accountKey != offer.accountKey ||
+            current.selectedBranchId != offer.branchId) {
+            notice = "La cuenta o sucursal cambió. Abre de nuevo el comprobante."
+            return false
+        }
+        if (offer.phone != null) {
+            val owner = if (offer.branchId != null && offer.customerId != null)
+                app.database.localDao().customer(current.accountKey, offer.branchId, offer.customerId) else null
+            if (owner == null || app.repository.savedPhones(owner).none {
+                    it.normalizedPhone == offer.phone && !it.invalid
+                }) {
+                notice = "Este teléfono no está en el historial válido. Abre de nuevo el comprobante o elige un contacto externo."
+                return false
+            }
+        }
         val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(whatsAppUrl(offer.phone, offer.message)))
         try {
             activity.startActivity(intent)
         } catch (_: android.content.ActivityNotFoundException) {
             notice = "No hay WhatsApp ni navegador para abrir el mensaje."
+            return false
+        } catch (_: SecurityException) {
+            notice = "Android no permitió abrir WhatsApp o el navegador."
+            return false
         }
+        val receipt = offer.receipt
+        if (receipt != null && offer.customerId != null && offer.branchId != null) {
+            // One queued operation counts this opening for the record (hidden) and the chosen phone.
+            try {
+                app.repository.recordWhatsAppReceipt(
+                    current, offer.branchId, offer.customerId, offer.phone, receipt, offer.receiptDependsOn
+                )
+                SyncScheduler.enqueue(activity, current.accountKey, offer.branchId, expedited = online)
+                rows = app.repository.portfolio(current.accountKey, offer.branchId)
+                loadOperations()
+                notice = "WhatsApp abierto. Apertura guardada para sincronizar; no confirma envío ni entrega."
+            } catch (error: Exception) {
+                notice = "WhatsApp se abrió, pero no se pudo registrar la apertura: ${error.message ?: "revisa la cola"}."
+            }
+        } else if (offer.phone != null && offer.customerId != null && offer.branchId != null) {
+            try {
+                app.repository.recordWhatsAppOpen(current, offer.branchId, offer.customerId, offer.phone)
+                SyncScheduler.enqueue(activity, current.accountKey, offer.branchId, expedited = online)
+                rows = app.repository.portfolio(current.accountKey, offer.branchId)
+                loadOperations()
+                notice = "WhatsApp abierto. Apertura guardada para sincronizar; no confirma envío ni entrega."
+            } catch (error: Exception) {
+                notice = "WhatsApp se abrió, pero no se pudo registrar la apertura: ${error.message ?: "revisa la cola"}."
+            }
+        } else {
+            notice = "WhatsApp abierto para elegir contacto. No se cuenta: no podemos saber qué destinatario elegiste ni si enviaste."
+        }
+        return true
+    }
+
+    fun receiptMoment(raw: String?, fallbackMillis: Long?): java.time.LocalDateTime =
+        (momentMillis(raw, RECEIPT_ZONE) ?: fallbackMillis)
+            ?.let { java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDateTime() }
+            ?: java.time.LocalDateTime.now()
+
+    // Card receipt (Articulo + its cuota inicial in the same message) or abono receipt, built from
+    // the cached/hydrated records. Default phone = ranked valid primary of the current customer row.
+    fun receiptOffer(
+        current: StoredSession, branch: String, target: ReceiptTarget, credit: com.backendcreditos.mobile.data.CreditEntity,
+        owner: CustomerEntity?, payment: PaymentEntity?, initial: InitialInstallment?,
+        createdAtFallback: Long?, dependsOn: String?
+    ): WhatsAppOffer {
+        val name = owner?.let { "${it.firstName} ${it.lastName}".trim() }.orEmpty()
+        val phones = owner?.let(app.repository::savedPhones).orEmpty()
+        val message = if (target.kind == ReceiptKind.PAYMENT) paymentReceiptMessage(
+            name, requireNotNull(payment).amount.orEmpty(), credit.balance, collectorName(current),
+            receiptMoment(payment.createdAt, createdAtFallback)
+        ) else creditCreatedMessage(
+            name, credit.value, credit.frequency, credit.term, credit.balance, credit.concept, collectorName(current),
+            receiptMoment(credit.createdAt, createdAtFallback),
+            articleDescription = credit.description.takeIf { isArticle(credit.concept) },
+            initialPayment = initial?.amount, initialBankAmount = initial?.bankAmount
+        )
+        return WhatsAppOffer(
+            title = if (target.kind == ReceiptKind.PAYMENT) "Comprobante de abono" else "Comprobante de tarjeta",
+            customerName = name,
+            phone = validWhatsAppPrimary(phones, owner?.phone),
+            accountKey = current.accountKey, branchId = branch, customerId = owner?.id,
+            phones = phones, message = message, receipt = target, receiptFormat = credit.receiptType,
+            receiptDependsOn = dependsOn
+        )
+    }
+
+    /**
+     * Cola resend: only this branch's cards/abonos created today (business zone) that are still
+     * created/entregando. Unsent ones are judged on the cache; server-confirmed ones on live data.
+     * Only prepares the chooser: nothing is sent automatically.
+     */
+    suspend fun offerQueuedReceipt(operation: OfflineOperationEntity) {
+        val current = session ?: return
+        val branch = current.selectedBranchId
+        if (branch == null || operation.branchId != branch || operation.accountKey != current.accountKey) {
+            notice = "Cambia a la sucursal de este registro para reenviar el comprobante."
+            return
+        }
+        val requested = receiptTargetFor(operation.kind, operation.entityId, operation.payload)
+        val pending = operation.status in setOf(OperationStatus.PENDING, OperationStatus.IN_FLIGHT)
+        if (requested == null || (!pending && operation.status != OperationStatus.CONFIRMED)) {
+            notice = "Este registro no tiene comprobante para reenviar."
+            return
+        }
+        if (!pending && !online) {
+            notice = "Conéctate: hay que revisar en el servidor el estado actual antes de reenviar."
+            return
+        }
+        val dao = app.database.localDao()
+        val cachedPayment = if (requested.kind == ReceiptKind.PAYMENT)
+            dao.payment(current.accountKey, branch, requested.recordId) else null
+        val creditId = receiptCreditIdFor(operation.kind, operation.entityId, requested, cachedPayment?.creditId) ?: run {
+            notice = "Abre la tarjeta de este abono para cargarlo y vuelve a intentarlo."
+            return
+        }
+        var credit = dao.credit(current.accountKey, branch, creditId)
+        var owner = credit?.let { dao.customer(current.accountKey, branch, it.customerId) }
+        var payment = cachedPayment
+        val history: List<PaymentEntity>
+        if (pending) {
+            history = dao.payments(current.accountKey, branch, creditId)
+        } else {
+            val customerId = credit?.customerId ?: payloadText(operation.payload, "idcliente") ?: run {
+                notice = "Abre la tarjeta para cargarla y vuelve a intentarlo."
+                return
+            }
+            when (val live = app.repository.refreshReceiptRecord(
+                current, branch, customerId, creditId, requested.recordId.takeIf { requested.kind == ReceiptKind.PAYMENT }
+            )) {
+                is ApiResult.Success -> {
+                    val record = live.value ?: run {
+                        notice = "El servidor ya no tiene este registro para este cliente y sucursal. No se reenvía."
+                        return
+                    }
+                    credit = record.credit
+                    owner = record.customer
+                    payment = record.payment
+                    history = record.payments
+                    rows = app.repository.portfolio(current.accountKey, branch)
+                }
+                is ApiResult.AuthExpired -> { notice = live.message; return }
+                is ApiResult.Conflict -> { notice = live.message; return }
+                is ApiResult.PermissionRejected -> { notice = live.message; return }
+                is ApiResult.Rejected -> { notice = live.message; return }
+                is ApiResult.Retryable -> { notice = "No se pudo revisar el estado actual: ${live.message}"; return }
+            }
+        }
+        val card = credit ?: run {
+            notice = "La tarjeta no está guardada en este teléfono. Abre el cliente y vuelve a intentarlo."
+            return
+        }
+        var target = requested
+        var receiptPayment = payment
+        // The cuota inicial belongs to the Articulo receipt: it is never sent as a separate abono.
+        if (target.kind == ReceiptKind.PAYMENT && isInitialInstallment(receiptPayment?.description)) {
+            target = ReceiptTarget(ReceiptKind.CREDIT, card.id)
+            receiptPayment = null
+        }
+        if (target.kind == ReceiptKind.PAYMENT && receiptPayment == null) {
+            notice = "El abono no está guardado en este teléfono. Abre la tarjeta y vuelve a intentarlo."
+            return
+        }
+        // Unsent creations have no server createdAt yet: the queue moment is their creation time.
+        val fallback = operation.createdAt.takeIf {
+            pending && target == requested && operation.kind in setOf(OperationKind.CREATE_CREDIT, OperationKind.CREATE_PAYMENT)
+        }
+        val eligible = if (target.kind == ReceiptKind.PAYMENT)
+            receiptEligible(receiptPayment?.state, receiptPayment?.createdAt ?: fallback?.toString())
+        else receiptEligible(card.status, card.createdAt ?: fallback?.toString())
+        if (!eligible) {
+            notice = "Solo se reenvían comprobantes de tarjetas y abonos creados hoy que siguen en estado creado o entregando."
+            return
+        }
+        val initialRow = history.firstOrNull { it.creditId == card.id && isInitialInstallment(it.description) }
+        val initial = if (target.kind != ReceiptKind.CREDIT) null else initialRow?.amount?.toBigDecimalOrNull()?.abs()
+            ?.takeIf { it.signum() > 0 }?.let { amount ->
+                InitialInstallment(amount.toPlainString(), initialRow.bankAmount?.takeIf {
+                    (it.toBigDecimalOrNull()?.signum() ?: 0) > 0
+                } ?: if (operation.kind == OperationKind.CREATE_CREDIT) initialInstallmentFromPayload(operation.payload)?.bankAmount else null)
+            } ?: if (pending && operation.kind == OperationKind.CREATE_CREDIT) initialInstallmentFromPayload(operation.payload) else null
+        val dependency = operation.operationId.takeIf { pending && target == requested }
+        whatsAppOffer = receiptOffer(current, branch, target, card, owner, receiptPayment, initial, fallback, dependency)
     }
 
     suspend fun saveTypedOperation(stayOnPortfolio: Boolean = false): OfflineOperationEntity {
@@ -1534,6 +1791,12 @@ private fun CreditApplicationScreen(
                 "No se pueden cobrar más intereses mientras la tarjeta esté en estado created o entregando. Actualiza la cartera si cambió su estado."
             }
         }
+        if (operationKind in setOf(OperationKind.CREATE_CUSTOMER, OperationKind.UPDATE_CUSTOMER) &&
+            draftPhone.isNotBlank() && draftPhone != customer?.phone) {
+            draftPhone = requireNotNull(whatsAppPhone(draftPhone)) {
+                "Ingresa un solo celular colombiano de 10 dígitos que empiece en 3, o un número internacional válido."
+            }
+        }
         fun customerPayload() = OperationPayloadMapper.customer(
             draftFirstName, draftLastName, draftSex, draftBirthDate.takeIf(String::isNotBlank),
             draftDocumentType, draftDocumentNumber, draftPhone, draftEmail, draftOccupation,
@@ -1593,7 +1856,8 @@ private fun CreditApplicationScreen(
                 draftCustomerId, entityId.ifBlank { UUID.randomUUID().toString() },
                 draftAlertIcon, draftAlertColor, draftAlertSubject, draftAlertMessage
             )
-            OperationKind.UPDATE_DOCUMENT, OperationKind.CREATE_EXPENSE, OperationKind.UPDATE_EXPENSE,
+            OperationKind.ADD_CUSTOMER_PHONE, OperationKind.SELECT_CUSTOMER_PHONE, OperationKind.SET_CUSTOMER_PHONE_VALIDITY, OperationKind.RECORD_WHATSAPP_OPEN,
+            OperationKind.RECORD_WHATSAPP_RECEIPT, OperationKind.UPDATE_DOCUMENT, OperationKind.CREATE_EXPENSE, OperationKind.UPDATE_EXPENSE,
             OperationKind.DELETE_EXPENSE, OperationKind.CREATE_BASE, OperationKind.UPDATE_BASE,
             OperationKind.DELETE_BASE, OperationKind.CREATE_LOCATION, OperationKind.DELETE_LOCATION ->
                 throw IllegalArgumentException("Operación no disponible.")
@@ -1643,35 +1907,33 @@ private fun CreditApplicationScreen(
             if (whatsAppOfferEnabled) {
                 val credit = dao.credit(current.accountKey, branch, creditId)
                 val owner = credit?.let { c ->
-                    rows.firstOrNull { it.credit.customerId == c.customerId }?.customer
-                        ?: dao.customer(current.accountKey, branch, c.customerId)
+                    dao.customer(current.accountKey, branch, c.customerId)
                 }
                 val name = owner?.let { "${it.firstName} ${it.lastName}".trim() }.orEmpty()
                 whatsAppOffer = WhatsAppOffer(
                     title = "Comprobante de abono",
                     customerName = name,
-                    phone = whatsAppPhone(owner?.phone),
-                    message = paymentReceiptMessage(name, draftPaymentAmount, credit?.balance, collectorName(current))
+                    phone = validWhatsAppPrimary(owner?.let(app.repository::savedPhones).orEmpty(), owner?.phone),
+                    accountKey = current.accountKey, branchId = branch, customerId = owner?.id,
+                    phones = owner?.let(app.repository::savedPhones).orEmpty(),
+                    message = paymentReceiptMessage(name, draftPaymentAmount, credit?.balance, collectorName(current)),
+                    receipt = receiptTargetFor(operation.kind, operation.entityId, operation.payload),
+                    receiptDependsOn = operation.operationId
                 )
             }
         } else if (operationKind == OperationKind.CREATE_CREDIT) {
             val dao = app.database.localDao()
             dao.credit(current.accountKey, branch, operation.entityId)?.let { newCredit ->
-                val owner = rows.firstOrNull { it.credit.customerId == newCredit.customerId }?.customer
-                    ?: dao.customer(current.accountKey, branch, newCredit.customerId)
+                val owner = dao.customer(current.accountKey, branch, newCredit.customerId)
                 rows = (rows.filterNot { it.credit.id == newCredit.id } + PortfolioRow(newCredit, owner))
                     .sortedWith(compareBy<PortfolioRow> { it.credit.sortOrder }.thenBy { it.credit.id })
-                if (whatsAppOfferEnabled) {
-                    val name = owner?.let { "${it.firstName} ${it.lastName}".trim() }.orEmpty()
-                    whatsAppOffer = WhatsAppOffer(
-                        title = "Crédito registrado",
-                        customerName = name,
-                        phone = whatsAppPhone(owner?.phone),
-                        message = creditCreatedMessage(
-                            name, newCredit.value, newCredit.frequency, newCredit.term,
-                            newCredit.balance, newCredit.concept, collectorName(current)
-                        )
-                    )
+                val target = receiptTargetFor(operation.kind, operation.entityId, operation.payload)
+                if (whatsAppOfferEnabled && target != null) {
+                    // Same builder as the Cola resend: an Articulo carries its cuota inicial inside.
+                    whatsAppOffer = receiptOffer(
+                        current, branch, target, newCredit, owner, null,
+                        initialInstallmentFromPayload(operation.payload), operation.createdAt, operation.operationId
+                    ).copy(title = "Crédito registrado")
                 }
             }
             operationRows = operationRows + operation
@@ -2411,6 +2673,10 @@ private fun CreditApplicationScreen(
                     "Para comprobar el pago del servicio, inicia sesión en línea con esta versión de la app."
                 else "No hemos registrado su pago. Este es necesario para continuar usando el servicio.")
                 Button(onClick = { screen = Screen.LOGIN }) { Text("Iniciar sesión para comprobar el pago") }
+                TextButton(
+                    enabled = online && !receiptLinkManagerBusy,
+                    onClick = { loadReceiptLinkManager() }
+                ) { Text("Administrar enlaces de comprobantes") }
             } else when (screen) {
                 Screen.LOGIN -> {
                     Text("Inicio de sesión en línea", style = MaterialTheme.typography.headlineSmall)
@@ -2627,6 +2893,7 @@ private fun CreditApplicationScreen(
                 Screen.HOME -> {
                     if (!online) Text("El desbloqueo local no autentica ni renueva credenciales del servidor.")
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    if (alwaysShowPortfolioSearch || showPortfolioSearch) {
                     BasicTextField(
                         value = search,
                         onValueChange = {
@@ -2669,23 +2936,55 @@ private fun CreditApplicationScreen(
                             )
                         }
                     )
-                    // Always 4dp tall so the list never jumps: it moves while the cartera loads or an
-                    // abono waits for the server, and otherwise shows how much of the route is collected.
+                    }
                     val waitingServer = busy || watchedPaymentOperationIds.isNotEmpty()
-                    val progressModifier = Modifier.fillMaxWidth().height(4.dp).semantics {
+                    val progressModifier = Modifier.fillMaxWidth()
+                        .height(
+                            when {
+                                alwaysShowPortfolioSearch -> 4.dp
+                                showPortfolioSearch -> 28.dp
+                                else -> 48.dp
+                            }
+                        ).semantics {
                         contentDescription = if (waitingServer) "Trabajando" else
                             "Avance de la ruta: ${routeSummary.cardsWithPayments} de ${routeSummary.totalCards} tarjetas con abono"
                     }
+                    Box(
+                        modifier = Modifier.fillMaxWidth().clickable(
+                            enabled = !alwaysShowPortfolioSearch,
+                            onClickLabel = if (showPortfolioSearch) "Ocultar búsqueda" else "Buscar cliente"
+                        ) {
+                            showPortfolioSearch = !showPortfolioSearch
+                            if (!showPortfolioSearch) {
+                                search = ""
+                                customerMatches = emptyList()
+                            }
+                        },
+                        contentAlignment = Alignment.Center
+                    ) {
                     if (waitingServer) {
-                        LinearProgressIndicator(progressModifier)
+                        LinearProgressIndicator(
+                            modifier = progressModifier,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = if (alwaysShowPortfolioSearch) 1f else 0.25f),
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
                     } else {
                         LinearProgressIndicator(
                             progress = {
                                 if (routeSummary.totalCards == 0) 0f
                                 else routeSummary.cardsWithPayments.toFloat() / routeSummary.totalCards
                             },
-                            modifier = progressModifier
+                            modifier = progressModifier,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = if (alwaysShowPortfolioSearch) 1f else 0.25f),
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
                         )
+                    }
+                    if (!alwaysShowPortfolioSearch) Text(
+                        if (showPortfolioSearch) "Toca para ocultar búsqueda" else "Toca para buscar cliente",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
                     }
                     }
                     val filtered = visibleRows
@@ -2743,6 +3042,16 @@ private fun CreditApplicationScreen(
                                 if (pointed && ("nueva tarjeta" in branchPermissionSet || branchPermissionSet.isEmpty())) {
                                     TextButton(onClick = { assessCard(row.credit.id) }) {
                                         Text("Crear tarjeta para este cliente")
+                                    }
+                                    if (pointed) {
+                                        TextButton(onClick = {
+                                            scope.launch {
+                                                val current = session ?: return@launch
+                                                val branch = current.selectedBranchId ?: return@launch
+                                                customer = app.database.localDao().customer(current.accountKey, branch, row.credit.customerId)
+                                                screen = Screen.CUSTOMER_PHONES
+                                            }
+                                        }) { Text("Crear o seleccionar teléfono de WhatsApp") }
                                     }
                                 }
                                 Row(
@@ -3086,6 +3395,27 @@ private fun CreditApplicationScreen(
                 Screen.SYNC_SETTINGS -> {
                     Text("Configuración", style = MaterialTheme.typography.headlineSmall)
                     Text("Apariencia", style = MaterialTheme.typography.titleMedium)
+                    Text("Búsqueda en cartera", style = MaterialTheme.typography.titleSmall)
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf(
+                            true to "Siempre visible · barra delgada",
+                            false to "Al tocar la barra · más espacio para tarjetas"
+                        ).forEach { (alwaysVisible, label) ->
+                            FilterChip(
+                                selected = alwaysShowPortfolioSearch == alwaysVisible,
+                                onClick = {
+                                    alwaysShowPortfolioSearch = alwaysVisible
+                                    PortfolioDisplaySettings.setAlwaysShowSearch(activity, alwaysVisible)
+                                    showPortfolioSearch = false
+                                    if (!alwaysVisible) {
+                                        search = ""
+                                        customerMatches = emptyList()
+                                    }
+                                },
+                                label = { Text(label) }
+                            )
+                        }
+                    }
                     Text(
                         "Elige el tema de la aplicación. Sistema sigue automáticamente la configuración del teléfono.",
                         style = MaterialTheme.typography.bodySmall,
@@ -3142,6 +3472,17 @@ private fun CreditApplicationScreen(
                             }
                         )
                     }
+                    OutlinedButton(
+                        enabled = session != null && branchId != null && online && !receiptLinkManagerBusy,
+                        onClick = { loadReceiptLinkManager() }
+                    ) {
+                        Text(if (receiptLinkManagerBusy) "Cargando enlaces…" else "Administrar enlaces compartidos")
+                    }
+                    Text(
+                        "Puedes revocar enlaces ya enviados. Quien tenga un enlace activo puede abrir el comprobante.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     HorizontalDivider()
                     Text("Conexión con el servidor", style = MaterialTheme.typography.titleMedium)
                     Text(
@@ -3698,6 +4039,109 @@ private fun CreditApplicationScreen(
                     }
                     TextButton(onClick = { screen = Screen.HOME }) { Text("Volver a cartera") }
                 }
+                Screen.CUSTOMER_PHONES -> {
+                    var phoneDraft by remember(customer?.id) { mutableStateOf("") }
+                    var phoneError by remember(customer?.id) { mutableStateOf("") }
+                    var savingPhone by remember { mutableStateOf(false) }
+                    var confirmingValidity by remember(customer?.id) {
+                        mutableStateOf<com.backendcreditos.mobile.network.CustomerPhoneDto?>(null)
+                    }
+                    confirmingValidity?.let { phone ->
+                        AlertDialog(
+                            onDismissRequest = { if (!savingPhone) confirmingValidity = null },
+                            title = { Text(if (phone.invalid) "Restaurar teléfono" else "Marcar teléfono incorrecto") },
+                            text = { Text(phone.phone + if (phone.invalid)
+                                "\n¿Restaurarlo como válido? Volverá a estar disponible para WhatsApp."
+                                else "\nSe conservará en el historial, pero no se usará en WhatsApp.") },
+                            confirmButton = { TextButton(enabled = !savingPhone, onClick = {
+                                scope.launch {
+                                    val current = session ?: return@launch
+                                    val branch = current.selectedBranchId ?: return@launch
+                                    val selected = customer ?: return@launch
+                                    savingPhone = true
+                                    try {
+                                        customer = app.repository.setCustomerPhoneValidity(current, branch, selected.id,
+                                            requireNotNull(phone.normalizedPhone), !phone.invalid)
+                                        rows = app.repository.portfolio(current.accountKey, branch)
+                                        phoneError = "Corrección guardada localmente; pendiente de sincronizar."
+                                        confirmingValidity = null
+                                        SyncScheduler.enqueue(activity, current.accountKey, branch, expedited = online)
+                                    } catch (error: IllegalArgumentException) {
+                                        phoneError = error.message ?: "No se pudo corregir el teléfono."
+                                        confirmingValidity = null
+                                    } finally { savingPhone = false }
+                                }
+                            }) { Text(if (phone.invalid) "Restaurar" else "Marcar incorrecto") } },
+                            dismissButton = { TextButton(enabled = !savingPhone,
+                                onClick = { confirmingValidity = null }) { Text("Cancelar") } }
+                        )
+                    }
+                    fun savePhone(raw: String, add: Boolean) {
+                        scope.launch {
+                            val current = session ?: return@launch
+                            val branch = current.selectedBranchId ?: return@launch
+                            val selected = customer ?: return@launch
+                            savingPhone = true
+                            try {
+                                customer = app.repository.changeCustomerPhone(current, branch, selected.id, raw, add)
+                                rows = app.repository.portfolio(current.accountKey, branch)
+                                phoneDraft = ""
+                                phoneError = "Guardado en el dispositivo; se enviará con la cola de sincronización."
+                                SyncScheduler.enqueue(activity, current.accountKey, branch, expedited = online)
+                            } catch (error: IllegalArgumentException) {
+                                phoneError = error.message ?: "Teléfono no válido."
+                            } finally {
+                                savingPhone = false
+                            }
+                        }
+                    }
+                    Text("Teléfonos de WhatsApp", style = MaterialTheme.typography.titleLarge)
+                    Text("${customer?.firstName.orEmpty()} ${customer?.lastName.orEmpty()}")
+                    Text("Un principal para este cliente, compartido por todas sus tarjetas.")
+                    Text("Principal: ${customer?.phone?.takeIf(String::isNotBlank) ?: "Sin teléfono"}")
+                    Text("Agregar, seleccionar y corregir teléfonos está disponible para usuarios con acceso a este cliente y sucursal.")
+                    customer?.let { selected ->
+                        if (app.repository.savedPhones(selected).any {
+                                it.invalid && it.normalizedPhone == whatsAppPhone(selected.phone)
+                            }) {
+                            Text("El principal está marcado INCORRECTO y no se usará en WhatsApp. Selecciona otro principal válido o restáuralo deliberadamente.",
+                                color = MaterialTheme.colorScheme.error)
+                        }
+                        app.repository.savedPhones(selected).forEach { phone ->
+                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(phone.phone)
+                                    if (phone.invalid) Text("INCORRECTO", color = MaterialTheme.colorScheme.error)
+                                    if (phone.pendingValidityIds.isNotEmpty()) Text("Corrección pendiente de sincronizar")
+                                    phone.validityChangedAt?.let { Text("Última corrección: $it · usuario ${phone.validityChangedBy}") }
+                                    if (phone.normalizedPhone == null) Text("Histórico no válido para WhatsApp")
+                                }
+                                TextButton(
+                                    enabled = !savingPhone && !phone.invalid && phone.normalizedPhone != null &&
+                                        whatsAppPhone(selected.phone) != phone.normalizedPhone,
+                                    onClick = { savePhone(phone.normalizedPhone.orEmpty(), false) }
+                                ) { Text("Seleccionar") }
+                                if (phone.normalizedPhone != null) {
+                                    TextButton(enabled = !savingPhone, onClick = {
+                                        if (!phone.invalid && whatsAppPhone(selected.phone) == phone.normalizedPhone) {
+                                            phoneError = "Selecciona primero otro teléfono principal antes de marcar este como incorrecto."
+                                        } else confirmingValidity = phone
+                                    }) { Text(if (phone.invalid) "Restaurar" else "Marcar incorrecto") }
+                                }
+                            }
+                        }
+                    }
+                    OutlinedTextField(
+                        phoneDraft, { phoneDraft = it }, label = { Text("Nuevo número") },
+                        supportingText = { Text("Celular colombiano: 3XXXXXXXXX. Internacional: +código y número.") },
+                        enabled = !savingPhone, modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone)
+                    )
+                    Button(enabled = !savingPhone && phoneDraft.isNotBlank(),
+                        onClick = { savePhone(phoneDraft, true) }) { Text("Crear y usar como principal") }
+                    if (phoneError.isNotBlank()) Text(phoneError)
+                    TextButton(onClick = { screen = Screen.HOME }) { Text("Volver a cartera") }
+                }
                 Screen.CREDIT -> {
                     val credit = rows.firstOrNull { it.credit.id == selectedCreditId }?.credit
                     Text("Crédito / tarjeta", style = MaterialTheme.typography.headlineSmall)
@@ -4083,6 +4527,26 @@ private fun CreditApplicationScreen(
                                 }
                                 if (operation.status == OperationStatus.REJECTED) {
                                     Text("No se reintentará solo (permisos o reglas del servidor).")
+                                }
+                                // Cheap pre-filter; offerQueuedReceipt re-checks state and day (live when confirmed).
+                                if (operation.kind in setOf(OperationKind.CREATE_CREDIT, OperationKind.CREATE_PAYMENT,
+                                        OperationKind.UPDATE_PAYMENT) &&
+                                    operation.status in setOf(OperationStatus.PENDING, OperationStatus.IN_FLIGHT,
+                                        OperationStatus.CONFIRMED) &&
+                                    operation.branchId == session?.selectedBranchId &&
+                                    createdOnBusinessDay(operation.createdAt.toString()) &&
+                                    receiptTargetFor(operation.kind, operation.entityId, operation.payload) != null
+                                ) {
+                                    OutlinedButton(enabled = !busy, onClick = {
+                                        scope.launch {
+                                            busy = true
+                                            try {
+                                                offerQueuedReceipt(operation)
+                                            } catch (error: Exception) {
+                                                notice = error.message ?: "No se pudo preparar el comprobante."
+                                            } finally { busy = false }
+                                        }
+                                    }) { Text("Reenviar comprobante por WhatsApp") }
                                 }
                                 operation.lastError?.takeIf {
                                     operation.status == OperationStatus.CONFLICT || operation.status == OperationStatus.REJECTED
@@ -4489,6 +4953,8 @@ private fun CreditApplicationScreen(
                             Text("Acción destructiva para la entidad $entityId. Requiere confirmación.")
                         OperationKind.DELETE_PAYMENT ->
                             OutlinedTextField(entityId, { entityId = it }, label = { Text("ID del pago *") }, modifier = Modifier.fillMaxWidth())
+                        OperationKind.ADD_CUSTOMER_PHONE, OperationKind.SELECT_CUSTOMER_PHONE, OperationKind.SET_CUSTOMER_PHONE_VALIDITY, OperationKind.RECORD_WHATSAPP_OPEN,
+                        OperationKind.RECORD_WHATSAPP_RECEIPT,
                         OperationKind.UPDATE_DOCUMENT, OperationKind.CREATE_EXPENSE,
                         OperationKind.UPDATE_EXPENSE, OperationKind.DELETE_EXPENSE,
                         OperationKind.CREATE_BASE, OperationKind.UPDATE_BASE, OperationKind.DELETE_BASE,
@@ -4560,16 +5026,122 @@ private fun CreditApplicationScreen(
 
     whatsAppOffer?.let { offer ->
         var editedMessage by remember(offer) { mutableStateOf(offer.message) }
+        var availablePhones by remember(offer) { mutableStateOf(rankedWhatsAppPhones(offer.phones, offer.phone)) }
+        var selectedPhone by remember(offer) { mutableStateOf(availablePhones.firstOrNull()?.normalizedPhone) }
+        var opening by remember(offer) { mutableStateOf(false) }
+        var loadingPhones by remember(offer) { mutableStateOf(true) }
+        var receiptFormat by remember(offer) { mutableStateOf(canonicalReceiptFormat(offer.receiptFormat)) }
+        var receiptFormatMenu by remember(offer) { mutableStateOf(false) }
+        var receiptLink by remember(offer) { mutableStateOf<com.backendcreditos.mobile.network.ReceiptLinkDto?>(null) }
+        var receiptLinkError by remember(offer) {
+            mutableStateOf(if (offer.receipt != null && !online) "Se necesita conexión al servidor para emitir un enlace válido." else null)
+        }
+        var receiptLinkOpened by remember(offer) { mutableStateOf(false) }
+        var confirmLinkRevocation by remember(offer) { mutableStateOf(false) }
+        LaunchedEffect(offer) {
+            try {
+                val current = session
+                if (current != null && current.accountKey == offer.accountKey && offer.branchId != null && offer.customerId != null) {
+                    if (online) app.repository.openCustomer(current, offer.branchId, offer.customerId)
+                    val fresh = app.database.localDao().customer(current.accountKey, offer.branchId, offer.customerId)
+                    if (fresh != null) {
+                        availablePhones = rankedWhatsAppPhones(app.repository.savedPhones(fresh), fresh.phone)
+                        selectedPhone = availablePhones.firstOrNull()?.normalizedPhone
+                    }
+                }
+            } catch (error: Exception) {
+                notice = "No se pudo actualizar el historial; se muestran los teléfonos guardados en este dispositivo."
+            } finally {
+                loadingPhones = false
+            }
+        }
+        fun closeOffer() {
+            if (opening) return
+            val link = receiptLink
+            val current = session
+            if (link != null && !receiptLinkOpened && current != null && offer.branchId != null) {
+                opening = true
+                scope.launch {
+                    try {
+                        when (val result = app.api.revokeReceiptLink(current.token, offer.branchId, link.id)) {
+                            is ApiResult.Success -> notice = "Enlace no compartido revocado."
+                            is ApiResult.AuthExpired -> notice = result.message
+                            is ApiResult.Conflict -> notice = result.message
+                            is ApiResult.PermissionRejected -> notice = result.message
+                            is ApiResult.Rejected -> notice = "El enlace quedó activo hasta revocarlo o vencer: ${result.message}"
+                            is ApiResult.Retryable -> notice = "No se confirmó la revocación; el enlace puede seguir activo: ${result.message}"
+                        }
+                    } catch (error: Exception) {
+                        notice = "No se confirmó la revocación; el enlace puede seguir activo: ${error.message ?: "error de conexión"}."
+                    } finally {
+                        whatsAppOffer = null
+                        opening = false
+                    }
+                }
+            } else {
+                whatsAppOffer = null
+            }
+        }
         AlertDialog(
-            onDismissRequest = { whatsAppOffer = null },
+            onDismissRequest = { closeOffer() },
             title = { Text(offer.title) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        if (offer.phone != null) "Enviar por WhatsApp a ${offer.customerName.ifBlank { "el cliente" }} (+${offer.phone})."
-                        else "El cliente no tiene un celular válido guardado; WhatsApp te dejará elegir el contacto.",
+                        "Destinatario para ${offer.customerName.ifBlank { "el cliente" }}. Se sugiere el número con más aperturas compartidas entre todos los cobradores.",
                         style = MaterialTheme.typography.bodySmall
                     )
+                    if (offer.receipt != null) {
+                        Text("Formato del comprobante", style = MaterialTheme.typography.labelMedium)
+                        Box {
+                            OutlinedButton(
+                                enabled = !opening && receiptLink == null,
+                                onClick = { receiptFormatMenu = true }
+                            ) {
+                                Text(receiptFormat?.replaceFirstChar(Char::uppercase) ?: "Elige Ticket, Factura o Cartulina")
+                            }
+                            DropdownMenu(expanded = receiptFormatMenu, onDismissRequest = { receiptFormatMenu = false }) {
+                                RECEIPT_FORMAT_CHOICES.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = { Text(option.replaceFirstChar(Char::uppercase)) },
+                                        onClick = { receiptFormat = option; receiptFormatMenu = false }
+                                    )
+                                }
+                            }
+                        }
+                        Text("El enlace requiere que el registro ya esté sincronizado. Vence en 30 días; quien lo tenga podrá ver y descargar este snapshot.",
+                            style = MaterialTheme.typography.bodySmall)
+                        receiptLink?.let { link ->
+                            Text("Enlace listo. Vence: ${link.expiresAt}", style = MaterialTheme.typography.bodySmall)
+                            TextButton(enabled = !opening, onClick = { confirmLinkRevocation = true }) {
+                                Text("Revocar enlace")
+                            }
+                        }
+                        receiptLinkError?.let { error ->
+                            Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    Column(Modifier.heightIn(max = 200.dp).verticalScroll(rememberScrollState())) {
+                        availablePhones.forEach { phone ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                RadioButton(selected = selectedPhone == phone.normalizedPhone,
+                                    enabled = !opening && !loadingPhones,
+                                    onClick = { selectedPhone = phone.normalizedPhone })
+                                Text("+${phone.normalizedPhone} · ${phone.whatsappOpenCount} aperturas" +
+                                    if (phone.pendingOpenIds.isEmpty()) "" else " (${phone.pendingOpenIds.size} pendientes locales)",
+                                    style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = selectedPhone == null, enabled = !opening && !loadingPhones,
+                                onClick = { selectedPhone = null })
+                            Text(if (offer.receipt != null) "Elegir contacto en WhatsApp (no suma a ningún teléfono)"
+                                else "Elegir contacto en WhatsApp (sin contar)", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                    Text("Cuenta aperturas, no mensajes enviados ni entregados. No cambia el teléfono principal.",
+                        style = MaterialTheme.typography.bodySmall)
+                    if (loadingPhones) Text("Actualizando teléfonos…")
                     OutlinedTextField(
                         editedMessage, { editedMessage = it },
                         label = { Text("Mensaje") },
@@ -4578,12 +5150,216 @@ private fun CreditApplicationScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    whatsAppOffer = null
-                    openWhatsApp(offer.copy(message = editedMessage))
-                }) { Text("Enviar por WhatsApp") }
+                Column(horizontalAlignment = Alignment.End) {
+                    TextButton(
+                        enabled = !opening && !loadingPhones &&
+                            (offer.receipt == null || receiptLink != null || receiptFormat != null),
+                        onClick = {
+                            val target = offer.receipt
+                            if (target != null && receiptLink == null) {
+                                val current = session
+                                val branch = offer.branchId
+                                val customer = offer.customerId
+                                if (!online || current == null || branch == null || customer == null || receiptFormat == null) {
+                                    receiptLinkError = when {
+                                        !online -> "Sin conexión: el servidor debe emitir el enlace después de sincronizar el registro."
+                                        receiptFormat == null -> "Elige explícitamente un formato compatible."
+                                        else -> "No se pudo verificar la cuenta, sucursal o cliente."
+                                    }
+                                    return@TextButton
+                                }
+                                opening = true
+                                receiptLinkError = null
+                                scope.launch {
+                                    try {
+                                        when (val result = app.api.issueReceiptLink(
+                                            current.token, branch, customer, target.kind.wire, target.recordId, receiptFormat!!
+                                        )) {
+                                            is ApiResult.Success -> {
+                                                val issued = result.value.issueReceiptLink
+                                                receiptLink = issued
+                                                editedMessage = appendReceiptLink(editedMessage, issued.url)
+                                                receiptLinkError = null
+                                            }
+                                            is ApiResult.AuthExpired -> receiptLinkError = result.message
+                                            is ApiResult.Conflict -> receiptLinkError = result.message
+                                            is ApiResult.PermissionRejected -> receiptLinkError = result.message
+                                            is ApiResult.Rejected -> receiptLinkError = result.message
+                                            is ApiResult.Retryable -> receiptLinkError =
+                                                "No se pudo emitir el enlace. Revisa conexión y sincronización: ${result.message}"
+                                        }
+                                    } catch (error: Exception) {
+                                        receiptLinkError = "No se pudo emitir el enlace: ${error.message ?: "error de conexión"}."
+                                    } finally { opening = false }
+                                }
+                            } else {
+                                opening = true
+                                scope.launch {
+                                    try {
+                                        if (openWhatsApp(offer.copy(phone = selectedPhone, message = editedMessage))) {
+                                            receiptLinkOpened = receiptLink != null
+                                            whatsAppOffer = null
+                                        }
+                                    } finally { opening = false }
+                                }
+                            }
+                        }
+                    ) {
+                        Text(
+                            when {
+                                opening -> "Procesando…"
+                                offer.receipt != null && receiptLink == null -> "Emitir enlace y añadir al mensaje"
+                                else -> "Abrir WhatsApp"
+                            }
+                        )
+                    }
+                    if (offer.receipt != null && receiptLink == null && receiptLinkError != null) {
+                        TextButton(enabled = !opening && !loadingPhones, onClick = {
+                            opening = true
+                            scope.launch {
+                                try {
+                                    if (openWhatsApp(offer.copy(phone = selectedPhone, message = editedMessage))) {
+                                        whatsAppOffer = null
+                                    }
+                                } finally { opening = false }
+                            }
+                        }) { Text("Enviar solo texto") }
+                        TextButton(enabled = !opening, onClick = { closeOffer() }) {
+                            Text("Esperar sincronización")
+                        }
+                    }
+                }
             },
-            dismissButton = { TextButton(onClick = { whatsAppOffer = null }) { Text("Ahora no") } }
+            dismissButton = { TextButton(enabled = !opening, onClick = { closeOffer() }) { Text("Ahora no") } }
+        )
+        if (confirmLinkRevocation) {
+            AlertDialog(
+                onDismissRequest = { confirmLinkRevocation = false },
+                title = { Text("Revocar enlace") },
+                text = { Text("El enlace dejará de funcionar para cualquier persona que lo haya recibido.") },
+                confirmButton = {
+                    TextButton(enabled = !opening, onClick = {
+                        val current = session
+                        val branch = offer.branchId
+                        val link = receiptLink
+                        if (current == null || branch == null || link == null) {
+                            receiptLinkError = "No se pudo verificar la sesión para revocar el enlace."
+                            confirmLinkRevocation = false
+                        } else {
+                            opening = true
+                            scope.launch {
+                                try {
+                                    when (val result = app.api.revokeReceiptLink(current.token, branch, link.id)) {
+                                        is ApiResult.Success -> {
+                                            editedMessage = removeReceiptLink(editedMessage, link.url)
+                                            receiptLink = null
+                                            receiptLinkError = "Enlace revocado. Emite uno nuevo solo si todavía lo necesitas."
+                                        }
+                                        is ApiResult.AuthExpired -> receiptLinkError = result.message
+                                        is ApiResult.Conflict -> receiptLinkError = result.message
+                                        is ApiResult.PermissionRejected -> receiptLinkError = result.message
+                                        is ApiResult.Rejected -> receiptLinkError = result.message
+                                        is ApiResult.Retryable -> receiptLinkError = "No se pudo confirmar la revocación: ${result.message}"
+                                    }
+                                } catch (error: Exception) {
+                                    receiptLinkError = "No se pudo confirmar la revocación: ${error.message ?: "error de conexión"}."
+                                } finally {
+                                    confirmLinkRevocation = false
+                                    opening = false
+                                }
+                            }
+                        }
+                    }) { Text("Revocar") }
+                },
+                dismissButton = {
+                    TextButton(onClick = { confirmLinkRevocation = false }) { Text("Cancelar") }
+                }
+            )
+        }
+    }
+
+    if (showReceiptLinkManager) {
+        AlertDialog(
+            onDismissRequest = { if (!receiptLinkManagerBusy) showReceiptLinkManager = false },
+            title = { Text("Enlaces compartidos activos") },
+            text = {
+                Column(Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())) {
+                    if (receiptLinkSummaries.isEmpty()) {
+                        Text("No hay enlaces activos en esta sucursal.")
+                    } else receiptLinkSummaries.forEach { link ->
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(
+                                "${link.format.replaceFirstChar(Char::uppercase)} · ${link.receiptType} " +
+                                    "${link.receiptSeries.takeIf(String::isNotBlank)?.let { "$it · " }.orEmpty()}N° ${link.receiptNumber}",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                            Text("Vence: ${link.expiresAt}", style = MaterialTheme.typography.bodySmall)
+                            TextButton(
+                                enabled = !receiptLinkManagerBusy,
+                                onClick = { receiptLinkToRevoke = link }
+                            ) { Text("Revocar este enlace") }
+                            HorizontalDivider()
+                        }
+                    }
+                    if (receiptLinkManagerHasMore) {
+                        TextButton(
+                            enabled = !receiptLinkManagerBusy,
+                            onClick = { loadOlderReceiptLinks() }
+                        ) {
+                            Text(if (receiptLinkManagerBusy) "Cargando…" else "Cargar enlaces anteriores")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showReceiptLinkManager = false }) { Text("Cerrar") }
+            },
+            dismissButton = {}
+        )
+    }
+
+    receiptLinkToRevoke?.let { link ->
+        AlertDialog(
+            onDismissRequest = { if (!receiptLinkManagerBusy) receiptLinkToRevoke = null },
+            title = { Text("Revocar comprobante") },
+            text = { Text("El enlace del comprobante N° ${link.receiptNumber} dejará de funcionar para todos.") },
+            confirmButton = {
+                TextButton(enabled = !receiptLinkManagerBusy, onClick = {
+                    val current = session
+                    val branch = receiptLinkManagerBranch
+                    if (current == null || branch == null) {
+                        notice = "Inicia sesión y vuelve a cargar los enlaces de la sucursal."
+                        receiptLinkToRevoke = null
+                    } else {
+                        receiptLinkManagerBusy = true
+                        scope.launch {
+                            try {
+                                when (val result = app.api.revokeReceiptLink(current.token, branch, link.id)) {
+                                    is ApiResult.Success -> {
+                                        receiptLinkSummaries = receiptLinkSummaries.filterNot { it.id == link.id }
+                                        notice = "Enlace revocado."
+                                    }
+                                    is ApiResult.AuthExpired -> notice = result.message
+                                    is ApiResult.Conflict -> notice = result.message
+                                    is ApiResult.PermissionRejected -> notice = result.message
+                                    is ApiResult.Rejected -> notice = result.message
+                                    is ApiResult.Retryable -> notice = "No se confirmó la revocación: ${result.message}"
+                                }
+                            } catch (error: Exception) {
+                                notice = "No se confirmó la revocación: ${error.message ?: "error de conexión"}."
+                            } finally {
+                                receiptLinkToRevoke = null
+                                receiptLinkManagerBusy = false
+                            }
+                        }
+                    }
+                }) { Text("Revocar") }
+            },
+            dismissButton = {
+                TextButton(enabled = !receiptLinkManagerBusy, onClick = { receiptLinkToRevoke = null }) {
+                    Text("Cancelar")
+                }
+            }
         )
     }
 

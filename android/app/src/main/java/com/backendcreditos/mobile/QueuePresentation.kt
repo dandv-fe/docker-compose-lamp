@@ -38,6 +38,20 @@ internal fun summarizeOperation(
     var person = customerName
 
     when (kind) {
+        OperationKind.RECORD_WHATSAPP_OPEN ->
+            text("telefono")?.let { details += "Apertura de WhatsApp: $it (no confirma entrega)" }
+        // Hidden counter: the card never shows how many times a receipt was opened.
+        OperationKind.RECORD_WHATSAPP_RECEIPT -> {
+            details += if (text("tipo") == "payment") "Comprobante de abono" else "Comprobante de tarjeta"
+            details += text("telefono")?.let { "Abierto en WhatsApp para +$it (no confirma envío ni entrega)" }
+                ?: "Abierto en WhatsApp eligiendo el contacto allí (no confirma envío ni entrega)"
+        }
+        OperationKind.SET_CUSTOMER_PHONE_VALIDITY ->
+            text("telefono")?.let {
+                details += (if (text("invalid") == "true") "Marcar INCORRECTO: " else "Restaurar válido: ") + it
+            }
+        OperationKind.ADD_CUSTOMER_PHONE, OperationKind.SELECT_CUSTOMER_PHONE ->
+            text("telefono")?.let { details += "WhatsApp principal: $it" }
         OperationKind.CREATE_CUSTOMER, OperationKind.UPDATE_CUSTOMER -> {
             val name = listOfNotNull(text("nombres"), text("apellidos")).joinToString(" ")
             if (name.isNotBlank()) person = formatPersonName(name)

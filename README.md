@@ -34,6 +34,8 @@ and JWT configuration is environment-only:
 | `PORT`, `NODE_ENV` | HTTP listen port and environment. Set `NODE_ENV=production` in deployment; GraphQL requests require HTTPS unless running in `development` or `test`. |
 | `TRUST_PROXY` | Optional Express trusted-proxy setting (for example, a specific proxy IP/CIDR); configure it only for the actual TLS-terminating proxy. |
 | `FILES_ROOT` | Optional private directory for uploaded customer photos. Required only when a photo is supplied. |
+| `APP_TIME_ZONE` | Optional IANA business zone (default `America/Bogota`, the zone webgoez PHP pins). Defines "today" for WhatsApp receipt resends; an invalid value fails those operations with `CONFIGURATION_ERROR`. |
+| `PUBLIC_RECEIPT_ORIGIN` | Required to issue public receipt links. Set only the externally reachable origin (scheme, host, optional port), without path/query. Production requires HTTPS; development can use the computer's Wi-Fi IP and API port. |
 
 `.env.example` contains placeholders, not deployment credentials. Do not commit a
 real `.env`. The service does not print passwords, request bodies, URL query strings, JWTs,
@@ -109,6 +111,7 @@ Queries:
 * `customerByDocument(branchId: Int!, documentType: String!, documentNumber: String!)`
 * `paymentHistory(branchId: Int!, creditId: ID!)`
 * `receiptSequences(branchId: Int!)` — branch `Comprobante` counters (`id`, `series`, `lastNumber`, `documentType`) that feed the new-card form, mirroring `Cartera::GetTipoDocSerieNum`
+* `receiptLinks(branchId: Int!, afterId: ID)` — up to 50 unexpired/unrevoked link summaries for the authorized branch; `hasMore` and the last summary's `id` paginate older links. It never returns bearer tokens or customer details and remains available after payment expiry for revocation.
 * `bankAccounts(branchId: Int!)` — active `tbl_banco` accounts of the company **authorized in that branch** (`tbl_banco_sucursal`): `id`, `name`, `type`, `number`, `holderName`, `holderDocument` (NIT/CC of the holder), ordered by `int_orden`, offered as payment methods besides cash
 * `openRouteCash(branchId: Int!)` — `routeId`, `base`, `otherIncome` and `expenses` (positive) of the branch's open, not yet saved `tbl_detalle_ruta`, summed from `tbl_contabilidad_detalle`: `base` rows, `entrada-*` except `recaudo`/`diferencia`, and `salida-*` except tipo 4 (prestamos/articulos); used by the APK pocket-cash line
 * `routeSettlement(branchId: Int!)` — end-of-day accounting of the branch's open route (see *Route settlement* below)
@@ -124,6 +127,8 @@ Mutations:
 * `startBiometricLogin(companyId: Int!, username: String!, deviceId: String!): BiometricChallenge!` — returns a login challenge only when that account already has an active credential on that device
 * `biometricLogin(companyId: Int!, username: String!, deviceId: String!, challengeId: ID!, signature: String!): AuthPayload!` — verifies the challenge signature and issues the same auth payload as password login
 * `applyOfflineOperation(input: OfflineOperationInput!): OfflineOperationResult!`
+* `issueReceiptLink(branchId: Int!, customerId: Int!, kind: String!, recordId: ID!, format: String!): ReceiptLink!` — creates an immutable eligible credit/payment snapshot; `format` is `ticket`, `factura`, or `cartulina`, and the result contains `id`, `url`, `expiresAt`.
+* `revokeReceiptLink(branchId: Int!, id: ID!): Boolean!` — revokes one link in the authorized branch; allowed after company payment expiry.
 * `settleRoute(branchId: Int!, cash: Float!, coins: Float!, difference: Float!): RouteSettlement!` — hands the route over (see *Route settlement* below)
 
 `OfflineOperationInput` contains `operationId` (UUID), `branchId`, `kind`,
@@ -231,6 +236,10 @@ an active branch/company grant; their named permissions are reloaded through
 open route and either a dispatched employee, this office administrator, or
 the Super Administrador. Never send employee, user, tenant, or permission IDs
 as authoritative values.
+
+Phone-only `ADD_CUSTOMER_PHONE`, `SELECT_CUSTOMER_PHONE` and `RECORD_WHATSAPP_OPEN` are explicit permission exceptions: authenticated branch access and customer/company scope remain mandatory, but `editar cliente` is not required. Full customer/document editing retains that permission. Apply migrations 007 then **008_whatsapp_open_usage.sql** manually before deploying this API/APK. 008 adds shared per-company/person/normalized-phone opening counts and timestamps without altering phone history or primary selection. Counts are serialized as strings to preserve BIGINT precision.
+
+Receipt recipient selection suggests the most frequently **opened** saved valid number across all collectors, breaking ties by primary then stable history order; it never changes the primary. Android queues an additive, transactionally idempotent opening operation only after the external intent succeeds. Opening events synchronize to other authorized branches but do not invalidate customer edit base versions. External WhatsApp/browser intents cannot confirm sending or delivery; contact-picker openings are not attributed to a number. Offline counters include persisted pending increments until synchronization. See [Android guide](android/GUIA_USO_APK.md) and [deployment guide](DESPLIEGUE_CPANEL_PRUEBAS.md) for limitations and local-only fixture verification.
 
 The API enforces `crear cliente`, `editar cliente`, `nueva tarjeta`,
 `editar cuota`, `eliminar cuota`, `eliminar credito`, `descuento`,
@@ -538,3 +547,121 @@ performs a concurrent duplicate-receipt insert/commit/delete check in
 the explicitly configured test schema; it never falls back to the application
 database. Use only an isolated test clone with the migration already reviewed/
 applied; do not use production credentials.
+# Corrección reversible de teléfonos
+
+Aplicar manualmente `migrations/009_customer_phone_validity.sql` después de 001–008
+antes de actualizar API/APK/PHP. La copia de despliegue PHP
+`webgoez/sql/009_customer_phone_validity.sql` es idéntica; no se instala automáticamente.
+009 es idempotente, conserva los triggers 007 y publica cambios para todas las
+sucursales del cliente. Solo se aplica localmente durante estas pruebas.
+
+En Android: cartera → menú del cliente → **Crear o seleccionar teléfono de WhatsApp**.
+El historial permite **Marcar incorrecto** y **Restaurar**, con confirmación deliberada.
+Cualquier usuario autenticado con acceso autorizado al cliente/sucursal puede corregirlo:
+no exige `editar cliente`, creador ni administrador. No existen autores históricos
+de teléfonos; `validityChangedBy/At` identifica la última corrección, no la creación.
+`SET_CUSTOMER_PHONE_VALIDITY` recibe `{telefono: número normalizado, invalid: boolean}`.
+
+Los INCORRECTOS permanecen visibles, pero se excluyen de selección del principal,
+destinatarios de WhatsApp, respaldo del principal y nuevas aperturas/uso. Agregar el
+mismo número no lo restaura. Para marcar el principal:
+**«Selecciona primero otro teléfono principal»**. Si un formulario antiguo vuelve
+a seleccionar un número incorrecto, la marca no se pierde y WhatsApp no lo usa.
+Restaurar conserva los contadores anteriores; no borra historial ni auditoría.
+La cola conserva los cambios optimistas tras snapshots y encadena correcciones
+con altas/selecciones pendientes. Un conflicto o rechazo revierte la marca local.
+
+# Reenvío de comprobantes por WhatsApp y contador oculto por registro
+
+Aplicar manualmente `migrations/010_whatsapp_receipt_open.sql` después de 001–009
+(idempotente; solo crea `mobile_whatsapp_receipt_open`, no altera tablas legadas).
+Sin 010 la operación `RECORD_WHATSAPP_RECEIPT` falla; el resto de la API no cambia.
+Solo se aplicó a la base local verificada `websdnco_db_webgoez`; no a producción.
+
+En la APK: **Actividad → Cola**, en tarjetas `CREATE_CREDIT` (Préstamo/Artículo) y abonos
+`CREATE_PAYMENT`/`UPDATE_PAYMENT` aparece **Reenviar comprobante por WhatsApp** (no en Liquidación).
+Restricción real, aplicada por el servidor y repetida en la APK:
+
+- la tarjeta (`tbl_tarjetas`) o abono (`tbl_descripcion`) existe, es de la empresa,
+  sucursal y cliente indicados y su estado **actual** es `created` o `entregando`;
+- fue **creado hoy** en `APP_TIME_ZONE` (por defecto America/Bogotá; `created_at` se lee con el
+  reloj de MariaDB y se convierte a esa zona);
+- un abono `Inicial` nunca se reenvía solo: su cuota va dentro del comprobante de la tarjeta.
+
+Si no se cumple, el servidor responde `RECEIPT_NOT_ELIGIBLE` sin contar nada (sin respaldo ni
+otro registro). La APK juzga los registros sin enviar con la caché y la hora de la cola; los
+confirmados exigen conexión y se consultan en vivo (`customerById` + `paymentHistory`).
+
+`RECORD_WHATSAPP_RECEIPT` (entityId = cliente; payload estricto
+`{tipo: credit|payment, registroId, telefono?}`) se encola una sola vez por apertura externa
+aceptada por Android y, en una transacción, suma **1** al contador oculto del registro y, si
+se eligió un teléfono guardado válido, **1** al contador compartido de ese teléfono (por eso
+no se encola además `RECORD_WHATSAPP_OPEN`). Recibo idempotente: reenviar la misma operación no
+vuelve a contar. No requiere versión base, no está ligada a la ruta, no exige permisos
+adicionales (acceso a sucursal + cliente) y no cambia principal, validez ni historial de
+teléfonos. Un rechazo `RECEIPT_NOT_ELIGIBLE` queda en Cola, revierte el +1 local del teléfono
+y **no pausa** la sincronización. Si la tarjeta/abono aún no se envió, la apertura depende de
+esa operación.
+
+Limitaciones del contador (`open_count`, `first/last_opened_at`, `last_opened_by`): cuenta
+aperturas exitosas del enlace externo (WhatsApp o navegador), **no** mensajes enviados ni
+entregados; WhatsApp no informa al servidor. Elegir contacto dentro de WhatsApp cuenta el
+registro pero ningún teléfono. Una apertura de un cliente creado sin conexión y aún no
+sincronizado no se puede contar. El contador no se expone por GraphQL ni en ninguna pantalla;
+solo se consulta en la base de datos.
+
+Comprobante de Artículo: incluye descripción, valor, plazo, cuota aproximada (valor ÷ plazo),
+**cuota inicial** (parte por transferencia si hubo bancos) y saldo = valor − inicial, todo en el
+mismo mensaje. La inicial sale de la fila `Inicial` cacheada/consultada o, sin ella, del payload
+`cuotaInicial`/`bancosInicial`. No incluye otros abonos del día. El costo interno (`dec_prestamo`)
+no se envía al cliente.
+
+Pruebas: `npm test` (`tests/unit/receipts.test.mjs`) y, solo contra una base local verificada con
+010 aplicada, `node tests/whatsapp-receipt.local.mjs <hostname-del-contenedor-mariadb>`: crea datos
+de prueba en la empresa -2000000010, comprueba elegibilidad/reintentos y los borra.
+
+## Enlaces públicos de comprobantes de WhatsApp
+
+Aplicar manualmente `migrations/011_whatsapp_receipt_links.sql` después de 001–010. Es aditiva,
+re-ejecutable y crea solo `mobile_whatsapp_receipt_link`; **no se aplicó a producción**. La tabla
+guarda un hash SHA-256 de un token aleatorio de 256 bits y un snapshot JSON versionado e inmutable;
+nunca almacena la URL/token en claro ni una imagen. `issueReceiptLink` exige sesión, acceso a la
+sucursal, pertenencia real del cliente y registro existente elegible (`created`/`entregando` y
+creado hoy en `APP_TIME_ZONE`). Un registro sin sincronizar no recibe un enlace falso.
+
+La APK conserva el texto editable, permite elegir **Ticket, Factura o Cartulina** (sugiere el tipo
+que ya tiene la tarjeta) y añade el enlace antes de abrir el selector habitual de WhatsApp. Si el
+registro no se puede emitir en línea, ofrece **Enviar solo texto** o esperar a que sincronice. Una
+persona que posea el enlace puede ver/descargar el comprobante hasta que venza a los 30 días o un
+usuario autorizado de esa sucursal lo revoque mediante `revokeReceiptLink`; la revocación sigue
+disponible desde **Configuración → Administrar enlaces compartidos**, incluso después de enviar el
+mensaje o aunque haya vencido el pago de la cuenta. Tratar el enlace como información
+confidencial: funciona como una autorización bearer, no pide inicio de sesión, y puede reenviarse.
+
+El HTML público y la imagen PNG incluyen solo la mínima información necesaria (empresa/sucursal,
+cliente, tipo/número/fecha, concepto/descripción/valor/plazo y, cuando corresponde, cuota inicial
+con su distribución banco/efectivo, importe del abono y saldo **al emitir**). No exponen documento,
+teléfono, dirección, usuario interno ni `dec_prestamo`. La cuota inicial de un Artículo va dentro
+del mismo snapshot de tarjeta; los abonos posteriores son comprobantes separados. No se reconstruye
+un saldo histórico: se etiqueta el saldo autoritativo leído en el instante de emisión. El documento
+es un comprobante interno, **no una factura electrónica**.
+
+`GET /comprobante/:token` sirve una vista mínima sin recursos de terceros y
+`GET /comprobante/:token/imagen` genera y transmite PNG en memoria al descargarlo; no persiste
+archivos. Ambas respuestas son privadas/no-cache, no permiten referer y tienen CSP; se limitan a
+60 solicitudes por IP por minuto. Los logs de Express omiten la ruta pública para no registrar el
+token. Configura también el proxy para **no guardar el path** de `/comprobante/` en logs de acceso.
+
+Configura `PUBLIC_RECEIPT_ORIGIN` con un origen alcanzable por el teléfono. En desarrollo local,
+por ejemplo, `http://192.168.1.22:3000` solo funciona en la misma Wi-Fi y requiere permitir el
+puerto del API en el cortafuegos; sustituye la IP por la dirección LAN actual del computador.
+`NODE_ENV=production` exige un origen HTTPS y los clientes Android de producción también requieren
+HTTPS. La validación ignora `Host` recibido y rechaza rutas, credenciales y parámetros dentro del
+origen. Respalda la base y verifica host antes de cualquier despliegue; los pasos de migración están
+en [DESPLIEGUE_CPANEL_PRUEBAS.md](DESPLIEGUE_CPANEL_PRUEBAS.md).
+
+Prueba unitaria/imagen: `npm test`. Para integración local reversible, aplica 011 solo a
+`websdnco_db_webgoez` en `webgoez-mariadb10` y ejecuta
+`node tests/whatsapp-receipt.local.mjs <hostname-verificado>` desde el contenedor Node. La prueba
+crea fixtures sintéticos, comprueba acceso de sucursal, expiración, hash, snapshot fijo, HTML, PNG
+decodificable y revocación y elimina los fixtures; no modifica datos comerciales existentes.

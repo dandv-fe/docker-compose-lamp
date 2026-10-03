@@ -17,6 +17,35 @@ data class MappedOperation(val entityId: String, val payload: JsonElement)
 data class BankSplit(val bankId: Int, val amount: String, val reference: String = "")
 
 object OperationPayloadMapper {
+    fun customerPhoneValidity(phone: String, invalid: Boolean): JsonElement {
+        require(com.backendcreditos.mobile.whatsAppPhone(phone) == phone) {
+            "Selecciona un teléfono normalizado del historial."
+        }
+        return buildJsonObject { put("telefono", phone); put("invalid", invalid) }
+    }
+    fun whatsappOpen(phone: String): JsonElement {
+        require(com.backendcreditos.mobile.whatsAppPhone(phone) == phone) {
+            "Selecciona un teléfono normalizado del historial."
+        }
+        return buildJsonObject { put("telefono", phone) }
+    }
+    fun whatsappReceipt(phone: String?, target: com.backendcreditos.mobile.ReceiptTarget): JsonElement {
+        require(phone == null || com.backendcreditos.mobile.whatsAppPhone(phone) == phone) {
+            "Selecciona un teléfono normalizado del historial."
+        }
+        require(target.recordId.isNotBlank() && target.recordId.length <= 50) { "Comprobante inválido." }
+        return buildJsonObject {
+            put("tipo", target.kind.wire)
+            put("registroId", target.recordId)
+            if (phone != null) put("telefono", phone)
+        }
+    }
+    fun customerPhone(phone: String): JsonElement {
+        val normalized = requireNotNull(com.backendcreditos.mobile.whatsAppPhone(phone)) {
+            "Ingresa un solo celular colombiano de 10 dígitos que empiece en 3, o un número internacional válido."
+        }
+        return buildJsonObject { put("telefono", normalized) }
+    }
     fun customer(
         firstName: String, lastName: String, sex: String, birthDate: String?,
         documentType: String, documentNumber: String, phone: String, email: String,

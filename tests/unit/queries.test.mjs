@@ -71,6 +71,7 @@ test('credit-authorized employee can find a company customer with no cards in th
       return [[], []];
     }
     if (sql.includes('FROM tbl_comentarios_cliente')) return [[], []];
+    if (sql.includes('FROM mobile_customer_phone')) return [[], []];
     throw new Error(`Unexpected query: ${sql}`);
   }, async () => {
     assert.equal((await customerCandidate(context, 4, 'Cédula', '123')).customerId, 55);
@@ -114,6 +115,7 @@ test('portfolio excludes credits with legacy-excluded statuses and hides custome
       }], []];
     }
     if (sql.includes('FROM mobile_credit_location')) return [[], []];
+    if (sql.includes('FROM mobile_customer_phone')) return [[], []];
     if (sql.includes('FROM tbl_comentarios_cliente')) return [[], []];
     throw new Error(`Unexpected query: ${sql}`);
   }, async () => {
@@ -143,6 +145,7 @@ test('customerById keeps every credit regardless of status, mirroring buscarTarj
     }
     if (sql.includes('FROM tbl_descripcion d')) return [[], []];
     if (sql.includes('FROM mobile_credit_location')) return [[], []];
+    if (sql.includes('FROM mobile_customer_phone')) return [[], []];
     if (sql.includes('FROM tbl_comentarios_cliente')) return [[], []];
     throw new Error(`Unexpected query: ${sql}`);
   }, async () => {

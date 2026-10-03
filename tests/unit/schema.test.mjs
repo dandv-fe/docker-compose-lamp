@@ -75,7 +75,8 @@ test('GraphQL input rejects unknown operation kinds at schema validation', () =>
   assert.ok(errors.some((error) => error.message.includes('UNKNOWN')));
   const kinds = schema.getType('OfflineOperationKind').getValues().map((value) => value.name);
   assert.deepEqual(kinds, [
-    'CREATE_CUSTOMER', 'UPDATE_CUSTOMER', 'UPDATE_DOCUMENT', 'CREATE_CREDIT',
+    'ADD_CUSTOMER_PHONE', 'SELECT_CUSTOMER_PHONE', 'SET_CUSTOMER_PHONE_VALIDITY', 'RECORD_WHATSAPP_OPEN',
+    'RECORD_WHATSAPP_RECEIPT', 'CREATE_CUSTOMER', 'UPDATE_CUSTOMER', 'UPDATE_DOCUMENT', 'CREATE_CREDIT',
     'UPDATE_CREDIT', 'UPDATE_CREDIT_TERMS', 'CREATE_PAYMENT', 'UPDATE_PAYMENT',
     'DELETE_PAYMENT', 'DELETE_CREDIT', 'APPLY_DISCOUNT', 'ADD_INTEREST',
     'CHANGE_CREDIT_STATUS', 'REORDER_CREDIT', 'CREATE_COMMENT', 'UPDATE_COMMENT',

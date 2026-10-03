@@ -8,7 +8,8 @@ import kotlinx.serialization.Serializable
 enum class OperationStatus { PENDING, IN_FLIGHT, CONFIRMED, CONFLICT, REJECTED }
 
 enum class OperationKind {
-    CREATE_CUSTOMER, UPDATE_CUSTOMER, UPDATE_DOCUMENT, CREATE_CREDIT, UPDATE_CREDIT,
+    ADD_CUSTOMER_PHONE, SELECT_CUSTOMER_PHONE, SET_CUSTOMER_PHONE_VALIDITY, RECORD_WHATSAPP_OPEN,
+    RECORD_WHATSAPP_RECEIPT, CREATE_CUSTOMER, UPDATE_CUSTOMER, UPDATE_DOCUMENT, CREATE_CREDIT, UPDATE_CREDIT,
     UPDATE_CREDIT_TERMS, CREATE_PAYMENT, UPDATE_PAYMENT, DELETE_PAYMENT, DELETE_CREDIT,
     APPLY_DISCOUNT, ADD_INTEREST, CHANGE_CREDIT_STATUS, REORDER_CREDIT, CREATE_COMMENT,
     UPDATE_COMMENT, DELETE_COMMENT, CREATE_LOCATION, DELETE_LOCATION, UPSERT_ALERT,
@@ -44,7 +45,10 @@ data class CustomerEntity(
     val nickname: String? = null,
     val customerNote: String? = null,
     val customerStatus: String? = null,
-    val guarantorPersonId: String? = null
+    val guarantorPersonId: String? = null,
+    @androidx.room.ColumnInfo(defaultValue = "'[]'")
+    val phoneHistory: String = "[]",
+    val personId: String? = null
 )
 
 @Entity(

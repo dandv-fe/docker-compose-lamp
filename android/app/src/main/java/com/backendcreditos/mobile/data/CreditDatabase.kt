@@ -24,6 +24,12 @@ interface LocalDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun putCustomers(items: List<CustomerEntity>)
 
+    @Query("UPDATE customers SET phone = :phone, phoneHistory = :history WHERE accountKey = :accountKey AND (personId = :personId OR (id = :customerId AND personId IS NULL))")
+    suspend fun updateCustomerPhones(accountKey: String, personId: String?, customerId: String, phone: String?, history: String)
+
+    @Query("UPDATE offline_operations SET baseVersion = :cursor WHERE operationId = :operationId AND status = 'PENDING' AND attempts = 0")
+    suspend fun rebaseUnsentOperation(operationId: String, cursor: String)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun putCredits(items: List<CreditEntity>)
 
@@ -342,7 +348,7 @@ interface LocalDao {
         RouteCashEntity::class, BankAccountEntity::class,
         RouteEntryEntity::class, RouteCatalogEntity::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)
@@ -561,6 +567,13 @@ abstract class CreditDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE offline_operations ADD COLUMN routeId INTEGER")
                 db.execSQL("ALTER TABLE offline_operations ADD COLUMN rejectionCode TEXT")
                 db.execSQL("ALTER TABLE route_cash ADD COLUMN routeState TEXT")
+            }
+        }
+
+        val MIGRATION_16_17 = object : Migration(16, 17) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE customers ADD COLUMN phoneHistory TEXT NOT NULL DEFAULT '[]'")
+                db.execSQL("ALTER TABLE customers ADD COLUMN personId TEXT")
             }
         }
 

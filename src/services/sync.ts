@@ -1,4 +1,5 @@
 import type { AuthUser } from './auth.js';
+import { customerPhones } from './phones.js';
 
 type Execute = (sql: string, values?: unknown[]) => Promise<[unknown, unknown]>;
 
@@ -185,6 +186,7 @@ export async function materializeSyncEvent(
   if (!record) return tombstone(event);
 
   if (event.recordType === 'customer') {
+    record.phones = await customerPhones(execute, user.companyId, Number(record.personId));
     const [credits] = await execute(
       `SELECT t.idtarjeta AS id,t.idglobal AS companyId,t.idsucursal AS branchId,
               t.idcliente AS customerId,t.idventa AS saleId,t.iddetalleruta AS routeId,

@@ -5,6 +5,7 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.Data
 import com.backendcreditos.mobile.CreditApp
+import com.backendcreditos.mobile.data.OperationKind
 import com.backendcreditos.mobile.data.OperationStatus
 import com.backendcreditos.mobile.network.ApiResult
 import com.backendcreditos.mobile.queue.OperationTransitions
@@ -48,6 +49,7 @@ class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineW
                         "El servidor devolvió un identificador de operación distinto.", serverState
                     )
                     repo.setSyncPaused(accountKey, "PROTOCOL")
+                    repo.rollbackPhoneValidity(operation)
                     Result.success()
                 } else {
                     when (result.status.uppercase()) {
@@ -56,7 +58,7 @@ class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineW
                             app.database.localDao().finishOperation(
                                 operation.operationId, OperationStatus.CONFIRMED, null, serverState
                             )
-                            app.repository.applyServerAcknowledgement(operation, serverState, result.entityId)
+                            app.repository.applyServerAcknowledgement(operation, serverState, result.entityId, result.eventCursor)
                             val syncResult = syncChanges(app, session, operation.branchId, result.eventCursor)
                             if (syncResult !is Result.Success) {
                                 SyncScheduler.enqueue(applicationContext, accountKey, operation.branchId, result.eventCursor)
@@ -72,6 +74,7 @@ class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineW
                                 "El servidor devolvió un conflicto para esta operación.", serverState
                             )
                             repo.setSyncPaused(accountKey, "CONFLICT")
+                            repo.rollbackPhoneValidity(operation, serverState)
                             Result.success()
                         }
                         "REJECTED" -> {
@@ -81,6 +84,7 @@ class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineW
                                 "El servidor rechazó esta operación.", serverState
                             )
                             repo.setSyncPaused(accountKey, "REJECTED")
+                            repo.rollbackPhoneValidity(operation, serverState)
                             Result.success()
                         }
                         else -> {
@@ -90,6 +94,7 @@ class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineW
                                 "Estado de operación desconocido del servidor: ${result.status}", serverState
                             )
                             repo.setSyncPaused(accountKey, "PROTOCOL")
+                            repo.rollbackPhoneValidity(operation)
                             Result.success()
                         }
                     }
@@ -104,6 +109,7 @@ class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineW
                 OperationTransitions.move(OperationStatus.IN_FLIGHT, OperationStatus.REJECTED)
                 app.database.localDao().finishOperation(operation.operationId, OperationStatus.REJECTED, response.message, null)
                 repo.setSyncPaused(accountKey, "PERMISSION")
+                repo.rollbackPhoneValidity(operation)
                 Result.success()
             }
             is ApiResult.Conflict -> {
@@ -115,6 +121,7 @@ class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineW
                     operation.operationId, OperationStatus.CONFLICT, response.message, state
                 )
                 repo.setSyncPaused(accountKey, "CONFLICT")
+                repo.rollbackPhoneValidity(operation, state)
                 Result.success()
             }
             is ApiResult.Rejected -> {
@@ -124,6 +131,14 @@ class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineW
                     return Result.success()
                 }
                 OperationTransitions.move(OperationStatus.IN_FLIGHT, OperationStatus.REJECTED)
+                if (operation.kind == OperationKind.RECORD_WHATSAPP_RECEIPT && response.code == "RECEIPT_NOT_ELIGIBLE") {
+                    // Only the hidden counter was refused (record no longer today/created/entregando):
+                    // the opening is kept in Cola with its reason and the rest of the queue keeps going.
+                    app.database.localDao().finishOperation(operation.operationId, OperationStatus.REJECTED, response.message, null)
+                    repo.dropPendingWhatsAppOpen(operation)
+                    SyncScheduler.enqueue(applicationContext, accountKey, operation.branchId)
+                    return Result.success()
+                }
                 if (RouteGuard.isRouteRefusal(response.code)) {
                     // The queue is never swept on its own: the record stays in the Cola screen with
                     // its reason so the person can read it and decide to resend it or remove it.
@@ -135,6 +150,7 @@ class OfflineSyncWorker(context: Context, params: WorkerParameters) : CoroutineW
                 }
                 app.database.localDao().finishOperation(operation.operationId, OperationStatus.REJECTED, response.message, null)
                 repo.setSyncPaused(accountKey, "REJECTED")
+                repo.rollbackPhoneValidity(operation)
                 Result.success()
             }
             is ApiResult.Retryable -> {

@@ -1,4 +1,5 @@
 import { pool } from '../db.js';
+import { customerPhones } from './phones.js';
 import {
   assertBranchAccess, assertRecordBranch, hasPermission, isOfficeAdministrator, listBranches, requireAnyPermission,
   requirePermission, type AuthContext,
@@ -24,7 +25,7 @@ export async function branches(context: AuthContext | null) {
 // sub-screens (see views/nav.html) and the document-masking checks inside them.
 const KNOWN_BRANCH_PERMISSIONS = [
   'ver morosos', 'ver retirados', 'ver canceladas', 'ver clientes',
-  'documento', 'ver documento', 'pasar activos', 'pasar activos retirados', 'nueva tarjeta', 'crear cliente',
+  'documento', 'ver documento', 'pasar activos', 'pasar activos retirados', 'nueva tarjeta', 'crear cliente', 'editar cliente',
 ];
 
 export async function branchPermissions(context: AuthContext | null, branchId: number) {
@@ -152,6 +153,9 @@ async function addBranchCredits(
 
 async function addCustomerComments(customers: Array<Record<string, unknown>>) {
   if (!customers.length) return customers;
+  for (const customer of customers) {
+    customer.phones = await customerPhones((sql, params) => pool.execute(sql, params as number[]), Number(customer.companyId), Number(customer.personId));
+  }
   const ids = customers.map((customer) => Number(customer.id));
   const [rows] = await pool.execute(
     `SELECT l.idcliente AS customerId,c.idcomentario AS id,

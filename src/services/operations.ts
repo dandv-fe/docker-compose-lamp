@@ -6,13 +6,16 @@ import { assertBranchAccess, requirePermission, type AuthContext } from './auth.
 import { fail, mapTransactionError } from './errors.js';
 import { savePhoto } from './files.js';
 import { branchScopeExists } from './sync.js';
+import { customerPhones, normalizePhone, phoneForChange, requirePhone } from './phones.js';
+import { assertReceiptTarget, countReceiptOpen, type ReceiptKind } from './receipts.js';
 import {
   assertBaseVersion, assertPayloadDigestMatch, centsToDecimal, decimalToCents,
   parseOperationPayload, payloadDigest, rejectExistingAlert, serializeAlert,
 } from './validation.js';
 
 const operationKinds = [
-  'CREATE_CUSTOMER', 'UPDATE_CUSTOMER', 'UPDATE_DOCUMENT', 'CREATE_CREDIT', 'UPDATE_CREDIT',
+  'ADD_CUSTOMER_PHONE', 'SELECT_CUSTOMER_PHONE', 'SET_CUSTOMER_PHONE_VALIDITY', 'RECORD_WHATSAPP_OPEN',
+  'RECORD_WHATSAPP_RECEIPT', 'CREATE_CUSTOMER', 'UPDATE_CUSTOMER', 'UPDATE_DOCUMENT', 'CREATE_CREDIT', 'UPDATE_CREDIT',
   'UPDATE_CREDIT_TERMS', 'CREATE_PAYMENT', 'UPDATE_PAYMENT', 'DELETE_PAYMENT', 'DELETE_CREDIT',
   'APPLY_DISCOUNT', 'ADD_INTEREST', 'CHANGE_CREDIT_STATUS', 'REORDER_CREDIT', 'CREATE_COMMENT',
   'UPDATE_COMMENT', 'DELETE_COMMENT', 'CREATE_LOCATION', 'DELETE_LOCATION', 'UPSERT_ALERT',
@@ -94,6 +97,7 @@ type SqlConnection = Omit<PoolConnection, 'execute'> & {
 };
 
 const permissions: Partial<Record<Kind, string>> = {
+  // Phone-only operations are an explicit exception: branch/customer access is still required.
   CREATE_CUSTOMER: 'crear cliente',
   UPDATE_CUSTOMER: 'editar cliente',
   UPDATE_DOCUMENT: 'editar cliente',
@@ -260,7 +264,7 @@ export async function assertCustomerBranch(
 ): Promise<CustomerRow> {
   const [rows] = await conn.execute<CustomerRow[]>(
     `SELECT c.idcliente, c.idpersona, c.idglobal, c.dec_max_credito, c.str_estado,
-            p.str_email, p.str_num_documento, p.str_tipo_documento
+            p.str_email, p.str_num_documento, p.str_tipo_documento, p.str_telefono
      FROM tbl_clientes c JOIN tbl_persona p ON p.idpersona = c.idpersona AND p.idglobal = c.idglobal
      WHERE c.idcliente = ? AND c.idglobal = ?
        ${allowCompanyCustomer ? '' : `AND ${branchScopeExists('c')}`} FOR UPDATE`,
@@ -370,6 +374,22 @@ function personValues(payload: Record<string, unknown>, photo: string, companyId
   ];
 }
 
+async function countPhoneOpen(conn: SqlConnection, companyId: number, personId: number, phone: string) {
+  const [saved] = await conn.execute<RowDataPacket[]>(
+    'SELECT is_invalid FROM mobile_customer_phone WHERE idglobal=? AND idpersona=? AND normalized_phone=? FOR UPDATE',
+    [companyId, personId, phone],
+  );
+  if (!saved.length) fail('NOT_FOUND', 'El teléfono no pertenece al historial de este cliente.');
+  if (Number(saved[0].is_invalid) === 1) fail('VALIDATION_ERROR', 'Este teléfono está marcado INCORRECTO. Restáuralo primero.');
+  const [updated] = await conn.execute<ResultSetHeader>(
+    `UPDATE mobile_customer_phone
+     SET whatsapp_open_count=whatsapp_open_count+1,whatsapp_last_opened_at=NOW()
+     WHERE idglobal=? AND idpersona=? AND normalized_phone=?`,
+    [companyId, personId, phone],
+  );
+  if (updated.affectedRows !== 1) fail('NOT_FOUND', 'El teléfono no pertenece al historial de este cliente.');
+}
+
 async function executeOperation(
   conn: SqlConnection, user: ReturnType<typeof requireAuth>, input: OfflineInput,
   payload: Record<string, unknown>, createdFiles: string[],
@@ -379,12 +399,75 @@ async function executeOperation(
 }> {
   const { companyId, employeeId, userId, cargo } = user;
   switch (input.kind) {
+    case 'RECORD_WHATSAPP_OPEN':
+    case 'RECORD_WHATSAPP_RECEIPT': {
+      const customer = await assertCustomerBranch(conn, companyId, input.branchId, Number(input.entityId));
+      const receipt = input.kind === 'RECORD_WHATSAPP_RECEIPT';
+      // Eligibility first: an ineligible receipt must not move the phone counter either.
+      if (receipt) {
+        await assertReceiptTarget(conn.execute.bind(conn), companyId, input.branchId, customer.idcliente,
+          payload.tipo as ReceiptKind, String(payload.registroId));
+      }
+      if (!receipt || payload.telefono != null) {
+        await countPhoneOpen(conn, companyId, customer.idpersona, requirePhone(String(payload.telefono)));
+      }
+      if (receipt) {
+        await countReceiptOpen(conn.execute.bind(conn), companyId, input.branchId,
+          payload.tipo as ReceiptKind, String(payload.registroId), userId);
+      }
+      // Same customer/phones shape for both kinds; the per-record count is never returned.
+      return { entityId: input.entityId, data: { id: Number(input.entityId), phone: customer.str_telefono,
+        phones: await customerPhones(conn.execute.bind(conn), companyId, customer.idpersona) },
+        recordType: 'customer', action: 'WA_OPEN', branchId: input.branchId,
+        relatedId: String(customer.idpersona) };
+    }
+    case 'ADD_CUSTOMER_PHONE':
+    case 'SELECT_CUSTOMER_PHONE': {
+      const customer = await assertCustomerBranch(conn, companyId, input.branchId, Number(input.entityId));
+      const phone = requirePhone(String(payload.telefono));
+      const [saved] = await conn.execute<RowDataPacket[]>(
+        'SELECT idphone,is_invalid FROM mobile_customer_phone WHERE idglobal=? AND idpersona=? AND normalized_phone=? FOR UPDATE',
+        [companyId, customer.idpersona, phone],
+      );
+      if (saved.length && Number(saved[0].is_invalid) === 1) {
+        fail('VALIDATION_ERROR', 'Este teléfono está marcado INCORRECTO. Usa Restaurar antes de agregarlo o seleccionarlo.');
+      }
+      if (input.kind === 'SELECT_CUSTOMER_PHONE' && !saved.length) fail('NOT_FOUND', 'El teléfono no pertenece a este cliente.');
+      await conn.execute(
+        'UPDATE tbl_persona SET str_telefono=? WHERE idglobal=? AND idpersona=?',
+        [phone, companyId, customer.idpersona],
+      );
+      return { entityId: input.entityId, data: { id: Number(input.entityId), phone,
+        phones: await customerPhones(conn.execute.bind(conn), companyId, customer.idpersona) },
+        recordType: 'customer', action: 'UPDATE', branchId: input.branchId, relatedId: String(customer.idpersona) };
+    }
+    case 'SET_CUSTOMER_PHONE_VALIDITY': {
+      const customer = await assertCustomerBranch(conn, companyId, input.branchId, Number(input.entityId));
+      const phone = requirePhone(String(payload.telefono));
+      const [saved] = await conn.execute<RowDataPacket[]>(
+        'SELECT is_invalid FROM mobile_customer_phone WHERE idglobal=? AND idpersona=? AND normalized_phone=? FOR UPDATE',
+        [companyId, customer.idpersona, phone],
+      );
+      if (!saved.length) fail('NOT_FOUND', 'El teléfono no pertenece al historial de este cliente.');
+      const invalid = payload.invalid === true;
+      if (invalid && Number(saved[0].is_invalid) === 0 && normalizePhone(customer.str_telefono ?? '') === phone) {
+        fail('VALIDATION_ERROR', 'Selecciona primero otro teléfono principal antes de marcar este como incorrecto.');
+      }
+      await conn.execute(
+        `UPDATE mobile_customer_phone SET is_invalid=?,validity_changed_by=?,validity_changed_at=NOW()
+         WHERE idglobal=? AND idpersona=? AND normalized_phone=? AND is_invalid<>?`,
+        [invalid ? 1 : 0, userId, companyId, customer.idpersona, phone, invalid ? 1 : 0],
+      );
+      return { entityId: input.entityId, data: { id: Number(input.entityId), phone: customer.str_telefono,
+        phones: await customerPhones(conn.execute.bind(conn), companyId, customer.idpersona) },
+        recordType: 'customer', action: 'UPDATE', branchId: input.branchId, relatedId: String(customer.idpersona) };
+    }
     case 'CREATE_CUSTOMER': {
       if (employeeId == null) fail('FORBIDDEN', 'An employee identity is required for this action');
       await assertEmployeeCreditApproval(conn, user, decimalToCents(payload.maxCredito as number));
       await assertPersonInCompany(conn, companyId, payload.fiadorPersonaId as number | null | undefined);
       const [existingPeople] = await conn.execute<RowDataPacket[]>(
-        `SELECT p.idpersona, p.str_email, c.idcliente FROM tbl_persona p
+        `SELECT p.idpersona, p.str_email, p.str_telefono, c.idcliente FROM tbl_persona p
          LEFT JOIN tbl_clientes c ON c.idpersona=p.idpersona AND c.idglobal=p.idglobal
          WHERE p.idglobal=? AND p.str_num_documento=? LIMIT 1 FOR UPDATE`,
         [companyId, payload.numeroDocumento],
@@ -394,6 +477,7 @@ async function executeOperation(
       }
       let personId: number;
       let photo = '';
+      const phone = phoneForChange(String(payload.telefono), existingPeople[0]?.str_telefono);
       if (existingPeople.length) {
         personId = Number(existingPeople[0].idpersona);
         await ensureUniquePerson(conn, companyId, String(payload.numeroDocumento), String(payload.email), personId);
@@ -404,7 +488,7 @@ async function executeOperation(
            str_direccion_calle=?,str_email_verificado=IF(?,'0',str_email_verificado),
            update_at=NOW() WHERE idpersona=? AND idglobal=?`,
           [payload.nombres, payload.apellidos, payload.sexo, payload.fechaNacimiento ?? null,
-            payload.tipoDocumento, payload.numeroDocumento, payload.telefono, payload.email,
+            payload.tipoDocumento, payload.numeroDocumento, phone, payload.email,
             payload.ocupacion, payload.notaPersona, payload.departamento, payload.ciudad,
             payload.barrio, payload.calle, existingPeople[0].str_email !== payload.email ? 1 : 0,
             personId, companyId],
@@ -420,7 +504,7 @@ async function executeOperation(
             str_direccion_departamento,str_direccion_ciudad,str_direccion_barrio,str_direccion_calle,
             str_email_verificado,created_at,update_at)
            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW())`,
-          personValues(payload, photo, companyId),
+          personValues({ ...payload, telefono: phone }, photo, companyId),
         );
         personId = personResult.insertId;
       }
@@ -437,6 +521,7 @@ async function executeOperation(
     case 'UPDATE_CUSTOMER': {
       await assertPersonInCompany(conn, companyId, payload.fiadorPersonaId as number | null | undefined);
       const customer = await assertCustomerBranch(conn, companyId, input.branchId, Number(input.entityId));
+      const phone = phoneForChange(String(payload.telefono), customer.str_telefono);
       const proposedMax = decimalToCents(payload.maxCredito as number);
       if (proposedMax > decimalToCents(customer.dec_max_credito)) {
         await assertEmployeeCreditApproval(conn, user, proposedMax);
@@ -451,7 +536,7 @@ async function executeOperation(
       ];
       const personData = [
         payload.nombres,payload.apellidos,payload.sexo,payload.fechaNacimiento ?? null,
-        payload.tipoDocumento,payload.numeroDocumento,payload.telefono,payload.email,payload.ocupacion,
+        payload.tipoDocumento,payload.numeroDocumento,phone,payload.email,payload.ocupacion,
         payload.notaPersona,payload.departamento,payload.ciudad,payload.barrio,payload.calle,
       ];
       if (photo) { fields.push('str_foto'); personData.push(photo); }
@@ -1150,7 +1235,8 @@ export async function applyOfflineOperation(context: AuthContext | null, input: 
   if (input.entityId.length < 1 || input.entityId.length > entityIdMax) {
     fail('VALIDATION_ERROR', `entityId must contain between 1 and ${entityIdMax} characters`);
   }
-  if ((input.kind === 'UPDATE_CUSTOMER' || input.kind === 'UPDATE_DOCUMENT')
+  if ((input.kind === 'UPDATE_CUSTOMER' || input.kind === 'UPDATE_DOCUMENT' || input.kind.includes('CUSTOMER_PHONE')
+      || input.kind === 'RECORD_WHATSAPP_OPEN' || input.kind === 'RECORD_WHATSAPP_RECEIPT')
       && !/^[1-9]\d*$/.test(input.entityId)) {
     fail('VALIDATION_ERROR', 'Customer entityId must be a positive customer ID');
   }
@@ -1166,7 +1252,8 @@ export async function applyOfflineOperation(context: AuthContext | null, input: 
   const createsNewEntity = input.kind === 'CREATE_CUSTOMER' || input.kind === 'CREATE_CREDIT'
     || input.kind === 'CREATE_COMMENT' || input.kind === 'CREATE_EXPENSE'
     || input.kind === 'CREATE_BASE' || input.kind === 'CREATE_LOCATION';
-  const noBaseVersionNeeded = createsNewEntity || input.kind === 'DELETE_LOCATION';
+  const noBaseVersionNeeded = createsNewEntity || input.kind === 'DELETE_LOCATION'
+    || input.kind === 'RECORD_WHATSAPP_OPEN' || input.kind === 'RECORD_WHATSAPP_RECEIPT';
   if (!noBaseVersionNeeded && input.baseVersion === null) {
     fail('VALIDATION_ERROR', 'baseVersion is required when mutating an existing record');
   }
@@ -1228,7 +1315,7 @@ export async function applyOfflineOperation(context: AuthContext | null, input: 
         const personId = customerRows[0]?.idpersona;
         const [eventRows] = await conn.execute<RowDataPacket[]>(
           `SELECT COALESCE(MAX(id),0) AS version FROM mobile_change_event
-           WHERE idglobal=? AND idsucursal=? AND
+           WHERE idglobal=? AND idsucursal=? AND action<>'WA_OPEN' AND
              ((record_type='customer' AND record_id=?) OR (record_type='person' AND record_id=?))`,
           [user.companyId, input.branchId, input.entityId, personId == null ? '' : String(personId)],
         );
@@ -1269,6 +1356,21 @@ export async function applyOfflineOperation(context: AuthContext | null, input: 
       data: result.data,
       eventCursor: String(eventResult.insertId),
     };
+    if (input.kind === 'RECORD_WHATSAPP_OPEN' || (input.kind === 'RECORD_WHATSAPP_RECEIPT' && payload.telefono != null)) {
+      // Fan out by person, without materializing the large UNION view used by legacy triggers.
+      await conn.execute(
+        `INSERT INTO mobile_change_event
+         (idglobal,idsucursal,record_type,record_id,action,related_id,payload_json,created_at)
+         SELECT ?,s.idsucursal,'customer',CAST(c.idcliente AS CHAR),'WA_OPEN',?,
+                JSON_SET(?,'$.id',c.idcliente),NOW()
+         FROM tbl_clientes c JOIN tbl_sucursal s ON s.idglobal=c.idglobal
+         WHERE c.idglobal=? AND c.idpersona=?
+           AND ${branchScopeExists('c').replaceAll('?', 's.idsucursal')}
+           AND NOT (s.idsucursal=? AND c.idcliente=?)`,
+        [user.companyId, result.relatedId, JSON.stringify(result.data),
+          user.companyId, result.relatedId, input.branchId, input.entityId],
+      );
+    }
     await conn.execute(
       `UPDATE mobile_operation SET entity_id=?,result_json=?,state='complete',completed_at=NOW()
        WHERE operation_id=? AND idusuario=? AND idglobal=?`,
@@ -1290,7 +1392,8 @@ export async function applyOfflineOperation(context: AuthContext | null, input: 
 
 function eventRecordType(kind: Kind) {
   if (kind.includes('EXPENSE') || kind.includes('BASE')) return 'accounting';
-  if (kind.includes('CUSTOMER') || kind === 'UPDATE_DOCUMENT') return 'customer';
+  if (kind.includes('CUSTOMER') || kind === 'UPDATE_DOCUMENT' || kind === 'RECORD_WHATSAPP_OPEN'
+    || kind === 'RECORD_WHATSAPP_RECEIPT') return 'customer';
   if (kind === 'CREATE_PAYMENT') return 'credit';
   if (kind.includes('PAYMENT')) return 'payment';
   if (kind.includes('COMMENT') || kind === 'UPSERT_ALERT') return 'comment';
@@ -1313,7 +1416,8 @@ async function loadCurrentRecord(
     );
     return rows[0] ?? null;
   }
-  if (kind.includes('CUSTOMER') || kind === 'UPDATE_DOCUMENT') {
+  if (kind.includes('CUSTOMER') || kind === 'UPDATE_DOCUMENT' || kind === 'RECORD_WHATSAPP_OPEN'
+    || kind === 'RECORD_WHATSAPP_RECEIPT') {
     const [rows] = await conn.execute<RowDataPacket[]>(
       `SELECT c.idcliente AS id,c.idpersona AS personId,c.idglobal AS companyId,
               c.dec_max_credito AS maxCredit,c.str_apodo AS nickname,c.str_nota AS note,
@@ -1330,6 +1434,7 @@ async function loadCurrentRecord(
        LIMIT 1`,
       [id, companyId, branchId, branchId, branchId],
     );
+    if (rows[0]) rows[0].phones = await customerPhones(conn.execute.bind(conn), companyId, Number(rows[0].personId));
     return rows[0] ?? null;
   }
   if (kind.includes('LOCATION')) {

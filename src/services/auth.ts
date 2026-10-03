@@ -144,7 +144,9 @@ async function issueLoginPayload(row: UserRow) {
   return { token, expiresIn, user, paymentExpiresAt, branches: await listBranches(user) };
 }
 
-export async function authenticateRequest(authorization?: string): Promise<AuthContext | null> {
+export async function authenticateRequest(
+  authorization?: string, options: { allowExpiredPayment?: boolean } = {},
+): Promise<AuthContext | null> {
   if (!authorization) return null;
   const [scheme, token, extra] = authorization.split(' ');
   if (scheme !== 'Bearer' || !token || extra) fail('UNAUTHENTICATED', 'Bearer token required');
@@ -170,7 +172,7 @@ export async function authenticateRequest(authorization?: string): Promise<AuthC
     fail('UNAUTHENTICATED', 'User is not active');
   }
   const user = asAuthUser(row);
-  await companyPaymentExpiry(user.companyId);
+  if (!options.allowExpiredPayment) await companyPaymentExpiry(user.companyId);
   const permissions: Array<{ branchId: number; name: string }> = [];
   if (user.employeeId != null) {
     const [permissionRows] = await pool.execute(

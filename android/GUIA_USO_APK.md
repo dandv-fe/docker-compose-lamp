@@ -38,11 +38,19 @@ Arriba verás:
 - **Caja**: efectivo esperado = base + recaudo en efectivo + otros ingresos − gastos − créditos pagados en efectivo. El dinero recibido o desembolsado por banco se muestra aparte y no se suma al efectivo del bolsillo.
   El resumen encima de **Buscar…** aparece abreviado: **B** (base), **Ef** (recaudo en efectivo), **O** (otros ingresos), **C** (costo de créditos en efectivo), **G** (gastos), **Bco** (banco) y **Abs** (tarjetas con abono). Tócalo para ver los nombres completos en mayúsculas y negrita; otro toque lo vuelve a abreviar.
 
-La barra de progreso muestra el avance de tarjetas con abonos; mientras la app trabaja, indica actividad. Cada tarjeta puede marcarse con la **estrella**: las marcas solo existen en ese teléfono.
+La barra de progreso muestra el avance de tarjetas con abonos; mientras la app trabaja, indica actividad. En **Configuración > Apariencia > Búsqueda en cartera**, elige **Siempre visible · barra delgada** (predeterminado) o **Al tocar la barra · más espacio para tarjetas**. La elección queda guardada en ese teléfono. En el segundo modo, la búsqueda empieza oculta: toca **Toca para buscar cliente** para mostrar **Buscar…**; otro toque oculta el campo y limpia el filtro. Cada tarjeta puede marcarse con la **estrella**: las marcas solo existen en ese teléfono.
 
 Abajo tienes accesos a **Cuentas del día**, **Abonos e historial completo** de la tarjeta señalada, **Cola**, **Tarjetas marcadas**, el número de la tarjeta señalada (regresa a ella) y **Más opciones**. En Más opciones están las búsquedas, creación, gastos, actualización de cartera, cambio de sucursal, configuración y cierre de sesión.
 
 **Captura sugerida:** cartera con una tarjeta señalada, la línea Caja y la barra inferior.
+
+### Teléfono principal de WhatsApp e historial
+
+En la tarjeta señalada, debajo de **Crear tarjeta para este cliente**, toca **Crear o seleccionar teléfono de WhatsApp**. Cualquier usuario autenticado con acceso a esa sucursal y cliente puede agregar/seleccionar teléfonos: **no requiere editar cliente ni nueva tarjeta**. Esta excepción no permite editar los demás datos del cliente.
+
+La vista muestra el principal y los números anteriores. Usa **Seleccionar**, o escribe un solo celular colombiano de 10 dígitos que empiece en **3** (internacional: código de país y número) y toca **Crear y usar como principal**. **Volver a cartera** regresa a la lista. El principal pertenece al cliente, no a una tarjeta: cambia para todas sus tarjetas, también al editar su teléfono desde el formulario del cliente. No se eliminan números anteriores.
+
+Puedes hacerlo sin conexión después de descargar la cartera: la selección queda guardada inmediatamente y viaja en la cola. Ante conflictos o rechazo de permisos, revisa **Cola** antes de seguir; al descartar un rechazo sin datos del servidor, actualiza la cartera para recuperar el principal confirmado. Los datos históricos no válidos se muestran como tales y no se pueden seleccionar para enviar WhatsApp. Los números perdidos antes de instalar la migración 007 no se pueden reconstruir.
 
 ## 4. Registrar un abono
 
@@ -63,7 +71,13 @@ En **Abonos e historial completo** ves cada movimiento con importe, fecha, estad
 
 En esa misma pantalla está **Ubicaciones de cobro**. Toca **Marcar ubicación aquí** estando parado en el punto real, escribe un nombre corto (por ejemplo Casa, Negocio o Trabajo) y acepta el permiso de ubicación. La APK guarda el GPS en el teléfono y lo envía por la cola aunque no haya internet. Si la precisión pasa de 50 m, conviene volver a marcar al aire libre. Cada punto tiene **Cómo llegar**, que abre Google Maps, Waze u otra app compatible; si el teléfono no tiene ninguna, verás un aviso. También puedes **Eliminar** un punto; el borrado se sincroniza igual que los demás cambios.
 
-Al guardar un **abono** o un **crédito**, la APK ofrece **Enviar por WhatsApp** un comprobante para el cliente: abono con fecha y saldo pendiente, o crédito con valor, plazo y cuota aproximada. Puedes corregir el texto antes de enviarlo; WhatsApp se abre con el celular del cliente (se agrega +57 a los celulares de 10 dígitos) y el mensaje solo se envía cuando tú lo confirmas en WhatsApp. Si el número guardado no es válido, WhatsApp te deja elegir el contacto. Esta oferta se puede desactivar en **Configuración > Comprobantes por WhatsApp**.
+Al guardar un **abono** o un **crédito**, puedes revisar el comprobante, editar el texto y **elegir el destinatario** antes de **Abrir WhatsApp**. Se sugiere el teléfono válido con más **aperturas compartidas entre todos los cobradores** (si empatan, primero el principal). Elegir el destinatario **no cambia el teléfono principal**. También puedes elegir el contacto directamente en WhatsApp; en ese caso no se cuenta uso de ningún número guardado.
+
+El contador registra únicamente **aperturas** aceptadas por Android, incluso si el enlace abre un navegador. **No significa mensajes enviados ni entregados**: la aplicación externa no permite verificarlo. Una apertura sin conexión queda pendiente de sincronización; los contadores compartidos se actualizan cuando vuelve la conexión. Si no se logra abrir, no cuenta. Si se abre pero falla guardar el contador, se informa por separado. No hay historial de uso anterior a instalar la migración 008. La oferta se puede desactivar en **Configuración > Comprobantes por WhatsApp**.
+
+**Reenviar un comprobante.** En **Actividad → Cola**, las tarjetas y abonos creados **hoy** en tu sucursal actual muestran **Reenviar comprobante por WhatsApp** mientras sigan en estado creado o entregando (no se ofrece desde Liquidación). Si ya los confirmó el servidor necesitas conexión para revisar su estado actual. Se abre el mismo selector de destinatario y puedes editar el texto; nada se envía solo. En un **Artículo**, la cuota inicial y el saldo restante van dentro del comprobante de la tarjeta, no como abono aparte. Cada apertura queda registrada internamente para el registro (no se muestra en la app) y no confirma que el mensaje se haya enviado.
+
+Antes de abrir WhatsApp puedes elegir el formato **Ticket, Factura o Cartulina**; se sugiere el que ya tiene la tarjeta. La app añade al texto editable un enlace que permite ver y descargar una copia fija de los datos al momento de emisión. El enlace vence a los 30 días; en **Configuración → Administrar enlaces compartidos** puedes revocar los ya enviados. Si no hay conexión o el registro todavía no sincronizó, puedes **Enviar solo texto** o **Esperar sincronización**. Quien tenga el enlace podrá abrirlo sin iniciar sesión: compártelo solo con el destinatario. Es un comprobante interno, no una factura electrónica.
 
 En los tres puntos de esta pantalla están las acciones de la tarjeta: **Editar crédito**, **Cambiar estado**, **Reordenar**, **Aplicar descuento**, **Agregar interés**, **Actualizar pagos** (con internet) y **Eliminar crédito** (solo si su estado lo permite). Las operaciones se validan en el servidor y pueden requerir permisos.
 
@@ -136,3 +150,16 @@ La pestaña **Logs** conserva avisos recientes para entender errores o descartes
 2. Comprueba quién tiene el efectivo y qué ingresó por banco.
 3. Cuenta billetes y monedas, vuelve a totalizar y solo entonces entrega cuentas.
 4. No cierres sesión ni borres la aplicación mientras tengas registros sin confirmar.
+## Corregir números ingresados por error
+
+Desde cartera, abre el menú del cliente y **Crear o seleccionar teléfono de WhatsApp**.
+**Marcar incorrecto** conserva el número, lo etiqueta INCORRECTO y lo excluye de
+WhatsApp y de nuevas aperturas. **Restaurar** lo habilita nuevamente después de
+confirmar; volver a agregarlo no lo restaura. Disponible para usuarios con acceso
+al cliente/sucursal, sin permiso de editar cliente.
+
+Si es el principal, **Selecciona primero otro teléfono principal** válido.
+La corrección queda pendiente en el dispositivo hasta sincronizar; revisa la cola
+si el servidor la rechaza o detecta un conflicto. Un principal INCORRECTO elegido
+por un formulario web antiguo nunca se usa como respaldo de WhatsApp.
+Puedes elegir deliberadamente un contacto externo en WhatsApp; esa apertura no se cuenta.

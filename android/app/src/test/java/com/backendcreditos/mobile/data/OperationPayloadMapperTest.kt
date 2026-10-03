@@ -11,6 +11,29 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class OperationPayloadMapperTest {
+    @Test fun phoneValidityContainsOnlyNormalizedPhoneAndBooleanNotAnAuditActor() {
+        assertEquals("{\"telefono\":\"573000000001\",\"invalid\":true}",
+            OperationPayloadMapper.customerPhoneValidity("573000000001", true).toString())
+        assertEquals("{\"telefono\":\"573000000001\",\"invalid\":false}",
+            OperationPayloadMapper.customerPhoneValidity("573000000001", false).toString())
+        for (raw in listOf("3000000001", "+573000000001", "300 / 310")) {
+            assertThrows(IllegalArgumentException::class.java) { OperationPayloadMapper.customerPhoneValidity(raw, true) }
+        }
+    }
+    @Test fun whatsappOpeningRequiresNormalizedPhoneAndOnlySendsPhone() {
+        assertEquals("{\"telefono\":\"573000000001\"}", OperationPayloadMapper.whatsappOpen("573000000001").toString())
+        for (raw in listOf("", "3000000001", "+573000000001", "300 / 310")) {
+            org.junit.Assert.assertThrows(IllegalArgumentException::class.java) { OperationPayloadMapper.whatsappOpen(raw) }
+        }
+    }
+    @Test fun phonePayloadContainsOnlyNormalizedPhoneAndNeverPersonScope() {
+        val payload = OperationPayloadMapper.customerPhone("300 000 0001") as JsonObject
+        assertEquals(setOf("telefono"), payload.keys)
+        assertEquals("573000000001", payload.getValue("telefono").jsonPrimitive.content)
+        assertThrows(IllegalArgumentException::class.java) {
+            OperationPayloadMapper.customerPhone("3000000001 / 3100000001")
+        }
+    }
     @Test fun customerPayloadMatchesStrictSpanishBackendKeysWithoutAccountScope() {
         val payload = OperationPayloadMapper.customer(
             "Ana", "Pérez", "F", "1990-01-01", "CC", "123", "300", "ana@example.test",

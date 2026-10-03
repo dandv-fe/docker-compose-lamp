@@ -169,6 +169,22 @@ data class CustomerCandidateDto(
 )
 
 @Serializable
+data class CustomerPhoneDto(
+    @Serializable(with = GraphQlIdSerializer::class) val id: String,
+    val phone: String,
+    val normalizedPhone: String? = null,
+    val whatsappOpenCount: String = "0",
+    val whatsappLastOpenedAt: String? = null,
+    // Local overlay IDs make repeated optimistic replay idempotent. Never sent as payload.
+    val pendingOpenIds: List<String> = emptyList(),
+    val invalid: Boolean = false,
+    val validityChangedBy: String? = null,
+    val validityChangedAt: String? = null,
+    val pendingValidityIds: List<String> = emptyList(),
+    val validityBeforePending: Boolean? = null
+)
+
+@Serializable
 data class CustomerDto(
     val id: Int,
     val companyId: Int,
@@ -180,6 +196,7 @@ data class CustomerDto(
     val documentType: String? = null,
     val documentNumber: String? = null,
     val phone: String? = null,
+    val phones: List<CustomerPhoneDto> = emptyList(),
     val email: String? = null,
     val photo: String? = null,
     val occupation: String? = null,
@@ -476,6 +493,36 @@ data class AccountingChangeDto(
 
 @Serializable
 data class ReceiptSequencesData(val receiptSequences: List<ReceiptSequenceDto>)
+
+@Serializable
+data class ReceiptLinkDto(val id: String, val url: String, val expiresAt: String)
+
+@Serializable
+data class IssueReceiptLinkData(val issueReceiptLink: ReceiptLinkDto)
+
+@Serializable
+data class RevokeReceiptLinkData(val revokeReceiptLink: Boolean)
+
+@Serializable
+data class ReceiptLinkSummaryDto(
+    @Serializable(with = GraphQlIdSerializer::class) val id: String,
+    val kind: String,
+    val receiptType: String,
+    val receiptSeries: String,
+    val receiptNumber: String,
+    val format: String,
+    val createdAt: String,
+    val expiresAt: String
+)
+
+@Serializable
+data class ReceiptLinksPageDto(
+    val receiptLinks: List<ReceiptLinkSummaryDto>,
+    val hasMore: Boolean
+)
+
+@Serializable
+data class ReceiptLinksData(val receiptLinks: ReceiptLinksPageDto)
 
 @Serializable
 data class DefaulterCreditDto(

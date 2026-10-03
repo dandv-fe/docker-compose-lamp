@@ -18,6 +18,7 @@ import {
   startBiometricRegistration,
 } from '../services/biometric.js';
 import { fail } from '../services/errors.js';
+import { issueReceiptLink, receiptLinks, revokeReceiptLink } from '../services/receiptLinks.js';
 import { z } from 'zod';
 
 export const JSONScalar = new GraphQLScalarType({
@@ -122,6 +123,28 @@ const ReceiptSequenceType = new GraphQLObjectType({
     documentType: { type: new GraphQLNonNull(GraphQLString) },
     series: { type: GraphQLString },
     lastNumber: { type: GraphQLString },
+  },
+});
+
+const ReceiptLinkSummaryType = new GraphQLObjectType({
+  name: 'ReceiptLinkSummary',
+  fields: {
+    id: { type: new GraphQLNonNull(GraphQLID) },
+    kind: { type: new GraphQLNonNull(GraphQLString) },
+    receiptType: { type: new GraphQLNonNull(GraphQLString) },
+    receiptSeries: { type: new GraphQLNonNull(GraphQLString) },
+    receiptNumber: { type: new GraphQLNonNull(GraphQLString) },
+    format: { type: new GraphQLNonNull(GraphQLString) },
+    createdAt: { type: new GraphQLNonNull(GraphQLString) },
+    expiresAt: { type: new GraphQLNonNull(GraphQLString) },
+  },
+});
+
+const ReceiptLinksPageType = new GraphQLObjectType({
+  name: 'ReceiptLinksPage',
+  fields: {
+    receiptLinks: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(ReceiptLinkSummaryType))) },
+    hasMore: { type: new GraphQLNonNull(GraphQLBoolean) },
   },
 });
 
@@ -296,6 +319,19 @@ const CommentType = new GraphQLObjectType({
 const CustomerType = new GraphQLObjectType({
   name: 'Customer',
   fields: {
+    phones: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(new GraphQLObjectType({
+      name: 'CustomerPhone',
+      fields: {
+        id: { type: new GraphQLNonNull(GraphQLID) },
+        phone: { type: new GraphQLNonNull(GraphQLString) },
+        normalizedPhone: { type: GraphQLString },
+        invalid: { type: new GraphQLNonNull(GraphQLBoolean) },
+        validityChangedBy: { type: GraphQLID },
+        validityChangedAt: { type: GraphQLString },
+        whatsappOpenCount: { type: new GraphQLNonNull(GraphQLString) },
+        whatsappLastOpenedAt: { type: GraphQLString },
+      },
+    })))) },
     id: { type: new GraphQLNonNull(GraphQLInt) },
     companyId: { type: new GraphQLNonNull(GraphQLInt) },
     personId: { type: new GraphQLNonNull(GraphQLInt) },
@@ -368,6 +404,8 @@ const SyncPageType = new GraphQLObjectType({
 const OperationKind = new GraphQLEnumType({
   name: 'OfflineOperationKind',
   values: {
+    ADD_CUSTOMER_PHONE: {}, SELECT_CUSTOMER_PHONE: {}, SET_CUSTOMER_PHONE_VALIDITY: {}, RECORD_WHATSAPP_OPEN: {},
+    RECORD_WHATSAPP_RECEIPT: {},
     CREATE_CUSTOMER: {}, UPDATE_CUSTOMER: {}, UPDATE_DOCUMENT: {}, CREATE_CREDIT: {},
     UPDATE_CREDIT: {}, UPDATE_CREDIT_TERMS: {}, CREATE_PAYMENT: {}, UPDATE_PAYMENT: {},
     DELETE_PAYMENT: {}, DELETE_CREDIT: {}, APPLY_DISCOUNT: {}, ADD_INTEREST: {},
@@ -624,6 +662,15 @@ const Query = new GraphQLObjectType({
       resolve: (_source, args, context: { auth: AuthContext | null }) =>
         portfolioClients(auth(context), args.branchId),
     },
+    receiptLinks: {
+      type: new GraphQLNonNull(ReceiptLinksPageType),
+      args: {
+        branchId: { type: new GraphQLNonNull(GraphQLInt) },
+        afterId: { type: GraphQLID },
+      },
+      resolve: (_source, args, context: { auth: AuthContext | null }) =>
+        receiptLinks(auth(context), args.branchId, args.afterId == null ? null : String(args.afterId)),
+    },
   },
 });
 
@@ -728,6 +775,39 @@ const Mutation = new GraphQLObjectType({
       args: { branchId: { type: new GraphQLNonNull(GraphQLInt) }, creditId: { type: new GraphQLNonNull(GraphQLID) } },
       resolve: (_source, args, context: { auth: AuthContext | null }) =>
         restoreCredit(auth(context), args.branchId, String(args.creditId)),
+    },
+    issueReceiptLink: {
+      type: new GraphQLNonNull(new GraphQLObjectType({
+        name: 'ReceiptLink',
+        fields: {
+          id: { type: new GraphQLNonNull(GraphQLID) },
+          url: { type: new GraphQLNonNull(GraphQLString) },
+          expiresAt: { type: new GraphQLNonNull(GraphQLString) },
+        },
+      })),
+      args: {
+        branchId: { type: new GraphQLNonNull(GraphQLInt) },
+        customerId: { type: new GraphQLNonNull(GraphQLInt) },
+        kind: { type: new GraphQLNonNull(GraphQLString) },
+        recordId: { type: new GraphQLNonNull(GraphQLID) },
+        format: { type: new GraphQLNonNull(GraphQLString) },
+      },
+      resolve: (_source, args, context: { auth: AuthContext | null }) => {
+        if (args.kind !== 'credit' && args.kind !== 'payment') fail('VALIDATION_ERROR', 'Tipo de registro inválido.');
+        return issueReceiptLink(auth(context), {
+          branchId: args.branchId, customerId: args.customerId, kind: args.kind,
+          recordId: String(args.recordId), format: args.format,
+        });
+      },
+    },
+    revokeReceiptLink: {
+      type: new GraphQLNonNull(GraphQLBoolean),
+      args: {
+        branchId: { type: new GraphQLNonNull(GraphQLInt) },
+        id: { type: new GraphQLNonNull(GraphQLID) },
+      },
+      resolve: (_source, args, context: { auth: AuthContext | null }) =>
+        revokeReceiptLink(auth(context), args.branchId, String(args.id)),
     },
   },
 });

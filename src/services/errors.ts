@@ -6,7 +6,10 @@ export type ErrorCode =
   // ROUTE_CLOSED is final: the route was settled or no longer exists, so the record can never be
   // applied. ROUTE_REOPENABLE is not: the route was handed over ('entregando') and the office can
   // unlock it back to 'created' (webgoez manejarDesbEditarDetalleRuta), so the record may be resent.
-  | 'INTERNAL_SERVER_ERROR' | 'ROUTE_CLOSED' | 'ROUTE_REOPENABLE';
+  | 'INTERNAL_SERVER_ERROR' | 'ROUTE_CLOSED' | 'ROUTE_REOPENABLE'
+  // The card/abono of a WhatsApp receipt opening is missing, belongs elsewhere, is no longer
+  // 'created'/'entregando' or was not created today. Final for that opening; nothing depends on it.
+  | 'RECEIPT_NOT_ELIGIBLE' | 'RECEIPT_DATA_INVALID' | 'RECEIPT_RENDER_ERROR';
 
 export function fail(code: ErrorCode, message: string): never {
   throw new GraphQLError(message, { extensions: { code } });
@@ -31,6 +34,7 @@ export function httpStatusForCode(code: unknown): number {
     case 'FORBIDDEN': case 'PAYMENT_REQUIRED': return 403;
     case 'NOT_FOUND': return 404;
     case 'VALIDATION_ERROR': return 400;
+    case 'RECEIPT_DATA_INVALID': return 400;
     case 'CONFLICT': case 'IDEMPOTENCY_MISMATCH': return 409;
     default: return 500;
   }

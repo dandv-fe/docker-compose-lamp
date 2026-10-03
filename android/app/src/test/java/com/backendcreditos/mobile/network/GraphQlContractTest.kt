@@ -17,6 +17,22 @@ import org.junit.Test
 class GraphQlContractTest {
     private val json = Json { ignoreUnknownKeys = true }
 
+    @Test fun customerQueriesAndSyncDecodePhoneHistoryIncludingUnsendableLegacy() {
+        for (document in listOf(GraphQlDocuments.PORTFOLIO, GraphQlDocuments.CUSTOMER_BY_ID, GraphQlDocuments.CUSTOMER_BY_DOCUMENT)) {
+            assertTrue(document.contains("phones { id phone normalizedPhone whatsappOpenCount whatsappLastOpenedAt invalid validityChangedBy validityChangedAt }"))
+        }
+        val customer = json.decodeFromString(
+            CustomerDto.serializer(),
+            """{"id":1,"companyId":7,"personId":12,"firstName":"Test","lastName":"Fixture","phone":"573000000001","phones":[{"id":"10","phone":"3000000001","normalizedPhone":"573000000001","whatsappOpenCount":"9007199254740993","whatsappLastOpenedAt":"2026-10-02T12:00:00"},{"id":11,"phone":"300123 / 310123","normalizedPhone":null}]}"""
+        )
+        assertEquals(2, customer.phones.size)
+        assertEquals("11", customer.phones[1].id)
+        assertEquals(null, customer.phones[1].normalizedPhone)
+        assertEquals("573000000001", customer.phone)
+        assertEquals("9007199254740993", customer.phones[0].whatsappOpenCount)
+        assertEquals("0", customer.phones[1].whatsappOpenCount)
+    }
+
     @Test fun paymentRequiredResponseIsNotMistakenForMissingPermissions() = runBlocking {
         val http = OkHttpClient.Builder().addInterceptor { chain ->
             Response.Builder()
@@ -58,6 +74,33 @@ class GraphQlContractTest {
         assertEquals(300, challenge.expiresIn)
         assertTrue(GraphQlDocuments.CUSTOMER_CANDIDATE.contains("personId customerId"))
         assertTrue(GraphQlDocuments.PERSON_DOCUMENT_TYPES.contains("personDocumentTypes"))
+    }
+
+    @Test fun receiptLinksUseAuthenticatedIssueAndRevokeMutations() {
+        assertTrue(GraphQlDocuments.ISSUE_RECEIPT_LINK.contains("issueReceiptLink"))
+        assertTrue(GraphQlDocuments.ISSUE_RECEIPT_LINK.contains("branchId: Int!"))
+        assertTrue(GraphQlDocuments.ISSUE_RECEIPT_LINK.contains("kind: String!"))
+        assertTrue(GraphQlDocuments.ISSUE_RECEIPT_LINK.contains("recordId: ID!"))
+        assertTrue(GraphQlDocuments.ISSUE_RECEIPT_LINK.contains("format: String!"))
+        assertTrue(GraphQlDocuments.REVOKE_RECEIPT_LINK.contains("revokeReceiptLink"))
+        assertTrue(GraphQlDocuments.RECEIPT_LINKS.contains("receiptLinks"))
+        assertTrue(GraphQlDocuments.RECEIPT_LINKS.contains("afterId: ID"))
+        val issued = json.decodeFromString(
+            IssueReceiptLinkData.serializer(),
+            """{"issueReceiptLink":{"id":"42","url":"https://receipts.example/comprobante/opaque","expiresAt":"2026-11-01T12:00:00Z"}}"""
+        ).issueReceiptLink
+        assertEquals("42", issued.id)
+        assertEquals("https://receipts.example/comprobante/opaque", issued.url)
+        assertEquals("2026-11-01T12:00:00Z", issued.expiresAt)
+        val revoked = json.decodeFromString(
+            RevokeReceiptLinkData.serializer(), """{"revokeReceiptLink":true}"""
+        )
+        assertTrue(revoked.revokeReceiptLink)
+        val links = json.decodeFromString(
+            ReceiptLinksData.serializer(),
+            """{"receiptLinks":{"receiptLinks":[{"id":"42","kind":"credit","receiptType":"Ticket","receiptSeries":"T-1","receiptNumber":"0042","format":"ticket","createdAt":"2026-10-02T12:00:00Z","expiresAt":"2026-11-01T12:00:00Z"}],"hasMore":false}}"""
+        )
+        assertEquals("0042", links.receiptLinks.receiptLinks.single().receiptNumber)
     }
 
     @Test fun portfolioIsCustomerNodesWithEmbeddedCreditsAndSchemaFields() {

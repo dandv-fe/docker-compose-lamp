@@ -33,7 +33,8 @@ object DatabaseProvider {
                     CreditDatabase.MIGRATION_12_13,
                     CreditDatabase.MIGRATION_13_14,
                     CreditDatabase.MIGRATION_14_15,
-                    CreditDatabase.MIGRATION_15_16
+                    CreditDatabase.MIGRATION_15_16,
+                    CreditDatabase.MIGRATION_16_17
                 )
                 .build()
                 .also { instance = it }

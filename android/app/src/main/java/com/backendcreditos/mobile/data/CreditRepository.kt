@@ -48,6 +48,253 @@ class CreditRepository(
     private val dao = database.localDao()
     private val json = Json { ignoreUnknownKeys = true }
 
+    fun savedPhones(customer: CustomerEntity): List<com.backendcreditos.mobile.network.CustomerPhoneDto> =
+        json.decodeFromString(
+            kotlinx.serialization.builtins.ListSerializer(com.backendcreditos.mobile.network.CustomerPhoneDto.serializer()),
+            mergedPhoneHistory(customer, customer.phone)
+        )
+
+    private fun mergedPhoneHistory(customer: CustomerEntity, next: String?): String {
+        val serializer = kotlinx.serialization.builtins.ListSerializer(com.backendcreditos.mobile.network.CustomerPhoneDto.serializer())
+        val phones = com.backendcreditos.mobile.phoneHistoryWithPrimary(
+            json.decodeFromString(serializer, customer.phoneHistory), customer.phone, next)
+        return json.encodeToString(serializer, phones)
+    }
+
+    private suspend fun rememberLocalPhone(customer: CustomerEntity, phone: String?) {
+        dao.updateCustomerPhones(
+            customer.accountKey, customer.personId, customer.id, phone, mergedPhoneHistory(customer, phone)
+        )
+    }
+
+    private suspend fun replayPendingPhones(accountKey: String) {
+        dao.allAccountOperations(accountKey).filter {
+            it.status in setOf(OperationStatus.PENDING, OperationStatus.IN_FLIGHT) &&
+                it.kind in setOf(OperationKind.ADD_CUSTOMER_PHONE, OperationKind.SELECT_CUSTOMER_PHONE, OperationKind.SET_CUSTOMER_PHONE_VALIDITY,
+                    OperationKind.UPDATE_CUSTOMER, OperationKind.RECORD_WHATSAPP_OPEN, OperationKind.RECORD_WHATSAPP_RECEIPT)
+        }.sortedBy { it.createdAt }.forEach { operation ->
+            var dependency = operation.dependsOnOperationId?.let { dao.operation(it) }
+            var blocked = false
+            while (dependency != null) {
+                if (dependency.status in setOf(OperationStatus.CONFLICT, OperationStatus.REJECTED)) blocked = true
+                dependency = dependency.dependsOnOperationId?.let { dao.operation(it) }
+            }
+            if (blocked) return@forEach
+            val existing = dao.customer(accountKey, operation.branchId, operation.entityId) ?: return@forEach
+            val fields = json.parseToJsonElement(operation.payload) as JsonObject
+            if (operation.kind == OperationKind.RECORD_WHATSAPP_OPEN) {
+                rememberWhatsAppOpen(existing, operation, requireNotNull(fields["telefono"].textOr(null)))
+            } else if (operation.kind == OperationKind.RECORD_WHATSAPP_RECEIPT) {
+                fields["telefono"].textOr(null)?.let { rememberWhatsAppOpen(existing, operation, it) }
+            } else if (operation.kind == OperationKind.SET_CUSTOMER_PHONE_VALIDITY) {
+                rememberPhoneValidity(existing, operation, fields)
+            } else {
+                val phone = fields["telefono"].textOr(existing.phone)
+                rememberLocalPhone(existing, phone)
+            }
+        }
+    }
+
+    private suspend fun cacheCustomers(items: List<CustomerEntity>) {
+        database.withTransaction {
+            dao.putCustomers(items)
+            items.forEach { item ->
+                dao.updateCustomerPhones(item.accountKey, item.personId, item.id, item.phone, item.phoneHistory)
+            }
+            items.map { it.accountKey }.distinct().forEach { replayPendingPhones(it) }
+        }
+    }
+
+    suspend fun changeCustomerPhone(
+        account: StoredSession, branchId: String, customerId: String, raw: String, add: Boolean
+    ): CustomerEntity {
+        val payload = OperationPayloadMapper.customerPhone(raw)
+        database.withTransaction {
+            val existing = requireNotNull(dao.customer(account.accountKey, branchId, customerId)) {
+                "El cliente no está guardado en esta sucursal."
+            }
+            require(!existing.locallyCreated) { "Sincroniza primero la creación del cliente." }
+            val normalized = requireNotNull(com.backendcreditos.mobile.whatsAppPhone(raw))
+            require(savedPhones(existing).none { it.normalizedPhone == normalized && it.invalid }) {
+                "Este teléfono está marcado INCORRECTO. Usa Restaurar antes de agregarlo o seleccionarlo."
+            }
+            val previous = latestPhoneChange(account, existing)
+            val operation = enqueue(
+                account, branchId, if (add) OperationKind.ADD_CUSTOMER_PHONE else OperationKind.SELECT_CUSTOMER_PHONE,
+                customerId, payload, dependsOnOperationId = previous?.operationId
+            )
+            applyOptimisticCacheChange(operation)
+        }
+        return requireNotNull(dao.customer(account.accountKey, branchId, customerId))
+    }
+
+    private suspend fun latestPhoneChange(account: StoredSession, customer: CustomerEntity): OfflineOperationEntity? =
+        dao.allAccountOperations(account.accountKey).filter {
+            it.companyId == account.companyId && it.kind in setOf(OperationKind.ADD_CUSTOMER_PHONE,
+                OperationKind.SELECT_CUSTOMER_PHONE, OperationKind.SET_CUSTOMER_PHONE_VALIDITY, OperationKind.UPDATE_CUSTOMER) &&
+                it.status in setOf(OperationStatus.PENDING, OperationStatus.IN_FLIGHT)
+        }.sortedBy { it.createdAt }.lastOrNull {
+            it.entityId == customer.id || (customer.personId != null &&
+                dao.customer(account.accountKey, it.branchId, it.entityId)?.personId == customer.personId)
+        }
+
+    private suspend fun rememberPhoneValidity(customer: CustomerEntity, operation: OfflineOperationEntity, fields: JsonObject) {
+        val phone = requireNotNull(fields["telefono"].textOr(null))
+        val invalid = (fields["invalid"] as JsonPrimitive).content.toBooleanStrict()
+        val history = com.backendcreditos.mobile.withPendingPhoneValidity(
+            savedPhones(customer), phone, invalid, operation.operationId)
+        dao.updateCustomerPhones(customer.accountKey, customer.personId, customer.id, customer.phone,
+            json.encodeToString(kotlinx.serialization.builtins.ListSerializer(
+                com.backendcreditos.mobile.network.CustomerPhoneDto.serializer()), history))
+    }
+
+    suspend fun setCustomerPhoneValidity(
+        account: StoredSession, branchId: String, customerId: String, phone: String, invalid: Boolean
+    ): CustomerEntity {
+        database.withTransaction {
+            val customer = requireNotNull(dao.customer(account.accountKey, branchId, customerId))
+            require(!customer.locallyCreated) { "Sincroniza primero la creación del cliente." }
+            val saved = requireNotNull(savedPhones(customer).find { it.normalizedPhone == phone }) {
+                "El teléfono no pertenece al historial de este cliente."
+            }
+            require(!invalid || saved.invalid || com.backendcreditos.mobile.whatsAppPhone(customer.phone) != phone) {
+                "Selecciona primero otro teléfono principal antes de marcar este como incorrecto."
+            }
+            val operation = enqueue(account, branchId, OperationKind.SET_CUSTOMER_PHONE_VALIDITY, customerId,
+                OperationPayloadMapper.customerPhoneValidity(phone, invalid),
+                dependsOnOperationId = latestPhoneChange(account, customer)?.operationId)
+            applyOptimisticCacheChange(operation)
+        }
+        return requireNotNull(dao.customer(account.accountKey, branchId, customerId))
+    }
+
+    suspend fun rollbackPhoneValidity(operation: OfflineOperationEntity, serverState: String? = null) {
+        if (operation.kind != OperationKind.SET_CUSTOMER_PHONE_VALIDITY) return
+        database.withTransaction {
+            val existing = dao.customer(operation.accountKey, operation.branchId, operation.entityId) ?: return@withTransaction
+            if (serverState != null) {
+                val dto = json.decodeFromString(CustomerDto.serializer(), serverState)
+                cacheCustomers(listOf(dto.toEntity(StoredSession(operation.accountKey, "", ""), operation.branchId)))
+            } else {
+                val history = com.backendcreditos.mobile.withoutPendingPhoneValidity(savedPhones(existing))
+                dao.updateCustomerPhones(existing.accountKey, existing.personId, existing.id, existing.phone,
+                    json.encodeToString(kotlinx.serialization.builtins.ListSerializer(
+                        com.backendcreditos.mobile.network.CustomerPhoneDto.serializer()), history))
+            }
+        }
+    }
+
+    private suspend fun rememberWhatsAppOpen(customer: CustomerEntity, operation: OfflineOperationEntity, phone: String) {
+        val phones = com.backendcreditos.mobile.withPendingWhatsAppOpen(
+            savedPhones(customer), phone, operation.operationId,
+            java.time.Instant.ofEpochMilli(operation.createdAt).atZone(java.time.ZoneId.systemDefault())
+                .toLocalDateTime().toString()
+        )
+        dao.updateCustomerPhones(customer.accountKey, customer.personId, customer.id, customer.phone,
+            json.encodeToString(kotlinx.serialization.builtins.ListSerializer(
+                com.backendcreditos.mobile.network.CustomerPhoneDto.serializer()), phones))
+    }
+
+    suspend fun recordWhatsAppOpen(
+        account: StoredSession, branchId: String, customerId: String, phone: String
+    ): CustomerEntity {
+        val payload = OperationPayloadMapper.whatsappOpen(phone)
+        database.withTransaction {
+            val customer = requireNotNull(dao.customer(account.accountKey, branchId, customerId))
+            require(!customer.locallyCreated) { "Sincroniza primero la creación del cliente." }
+            require(savedPhones(customer).any { it.normalizedPhone == phone && !it.invalid }) {
+                "El teléfono no pertenece al historial válido de este cliente."
+            }
+            val previous = latestPhoneChange(account, customer)
+            val operation = enqueue(account, branchId, OperationKind.RECORD_WHATSAPP_OPEN, customerId, payload,
+                dependsOnOperationId = previous?.operationId)
+            rememberWhatsAppOpen(customer, operation, phone)
+        }
+        return requireNotNull(dao.customer(account.accountKey, branchId, customerId))
+    }
+
+    /**
+     * One successful external opening of a card/abono receipt. A single queued operation moves the
+     * hidden per-record counter and, when [phone] is a saved valid number, that phone's counter, so
+     * nothing is counted twice. [phone] null = contact picked inside WhatsApp: only the record counts.
+     */
+    suspend fun recordWhatsAppReceipt(
+        account: StoredSession, branchId: String, customerId: String, phone: String?,
+        target: com.backendcreditos.mobile.ReceiptTarget, originOperationId: String?
+    ): OfflineOperationEntity {
+        val payload = OperationPayloadMapper.whatsappReceipt(phone, target)
+        return database.withTransaction {
+            val customer = requireNotNull(dao.customer(account.accountKey, branchId, customerId)) {
+                "El cliente no está guardado en esta sucursal."
+            }
+            require(!customer.locallyCreated) { "Sincroniza primero la creación del cliente." }
+            if (phone != null) require(savedPhones(customer).any { it.normalizedPhone == phone && !it.invalid }) {
+                "El teléfono no pertenece al historial válido de este cliente."
+            }
+            val origin = originOperationId?.let { dao.operation(it) }?.takeIf {
+                it.accountKey == account.accountKey && it.branchId == branchId &&
+                    it.status in setOf(OperationStatus.PENDING, OperationStatus.IN_FLIGHT)
+            }
+            // The card/abono must reach the server first; otherwise follow pending phone changes.
+            val dependency = origin?.operationId ?: latestPhoneChange(account, customer)?.operationId
+            val operation = enqueue(account, branchId, OperationKind.RECORD_WHATSAPP_RECEIPT, customerId, payload,
+                dependsOnOperationId = dependency)
+            if (phone != null) rememberWhatsAppOpen(customer, operation, phone)
+            operation
+        }
+    }
+
+    /** Removes the optimistic +1 a never-applied opening left on the phone history. */
+    suspend fun dropPendingWhatsAppOpen(operation: OfflineOperationEntity) {
+        dao.customer(operation.accountKey, operation.branchId, operation.entityId)?.let { existing ->
+            val history = savedPhones(existing).map { phone ->
+                if (operation.operationId !in phone.pendingOpenIds) phone else phone.copy(
+                    whatsappOpenCount = ((phone.whatsappOpenCount.toBigIntegerOrNull()
+                        ?: java.math.BigInteger.ZERO) - java.math.BigInteger.ONE)
+                        .max(java.math.BigInteger.ZERO).toString(),
+                    pendingOpenIds = phone.pendingOpenIds - operation.operationId
+                )
+            }
+            dao.updateCustomerPhones(existing.accountKey, existing.personId, existing.id, existing.phone,
+                json.encodeToString(kotlinx.serialization.builtins.ListSerializer(
+                    com.backendcreditos.mobile.network.CustomerPhoneDto.serializer()), history))
+        }
+    }
+
+    data class LiveReceiptRecord(
+        val customer: CustomerEntity, val credit: CreditEntity, val payment: PaymentEntity?, val payments: List<PaymentEntity>
+    )
+
+    /**
+     * Live server state of the card (and abono) behind a receipt, for server-confirmed records.
+     * Success(null) means the server no longer has it for this customer/branch: never fall back.
+     */
+    suspend fun refreshReceiptRecord(
+        account: StoredSession, branchId: String, customerId: String, creditId: String, paymentId: String?
+    ): ApiResult<LiveReceiptRecord?> {
+        val dto = when (val response = fetchCustomer(account, branchId, customerId)) {
+            is ApiResult.Success -> response.value ?: return ApiResult.Success(null)
+            is ApiResult.AuthExpired -> return response
+            is ApiResult.Conflict -> return response
+            is ApiResult.PermissionRejected -> return response
+            is ApiResult.Rejected -> return response
+            is ApiResult.Retryable -> return response
+        }
+        if (dto.credits.none { it.id == creditId && it.branchId.toString() == branchId }) return ApiResult.Success(null)
+        val customer = dao.customer(account.accountKey, branchId, dto.id.toString()) ?: return ApiResult.Success(null)
+        val credit = dao.credit(account.accountKey, branchId, creditId) ?: return ApiResult.Success(null)
+        val payments = when (val response = openPaymentHistory(account, branchId, creditId)) {
+            is ApiResult.Success -> response.value
+            is ApiResult.AuthExpired -> return response
+            is ApiResult.Conflict -> return response
+            is ApiResult.PermissionRejected -> return response
+            is ApiResult.Rejected -> return response
+            is ApiResult.Retryable -> return response
+        }
+        val payment = paymentId?.let { id -> payments.firstOrNull { it.id == id } ?: return ApiResult.Success(null) }
+        return ApiResult.Success(LiveReceiptRecord(customer, credit, payment, payments))
+    }
+
     suspend fun portfolio(accountKey: String, branchId: String): List<PortfolioRow> {
         val credits = dao.visiblePortfolio(accountKey, branchId)
         return joinPortfolio(credits, dao.customersForBranch(accountKey, branchId))
@@ -63,12 +310,26 @@ class CreditRepository(
         dao.searchCustomers(accountKey, branchId, text)
 
     suspend fun openCustomer(account: StoredSession, branchId: String, customerId: String): ApiResult<CustomerEntity> {
+        return when (val response = fetchCustomer(account, branchId, customerId)) {
+            is ApiResult.Success -> {
+                val dto = response.value ?: return ApiResult.Rejected("Cliente no disponible para esta sucursal.")
+                ApiResult.Success(requireNotNull(dao.customer(account.accountKey, branchId, dto.id.toString())))
+            }
+            is ApiResult.AuthExpired -> response
+            is ApiResult.Conflict -> response
+            is ApiResult.PermissionRejected -> response
+            is ApiResult.Rejected -> response
+            is ApiResult.Retryable -> response
+        }
+    }
+
+    // Downloads and caches the customer with its branch credits, latest abonos and locations.
+    private suspend fun fetchCustomer(account: StoredSession, branchId: String, customerId: String): ApiResult<CustomerDto?> {
         return when (val response = api.customerById(account.token, branchId, customerId)) {
             is ApiResult.Success -> {
-                val dto = response.value.customerById
-                    ?: return ApiResult.Rejected("Cliente no disponible para esta sucursal.")
+                val dto = response.value.customerById ?: return ApiResult.Success(null)
                 val entity = dto.toEntity(account, branchId)
-                dao.putCustomers(listOf(entity))
+                cacheCustomers(listOf(entity))
                 dao.putCredits(dto.credits.filter { it.branchId.toString() == branchId }
                     .map { it.toEntity(account, branchId) })
                 cacheLatestPayments(dto.credits, account, branchId)
@@ -81,7 +342,7 @@ class CreditRepository(
                             }
                     )
                 }
-                ApiResult.Success(entity)
+                ApiResult.Success(dto)
             }
             is ApiResult.AuthExpired -> response
             is ApiResult.Conflict -> response
@@ -100,7 +361,7 @@ class CreditRepository(
                 if (dto == null) ApiResult.Rejected("No se encontró ese cliente en esta sucursal.")
                 else {
                     val entity = dto.toEntity(account, branchId)
-                    dao.putCustomers(listOf(entity))
+                    cacheCustomers(listOf(entity))
                     dao.putCredits(dto.credits.filter { it.branchId.toString() == branchId }
                         .map { it.toEntity(account, branchId) })
                     cacheLatestPayments(dto.credits, account, branchId)
@@ -113,7 +374,7 @@ class CreditRepository(
                                 }
                         )
                     }
-                    ApiResult.Success(entity)
+                    ApiResult.Success(requireNotNull(dao.customer(account.accountKey, branchId, entity.id)))
                 }
             }
             is ApiResult.AuthExpired -> response
@@ -154,7 +415,7 @@ class CreditRepository(
                 is ApiResult.Success -> {
                     val page = response.value.portfolio
                     if (snapshotCursor == null) snapshotCursor = page.snapshotCursor
-                    dao.putCustomers(page.nodes.map { it.toEntity(account, branchId) })
+                    cacheCustomers(page.nodes.map { it.toEntity(account, branchId) })
                     val customers = page.nodes.map { it.toEntity(account, branchId) }
                     val credits = page.nodes.flatMap { it.credits }
                         .filter { it.branchId.toString() == branchId }
@@ -207,7 +468,7 @@ class CreditRepository(
                                         dao.deleteCustomer(account.accountKey, branchId, recordId)
                                     } else change.payload?.let { payload ->
                                         val dto = json.decodeFromJsonElement(CustomerDto.serializer(), payload)
-                                        dao.putCustomers(listOf(dto.toEntity(account, branchId)))
+                                        cacheCustomers(listOf(dto.toEntity(account, branchId)))
                                         dao.putCredits(dto.credits.filter { it.branchId.toString() == branchId }
                                             .map { it.toEntity(account, branchId) })
                                         cacheLatestPayments(dto.credits, account, branchId)
@@ -320,17 +581,22 @@ class CreditRepository(
             require(
                 dependency.accountKey == account.accountKey &&
                     dependency.companyId == account.companyId &&
-                    dependency.branchId == branchId
+                    (dependency.branchId == branchId || (kind in setOf(OperationKind.RECORD_WHATSAPP_OPEN, OperationKind.RECORD_WHATSAPP_RECEIPT,
+                        OperationKind.ADD_CUSTOMER_PHONE, OperationKind.SELECT_CUSTOMER_PHONE, OperationKind.SET_CUSTOMER_PHONE_VALIDITY) &&
+                        dependency.kind in setOf(OperationKind.ADD_CUSTOMER_PHONE, OperationKind.SELECT_CUSTOMER_PHONE,
+                            OperationKind.SET_CUSTOMER_PHONE_VALIDITY, OperationKind.UPDATE_CUSTOMER)))
             ) { "La dependencia pertenece a otra cuenta o sucursal." }
         }
         val isCreate = kind in setOf(
             OperationKind.CREATE_CUSTOMER, OperationKind.CREATE_CREDIT, OperationKind.CREATE_COMMENT,
             OperationKind.CREATE_LOCATION, OperationKind.CREATE_EXPENSE, OperationKind.CREATE_BASE
         )
-        val noBaseVersionNeeded = isCreate || kind == OperationKind.DELETE_LOCATION
-        val effectiveBaseVersion = if (isCreate) null else baseVersion ?: run {
+        val counterOnly = kind == OperationKind.RECORD_WHATSAPP_OPEN || kind == OperationKind.RECORD_WHATSAPP_RECEIPT
+        val noBaseVersionNeeded = isCreate || kind == OperationKind.DELETE_LOCATION || counterOnly
+        val effectiveBaseVersion = if (isCreate || counterOnly) null else baseVersion ?: run {
             val recordType = when (kind) {
-                OperationKind.UPDATE_CUSTOMER, OperationKind.UPDATE_DOCUMENT -> "customer"
+                OperationKind.UPDATE_CUSTOMER, OperationKind.UPDATE_DOCUMENT,
+                OperationKind.ADD_CUSTOMER_PHONE, OperationKind.SELECT_CUSTOMER_PHONE, OperationKind.SET_CUSTOMER_PHONE_VALIDITY -> "customer"
                 OperationKind.CREATE_PAYMENT -> "credit"
                 OperationKind.CREATE_COMMENT, OperationKind.UPDATE_COMMENT, OperationKind.DELETE_COMMENT,
                 OperationKind.UPSERT_ALERT -> "comment"
@@ -362,7 +628,8 @@ class CreditRepository(
             attempts = 0,
             lastError = null,
             serverState = null,
-            createdAt = System.currentTimeMillis(),
+            createdAt = maxOf(System.currentTimeMillis(),
+                dependsOnOperationId?.let { dao.operation(it)?.createdAt?.plus(1) } ?: 0L),
             routeId = routeId
         )
         dao.addOperation(operation)
@@ -524,6 +791,30 @@ class CreditRepository(
                     }
                 }
             }
+            OperationKind.RECORD_WHATSAPP_OPEN -> {
+                val existing = requireNotNull(dao.customer(operation.accountKey, operation.branchId, operation.entityId))
+                rememberWhatsAppOpen(existing, operation, requireNotNull((payload as? JsonObject)?.get("telefono")).let {
+                    (it as JsonPrimitive).content
+                })
+            }
+            OperationKind.RECORD_WHATSAPP_RECEIPT -> {
+                (payload as? JsonObject)?.get("telefono").textOr(null)?.let { phone ->
+                    dao.customer(operation.accountKey, operation.branchId, operation.entityId)?.let {
+                        rememberWhatsAppOpen(it, operation, phone)
+                    }
+                }
+            }
+            OperationKind.SET_CUSTOMER_PHONE_VALIDITY -> {
+                val existing = requireNotNull(dao.customer(operation.accountKey, operation.branchId, operation.entityId))
+                rememberPhoneValidity(existing, operation, payload as JsonObject)
+            }
+            OperationKind.ADD_CUSTOMER_PHONE, OperationKind.SELECT_CUSTOMER_PHONE -> {
+                val existing = requireNotNull(dao.customer(operation.accountKey, operation.branchId, operation.entityId))
+                val phone = requireNotNull((payload as? JsonObject)?.get("telefono")).let {
+                    (it as JsonPrimitive).content
+                }
+                rememberLocalPhone(existing, phone)
+            }
             OperationKind.UPDATE_CUSTOMER, OperationKind.UPDATE_DOCUMENT -> {
                 val existing = dao.customer(operation.accountKey, operation.branchId, operation.entityId)
                 val fields = payload as? JsonObject
@@ -533,6 +824,7 @@ class CreditRepository(
                     firstName = fields["nombres"].textOr(existing.firstName).orEmpty(),
                     lastName = fields["apellidos"].textOr(existing.lastName).orEmpty(),
                     phone = fields["telefono"].textOr(existing.phone),
+                    phoneHistory = mergedPhoneHistory(existing, fields["telefono"].textOr(existing.phone)),
                     address = fields["calle"].textOr(existing.address),
                     sex = fields["sexo"].textOr(existing.sex),
                     birthDate = fields["fechaNacimiento"].textOr(existing.birthDate),
@@ -548,6 +840,10 @@ class CreditRepository(
                     customerStatus = fields["estadoCliente"].textOr(existing.customerStatus),
                     guarantorPersonId = fields["fiadorPersonaId"].textOr(existing.guarantorPersonId)
                 )))
+                if (existing != null && fields != null) {
+                    val updated = requireNotNull(dao.customer(operation.accountKey, operation.branchId, operation.entityId))
+                    rememberLocalPhone(updated, updated.phone)
+                }
             }
             OperationKind.UPDATE_CREDIT, OperationKind.UPDATE_CREDIT_TERMS,
             OperationKind.APPLY_DISCOUNT, OperationKind.ADD_INTEREST,
@@ -1028,6 +1324,22 @@ class CreditRepository(
                 runCatching { json.parseToJsonElement(encoded) }.getOrNull()
             }
             when (operation.kind) {
+                OperationKind.RECORD_WHATSAPP_OPEN, OperationKind.RECORD_WHATSAPP_RECEIPT -> dropPendingWhatsAppOpen(operation)
+                OperationKind.SET_CUSTOMER_PHONE_VALIDITY -> {
+                    rollbackPhoneValidity(operation, operation.serverState)
+                }
+                OperationKind.ADD_CUSTOMER_PHONE, OperationKind.SELECT_CUSTOMER_PHONE -> {
+                    if (server != null) {
+                        val dto = json.decodeFromJsonElement(CustomerDto.serializer(), server)
+                        cacheCustomers(listOf(dto.toEntity(StoredSession(operation.accountKey, "", ""), operation.branchId)))
+                    } else {
+                        // A permission rejection has no authoritative primary. Keep the customer
+                        // and history, but do not address WhatsApp to a rejected local selection.
+                        dao.customer(operation.accountKey, operation.branchId, operation.entityId)?.let {
+                            rememberLocalPhone(it, null)
+                        }
+                    }
+                }
                 OperationKind.CREATE_CUSTOMER, OperationKind.UPDATE_CUSTOMER, OperationKind.UPDATE_DOCUMENT -> {
                     val dto = server?.let {
                         runCatching { json.decodeFromJsonElement(CustomerDto.serializer(), it) }.getOrNull()
@@ -1184,12 +1496,14 @@ class CreditRepository(
             }
         }
         val (nestedName, allowedFields) = when (operation.kind) {
-            OperationKind.CREATE_CUSTOMER, OperationKind.UPDATE_CUSTOMER, OperationKind.UPDATE_DOCUMENT ->
+            OperationKind.CREATE_CUSTOMER, OperationKind.UPDATE_CUSTOMER, OperationKind.UPDATE_DOCUMENT,
+            OperationKind.ADD_CUSTOMER_PHONE, OperationKind.SELECT_CUSTOMER_PHONE, OperationKind.SET_CUSTOMER_PHONE_VALIDITY, OperationKind.RECORD_WHATSAPP_OPEN,
+            OperationKind.RECORD_WHATSAPP_RECEIPT ->
                 "customer" to setOf(
                     "id", "companyId", "personId", "firstName", "lastName", "documentType", "documentNumber",
                     "phone", "street", "sex", "birthDate", "email", "occupation", "status", "rating",
                     "maxCredit", "nickname", "note", "guarantorPersonId", "personNote", "department", "city",
-                    "neighborhood", "customerStatus"
+                    "neighborhood", "customerStatus", "phones"
                 )
             OperationKind.CREATE_CREDIT, OperationKind.UPDATE_CREDIT, OperationKind.UPDATE_CREDIT_TERMS,
             OperationKind.DELETE_CREDIT, OperationKind.APPLY_DISCOUNT, OperationKind.ADD_INTEREST,
@@ -1221,7 +1535,9 @@ class CreditRepository(
         }
         val selectedObject = (normalized[nestedName] as? JsonObject) ?: normalized
         val numericFields = when (operation.kind) {
-            OperationKind.CREATE_CUSTOMER, OperationKind.UPDATE_CUSTOMER, OperationKind.UPDATE_DOCUMENT ->
+            OperationKind.CREATE_CUSTOMER, OperationKind.UPDATE_CUSTOMER, OperationKind.UPDATE_DOCUMENT,
+            OperationKind.ADD_CUSTOMER_PHONE, OperationKind.SELECT_CUSTOMER_PHONE, OperationKind.SET_CUSTOMER_PHONE_VALIDITY, OperationKind.RECORD_WHATSAPP_OPEN,
+            OperationKind.RECORD_WHATSAPP_RECEIPT ->
                 setOf("id", "companyId", "personId", "guarantorPersonId")
             OperationKind.CREATE_PAYMENT, OperationKind.CREATE_CREDIT, OperationKind.UPDATE_CREDIT,
             OperationKind.UPDATE_CREDIT_TERMS, OperationKind.DELETE_CREDIT, OperationKind.APPLY_DISCOUNT,
@@ -1239,7 +1555,9 @@ class CreditRepository(
                 setOf("accountingType", "payrollId")
         }
         val decimalFields = when (operation.kind) {
-            OperationKind.CREATE_CUSTOMER, OperationKind.UPDATE_CUSTOMER, OperationKind.UPDATE_DOCUMENT ->
+            OperationKind.CREATE_CUSTOMER, OperationKind.UPDATE_CUSTOMER, OperationKind.UPDATE_DOCUMENT,
+            OperationKind.ADD_CUSTOMER_PHONE, OperationKind.SELECT_CUSTOMER_PHONE, OperationKind.SET_CUSTOMER_PHONE_VALIDITY, OperationKind.RECORD_WHATSAPP_OPEN,
+            OperationKind.RECORD_WHATSAPP_RECEIPT ->
                 setOf("maxCredit")
             OperationKind.CREATE_PAYMENT -> setOf("value", "principal", "balance", "sortOrder", "profit", "additionalValue")
             OperationKind.CREATE_CREDIT, OperationKind.UPDATE_CREDIT, OperationKind.UPDATE_CREDIT_TERMS,
@@ -1253,7 +1571,9 @@ class CreditRepository(
         val selected = kotlinx.serialization.json.buildJsonObject {
             allowedFields.forEach { field ->
                 val rawValue = selectedObject[field]
-                if (rawValue is JsonPrimitive || rawValue == JsonNull) {
+                if (field == "phones" && rawValue is kotlinx.serialization.json.JsonArray) {
+                    put(field, rawValue)
+                } else if (rawValue is JsonPrimitive || rawValue == JsonNull) {
                     val numeric = (rawValue as? JsonPrimitive)?.content
                     val normalizedValue = when {
                         field in numericFields -> numeric?.toIntOrNull()?.let(::JsonPrimitive) ?: rawValue
@@ -1274,7 +1594,8 @@ class CreditRepository(
     suspend fun applyServerAcknowledgement(
         operation: OfflineOperationEntity,
         serverState: String?,
-        responseEntityId: String
+        responseEntityId: String,
+        eventCursor: String? = null
     ) {
         val state = serverState?.let { runCatching { json.parseToJsonElement(it) }.getOrNull() }
         var appliedServerState = false
@@ -1322,6 +1643,20 @@ class CreditRepository(
                         remapCustomerDependents(operation, operation.entityId, finalId)
                     }
                     if (old == null && finalId != null) appliedServerState = true
+                }
+                OperationKind.ADD_CUSTOMER_PHONE, OperationKind.SELECT_CUSTOMER_PHONE, OperationKind.SET_CUSTOMER_PHONE_VALIDITY, OperationKind.RECORD_WHATSAPP_OPEN,
+            OperationKind.RECORD_WHATSAPP_RECEIPT -> {
+                    val root = requireNotNull(state as? JsonObject) { "La respuesta del teléfono no contiene datos." }
+                    val existing = requireNotNull(dao.customer(operation.accountKey, operation.branchId, operation.entityId))
+                    val phone = root["phone"].textOr(existing.phone)
+                    val phones = requireNotNull(root["phones"]) { "La respuesta no contiene el historial." }
+                    val history = json.decodeFromJsonElement(
+                        kotlinx.serialization.builtins.ListSerializer(com.backendcreditos.mobile.network.CustomerPhoneDto.serializer()), phones
+                    )
+                    rememberLocalPhone(existing.copy(phoneHistory = json.encodeToString(
+                        kotlinx.serialization.builtins.ListSerializer(com.backendcreditos.mobile.network.CustomerPhoneDto.serializer()), history
+                    )), phone)
+                    appliedServerState = true
                 }
                 OperationKind.UPDATE_CUSTOMER, OperationKind.UPDATE_DOCUMENT -> {
                     val dto = state?.let {
@@ -1415,6 +1750,17 @@ class CreditRepository(
                 }
                 else -> Unit
             }
+            if (eventCursor != null && operation.kind in setOf(
+                OperationKind.ADD_CUSTOMER_PHONE, OperationKind.SELECT_CUSTOMER_PHONE, OperationKind.SET_CUSTOMER_PHONE_VALIDITY,
+                OperationKind.UPDATE_CUSTOMER, OperationKind.RECORD_WHATSAPP_OPEN, OperationKind.RECORD_WHATSAPP_RECEIPT
+            )) {
+                dao.pendingDependents(operation.operationId).filter {
+                    it.kind in setOf(OperationKind.ADD_CUSTOMER_PHONE, OperationKind.SELECT_CUSTOMER_PHONE,
+                        OperationKind.SET_CUSTOMER_PHONE_VALIDITY) && operation.kind != OperationKind.RECORD_WHATSAPP_OPEN &&
+                        operation.kind != OperationKind.RECORD_WHATSAPP_RECEIPT
+                }.forEach { dao.rebaseUnsentOperation(it.operationId, eventCursor) }
+                replayPendingPhones(operation.accountKey)
+            }
         }
         if (!appliedServerState) applyOptimisticCacheChange(operation)
     }
@@ -1443,6 +1789,10 @@ class CreditRepository(
         firstName = firstName,
         lastName = lastName,
         phone = phone,
+        phoneHistory = json.encodeToString(
+            kotlinx.serialization.builtins.ListSerializer(com.backendcreditos.mobile.network.CustomerPhoneDto.serializer()), phones
+        ),
+        personId = personId.toString(),
         address = street,
         sex = sex,
         birthDate = birthDate,

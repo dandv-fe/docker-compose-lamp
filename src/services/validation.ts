@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { createHash } from 'node:crypto';
 import { fail } from './errors.js';
+import { normalizePhone } from './phones.js';
 
 const text = (max: number) => z.string().max(max);
 const number = z.number().finite();
@@ -61,6 +62,23 @@ const expenseFields = {
 };
 
 export const operationPayloadSchemas: Record<string, z.ZodTypeAny> = {
+  SET_CUSTOMER_PHONE_VALIDITY: z.object({
+    telefono: text(15).refine(value => normalizePhone(value) === value, 'Use a normalized phone'),
+    invalid: z.boolean(),
+  }).strict(),
+  ADD_CUSTOMER_PHONE: z.object({ telefono: text(40) }).strict(),
+  SELECT_CUSTOMER_PHONE: z.object({ telefono: text(15) }).strict(),
+  RECORD_WHATSAPP_OPEN: z.object({ telefono: text(15).refine(
+    value => normalizePhone(value) === value, 'Use a normalized WhatsApp phone',
+  ) }).strict(),
+  // One external opening of a card/abono receipt. telefono is absent when WhatsApp was opened to
+  // pick a contact there: then only the hidden per-record counter moves, never a phone counter.
+  RECORD_WHATSAPP_RECEIPT: z.object({
+    telefono: text(15).refine(value => normalizePhone(value) === value, 'Use a normalized WhatsApp phone')
+      .nullable().optional(),
+    tipo: z.enum(['credit', 'payment']),
+    registroId: z.string().min(1).max(50),
+  }).strict(),
   CREATE_CUSTOMER: z.object({ ...personFields, ...clientFields }).strict(),
   UPDATE_CUSTOMER: z.object({ ...personFields, ...clientFields }).strict(),
   UPDATE_DOCUMENT: z.object({ tipoDocumento: text(45), numeroDocumento: text(45) }).strict(),

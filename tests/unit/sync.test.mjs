@@ -24,6 +24,7 @@ test('customer sync materializes only current customer, branch credits, and link
     if (sql.includes('FROM tbl_tarjetas t')) return [[{ id: 'credit-1', customerId: 123 }], []];
     if (sql.includes('FROM tbl_comentarios_cliente l')) return [[{ id: 'comment-1', customerId: 123 }], []];
     if (sql.includes('FROM mobile_credit_location')) return [[{ id: 'loc-1', creditId: 'credit-1', name: 'Casa' }], []];
+    if (sql.includes('FROM mobile_customer_phone')) return [[{ id: '1', phone: '3001234567', normalizedPhone: '573001234567' }], []];
     throw new Error(`Unexpected query: ${sql}`);
   };
   const change = await materializeSyncEvent(execute, user, 4, event());
@@ -32,7 +33,9 @@ test('customer sync materializes only current customer, branch credits, and link
   assert.deepEqual(change.payload.comments, [{ id: 'comment-1', customerId: 123 }]);
   assert.match(calls[0].sql, /tbl_auth_sucursal/);
   assert.deepEqual(calls[0].params, ['123', 7, 4, 4, 4]);
-  assert.deepEqual(calls[2].params, [123]);
+  assert.deepEqual(calls[1].params, [7, 456]);
+  assert.deepEqual(change.payload.phones, [{ id: '1', phone: '3001234567', normalizedPhone: '573001234567', invalid: false }]);
+  assert.deepEqual(calls[3].params, [123]);
 });
 
 test('customer from another branch is returned as a tombstone, never as a null-payload event', async () => {
