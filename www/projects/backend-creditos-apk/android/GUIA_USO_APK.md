@@ -20,6 +20,7 @@ Después de un ingreso en línea, puedes desbloquear los datos ya descargados co
 
 - Al guardar un movimiento aparece en la **Cola**: verlo en el teléfono no significa que el servidor ya lo aprobó.
 - En **Configuración**, activa o desactiva **Sincronización automática**, ajusta su intervalo (mínimo 15 minutos) o toca **Sincronizar ahora**. La sincronización envía la cola y actualiza los cambios de la cartera.
+  También puedes deslizar hacia abajo desde el inicio de la lista de Cartera. Un indicador separado muestra el arrastre: cuando diga **Suelta para sincronizar**, suelta el dedo para solicitar el envío de pendientes y recibir cambios. Soltar antes cancela el gesto. Sin conexión, los pendientes se conservan. El envío ocurre en segundo plano: revisa la cola para comprobar la confirmación; el indicador no significa que todos los registros ya fueron enviados.
 - Si se vence la sesión, inicia sesión de nuevo con internet. Si hay una operación rechazada o en conflicto, revísala en **Cola**: no se corrige sola.
 - Antes de cambiar de teléfono, desinstalar o cerrar sesión, comprueba que la cola no tenga pendientes. Cerrar sesión borra los datos locales de esa cuenta; si hay pendientes, la APK pide confirmar su descarte.
 

@@ -72,6 +72,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material.icons.Icons
@@ -466,6 +469,7 @@ private fun CreditApplicationScreen(
     var busy by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
     var showPortfolioSearch by remember { mutableStateOf(false) }
+    var refreshingPortfolio by remember { mutableStateOf(false) }
     var alwaysShowPortfolioSearch by remember {
         mutableStateOf(PortfolioDisplaySettings.alwaysShowSearch(activity))
     }
@@ -1945,6 +1949,33 @@ private fun CreditApplicationScreen(
         return operation
     }
 
+    suspend fun synchronizeNow() {
+        if (refreshingPortfolio || busy) return
+        val current = session ?: return
+        val branch = current.selectedBranchId ?: return
+        refreshingPortfolio = true
+        busy = true
+        try {
+            SyncScheduler.enqueue(activity, current.accountKey, branch, expedited = deviceConnected)
+            if (!deviceConnected) {
+                notice = "Sin conexión; pendientes conservados. Se enviarán al recuperar señal."
+                return
+            }
+            when (val result = app.repository.pullChanges(current, branch)) {
+                is ApiResult.Success -> {
+                    refreshRouteCash()
+                    notice = "Cambios recibidos. Envío de pendientes solicitado; revisa la cola."
+                }
+                else -> report(result)
+            }
+            loadLocal()
+            loadOperations()
+        } finally {
+            busy = false
+            refreshingPortfolio = false
+        }
+    }
+
     fun logout() {
         val current = session ?: return
         scope.launch {
@@ -2995,8 +3026,38 @@ private fun CreditApplicationScreen(
                             restorePointerScroll = false
                         }
                     }
-                    LazyColumn(
+                    val pullState = rememberPullToRefreshState()
+                    PullToRefreshBox(
+                        isRefreshing = refreshingPortfolio,
+                        onRefresh = { scope.launch { synchronizeNow() } },
+                        state = pullState,
                         modifier = Modifier.weight(1f),
+                        indicator = {
+                            Column(
+                                Modifier.align(Alignment.TopCenter),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                PullToRefreshDefaults.Indicator(
+                                    state = pullState,
+                                    isRefreshing = refreshingPortfolio
+                                )
+                                if (refreshingPortfolio || pullState.distanceFraction > 0f) {
+                                    Text(
+                                        when {
+                                            refreshingPortfolio -> "Sincronizando…"
+                                            pullState.distanceFraction >= 1f -> "Suelta para sincronizar"
+                                            else -> "Desliza para sincronizar"
+                                        },
+                                        style = MaterialTheme.typography.labelMedium,
+                                        modifier = Modifier.background(MaterialTheme.colorScheme.surface)
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    )
+                                }
+                            }
+                        }
+                    ) {
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize(),
                         state = portfolioListState,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -3271,6 +3332,7 @@ private fun CreditApplicationScreen(
                         }
                     }
                     item { Text("Este dispositivo conserva únicamente la cartera de la sucursal y los clientes que abras.") }
+                    }
                     }
                 }
                 Screen.DEFAULTERS -> {
@@ -3664,29 +3726,8 @@ private fun CreditApplicationScreen(
                         },
                         style = MaterialTheme.typography.bodySmall
                     )
-                    Button(onClick = {
-                        val current = session ?: return@Button
-                        val branch = current.selectedBranchId ?: return@Button
-                        scope.launch {
-                            busy = true
-                            // Push the queue first so nothing registered in the street is lost,
-                            // then pull so the portfolio reflects what other collectors did.
-                            SyncScheduler.enqueue(activity, current.accountKey, branch, expedited = true)
-                            if (online) {
-                                when (val result = app.repository.pullChanges(current, branch)) {
-                                    is ApiResult.Success -> {
-                                        refreshRouteCash()
-                                        notice = "Cartera al día."
-                                    }
-                                    else -> report(result)
-                                }
-                            } else {
-                                notice = "Sin conexión: la cola se enviará sola al recuperar señal."
-                            }
-                            loadLocal()
-                            loadOperations()
-                            busy = false
-                        }
+                    Button(enabled = !busy && !refreshingPortfolio, onClick = {
+                        scope.launch { synchronizeNow() }
                     }) { Text("Sincronizar ahora") }
                     if (unresolvedBadge > 0) Text(
                         "$unresolvedBadge operación(es) sin resolver en la cola.",

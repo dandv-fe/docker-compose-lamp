@@ -1,6 +1,21 @@
 version: "3"
 
 services:
+  node:
+    image: node:${NODE_VERSION-20.20}
+    container_name: '${COMPOSE_PROJECT_NAME}-node'
+    restart: 'always'
+    working_dir: /var/www/html/projects/backend-creditos-apk
+    command: ["npm", "run", "dev"]
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: development
+      PORT: "3000"
+    env_file:
+      - ./www/projects/backend-creditos-apk/.env
+    volumes:
+      - ${DOCUMENT_ROOT-./www}:/var/www/html:rw
   webserver:
     build: 
       context: ./bin/${PHPVERSION}

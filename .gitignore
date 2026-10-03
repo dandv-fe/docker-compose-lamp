@@ -1,11 +1,52 @@
 /.vscode
-/.env
 .DS_Store
-/logs/apache2/*
-/logs/mysql/*
-/data/mysql/*
+/logs/**
+/data/**
 
 !.gitignore
 !.gitkeep
-# Proyecto con repositorio Git propio
-/www/projects/backend-creditos-apk/
+
+# Solo estos dos proyectos forman parte del monorepo.
+/www/projects/*
+!/www/projects/.gitkeep
+!/www/projects/backend-creditos-apk/
+!/www/projects/webgoez/
+/www/app/AdminLTE-3.2.0/
+/Pasted Text.txt
+
+# Dependencias, archivos locales y resultados generados.
+node_modules/
+.gradle/
+.kotlin/
+.build-tools/
+**/build/
+cache/
+uploads/
+coverage/
+*.log
+error_log
+*.apk
+*.aab
+*.iml
+local.properties
+*.sqlite
+*.sqlite3
+*.dump
+*.sql.gz
+*.sql.zip
+
+# Credenciales y configuración privada; conservar solo las plantillas.
+.env
+.env.*
+!.env.example
+private.env
+*.secret.php
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+/config/webgoez-*.php
+/www/projects/webgoez/model/Conexion_up2.php
+/www/projects/webgoez/src/graphql/schemas/db/chat_app.sql
+/www/projects/webgoez/model/db/tbl_empleado_despido.sql

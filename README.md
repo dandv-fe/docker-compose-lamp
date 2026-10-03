@@ -23,6 +23,7 @@
 - PHP [End of life / not recommended] (5.4.x, 5.6.x, 7.0.x, 7.1.x, 7.2.x, 7.3.x, 7.4.x, 8.0.x)
 - MySQL (5.7, 8.x)
 - MariaDB (lts, latest, 10.x, 10.3, 10.4, 10.5, 10.6, 10.7, 10.8, 10.9, 10.10, 10.11, 11.x, 11.0, 11.1, 11.2, 11.3-rc)
+- Node.js 20.20 with npm
 - phpMyAdmin
 - XDebug
 - Imagick
@@ -87,7 +88,7 @@ sudo reboot
 ```bash
 git clone https://github.com/robertsaupe/docker-compose-lamp.git lamp
 cd lamp/
-cp sample.env .env
+cp .env.example .env
 
 ### modify .env as needed
 
@@ -152,6 +153,54 @@ In order to use the above URL, you still need to change the hosts file.
 ### SSL (HTTPS)
 
 Support for https domains is built-in and enabled by default.
+
+### Node.js
+
+The Node.js container uses the same `www` directory as the PHP/Apache container. Its version is configured with `NODE_VERSION` in `.env` (20.20 by default). It runs the credit API in development mode from `/var/www/html/projects/backend-creditos-apk`, publishes port `3000`, and reads the backend's private `.env`.
+
+```bash
+docker compose exec node node --version
+docker compose exec node npm --version
+docker compose exec node npm install --prefix /var/www/html/projects/backend-creditos-apk
+docker compose exec node npm install --prefix /var/www/html/projects/webgoez
+curl http://localhost:3000/health
+```
+
+On installations with Compose v1, use `docker-compose` instead of `docker compose`.
+
+### Monorepo y configuración privada
+
+El único repositorio Git está en la raíz de `lamp`; `www/projects/webgoez`
+(PHP/web) y `www/projects/backend-creditos-apk` (API Node.js y Android) son
+directorios normales, no submódulos ni repositorios anidados. Las rutas del
+host y los volúmenes Docker se mantienen. Ejecuta `git status`, `git add` y
+`git commit` desde la raíz; desde cualquiera de los proyectos Git también
+resuelve esa misma raíz.
+
+Se importaron los historiales completos mediante `git subtree add` sin
+`--squash`, después de sanear **copias** de los tres historiales. Los hashes
+afectados por credenciales y archivos privados/generados pueden cambiar.
+Las ramas históricas saneadas se conservan en `refs/monorepo-history/`.
+Los bundles originales, los metadatos Git originales y las copias de los
+cambios locales se guardan fuera del repositorio, en el respaldo privado de
+la migración. No publiques ni fuerces el envío de este historial reescrito
+al remoto sin acordar antes la migración con los demás colaboradores.
+
+Para desarrollo, copia `.env.example` a `.env` en la raíz y la plantilla del
+backend a `www/projects/backend-creditos-apk/.env`, y configura los valores
+privados necesarios. La API de desarrollo está en `http://localhost:3000`;
+consulta el README de cada proyecto para sus comandos y opciones.
+En producción, proporciona las credenciales por variables de entorno o
+configuración privada fuera del código versionado y utiliza la configuración
+de despliegue correspondiente, no el comando `npm run dev` como servicio
+de producción. La migración no rota ni modifica contraseñas de ejecución.
+
+No se versionan `.env`, configuraciones privadas de PHP, claves, keystores,
+dependencias Node.js, builds de Android, APK, cachés, cargas, logs ni datos de
+la base de datos. Los esquemas y migraciones SQL de código permanecen
+versionados; los volcados con datos privados no. El `vendor` y los recursos
+PHP ya distribuidos se conservan. Los otros proyectos, `webgoez-bak`,
+`www/app/AdminLTE-3.2.0` y los archivos personales locales quedan fuera.
 
 ### Virtual-Hosts
 
