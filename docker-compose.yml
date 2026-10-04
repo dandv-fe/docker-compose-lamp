@@ -1,4 +1,4 @@
-version: "3"
+version: "3.8"
 
 services:
   node:
@@ -55,7 +55,7 @@ services:
     restart: 'always'
     ports:
       - "127.0.0.1:${HOST_MACHINE_MYSQL_PORT}:3306"
-    user: ${CURRENT_UID}
+    user: ${CURRENT_UID-1000} # Si no existe CURRENT_UID, usa el 1000 por defecto de Pop!_OS
     volumes: 
       - ${MYSQL_INITDB_DIR-./config/initdb}:/docker-entrypoint-initdb.d
       - ${MYSQL_DATA_DIR-./data/mysql}:/var/lib/mysql
@@ -86,7 +86,7 @@ services:
       - '${HOST_MACHINE_PMA_PORT}:80'
       - '${HOST_MACHINE_PMA_SECURE_PORT}:443'
     volumes: 
-      - /sessions
+      - ./config/phpmyadmin/sessions:/sessions # Ruta local para evitar volumen oculto basura
       - ${PHP_INI-./config/php/php.ini}:/usr/local/etc/php/conf.d/php-phpmyadmin.ini
   redis:
     image: redis:latest

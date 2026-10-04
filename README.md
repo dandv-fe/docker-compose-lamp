@@ -88,7 +88,7 @@ sudo reboot
 ```bash
 git clone https://github.com/robertsaupe/docker-compose-lamp.git lamp
 cd lamp/
-cp .env.example .env
+cp sample.env .env
 
 ### modify .env as needed
 
@@ -106,7 +106,9 @@ cp .env.example .env
 
 ```cmd
 ### builds and starts the environment:
-docker-compose up -d --build
+### docker-compose up -d --build
+docker compose up -d --build
+
 build.cmd
 
 ### starts the environment:
