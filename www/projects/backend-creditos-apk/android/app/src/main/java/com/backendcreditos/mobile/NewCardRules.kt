@@ -100,3 +100,11 @@ internal fun creditProfit(value: String, cost: String): String {
     val spent = cost.toBigDecimalOrNull() ?: return "0"
     return paid.subtract(spent).toPlainString()
 }
+
+internal fun creditPricingAllowed(value: String, cost: String, isSuperAdministrator: Boolean): Boolean {
+    val totalCents = value.toBigDecimalOrNull()?.setScale(2, RoundingMode.HALF_UP) ?: return false
+    val costCents = cost.toBigDecimalOrNull()?.setScale(2, RoundingMode.HALF_UP) ?: return false
+    if (totalCents.signum() <= 0 || costCents.signum() <= 0 || totalCents < costCents) return false
+    return isSuperAdministrator ||
+        totalCents >= costCents.multiply(BigDecimal("1.20")).setScale(2, RoundingMode.CEILING)
+}

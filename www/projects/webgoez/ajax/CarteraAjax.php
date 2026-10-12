@@ -198,7 +198,7 @@ switch ($_GET["op"]) {
          if ($classCartera->Modificar($idtarjeta, $idglobal, $idsucursal, $idcliente, $idventa, $consepto, $valor, $modo, $plazo, $prestamo, $descripcion, $item, $utilidad, $c_adicional_numero, $c_adicional_valor, $str_tipo_comprobante, $str_serie, $str_numero, $str_nota, $createdEmpleadoId)) {
             echo "";
          } else {
-            echo "ERROR: ";
+            echo "ERROR: No cumple la regla mínima";
          }
       }
 

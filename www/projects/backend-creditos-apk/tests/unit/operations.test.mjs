@@ -4,7 +4,7 @@ import {
   assertBaseVersion, assertPayloadMatch, operationPayloadSchemas, parseOperationPayload,
   centsToDecimal, decimalToCents, payloadDigest, stableJson, serializeAlert, rejectExistingAlert,
 } from '../../dist/services/validation.js';
-import { applyOfflineOperation, assertQueuedRouteOpen, isRouteBoundKind, saveBankSplits, assertCustomerBranch, assertEmployeeCreditApproval, creditAcceptsAdditionalInterest, ensureCreditLimit, nextReceiptNumber, openRoute, planPositionBesideCard, positionBesideCard } from '../../dist/services/operations.js';
+import { applyOfflineOperation, assertQueuedRouteOpen, isRouteBoundKind, saveBankSplits, assertCustomerBranch, assertEmployeeCreditApproval, creditAcceptsAdditionalInterest, creditPricingAllowed, ensureCreditLimit, nextReceiptNumber, openRoute, planPositionBesideCard, positionBesideCard } from '../../dist/services/operations.js';
 import { mapTransactionError } from '../../dist/services/errors.js';
 
 test('idempotency payload comparison is key-order independent and rejects changed input', () => {

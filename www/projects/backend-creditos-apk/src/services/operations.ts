@@ -145,6 +145,17 @@ function decimal(value: unknown) {
   return centsToDecimal(decimalToCents(value as number | string));
 }
 
+export function creditPricingAllowed(
+  total: number | string | null | undefined,
+  cost: number | string | null | undefined,
+  isSuperAdministrator: boolean,
+) {
+  const totalCents = decimalToCents(String(total ?? 0));
+  const costCents = decimalToCents(String(cost ?? 0));
+  if (totalCents <= 0n || costCents <= 0n || totalCents < costCents) return false;
+  return isSuperAdministrator || totalCents * 100n >= costCents * 120n;
+}
+
 export function nextReceiptNumber(lastNumber: string): string {
   const match = /^(.*?)(\d+)$/.exec(lastNumber.trim());
   if (!match && lastNumber.trim()) fail('BUSINESS_RULE', 'Receipt counter has no numeric suffix');
@@ -570,6 +581,10 @@ async function executeOperation(
       return { entityId: String(customer.idcliente), data: { id: customer.idcliente }, recordType: 'customer', action: 'UPDATE', branchId: input.branchId, relatedId: String(customer.idpersona) };
     }
     case 'CREATE_CREDIT': {
+      if (!creditPricingAllowed(payload.valor as number, payload.prestamo as number,
+        user.cargo === 'Super Administrador')) {
+        fail('BUSINESS_RULE', 'No cumple la regla mínima');
+      }
       if (employeeId == null) fail('FORBIDDEN', 'An employee identity is required for this action');
       if (input.entityId !== payload.idtarjeta) fail('VALIDATION_ERROR', 'entityId must match the new credit ID');
       if (payload.idventa != null) {
@@ -662,6 +677,11 @@ async function executeOperation(
     }
     case 'UPDATE_CREDIT':
     case 'UPDATE_CREDIT_TERMS': {
+      if (input.kind === 'UPDATE_CREDIT' &&
+          !creditPricingAllowed(payload.valor as number, payload.prestamo as number,
+            user.cargo === 'Super Administrador')) {
+        fail('BUSINESS_RULE', 'No cumple la regla mínima');
+      }
       const credit = await loadCredit(conn, companyId, input.branchId, input.entityId);
       if (input.kind === 'UPDATE_CREDIT') {
         const updateValues = values(

@@ -8,7 +8,7 @@
           <span aria-hidden="true">&times;</span>
         </button>
       </div>
-      <form id="formSaveNewCredit">
+      <form id="formSaveNewCredit" data-super-administrator="<?= isset($_SESSION['userEmpresa']) ? '1' : '0' ?>">
         <input type="hidden" id="txt_refDetalle_documento_sucursalfHidden"
           name="txt_refDetalle_documento_sucursalfHidden">
         <input type="hidden" name="txt_tipo_comprobanteHidden" id="txt_tipo_comprobanteHidden">

@@ -1711,6 +1711,25 @@ private fun CreditApplicationScreen(
                 )
             }
         }
+        if (operationKind == OperationKind.CREATE_CREDIT || operationKind == OperationKind.UPDATE_CREDIT) {
+            val cost = if (operationKind == OperationKind.CREATE_CREDIT) draftCost else draftPrincipal
+            val isSuperAdministrator = session?.isSuperAdministrator == true
+            require(creditPricingAllowed(draftValue, cost, isSuperAdministrator)) {
+                if (isSuperAdministrator) "El valor total no puede ser menor que el costo."
+                else "La ganancia mínima debe ser 20% del costo."
+            }
+        }
+        if (operationKind == OperationKind.CREATE_CREDIT || operationKind == OperationKind.UPDATE_CREDIT) {
+            val allowed = creditPricingAllowed(
+                draftValue,
+                if (operationKind == OperationKind.CREATE_CREDIT) draftCost else draftPrincipal,
+                session?.isSuperAdministrator == true,
+            )
+            require(allowed) {
+                if (session?.isSuperAdministrator == true) "El valor total no puede ser menor que el costo."
+                else "Mínimo 20% de ganancia."
+            }
+        }
         if (operationKind == OperationKind.CREATE_CREDIT) {
             require(canOpenCreditForm(creditOnline, assessmentLoading, assessmentComplete) &&
                 assessmentCreditId == selectedCreditId) {

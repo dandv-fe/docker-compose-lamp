@@ -20,6 +20,22 @@ function init() {
         e.preventDefault();
         if (banderasavedcredito === 1) {
             banderasavedcredito = 2
+            const total = Math.round((Number($("#txtValor").val()) || 0) * 100)
+            const cost = Math.round((Number($("#txtCosto").val()) || 0) * 100)
+            const isSuperAdministrator = Number($("#formSaveNewCredit").data("super-administrator")) === 1
+            const pricingIsValid = total > 0 && cost > 0 && total >= cost &&
+                (isSuperAdministrator || total * 100 >= cost * 120)
+            if (!pricingIsValid) {
+                Toast.fire({
+                    icon: 'error',
+                    title: isSuperAdministrator
+                        ? 'El valor total no puede ser menor que el costo.'
+                        : 'Mínimo 20% de ganancia.'
+                })
+                $("#txtValor").focus()
+                banderasavedcredito = 0
+                return
+            }
             const consepto = $("#txtConsepto").val()
             if (consepto === 'Articulo' && Number($("#txtCuotaInicial").val()) > 0 &&
                 !/^(0|[1-9]\d*)$/.test($("#cboBancoPagoInicial").val() || '')) {

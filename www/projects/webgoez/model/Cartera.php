@@ -10,6 +10,16 @@ class ClassCartera
     {
     }
 
+    private function creditPricingAllowed($total, $cost): bool
+    {
+        $totalCents = (int)round((float)$total * 100, 0, PHP_ROUND_HALF_UP);
+        $costCents = (int)round((float)$cost * 100, 0, PHP_ROUND_HALF_UP);
+        if ($totalCents <= 0 || $costCents <= 0 || $totalCents < $costCents) {
+            return false;
+        }
+        return isset($_SESSION['userEmpresa']) || $totalCents * 100 >= $costCents * 120;
+    }
+
     public function cajaBolsilloRuta(int $idglobal, int $idsucursal, int $idusuario = 0, ?int $iddetalleruta = null): array
     {
         global $conexion;
@@ -263,6 +273,10 @@ class ClassCartera
 
     ) {
         global $conexion;
+        if (!$this->creditPricingAllowed($valor, $prestamo)) {
+            echo "ERROR: No cumple la regla mínima";
+            return false;
+        }
         $sw = true;
         $conexion->autocommit(false);
         $dt = date('Y-m-d H:i:s');
@@ -432,6 +446,9 @@ class ClassCartera
         $createdEmpleadoId
     ) {
         global $conexion;
+        if (!$this->creditPricingAllowed($valor, $prestamo)) {
+            return false;
+        }
         $sw = true;
         $conexion->autocommit(false);
         $dt = date('Y-m-d H:i:s');
