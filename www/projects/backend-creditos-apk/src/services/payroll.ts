@@ -25,15 +25,18 @@ export function authorizedPayrollQuery(
   if (payrollId !== undefined) params.push(payrollId);
   return {
     sql: `SELECT n.idnomina AS id,
-          TRIM(CONCAT_WS(' ', p.str_nombres, p.str_apellidos)) AS name
+          TRIM(CONCAT_WS(' ', p.str_nombres, p.str_apellidos)) AS name,
+          employeeOffice.idoficina AS officeId, employeeOffice.str_nombre AS officeName,
+          COALESCE(employeeOffice.idoficina=s.idoficina, 0) AS suggested
       FROM tbl_nomina n
       JOIN tbl_empleado e ON e.idempleado=n.idempleado AND e.idglobal=n.idglobal
       JOIN tbl_persona p ON p.idpersona=e.idpersona AND p.idglobal=e.idglobal
       JOIN tbl_sucursal s ON s.idsucursal=? AND s.idglobal=n.idglobal
       LEFT JOIN tbl_oficina o ON o.idoficina=s.idoficina AND o.idglobal=s.idglobal
+      LEFT JOIN tbl_oficina employeeOffice ON employeeOffice.idoficina=e.idoficina AND employeeOffice.idglobal=e.idglobal
       WHERE n.idglobal=? AND n.str_estado='activo' AND (${scope})
         ${payrollId === undefined ? '' : 'AND n.idnomina=?'}
-      ORDER BY name`,
+      ORDER BY suggested DESC, employeeOffice.idoficina IS NULL, officeName, officeId, name, n.idnomina`,
     params,
   };
 }

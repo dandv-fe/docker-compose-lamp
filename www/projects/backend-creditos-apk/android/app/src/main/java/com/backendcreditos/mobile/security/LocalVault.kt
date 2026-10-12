@@ -47,6 +47,7 @@ class LocalVault(context: Context) {
     private val sessionFile = File(directory, "session.enc")
     private val databaseKeyFile = File(directory, "database-key.enc")
     private val biometricDeviceFile = File(directory, "biometric-device-id.enc")
+    private val installationFile = File(directory, "app-installation-id.enc")
     private val json = Json
 
     @Synchronized
@@ -80,11 +81,16 @@ class LocalVault(context: Context) {
 
     @Synchronized
     fun biometricDeviceId(): String {
-        if (biometricDeviceFile.exists()) {
-            return String(readEncrypted(biometricDeviceFile), Charsets.UTF_8).trim()
-        }
+        return persistentRandomId(biometricDeviceFile)
+    }
+
+    @Synchronized
+    fun appInstallationId(): String = persistentRandomId(installationFile)
+
+    private fun persistentRandomId(file: File): String {
+        if (file.exists()) return String(readEncrypted(file), Charsets.UTF_8).trim()
         val id = UUID.randomUUID().toString()
-        writeEncrypted(biometricDeviceFile, id.toByteArray(Charsets.UTF_8))
+        writeEncrypted(file, id.toByteArray(Charsets.UTF_8))
         return id
     }
 

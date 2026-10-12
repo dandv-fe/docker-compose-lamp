@@ -24,7 +24,8 @@ class GraphQlClient(
     endpoint: String = BuildConfig.GRAPHQL_ENDPOINT,
     private val http: OkHttpClient = OkHttpClient.Builder()
         .callTimeout(30, TimeUnit.SECONDS)
-        .build()
+        .build(),
+    private val assertNewWritesAllowed: () -> Unit = {}
 ) {
     private val url = endpoint
     private val json = Json { ignoreUnknownKeys = true; explicitNulls = false }
@@ -36,6 +37,18 @@ class GraphQlClient(
         responseSerializer: KSerializer<T>,
         token: String? = null
     ): ApiResult<T> = withContext(Dispatchers.IO) {
+        if (query.trimStart().startsWith("mutation") && query !in setOf(
+                GraphQlDocuments.LOGIN, GraphQlDocuments.START_BIOMETRIC_LOGIN,
+                GraphQlDocuments.BIOMETRIC_LOGIN, GraphQlDocuments.START_BIOMETRIC_REGISTRATION,
+                GraphQlDocuments.FINISH_BIOMETRIC_REGISTRATION,
+                GraphQlDocuments.APPLY_OFFLINE_OPERATION, REPORT_APP_INSTALLATION_MUTATION
+            )) {
+            try {
+                assertNewWritesAllowed()
+            } catch (error: IllegalArgumentException) {
+                return@withContext ApiResult.Rejected(error.message ?: "Actualiza la APK para continuar.", "APP_UPDATE_REQUIRED")
+            }
+        }
         val encodedRequest = json.encodeToString(GraphQlRequest.serializer(), GraphQlRequest(query, variables))
         val requestBuilder = Request.Builder()
             .url(url)
@@ -97,6 +110,20 @@ class GraphQlClient(
 }
 
 class GraphQlApi(private val client: GraphQlClient) {
+    suspend fun mobileAppPolicy(): ApiResult<MobileAppPolicyData> =
+        client.execute(MOBILE_APP_POLICY_QUERY, buildJsonObject {}, MobileAppPolicyData.serializer())
+
+    suspend fun reportAppInstallation(token: String, installationId: String): ApiResult<ReportAppInstallationData> =
+        client.execute(
+            REPORT_APP_INSTALLATION_MUTATION,
+            buildJsonObject {
+                put("installationId", installationId)
+                put("versionCode", BuildConfig.VERSION_CODE)
+                put("versionName", BuildConfig.VERSION_NAME)
+            },
+            ReportAppInstallationData.serializer(), token
+        )
+
     suspend fun login(companyId: Int, username: String, password: String): ApiResult<LoginData> =
         client.execute(
             GraphQlDocuments.LOGIN,

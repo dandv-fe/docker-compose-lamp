@@ -22,6 +22,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.backendcreditos.mobile.data.RouteEntryEntity
 import com.backendcreditos.mobile.network.ExpenseCatalogDto
+import com.backendcreditos.mobile.network.PayrollDto
 import java.math.BigDecimal
 import java.math.RoundingMode
 
@@ -68,6 +69,31 @@ internal fun validateRoutePayroll(draft: RouteEntryDraft, catalog: ExpenseCatalo
         }
     }
 }
+
+internal data class PayrollOfficeGroup(
+    val officeId: Int?,
+    val officeName: String,
+    val suggested: Boolean,
+    val payrolls: List<PayrollDto>
+)
+
+internal fun showsPayrollSelector(draft: RouteEntryDraft): Boolean =
+    !draft.isBase && draft.categoryId == 2
+
+internal fun payrollOfficeGroups(payrolls: List<PayrollDto>): List<PayrollOfficeGroup> =
+    payrolls.groupBy { it.officeId }.map { (officeId, entries) ->
+        PayrollOfficeGroup(
+            officeId,
+            entries.first().officeName?.takeIf(String::isNotBlank) ?: "Sin oficina asignada",
+            entries.any { it.suggested },
+            entries.sortedWith(compareBy<PayrollDto> { it.name.lowercase(java.util.Locale.ROOT) }.thenBy { it.id })
+        )
+    }.sortedWith(
+        compareByDescending<PayrollOfficeGroup> { it.suggested }
+            .thenBy { it.officeId == null }
+            .thenBy { it.officeName.lowercase(java.util.Locale.ROOT) }
+            .thenBy { it.officeId }
+    )
 
 private fun money(raw: String) =
     formatMoney(raw.toBigDecimalOrNull()?.setScale(2, RoundingMode.HALF_UP) ?: BigDecimal.ZERO)
@@ -146,25 +172,24 @@ internal fun RouteEntriesScreen(
                     }
                 }
             }
-            if (draft.categoryId == 2 || catalog.payrolls.isNotEmpty()) {
+            if (showsPayrollSelector(draft)) {
                 Text(
-                    if (draft.categoryId == 2) "Empleado del gasto de sueldo"
-                    else "¿Es para una nómina? (opcional)",
+                    "Empleado del gasto de sueldo",
                     style = MaterialTheme.typography.labelLarge
                 )
-                if (draft.categoryId == 2 && catalog.payrolls.isEmpty()) {
+                if (catalog.payrolls.isEmpty()) {
                     Text(
                         "No hay una nómina disponible para tu usuario. Verifica el despacho y actualiza.",
                         color = MaterialTheme.colorScheme.error
                     )
                 }
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (draft.categoryId != 2) FilterChip(
-                        selected = draft.payrollId == null,
-                        onClick = { onDraftChange(draft.copy(payrollId = null)) },
-                        label = { Text("No") }
+                payrollOfficeGroups(catalog.payrolls).forEach { group ->
+                    Text(
+                        group.officeName + if (group.suggested) " · Sugeridos: oficina de esta sucursal" else "",
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
                     )
-                    catalog.payrolls.forEach { payroll ->
+                    group.payrolls.forEach { payroll ->
                         FilterChip(
                             selected = draft.payrollId == payroll.id,
                             onClick = { onDraftChange(draft.copy(payrollId = payroll.id)) },

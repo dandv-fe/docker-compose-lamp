@@ -20,6 +20,31 @@ import {
 import { fail } from '../services/errors.js';
 import { issueReceiptLink, receiptLinks, revokeReceiptLink } from '../services/receiptLinks.js';
 import { z } from 'zod';
+import { appInstallations, mobileAppPolicy, reportAppInstallation } from '../services/mobileApp.js';
+
+const MobileAppPolicyType = new GraphQLObjectType({
+  name: 'MobileAppPolicy',
+  fields: {
+    latestVersionCode: { type: new GraphQLNonNull(GraphQLInt) },
+    minimumVersionCode: { type: new GraphQLNonNull(GraphQLInt) },
+    latestVersionName: { type: new GraphQLNonNull(GraphQLString) },
+    downloadUrl: { type: new GraphQLNonNull(GraphQLString) },
+    message: { type: new GraphQLNonNull(GraphQLString) },
+  },
+});
+
+const AppInstallationType = new GraphQLObjectType({
+  name: 'AppInstallation',
+  fields: {
+    installationId: { type: new GraphQLNonNull(GraphQLString) },
+    userId: { type: new GraphQLNonNull(GraphQLInt) },
+    employeeId: { type: GraphQLInt },
+    employeeName: { type: GraphQLString },
+    versionCode: { type: new GraphQLNonNull(GraphQLInt) },
+    versionName: { type: new GraphQLNonNull(GraphQLString) },
+    lastSeenAt: { type: new GraphQLNonNull(GraphQLString) },
+  },
+});
 
 export const JSONScalar = new GraphQLScalarType({
   name: 'JSON',
@@ -222,6 +247,9 @@ const PayrollType = new GraphQLObjectType({
   fields: {
     id: { type: new GraphQLNonNull(GraphQLInt) },
     name: { type: new GraphQLNonNull(GraphQLString) },
+    officeId: { type: GraphQLInt },
+    officeName: { type: GraphQLString },
+    suggested: { type: new GraphQLNonNull(GraphQLBoolean) },
   },
 });
 
@@ -535,6 +563,11 @@ const biometricRegistrationFinishArgs = z.object({
 const Query = new GraphQLObjectType({
   name: 'Query',
   fields: {
+    mobileAppPolicy: { type: new GraphQLNonNull(MobileAppPolicyType), resolve: () => mobileAppPolicy() },
+    appInstallations: {
+      type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(AppInstallationType))),
+      resolve: (_source, _args, context: { auth: AuthContext | null }) => appInstallations(auth(context)),
+    },
     me: { type: AuthContextType, resolve: (_source, _args, context: { auth: AuthContext | null }) => me(auth(context)) },
     branches: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(BranchType))), resolve: (_source, _args, context: { auth: AuthContext | null }) => branches(auth(context)) },
     portfolio: {
@@ -677,6 +710,16 @@ const Query = new GraphQLObjectType({
 const Mutation = new GraphQLObjectType({
   name: 'Mutation',
   fields: {
+    reportAppInstallation: {
+      type: new GraphQLNonNull(GraphQLBoolean),
+      args: {
+        installationId: { type: new GraphQLNonNull(GraphQLString) },
+        versionCode: { type: new GraphQLNonNull(GraphQLInt) },
+        versionName: { type: new GraphQLNonNull(GraphQLString) },
+      },
+      resolve: (_source, args, context: { auth: AuthContext | null }) =>
+        reportAppInstallation(auth(context), args.installationId, args.versionCode, args.versionName),
+    },
     login: {
       type: new GraphQLNonNull(AuthPayloadType),
       args: {

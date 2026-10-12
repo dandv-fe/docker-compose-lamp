@@ -187,6 +187,6 @@ test('the expense catalog groups the office names under their category', async (
       { id: 1, category: 'moto', names: ['gasolina', 'lavada'] },
       { id: 2, category: 'empleado', names: ['sueldo'] },
     ]);
-    assert.deepEqual(catalog.payrolls, [{ id: 12, name: 'Ana Ruiz' }]);
+    assert.deepEqual(catalog.payrolls, [{ id: 12, name: 'Ana Ruiz', officeId: null, officeName: null, suggested: false }]);
   });
 });

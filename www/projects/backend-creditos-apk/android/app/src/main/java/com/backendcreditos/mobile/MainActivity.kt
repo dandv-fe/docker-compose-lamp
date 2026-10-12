@@ -381,6 +381,11 @@ private fun CreditApplicationScreen(
 ) {
     val scope = rememberCoroutineScope()
     var session by remember { mutableStateOf(app.vault.readSession()) }
+    var mobilePolicy by remember { mutableStateOf(app.mobileUpdates.policy()) }
+    var mobilePolicyError by remember { mutableStateOf("") }
+    var mobilePolicyBusy by remember { mutableStateOf(false) }
+    var mobilePolicyCheckedAt by remember { mutableStateOf(0L) }
+    var mobilePolicyAccount by remember { mutableStateOf<String?>(null) }
     var screen by remember { mutableStateOf(Screen.LOGIN) }
     var currentTime by remember { mutableStateOf(System.currentTimeMillis()) }
     LaunchedEffect(session?.paymentExpiresAt) {
@@ -428,6 +433,7 @@ private fun CreditApplicationScreen(
     val creditOnline = online
     val biometricManager = remember { BiometricCredentialManager() }
     val biometricDeviceId = remember { app.vault.biometricDeviceId() }
+    val appInstallationId = remember { app.vault.appInstallationId() }
     var company by remember { mutableStateOf(session?.companyId.orEmpty()) }
     var username by remember { mutableStateOf(session?.username.orEmpty()) }
     var password by remember { mutableStateOf("") }
@@ -845,6 +851,53 @@ private fun CreditApplicationScreen(
         }
     }
 
+    suspend fun checkMobileVersion(force: Boolean = false) {
+        val current = session
+        if (mobilePolicyBusy || (!force && mobilePolicyAccount == current?.accountKey &&
+                System.currentTimeMillis() - mobilePolicyCheckedAt < 300_000)) return
+        val checkedEndpoint = app.connectionSettings.endpoint()
+        mobilePolicyBusy = true
+        try {
+            when (val result = app.api.mobileAppPolicy()) {
+                is ApiResult.Success -> {
+                    if (checkedEndpoint != app.connectionSettings.endpoint()) return
+                    try {
+                        app.mobileUpdates.save(result.value.mobileAppPolicy)
+                        mobilePolicy = result.value.mobileAppPolicy
+                        mobilePolicyError = ""
+                        mobilePolicyCheckedAt = System.currentTimeMillis()
+                        mobilePolicyAccount = current?.accountKey
+                    } catch (error: IllegalArgumentException) {
+                        mobilePolicyError = error.message ?: "Política de versiones inválida."
+                        return
+                    } catch (error: java.net.URISyntaxException) {
+                        mobilePolicyError = "El enlace de actualización del servidor no es válido."
+                        return
+                    }
+                    if (current != null) {
+                        when (val reported = app.api.reportAppInstallation(current.token, appInstallationId)) {
+                            is ApiResult.Success -> if (!reported.value.reportAppInstallation) {
+                                mobilePolicyError = "El servidor no confirmó la versión de esta instalación."
+                            }
+                            is ApiResult.AuthExpired -> mobilePolicyError = "Inicia sesión para reportar la versión instalada."
+                            is ApiResult.Conflict -> mobilePolicyError = reported.message
+                            is ApiResult.PermissionRejected -> mobilePolicyError = reported.message
+                            is ApiResult.Rejected -> mobilePolicyError = reported.message
+                            is ApiResult.Retryable -> mobilePolicyError = "No se pudo reportar la versión: ${reported.message}"
+                        }
+                    }
+                }
+                is ApiResult.AuthExpired -> mobilePolicyError = result.message
+                is ApiResult.Conflict -> mobilePolicyError = result.message
+                is ApiResult.PermissionRejected -> mobilePolicyError = result.message
+                is ApiResult.Rejected -> mobilePolicyError = result.message
+                is ApiResult.Retryable -> mobilePolicyError = "No se pudo comprobar la versión. Se conserva la última política recibida."
+            }
+        } finally {
+            mobilePolicyBusy = false
+        }
+    }
+
     suspend fun revalidateServerConnection() {
         val current = session ?: return
         when (val result = app.api.me(current.token)) {
@@ -868,9 +921,12 @@ private fun CreditApplicationScreen(
             if (event == Lifecycle.Event.ON_RESUME) {
                 currentTime = System.currentTimeMillis()
                 val current = session
-                if (current != null) scope.launch {
-                    syncControl = app.database.localDao().syncControl(current.accountKey)
-                    revalidateServerConnection()
+                scope.launch {
+                    checkMobileVersion()
+                    if (current != null) {
+                        syncControl = app.database.localDao().syncControl(current.accountKey)
+                        revalidateServerConnection()
+                    }
                 }
             }
         }
@@ -878,7 +934,18 @@ private fun CreditApplicationScreen(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
     LaunchedEffect(deviceConnected, session?.accountKey) {
-        if (deviceConnected && session != null) revalidateServerConnection()
+        if (deviceConnected) {
+            checkMobileVersion()
+            if (session != null) revalidateServerConnection()
+        }
+    }
+    LaunchedEffect(deviceConnected, session?.accountKey, lifecycleOwner) {
+        while (deviceConnected) {
+            delay(900_000)
+            if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                checkMobileVersion()
+            }
+        }
     }
     LaunchedEffect(session?.accountKey) {
         val current = session ?: return@LaunchedEffect
@@ -2677,9 +2744,40 @@ private fun CreditApplicationScreen(
     ) { padding ->
         Column(
             Modifier.fillMaxSize().padding(padding).padding(16.dp)
-                .then(if (screen == Screen.HOME && !serviceBlocked) Modifier else Modifier.verticalScroll(otherScreensScrollState)),
+                .then(if (screen == Screen.HOME && !serviceBlocked &&
+                    !updateRequired(mobilePolicy, BuildConfig.VERSION_CODE)) Modifier else Modifier.verticalScroll(otherScreensScrollState)),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            if (updateAvailable(mobilePolicy, BuildConfig.VERSION_CODE)) {
+                val required = updateRequired(mobilePolicy, BuildConfig.VERSION_CODE)
+                Text(
+                    if (required) "Actualiza para crear nuevos registros. Tus pendientes se conservan y pueden enviarse desde la Cola."
+                    else "Hay una actualización disponible: ${mobilePolicy?.latestVersionName}.",
+                    color = if (required) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary
+                )
+                mobilePolicy?.message?.takeIf { it.isNotBlank() }?.let { Text(it) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    val downloadUrl = mobilePolicy?.downloadUrl.orEmpty()
+                    if (downloadUrl.isNotBlank()) TextButton(onClick = {
+                        try {
+                            activity.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(downloadUrl)))
+                        } catch (error: android.content.ActivityNotFoundException) {
+                            mobilePolicyError = "No hay un navegador disponible para descargar la actualización."
+                        }
+                    }) { Text("Descargar actualización") }
+                    if (account != null && branchId != null) TextButton(onClick = {
+                        scope.launch { loadOperations(); screen = Screen.QUEUE }
+                    }) { Text("Ver pendientes") }
+                }
+            }
+            if (mobilePolicyError.isNotBlank()) Text(mobilePolicyError, color = MaterialTheme.colorScheme.error)
+            if (screen == Screen.SYNC_SETTINGS) {
+                Text("APK ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+                TextButton(
+                    onClick = { scope.launch { checkMobileVersion(force = true) } },
+                    enabled = !mobilePolicyBusy
+                ) { Text(if (mobilePolicyBusy) "Comprobando…" else "Comprobar actualización") }
+            }
             if (!serviceBlocked && account != null && branchId != null && screen !in setOf(Screen.LOGIN, Screen.BRANCHES)) {
                 val totals = routeSummary
                 val cash = pocketCash(totals, routeCash?.base, routeCash?.otherIncome, routeCash?.expenses)
@@ -2728,6 +2826,16 @@ private fun CreditApplicationScreen(
                     enabled = online && !receiptLinkManagerBusy,
                     onClick = { loadReceiptLinkManager() }
                 ) { Text("Administrar enlaces de comprobantes") }
+            } else if (updateRequired(mobilePolicy, BuildConfig.VERSION_CODE) &&
+                screen !in setOf(Screen.LOGIN, Screen.BRANCHES, Screen.QUEUE, Screen.SYNC_SETTINGS)) {
+                Text("Consulta de cartera", style = MaterialTheme.typography.headlineSmall)
+                Text("Esta versión solo permite consultar y enviar pendientes hasta actualizar.")
+                rows.forEach { row ->
+                    Text("${row.customer?.firstName.orEmpty()} ${row.customer?.lastName.orEmpty()} · ${row.credit.id}")
+                }
+                TextButton(onClick = { scope.launch { loadOperations(); screen = Screen.QUEUE } }) {
+                    Text("Abrir cola y sincronizar pendientes")
+                }
             } else when (screen) {
                 Screen.LOGIN -> {
                     Text("Inicio de sesión en línea", style = MaterialTheme.typography.headlineSmall)
@@ -3610,8 +3718,12 @@ private fun CreditApplicationScreen(
                         Button(onClick = {
                             try {
                                 serverEndpoint = app.configureGraphQlEndpoint(serverEndpoint)
+                                mobilePolicy = app.mobileUpdates.policy()
+                                mobilePolicyCheckedAt = 0L
+                                mobilePolicyAccount = null
                                 serverEndpointError = null
                                 notice = "Conexión guardada: $serverEndpoint"
+                                scope.launch { checkMobileVersion(force = true) }
                             } catch (error: IllegalArgumentException) {
                                 serverEndpointError = error.message ?: "La URL del servidor no es válida."
                             }

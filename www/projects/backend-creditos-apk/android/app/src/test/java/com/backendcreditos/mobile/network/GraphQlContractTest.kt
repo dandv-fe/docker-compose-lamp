@@ -17,6 +17,30 @@ import org.junit.Test
 class GraphQlContractTest {
     private val json = Json { ignoreUnknownKeys = true }
 
+    @Test fun requiredUpdateBlocksNewOnlineMutationsButAllowsPendingUploadsAndReads() = runBlocking {
+        var requests = 0
+        val http = OkHttpClient.Builder().addInterceptor { chain ->
+            requests++
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1)
+                .code(200).message("OK")
+                .body("""{"data":{"reportAppInstallation":true}}""".toResponseBody()).build()
+        }.build()
+        val client = GraphQlClient("https://example.invalid/graphql", http) {
+            throw IllegalArgumentException("Actualiza la APK")
+        }
+        for (mutation in listOf(GraphQlDocuments.SETTLE_ROUTE, GraphQlDocuments.RESTORE_CREDIT,
+                GraphQlDocuments.ISSUE_RECEIPT_LINK, GraphQlDocuments.REVOKE_RECEIPT_LINK)) {
+            val result = client.execute(mutation, buildJsonObject {}, ReportAppInstallationData.serializer(), "token")
+            assertEquals(ApiResult.Rejected("Actualiza la APK", "APP_UPDATE_REQUIRED"), result)
+        }
+        assertEquals(0, requests)
+        for (allowed in listOf(GraphQlDocuments.APPLY_OFFLINE_OPERATION, GraphQlDocuments.ME,
+                GraphQlDocuments.LOGIN, REPORT_APP_INSTALLATION_MUTATION)) {
+            assertTrue(client.execute(allowed, buildJsonObject {}, ReportAppInstallationData.serializer(), "token") is ApiResult.Success)
+        }
+        assertEquals(4, requests)
+    }
+
     @Test fun customerQueriesAndSyncDecodePhoneHistoryIncludingUnsendableLegacy() {
         for (document in listOf(GraphQlDocuments.PORTFOLIO, GraphQlDocuments.CUSTOMER_BY_ID, GraphQlDocuments.CUSTOMER_BY_DOCUMENT)) {
             assertTrue(document.contains("phones { id phone normalizedPhone whatsappOpenCount whatsappLastOpenedAt invalid validityChangedBy validityChangedAt }"))

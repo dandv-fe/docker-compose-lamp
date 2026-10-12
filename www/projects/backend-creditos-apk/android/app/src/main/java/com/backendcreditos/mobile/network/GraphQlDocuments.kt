@@ -202,7 +202,7 @@ object GraphQlDocuments {
         query RouteExpenseCatalog(${'$'}branchId: Int!) {
           routeExpenseCatalog(branchId: ${'$'}branchId) {
             categories { id category names }
-            payrolls { id name }
+            payrolls { id name officeId officeName suggested }
           }
         }
     """

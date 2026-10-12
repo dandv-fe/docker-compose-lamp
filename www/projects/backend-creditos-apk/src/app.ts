@@ -10,6 +10,20 @@ import type { IncomingMessage } from 'node:http';
 import { publicReceiptSnapshot, receiptHtmlEscape, receiptRows } from './services/receiptLinks.js';
 import { renderReceiptPng } from './services/receiptImage.js';
 
+export function publicMobileAppPolicyOnly(body: unknown): boolean {
+  if (!body || typeof body !== 'object' || !('query' in body) || typeof body.query !== 'string') return false;
+  try {
+    const document = parse(body.query);
+    const operations = document.definitions.filter(definition => definition.kind === Kind.OPERATION_DEFINITION);
+    if (operations.length !== 1 || operations[0].operation !== 'query') return false;
+    const selections = operations[0].selectionSet.selections;
+    return selections.length > 0 && selections.every(selection =>
+      selection.kind === Kind.FIELD && selection.name.value === 'mobileAppPolicy');
+  } catch {
+    return false;
+  }
+}
+
 export function receiptLinkManagementOnly(body: unknown): boolean {
   if (!body || typeof body !== 'object' || !('query' in body) || typeof body.query !== 'string') return false;
   try {
@@ -129,6 +143,9 @@ small{display:block;margin-top:18px;color:#596771}
     context: async (req) => {
       try {
         const body = (req.raw as IncomingMessage & { body?: unknown }).body;
+        const queryParams = new URL(req.raw.url ?? '/graphql', 'http://localhost').searchParams;
+        const publicRequest = body ?? { query: queryParams.get('query') };
+        if (publicMobileAppPolicyOnly(publicRequest)) return { auth: null };
         const allowExpiredPayment = receiptLinkManagementOnly(body);
         const auth = await authenticateRequest(req.raw.headers.authorization, { allowExpiredPayment });
         return { auth };

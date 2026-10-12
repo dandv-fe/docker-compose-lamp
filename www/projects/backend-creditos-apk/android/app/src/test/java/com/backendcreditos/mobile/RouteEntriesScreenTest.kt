@@ -81,6 +81,7 @@ class RouteEntriesScreenTest {
         assertThrows(IllegalArgumentException::class.java) {
             OperationPayloadMapper.createExpense(2, "sueldo", "100", "")
         }
+
         validateRoutePayroll(salary.copy(payrollId = 4), catalog)
         assertEquals("4", field(
             OperationPayloadMapper.createExpense(2, "sueldo", "100", "", 4).payload, "idnomina"
@@ -96,6 +97,26 @@ class RouteEntriesScreenTest {
     }
 
     @Test
+    fun payrollsAreGroupedWithSuggestedOfficeFirstAndAlphabeticalNames() {
+        val groups = payrollOfficeGroups(listOf(
+            PayrollDto(3, "Zoe", 20, "Centro"),
+            PayrollDto(2, "Beto", 10, "Norte", true),
+            PayrollDto(1, "Ana", 10, "Norte", true),
+            PayrollDto(4, "Eva", 20, "Centro"),
+            PayrollDto(5, "Luis")
+        ))
+        assertEquals(listOf("Norte", "Centro", "Sin oficina asignada"), groups.map { it.officeName })
+        assertEquals(listOf(1, 2), groups[0].payrolls.map { it.id })
+        assertEquals(listOf(4, 3), groups[1].payrolls.map { it.id })
+        assertTrue(groups[0].suggested)
+        assertFalse(groups[1].suggested)
+        assertEquals(0, payrollOfficeGroups(emptyList()).size)
+        assertEquals(2, payrollOfficeGroups(listOf(
+            PayrollDto(1, "Ana", 10, "Centro"), PayrollDto(2, "Beto", 20, "Centro")
+        )).size)
+    }
+
+    @Test
     fun alreadySentOrQueuedRowsCannotBeTouched() {
         assertNull(routeEntryBlocker(entry()))
         assertEquals("Está en la cola, esperando a enviarse.", routeEntryBlocker(entry(pending = true)))
@@ -103,6 +124,14 @@ class RouteEntriesScreenTest {
             "Ya se entregó con las cuentas del día.",
             routeEntryBlocker(entry(state = "entregando"))
         )
+    }
+
+    @Test
+    fun employeeSelectorIsOnlyShownForSalaryExpenses() {
+        assertTrue(showsPayrollSelector(RouteEntryDraft(categoryId = 2)))
+        assertFalse(showsPayrollSelector(RouteEntryDraft(categoryId = 1)))
+        assertFalse(showsPayrollSelector(RouteEntryDraft()))
+        assertFalse(showsPayrollSelector(RouteEntryDraft(isBase = true, categoryId = 2)))
     }
 
     @Test

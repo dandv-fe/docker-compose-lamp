@@ -107,11 +107,38 @@ Se necesitan un cliente con ID del servidor, la evaluación en línea, la tarjet
 
 **Captura sugerida:** evaluación, cálculo de cuota y los dos métodos de pago del formulario.
 
+### Versiones de la APK
+
+En **Configuración** puedes ver tu versión y pulsar **Comprobar actualización**.
+La app consulta la política del servidor al abrir, volver al primer plano,
+iniciar sesión o recuperar conexión; reutiliza comprobaciones recientes durante
+cinco minutos para evitar tráfico innecesario.
+También vuelve a comprobar cada 15 minutos mientras está abierta y conectada.
+Si hay una versión nueva, muestra un enlace HTTPS para descargarla en el
+navegador; Android pide confirmar la
+instalación. No desinstales la app: actualiza con la misma firma para conservar
+los datos y pendientes.
+
+Si tu versión es inferior a la mínima, no puedes crear nuevos cambios, pero
+puedes consultar la información y enviar la cola existente. Los pendientes
+no se borran ni se pausa su sincronización por la actualización. Sin conexión
+se conserva la última política recibida para ese servidor. Cada instalación
+reporta un identificador aleatorio, versión y fecha de conexión al servidor;
+no se recoge IMEI, ubicación ni identificadores del hardware.
+
 ## 8. Gastos y bases
 
 Abre **Más opciones > Gastos y bases**. Selecciona **Gasto** (categoría y concepto disponibles) o **Base recibida**, escribe el valor positivo y, si hace falta, un detalle. Los gastos de sueldo requieren seleccionar al empleado: un empleado solo puede registrar su propia nómina estando despachado; el Super Administrador puede seleccionar cualquier empleado de su empresa y el administrador de oficina, los empleados de esa oficina. Solo se muestran nóminas activas. Toca **Anotar**.
 
 Funciona sin internet después de haber descargado el catálogo de gastos. Los registros pendientes se ven en la lista y en la Cola. Puedes corregir o borrar los que aún estén habilitados; una vez entregadas las cuentas quedan bloqueados. La base se registra **aquí**, no en el formulario de entrega de cuentas.
+
+La lista de empleados solo aparece para gastos de sueldo; en otros gastos y
+bases no se muestra. Al cambiar de categoría se limpia el empleado seleccionado.
+Los empleados se muestran por oficina: primero la oficina de la sucursal,
+marcada **Sugeridos**, y luego las demás oficinas por nombre; dentro de cada
+grupo se ordenan por nombre del empleado. Actualiza la lista para recibir
+estos grupos si el catálogo se descargó con una versión anterior. Los permisos
+siguen iguales y no se selecciona un empleado automáticamente.
 
 **Captura sugerida:** anotación de una base y listado de gastos del día.
 

@@ -43,7 +43,8 @@ internal fun initialCreditBalance(fields: JsonObject): String {
 
 class CreditRepository(
     private val database: CreditDatabase,
-    private val api: GraphQlApi
+    private val api: GraphQlApi,
+    private val assertNewWritesAllowed: () -> Unit = {}
 ) {
     private val dao = database.localDao()
     private val json = Json { ignoreUnknownKeys = true }
@@ -570,6 +571,7 @@ class CreditRepository(
         dependsOnOperationId: String? = null,
         operationId: String = UUID.randomUUID().toString()
     ): OfflineOperationEntity {
+        assertNewWritesAllowed()
         require(branchId.isNotBlank()) { "Selecciona una sucursal antes de crear cambios." }
         // A route-day record without a known open route would only travel to be refused.
         val routeId = if (RouteGuard.isRouteBound(kind)) {

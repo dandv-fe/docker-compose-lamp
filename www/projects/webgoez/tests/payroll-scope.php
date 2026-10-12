@@ -46,6 +46,23 @@ try {
       throw new RuntimeException('Ordinary expense without payroll rejected');
    }
    echo 'OK: required salary payroll and ordinary expense compatibility' . PHP_EOL;
+   $resultado = nominasAutorizadasCartera($conexion, ['idglobal'=>7,'userEmpresa'=>7], 4);
+   $ordenadas = $resultado->fetch_all(MYSQLI_ASSOC);
+   if (array_map(fn($fila) => (int)$fila['refNomina'], $ordenadas) !== [101,102,103,131,121,141]) {
+      throw new RuntimeException('Suggested office or employee ordering is incorrect');
+   }
+   $html = opcionesNominasPorOficinaCartera($ordenadas);
+   if (substr_count($html, '<optgroup ') !== 2 ||
+       strpos($html, 'Norte (Sugeridos: oficina de esta sucursal)') > strpos($html, 'Centro')) {
+      throw new RuntimeException('Office group labels or order are incorrect');
+   }
+   $ordenadas[0]['nombre'] = '<script>unsafe</script>';
+   $ordenadas[0]['oficinaNombre'] = '"Office <unsafe>';
+   $escaped = opcionesNominasPorOficinaCartera($ordenadas);
+   if (strpos($escaped, '<script>') !== false || strpos($escaped, '&quot;Office &lt;unsafe&gt;') === false) {
+      throw new RuntimeException('Payroll group labels must be escaped');
+   }
+   echo 'OK: suggested office first, employee names and escaped office groups' . PHP_EOL;
 } finally {
    $conexion->close();
 }

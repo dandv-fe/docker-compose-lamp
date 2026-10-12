@@ -156,11 +156,7 @@ switch ($_GET["op"]) {
       $idtipo_contabilidad = limpiar_cadena($_REQUEST['operacion']);
       $query = $objRecibeCuentas->listNomina($refSucursal);
       $data = array(array('<option value="">--Seleccione--</option>'), array('<option value="">--Seleccione--</option>'));
-      while ($reg = $query->fetch_object()) {
-         if (isset($reg->refNomina)) {
-            array_push($data[0], '<option value="' . $reg->refNomina . '">' . ucwords(strtolower($reg->nombre)) . '</option>');
-         }
-      }
+      $data[0] = array(opcionesNominasPorOficinaCartera($query->fetch_all(MYSQLI_ASSOC)));
       $query = $objRecibeCuentas->listDeContabilidad($idglobal, $idtipo_contabilidad);
       while ($reg = $query->fetch_object()) {
          array_push($data[1], '<option value="' . $reg->str_de . '">' . $reg->str_de . '</option>');

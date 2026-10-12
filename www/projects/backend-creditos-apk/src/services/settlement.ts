@@ -254,7 +254,12 @@ export async function routeExpenseCatalog(context: AuthContext | null, branchId:
   }
   const payrollQuery = authorizedPayrollQuery(user, branchId);
   const [payrollRows] = await pool.execute(payrollQuery.sql, payrollQuery.params);
-  const payrolls = (payrollRows as Row[]).map((row) => ({ id: Number(row.id), name: String(row.name) }));
+  const payrolls = (payrollRows as Row[]).map((row) => ({
+    id: Number(row.id), name: String(row.name),
+    officeId: row.officeId == null ? null : Number(row.officeId),
+    officeName: row.officeName == null ? null : String(row.officeName),
+    suggested: Number(row.suggested) === 1,
+  }));
   return { categories, payrolls };
 }
 

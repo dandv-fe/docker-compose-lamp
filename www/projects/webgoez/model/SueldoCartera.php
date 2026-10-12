@@ -44,17 +44,46 @@ function nominasAutorizadasCartera(
    $consulta = db_prepare_execute(
       $conexion,
       "SELECT n.idnomina AS refNomina,
-              TRIM(CONCAT_WS(' ', p.str_nombres, p.str_apellidos)) AS nombre
+              TRIM(CONCAT_WS(' ', p.str_nombres, p.str_apellidos)) AS nombre,
+              oe.idoficina AS oficinaId, oe.str_nombre AS oficinaNombre,
+              COALESCE(oe.idoficina=s.idoficina, 0) AS sugerida
        FROM tbl_nomina n
        JOIN tbl_empleado e ON e.idempleado=n.idempleado AND e.idglobal=n.idglobal
        JOIN tbl_persona p ON p.idpersona=e.idpersona AND p.idglobal=e.idglobal
        JOIN tbl_sucursal s ON s.idsucursal=? AND s.idglobal=n.idglobal
        LEFT JOIN tbl_oficina o ON o.idoficina=s.idoficina AND o.idglobal=s.idglobal
+       LEFT JOIN tbl_oficina oe ON oe.idoficina=e.idoficina AND oe.idglobal=e.idglobal
        WHERE n.idglobal=? AND n.str_estado='activo' AND ($alcance)$filtro
-       ORDER BY nombre",
+       ORDER BY sugerida DESC, oe.idoficina IS NULL, oficinaNombre, oficinaId, nombre, n.idnomina",
       $tipos, $parametros
    );
    $resultado = $consulta->get_result();
    $consulta->close();
    return $resultado;
+}
+
+function opcionesNominasPorOficinaCartera(array $nominas): string
+{
+   $html = '<option value="">--Seleccione empleado--</option>';
+   $grupoActual = null;
+   foreach ($nominas as $nomina) {
+      $grupo = $nomina['oficinaId'] === null ? 'sin-oficina' : (string)$nomina['oficinaId'];
+      if ($grupo !== $grupoActual) {
+         if ($grupoActual !== null) {
+            $html .= '</optgroup>';
+         }
+         $nombre = trim((string)($nomina['oficinaNombre'] ?? '')) ?: 'Sin oficina asignada';
+         if ((int)$nomina['sugerida'] === 1) {
+            $nombre .= ' (Sugeridos: oficina de esta sucursal)';
+         }
+         $html .= '<optgroup label="' . htmlspecialchars($nombre, ENT_QUOTES, 'UTF-8') . '">';
+         $grupoActual = $grupo;
+      }
+      $html .= '<option value="' . (int)$nomina['refNomina'] . '">'
+         . htmlspecialchars($nomina['nombre'], ENT_QUOTES, 'UTF-8') . '</option>';
+   }
+   if ($grupoActual !== null) {
+      $html .= '</optgroup>';
+   }
+   return $html;
 }

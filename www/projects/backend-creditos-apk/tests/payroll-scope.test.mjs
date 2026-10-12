@@ -42,6 +42,13 @@ test('payroll listing and write validation enforce employee, office and company 
       assertPayroll(connection, { companyId: 7, employeeId: 11, cargo: 'Cobrador' }, 4, 101, 902),
       { extensions: { code: 'FORBIDDEN' } },
     );
+    const grouped = authorizedPayrollQuery({ companyId: 7, employeeId: null, cargo: 'Super Administrador' }, 4);
+    const [ordered] = await connection.execute(grouped.sql, grouped.params);
+    assert.deepEqual(ordered.map((row) => row.id), [101, 102, 103, 131, 121, 141]);
+    assert.deepEqual(ordered.map((row) => [row.officeId, row.officeName, row.suggested]), [
+      [10, 'Norte', 1], [10, 'Norte', 1], [10, 'Norte', 1], [10, 'Norte', 1],
+      [20, 'Centro', 0], [20, 'Centro', 0],
+    ]);
   } finally {
     // Closing the connection drops every fixture; no permanent tables are written.
     connection.destroy();

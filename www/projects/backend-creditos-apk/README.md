@@ -36,6 +36,11 @@ and JWT configuration is environment-only:
 | `FILES_ROOT` | Optional private directory for uploaded customer photos. Required only when a photo is supplied. |
 | `APP_TIME_ZONE` | Optional IANA business zone (default `America/Bogota`, the zone webgoez PHP pins). Defines "today" for WhatsApp receipt resends; an invalid value fails those operations with `CONFIGURATION_ERROR`. |
 | `PUBLIC_RECEIPT_ORIGIN` | Required to issue public receipt links. Set only the externally reachable origin (scheme, host, optional port), without path/query. Production requires HTTPS; development can use the computer's Wi-Fi IP and API port. |
+| `MOBILE_APP_LATEST_VERSION_CODE` | Latest APK version code; defaults to `1` only when unset. |
+| `MOBILE_APP_MIN_VERSION_CODE` | Minimum APK version code for creating new client operations; defaults to `1` only when unset. |
+| `MOBILE_APP_LATEST_VERSION_NAME` | Latest APK display version; default `0.1.0`, 1..80 printable characters. |
+| `MOBILE_APP_DOWNLOAD_URL` | Absolute HTTPS APK download URL without credentials, or empty (default) only when the minimum version code is `1`. |
+| `MOBILE_APP_UPDATE_MESSAGE` | Public update message, default empty. Do not put private information here. |
 
 `.env.example` contains placeholders, not deployment credentials. Do not commit a
 real `.env`. The service does not print passwords, request bodies, URL query strings, JWTs,
@@ -75,6 +80,81 @@ The database and app clocks and time zones must be synchronized.
 
 All names below are stable client-facing names. For authenticated operations,
 include the bearer token in the Authorization header.
+
+### APK policy and installation reports
+
+`mobileAppPolicy: MobileAppPolicy!` is public and does not require the installation
+migration. Send it as a standalone query with direct top-level `mobileAppPolicy`
+fields (aliases supported). Such HTTP POST/GET requests skip authentication and
+payment checks even when a stale bearer token is attached. Mixed/private queries
+retain normal authentication/payment checks; reporting remains authenticated.
+Configuration is validated when queried: version codes must be decimal
+positive GraphQL Int values (maximum `2147483647`), with
+`latestVersionCode >= minimumVersionCode > 0`. Empty, malformed or inconsistent
+configured values return `CONFIGURATION_ERROR`; they never silently revert to defaults.
+If `minimumVersionCode > 1`, an empty download URL also returns
+`CONFIGURATION_ERROR`: a mandatory update must have an HTTPS download location.
+
+Defaults remain latest/minimum `1` for rollout compatibility. For the initial
+APK `0.2.0` rollout, set `MOBILE_APP_LATEST_VERSION_CODE=2`,
+`MOBILE_APP_LATEST_VERSION_NAME=0.2.0`, and `MOBILE_APP_MIN_VERSION_CODE=1`;
+publish the APK at `MOBILE_APP_DOWNLOAD_URL` before raising the minimum.
+**Legacy APK version code 1 has no policy client and cannot be remotely forced
+to update through this policy.** Users must first install APK version code 2+
+to receive client-side policy enforcement; raising the minimum alone cannot
+enforce it on APK 1.
+
+Manually apply the additive, rerunnable `migrations/012_app_installations.sql`
+before using either installation endpoint. There is no automatic schema creation.
+A missing table returns `CONFIGURATION_ERROR` naming that migration.
+
+```graphql
+query {
+  mobileAppPolicy {
+    latestVersionCode minimumVersionCode latestVersionName downloadUrl message
+  }
+}
+
+# These two operations require the normal Authorization bearer token.
+mutation Report($installationId: String!, $versionCode: Int!, $versionName: String!) {
+  reportAppInstallation(
+    installationId: $installationId, versionCode: $versionCode, versionName: $versionName
+  )
+}
+
+query {
+  appInstallations {
+    installationId userId employeeId employeeName versionCode versionName lastSeenAt
+  }
+}
+```
+
+`reportAppInstallation(...): Boolean!` returns `true` after persistence. Supply a
+random, locally generated installation identifier (not a hardware ID or secret),
+1..120 ASCII letters/digits or `._:-`; codes must be positive GraphQL Ints and names
+1..80 printable characters. The authenticated company/user identity is used, never
+accepted from the client. Repeated reports replace the latest version/name and set a
+server UTC timestamp, including after a downgrade. The same identifier on another
+account/company does not overwrite the first account's report.
+
+`appInstallations: [AppInstallation!]!` has **no arguments**, returns at most 100
+latest reports ordered by `lastSeenAt` descending (stable user/installation tie-break),
+and never crosses companies. `Super Administrador` sees all company reports;
+office administrators see employees currently assigned to offices they administer,
+plus their own reports; ordinary users see only their own. Office authority uses
+`tbl_oficina.idempleado_administrador` and `tbl_empleado.idoficina`, as payroll does,
+not a role label. `employeeId: Int` and `employeeName: String` are nullable and reflect
+the current employee association; other fields are non-null (`userId`/`versionCode`
+are Int, the rest String). `lastSeenAt` is ISO-8601 UTC. This is a latest-report
+inventory, not an audit history or cryptographically verified APK attestation.
+
+**Enforcement limitation:** policy is advisory on the backend. No version header,
+reported version or minimum code blocks GraphQL writes. Pending offline operations
+must still upload, and older APKs may not support reporting at all. The client must
+enforce the minimum for **new queue enqueues** without preventing previously pending
+uploads. The server cannot reliably distinguish newly created operations from
+previously pending offline work; reported versions are client-supplied telemetry,
+not authorization evidence.
 
 ```graphql
 mutation Login($companyId: Int!, $username: String!, $password: String!) {
@@ -328,6 +408,14 @@ only shows the sum. `routeEntries(branchId)` lists today's `base` and
 (`tbl_tipo_contabilidad` of the company plus the shared `idglobal = 1001`,
 `str_operacion='salida'`), their concepts (`tbl_de_contabilidad`) and the open
 payrolls (`tbl_nomina`).
+
+Each payroll includes nullable `officeId`/`officeName` and `suggested`: the
+employee's office matches the selected branch's office. Payrolls are ordered
+with that office first, then other offices alphabetically, then employee names.
+Web/APK display separate office groups; these suggestions do not change
+authorization or automatically select an employee. Existing cached APK catalogs
+can be refreshed to receive the added fields; older clients can keep requesting
+only `id`/`name`.
 
 Payroll selection and server-side writes use the same scope: a dispatched
 employee can select only their own active payroll on that route; the Super

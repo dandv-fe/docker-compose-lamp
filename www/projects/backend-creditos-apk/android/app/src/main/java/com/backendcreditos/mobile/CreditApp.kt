@@ -24,14 +24,17 @@ class CreditApp : Application() {
         private set
     lateinit var repository: CreditRepository
         private set
+    lateinit var mobileUpdates: MobileUpdateStore
+        private set
 
     override fun onCreate() {
         super.onCreate()
         vault = LocalVault(this)
         database = DatabaseProvider.get(this, vault)
         connectionSettings = ServerConnectionSettings(this)
-        api = GraphQlApi(GraphQlClient(connectionSettings.endpoint()))
-        repository = CreditRepository(database, api)
+        mobileUpdates = MobileUpdateStore(this) { connectionSettings.endpoint() }
+        api = GraphQlApi(GraphQlClient(connectionSettings.endpoint(), assertNewWritesAllowed = mobileUpdates::assertNewWritesAllowed))
+        repository = CreditRepository(database, api, mobileUpdates::assertNewWritesAllowed)
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             vault.readSession()?.let { session ->
                 if (!repository.syncIsPaused(session.accountKey)) {
@@ -45,8 +48,8 @@ class CreditApp : Application() {
 
     fun configureGraphQlEndpoint(rawValue: String): String {
         val endpoint = connectionSettings.save(rawValue)
-        api = GraphQlApi(GraphQlClient(endpoint))
-        repository = CreditRepository(database, api)
+        api = GraphQlApi(GraphQlClient(endpoint, assertNewWritesAllowed = mobileUpdates::assertNewWritesAllowed))
+        repository = CreditRepository(database, api, mobileUpdates::assertNewWritesAllowed)
         return endpoint
     }
 }

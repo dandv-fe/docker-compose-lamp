@@ -1,5 +1,32 @@
 Para mejorar  la contabilidad de las carteras de prestamos
 
+## Versiones instaladas de la APK
+
+En el entorno Docker local, el sitio se abre con
+`http://projects.localhost/webgoez/instalaciones_apk.php` desde el computador,
+o `http://192.168.1.53/webgoez/instalaciones_apk.php` desde la misma red Wi-Fi.
+El virtual host HTTP de proyectos tiene esa IP como `ServerAlias`; si cambia
+la IP del computador, actualizar `../../../config/vhosts/projects.conf`,
+validar con `apache2ctl -t` y recargar Apache. HTTP por Wi-Fi es solo para
+pruebas locales, no para producción.
+El panel incluye **Descargar APK de prueba** cuando el virtual host activa
+`SetEnv WEBGOEZ_LOCAL_APK_DOWNLOAD 1` y existe la compilación debug. El enlace
+es relativo al sitio para funcionar tanto por dominio como por IP Wi-Fi.
+No activar esta opción en producción; la publicación de producción requiere
+una APK firmada y un enlace HTTPS.
+
+**Instalaciones APK** en el menú muestra los últimos reportes (hasta 100):
+empleado, identificador aleatorio de instalación, versión y fecha UTC.
+El Super Administrador ve su empresa, el administrador de oficina ve los
+empleados de sus oficinas y cada usuario puede ver sus propias instalaciones.
+No se infiere la versión actual de un teléfono sin conexión ni se recopila IMEI.
+Las APK anteriores al control de versiones no reportan: deben actualizarse.
+
+Aplicar manualmente `../backend-creditos-apk/migrations/012_app_installations.sql`
+en la base compartida antes del despliegue. La política de actualización se
+configura en el backend según su README; este panel muestra versiones reportadas,
+no declara un dispositivo actualizado por no tener reportes recientes.
+
 ## Gastos de sueldo
 
 Al crear un gasto de sueldo se debe seleccionar una nómina activa. Un empleado
@@ -9,6 +36,10 @@ y el administrador de oficina puede seleccionar los empleados de esa oficina,
 aunque esos empleados no estén despachados. La ruta del gasto debe estar abierta.
 La lista y el guardado verifican el mismo alcance; cambiar el identificador
 enviado no permite registrar el sueldo de un empleado no autorizado.
+El selector agrupa empleados por oficina, muestra primero la oficina de la
+sucursal como **Sugeridos**, y luego las demás oficinas por nombre. Dentro de
+cada oficina los empleados aparecen alfabéticamente. No selecciona un empleado
+automáticamente ni amplía los permisos existentes.
 
 ## Teléfonos del cliente en cartera
 

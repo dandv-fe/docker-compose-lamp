@@ -446,7 +446,13 @@ data class ExpenseCategoryDto(
 )
 
 @Serializable
-data class PayrollDto(val id: Int, val name: String = "")
+data class PayrollDto(
+    val id: Int,
+    val name: String = "",
+    val officeId: Int? = null,
+    val officeName: String? = null,
+    val suggested: Boolean = false
+)
 
 @Serializable
 data class ExpenseCatalogDto(
