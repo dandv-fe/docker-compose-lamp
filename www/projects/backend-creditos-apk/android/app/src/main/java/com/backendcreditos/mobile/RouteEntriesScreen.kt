@@ -57,6 +57,18 @@ internal fun routeEntryBlocker(entry: RouteEntryEntity): String? = when {
     else -> null
 }
 
+internal fun validateRoutePayroll(draft: RouteEntryDraft, catalog: ExpenseCatalogDto?) {
+    if (draft.isBase) return
+    require(draft.categoryId != 2 || draft.payrollId != null) {
+        "Seleccione el empleado del gasto de sueldo."
+    }
+    if (draft.payrollId != null) {
+        require(catalog?.payrolls?.any { it.id == draft.payrollId } == true) {
+            "No puede registrar sueldo para este empleado. Actualice la lista de gastos."
+        }
+    }
+}
+
 private fun money(raw: String) =
     formatMoney(raw.toBigDecimalOrNull()?.setScale(2, RoundingMode.HALF_UP) ?: BigDecimal.ZERO)
 
@@ -116,7 +128,7 @@ internal fun RouteEntriesScreen(
                 catalog.categories.forEach { category ->
                     FilterChip(
                         selected = draft.categoryId == category.id,
-                        onClick = { onDraftChange(draft.copy(categoryId = category.id, name = "")) },
+                        onClick = { onDraftChange(draft.copy(categoryId = category.id, name = "", payrollId = null)) },
                         label = { Text(category.category) }
                     )
                 }
@@ -134,10 +146,20 @@ internal fun RouteEntriesScreen(
                     }
                 }
             }
-            if (catalog.payrolls.isNotEmpty()) {
-                Text("¿Es para una nómina? (opcional)", style = MaterialTheme.typography.labelLarge)
+            if (draft.categoryId == 2 || catalog.payrolls.isNotEmpty()) {
+                Text(
+                    if (draft.categoryId == 2) "Empleado del gasto de sueldo"
+                    else "¿Es para una nómina? (opcional)",
+                    style = MaterialTheme.typography.labelLarge
+                )
+                if (draft.categoryId == 2 && catalog.payrolls.isEmpty()) {
+                    Text(
+                        "No hay una nómina disponible para tu usuario. Verifica el despacho y actualiza.",
+                        color = MaterialTheme.colorScheme.error
+                    )
+                }
                 Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilterChip(
+                    if (draft.categoryId != 2) FilterChip(
                         selected = draft.payrollId == null,
                         onClick = { onDraftChange(draft.copy(payrollId = null)) },
                         label = { Text("No") }

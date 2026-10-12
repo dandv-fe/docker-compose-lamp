@@ -1,0 +1,17 @@
+[
+  {"name":"employee sees only own dispatched salary","employeeId":11,"branchId":4,"expected":[101]},
+  {"name":"coworker sees only own salary","employeeId":12,"branchId":4,"expected":[102]},
+  {"name":"closed route dispatch does not authorize salary","employeeId":13,"branchId":4,"expected":[]},
+  {"name":"dispatch in another branch does not authorize salary","employeeId":11,"branchId":5,"expected":[]},
+  {"name":"office administrator sees all active employees of own office","employeeId":31,"branchId":4,"expected":[101,102,103,131]},
+  {"name":"office administrator cannot select another office","employeeId":31,"branchId":5,"expected":[]},
+  {"name":"second office administrator is scoped to second office","employeeId":41,"branchId":5,"expected":[121,141]},
+  {"name":"super administrator sees all company active payrolls","employeeId":null,"superAdministrator":true,"branchId":4,"expected":[101,102,103,121,131,141]},
+  {"name":"super administrator cannot cross companies","employeeId":null,"superAdministrator":true,"branchId":6,"expected":[]},
+  {"name":"user without employee cannot select payroll","employeeId":null,"branchId":4,"expected":[]},
+  {"name":"forged coworker payroll is rejected","employeeId":11,"branchId":4,"payrollId":102,"expected":[]},
+  {"name":"office administrator cannot forge another office payroll","employeeId":31,"branchId":4,"payrollId":121,"expected":[]},
+  {"name":"inactive payroll is rejected even for super administrator","employeeId":null,"superAdministrator":true,"branchId":4,"payrollId":104,"expected":[]},
+  {"name":"another company payroll is rejected even for super administrator","employeeId":null,"superAdministrator":true,"branchId":4,"payrollId":181,"expected":[]},
+  {"name":"unknown payroll is rejected","employeeId":11,"branchId":4,"payrollId":999,"expected":[]}
+]

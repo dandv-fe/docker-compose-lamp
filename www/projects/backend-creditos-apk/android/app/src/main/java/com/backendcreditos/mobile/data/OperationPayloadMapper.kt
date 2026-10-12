@@ -292,6 +292,7 @@ object OperationPayloadMapper {
         require(accountingType > 0) { "Elige el tipo de gasto." }
         require(name.isNotBlank() && name.length <= 50) { "Elige el concepto del gasto." }
         require(payrollId == null || payrollId > 0) { "La nómina elegida no es válida." }
+        require(accountingType != 2 || payrollId != null) { "Seleccione el empleado del gasto de sueldo." }
         put("idtipo_contabilidad", JsonPrimitive(accountingType))
         put("nombre", name.trim())
         put("valor", JsonPrimitive(positiveAmount(amount)))

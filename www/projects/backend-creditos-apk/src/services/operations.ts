@@ -8,6 +8,7 @@ import { savePhoto } from './files.js';
 import { branchScopeExists } from './sync.js';
 import { customerPhones, normalizePhone, phoneForChange, requirePhone } from './phones.js';
 import { assertReceiptTarget, countReceiptOpen, type ReceiptKind } from './receipts.js';
+import { authorizedPayrollQuery } from './payroll.js';
 import {
   assertBaseVersion, assertPayloadDigestMatch, centsToDecimal, decimalToCents,
   parseOperationPayload, payloadDigest, rejectExistingAlert, serializeAlert,
@@ -1032,7 +1033,10 @@ async function executeOperation(
       const name = String(payload.nombre);
       await assertExpenseCatalog(conn, companyId, accountingType, name);
       const payrollId = payload.idnomina == null ? null : Number(payload.idnomina);
-      if (payrollId !== null) await assertPayroll(conn, companyId, payrollId);
+      if (accountingType === 2 && payrollId === null) {
+        fail('VALIDATION_ERROR', 'Seleccione el empleado del gasto de sueldo.');
+      }
+      if (payrollId !== null) await assertPayroll(conn, user, input.branchId, payrollId, routeId);
       // webgoez stores route expenses as a negative amount (model/RecibeCuentas.php:
       // RegistrarContabilidad), which is what view_contabilidad_detalle_ruta then adds up.
       const amount = -decimalToCents(payload.valor as number);
@@ -1136,12 +1140,12 @@ async function assertExpenseCatalog(
   if (!rows[0]) fail('VALIDATION_ERROR', 'That expense concept is not in the branch catalog');
 }
 
-async function assertPayroll(conn: SqlConnection, companyId: number, payrollId: number) {
-  const [rows] = await conn.execute<RowDataPacket[]>(
-    "SELECT 1 FROM tbl_nomina WHERE idnomina=? AND idglobal=? AND str_estado='activo' LIMIT 1",
-    [payrollId, companyId],
-  );
-  if (!rows[0]) fail('VALIDATION_ERROR', 'Unknown or inactive payroll');
+export async function assertPayroll(
+  conn: SqlConnection, user: AuthContext['user'], branchId: number, payrollId: number, routeId: number,
+) {
+  const query = authorizedPayrollQuery(user, branchId, payrollId, routeId);
+  const [rows] = await conn.execute<RowDataPacket[]>(query.sql, query.params);
+  if (!rows[0]) fail('FORBIDDEN', 'No puede registrar sueldo para este empleado.');
 }
 
 async function savePayrollLink(

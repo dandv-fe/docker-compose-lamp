@@ -2,6 +2,8 @@ package com.backendcreditos.mobile
 
 import com.backendcreditos.mobile.data.OperationPayloadMapper
 import com.backendcreditos.mobile.data.RouteEntryEntity
+import com.backendcreditos.mobile.network.ExpenseCatalogDto
+import com.backendcreditos.mobile.network.PayrollDto
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.Assert.assertEquals
@@ -69,6 +71,28 @@ class RouteEntriesScreenTest {
         val baseDraft = routeEntryDraftOf(entry(kind = "base"))
         assertTrue(baseDraft.isBase)
         assertEquals("", baseDraft.name)
+    }
+
+    @Test
+    fun salaryRequiresAnAuthorizedPayroll() {
+        val catalog = ExpenseCatalogDto(payrolls = listOf(PayrollDto(4, "Ana")))
+        val salary = RouteEntryDraft(categoryId = 2, name = "sueldo", amount = "100")
+        assertThrows(IllegalArgumentException::class.java) { validateRoutePayroll(salary, catalog) }
+        assertThrows(IllegalArgumentException::class.java) {
+            OperationPayloadMapper.createExpense(2, "sueldo", "100", "")
+        }
+        validateRoutePayroll(salary.copy(payrollId = 4), catalog)
+        assertEquals("4", field(
+            OperationPayloadMapper.createExpense(2, "sueldo", "100", "", 4).payload, "idnomina"
+        ))
+        assertThrows(IllegalArgumentException::class.java) {
+            validateRoutePayroll(salary.copy(payrollId = 5), catalog)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            validateRoutePayroll(salary.copy(payrollId = 4), null)
+        }
+        validateRoutePayroll(RouteEntryDraft(categoryId = 1, name = "gasolina"), null)
+        validateRoutePayroll(RouteEntryDraft(isBase = true), null)
     }
 
     @Test

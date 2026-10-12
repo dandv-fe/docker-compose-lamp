@@ -247,6 +247,7 @@ function init() {
   $("#cboTipo_contabilidad").change(function (e) {
     e.preventDefault();
     $("#cboNomina").val('')
+    $("#txtrefNominaHidden").val('')
     $("#cboDeContabilidad").html('');
    
     $.post("./ajax/UsuarioAjax.php", function (r) {

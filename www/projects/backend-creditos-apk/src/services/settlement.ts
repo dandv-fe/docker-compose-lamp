@@ -3,6 +3,7 @@ import { pool, getConnection } from '../db.js';
 import { assertBranchAccess, hasPermission, isOfficeAdministrator, type AuthContext } from './auth.js';
 import { fail } from './errors.js';
 import { centsToDecimal, decimalToCents } from './validation.js';
+import { authorizedPayrollQuery } from './payroll.js';
 
 type Row = Record<string, unknown>;
 
@@ -229,7 +230,7 @@ export async function routeSettlement(context: AuthContext | null, branchId: num
 /**
  * What the branch office lets the collector write as a route expense: the categories and the
  * "De" names webgoez publishes (shared catalog 1001 plus the company's own), and the employees
- * dispatched on the open route, so a sueldo can be tied to the right person.
+ * allowed by the user's payroll scope, so a sueldo can be tied to the right person.
  */
 export async function routeExpenseCatalog(context: AuthContext | null, branchId: number) {
   const user = requireAuth(context);
@@ -251,19 +252,8 @@ export async function routeExpenseCatalog(context: AuthContext | null, branchId:
     if (current) current.names.push(String(row.name));
     else categories.push({ id, category: String(row.category), names: [String(row.name)] });
   }
-  const [payrollRows] = await pool.execute(
-    `SELECT n.idnomina AS id,
-            COALESCE(NULLIF(TRIM(CONCAT_WS(' ', p.str_nombres, p.str_apellidos)), ''), '') AS name
-     FROM tbl_detalle_ruta dr
-     JOIN tbl_empleados_cobrando ec ON ec.id_detalle_ruta = dr.iddetalleruta
-     JOIN tbl_empleado e ON e.idempleado = ec.idempleado AND e.idglobal = dr.idglobal
-     JOIN tbl_persona p ON p.idpersona = e.idpersona AND p.idglobal = e.idglobal
-     JOIN tbl_nomina n ON n.idempleado = e.idempleado AND n.idglobal = dr.idglobal
-     WHERE dr.idsucursal = ? AND dr.idglobal = ? AND dr.str_estado = 'created'
-       AND n.str_estado = 'activo'
-     GROUP BY n.idnomina, name ORDER BY name`,
-    [branchId, user.companyId],
-  );
+  const payrollQuery = authorizedPayrollQuery(user, branchId);
+  const [payrollRows] = await pool.execute(payrollQuery.sql, payrollQuery.params);
   const payrolls = (payrollRows as Row[]).map((row) => ({ id: Number(row.id), name: String(row.name) }));
   return { categories, payrolls };
 }

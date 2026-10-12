@@ -154,7 +154,7 @@ switch ($_GET["op"]) {
    case 'listNominas':
       $refSucursal = intval($_REQUEST['refSucursal']);
       $idtipo_contabilidad = limpiar_cadena($_REQUEST['operacion']);
-      $query = $objRecibeCuentas->listNomina($idglobal, $superadmin, $refSucursal);
+      $query = $objRecibeCuentas->listNomina($refSucursal);
       $data = array(array('<option value="">--Seleccione--</option>'), array('<option value="">--Seleccione--</option>'));
       while ($reg = $query->fetch_object()) {
          if (isset($reg->refNomina)) {

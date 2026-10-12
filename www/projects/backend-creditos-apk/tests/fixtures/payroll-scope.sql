@@ -1,0 +1,14 @@
+CREATE TEMPORARY TABLE tbl_nomina (idnomina INT, idempleado INT, idglobal INT, str_estado VARCHAR(20));
+CREATE TEMPORARY TABLE tbl_empleado (idempleado INT, idglobal INT, idpersona INT, idoficina INT);
+CREATE TEMPORARY TABLE tbl_persona (idpersona INT, idglobal INT, str_nombres VARCHAR(50), str_apellidos VARCHAR(50));
+CREATE TEMPORARY TABLE tbl_sucursal (idsucursal INT, idglobal INT, idoficina INT);
+CREATE TEMPORARY TABLE tbl_oficina (idoficina INT, idglobal INT, idempleado_administrador INT);
+CREATE TEMPORARY TABLE tbl_detalle_ruta (iddetalleruta INT, idglobal INT, idsucursal INT, str_estado VARCHAR(20));
+CREATE TEMPORARY TABLE tbl_empleados_cobrando (id_detalle_ruta INT, idempleado INT);
+INSERT INTO tbl_oficina VALUES (10,7,31),(20,7,41),(10,8,81);
+INSERT INTO tbl_sucursal VALUES (4,7,10),(5,7,20),(6,8,10);
+INSERT INTO tbl_empleado VALUES (11,7,11,10),(12,7,12,10),(13,7,13,10),(14,7,14,10),(21,7,21,20),(31,7,31,10),(41,7,41,20),(81,8,81,10);
+INSERT INTO tbl_persona VALUES (11,7,'Ana',''),(12,7,'Beto',''),(13,7,'Caro',''),(14,7,'Dani',''),(21,7,'Eva',''),(31,7,'Fede',''),(41,7,'Gaby',''),(81,8,'Hugo','');
+INSERT INTO tbl_nomina VALUES (101,11,7,'activo'),(102,12,7,'activo'),(103,13,7,'activo'),(104,14,7,'inactivo'),(121,21,7,'activo'),(131,31,7,'activo'),(141,41,7,'activo'),(181,81,8,'activo');
+INSERT INTO tbl_detalle_ruta VALUES (900,7,4,'created'),(901,7,5,'created'),(902,7,4,'saved');
+INSERT INTO tbl_empleados_cobrando VALUES (900,11),(900,12),(902,13);

@@ -179,7 +179,7 @@ test('the expense catalog groups the office names under their category', async (
         { id: 2, category: 'empleado', name: 'sueldo' },
       ], []];
     }
-    if (sql.includes('FROM tbl_detalle_ruta dr')) return [[{ id: 12, name: 'Ana Ruiz' }], []];
+    if (sql.includes('FROM tbl_nomina n')) return [[{ id: 12, name: 'Ana Ruiz' }], []];
     throw new Error(`Unexpected query: ${sql}`);
   }, async () => {
     const catalog = await routeExpenseCatalog(context, 4);

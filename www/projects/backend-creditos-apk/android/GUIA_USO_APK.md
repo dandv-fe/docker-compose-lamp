@@ -109,7 +109,7 @@ Se necesitan un cliente con ID del servidor, la evaluación en línea, la tarjet
 
 ## 8. Gastos y bases
 
-Abre **Más opciones > Gastos y bases**. Selecciona **Gasto** (categoría y concepto disponibles) o **Base recibida**, escribe el valor positivo y, si hace falta, un detalle. Algunos gastos permiten vincular una nómina. Toca **Anotar**.
+Abre **Más opciones > Gastos y bases**. Selecciona **Gasto** (categoría y concepto disponibles) o **Base recibida**, escribe el valor positivo y, si hace falta, un detalle. Los gastos de sueldo requieren seleccionar al empleado: un empleado solo puede registrar su propia nómina estando despachado; el Super Administrador puede seleccionar cualquier empleado de su empresa y el administrador de oficina, los empleados de esa oficina. Solo se muestran nóminas activas. Toca **Anotar**.
 
 Funciona sin internet después de haber descargado el catálogo de gastos. Los registros pendientes se ven en la lista y en la Cola. Puedes corregir o borrar los que aún estén habilitados; una vez entregadas las cuentas quedan bloqueados. La base se registra **aquí**, no en el formulario de entrega de cuentas.
 

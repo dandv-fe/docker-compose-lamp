@@ -329,6 +329,14 @@ only shows the sum. `routeEntries(branchId)` lists today's `base` and
 `str_operacion='salida'`), their concepts (`tbl_de_contabilidad`) and the open
 payrolls (`tbl_nomina`).
 
+Payroll selection and server-side writes use the same scope: a dispatched
+employee can select only their own active payroll on that route; the Super
+Administrador can select any active payroll in their company; an office
+administrator can select active payrolls of employees assigned to the branch's
+office, even if those employees are not dispatched. Salary expenses (category
+`2`, matching webgoez) require a payroll. Every write still requires an open
+route. The API rechecks authorization when offline expenses are synchronized.
+
 The six offline kinds `CREATE/UPDATE/DELETE_EXPENSE` and
 `CREATE/UPDATE/DELETE_BASE` write those rows. An expense payload carries
 `idtipo_contabilidad`, `nombre`, `valor`, optional `detalle` and optional
@@ -547,6 +555,22 @@ performs a concurrent duplicate-receipt insert/commit/delete check in
 the explicitly configured test schema; it never falls back to the application
 database. Use only an isolated test clone with the migration already reviewed/
 applied; do not use production credentials.
+
+Payroll scope checks for PHP and the API share 15 role/office/dispatch fixtures:
+
+```sh
+npm run build
+RUN_PAYROLL_SCOPE_TESTS=1 node --test tests/payroll-scope.test.mjs
+# From the sibling webgoez directory:
+RUN_PAYROLL_SCOPE_TESTS=1 php tests/payroll-scope.php
+```
+
+Use a local test connection with `CREATE TEMPORARY TABLES` privileges. These
+checks shadow all queried tables with connection-local temporary tables and
+never write permanent application records; closing the connection removes
+the fixtures. The PHP test uses the shared fixtures from the monorepo's backend
+test directory. Android form/payload checks:
+`./gradlew :app:testDebugUnitTest --tests com.backendcreditos.mobile.RouteEntriesScreenTest`.
 # Corrección reversible de teléfonos
 
 Aplicar manualmente `migrations/009_customer_phone_validity.sql` después de 001–008

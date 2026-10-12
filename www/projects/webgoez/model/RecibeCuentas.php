@@ -2,6 +2,7 @@
 require "Conexion.php";
 require_once "AutorizarDespachoCartera.php";
 require_once __DIR__ . "/Cartera.php";
+require_once __DIR__ . "/SueldoCartera.php";
 
 class RecibeCuentas
 {
@@ -563,6 +564,14 @@ class RecibeCuentas
       $idnomina
    ) {
       global $conexion;
+      $errorNomina = errorNominaGastoCartera(
+         $conexion, $_SESSION, (int)$idsucursal, (int)$idtipo_contabilidad, $idnomina
+      );
+      if ($errorNomina !== null) {
+         echo $errorNomina;
+         return;
+      }
+      $idnomina = (int)$idnomina;
       $sw = true;
       $conexion->autocommit(false);
       $fecha = date('Y-m-d H:i:s');
@@ -872,37 +881,10 @@ class RecibeCuentas
       }
    }
 
-   public function listNomina($idglobal, $superadmin, $refSucursal)
+   public function listNomina($refSucursal)
    {
       global $conexion;
-      $sql = '';
-
-
-      if (isset($superadmin)) {
-         $sql = "SELECT
-	n.idnomina AS refNomina,
-	CONCAT( p.str_nombres, ' ', p.str_apellidos ) AS nombre 
-FROM
-	`tbl_nomina` n
-	INNER JOIN `tbl_empleado` e ON e.idempleado = n.idempleado
-	INNER JOIN `tbl_persona` p ON p.idpersona = e.idpersona 
-WHERE
-	n.idglobal = $idglobal
-	AND n.str_estado = 'activo' ORDER BY p.str_nombres";
-      } else {
-         $sql = "SELECT 
-	n.idnomina AS refNomina,
-	CONCAT( p.str_nombres, ' ', p.str_apellidos ) AS nombre 
-	FROM tbl_detalle_ruta dr INNER JOIN
-	tbl_empleados_cobrando ec ON ec.id_detalle_ruta=dr.iddetalleruta INNER JOIN
-	tbl_empleado e ON e.idempleado=ec.idempleado INNER JOIN
-	tbl_persona p ON p.idpersona=e.idpersona INNER JOIN
-  	tbl_nomina n ON n.idempleado=e.idempleado
-	WHERE dr.idsucursal=$refSucursal AND dr.str_estado='created' AND n.str_estado='activo' ";
-      }
-
-      $query = $conexion->query($sql);
-      return $query;
+      return nominasAutorizadasCartera($conexion, $_SESSION, (int)$refSucursal);
    }
 
 

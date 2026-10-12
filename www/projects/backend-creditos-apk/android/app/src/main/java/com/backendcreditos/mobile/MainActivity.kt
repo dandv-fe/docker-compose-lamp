@@ -1249,6 +1249,7 @@ private fun CreditApplicationScreen(
         val draft = routeEntryDraft
         routeEntryError = ""
         val mapped = try {
+            validateRoutePayroll(draft, routeCatalog)
             when {
                 draft.isBase && draft.editing ->
                     OperationKind.UPDATE_BASE to OperationPayloadMapper.updateBase(draft.id, draft.amount, draft.detail)

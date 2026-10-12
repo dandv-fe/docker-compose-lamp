@@ -1,5 +1,15 @@
 Para mejorar  la contabilidad de las carteras de prestamos
 
+## Gastos de sueldo
+
+Al crear un gasto de sueldo se debe seleccionar una nómina activa. Un empleado
+solo puede registrar su propio sueldo si está despachado en la ruta abierta.
+El Super Administrador puede seleccionar cualquier empleado de su empresa,
+y el administrador de oficina puede seleccionar los empleados de esa oficina,
+aunque esos empleados no estén despachados. La ruta del gasto debe estar abierta.
+La lista y el guardado verifican el mismo alcance; cambiar el identificador
+enviado no permite registrar el sueldo de un empleado no autorizado.
+
 ## Teléfonos del cliente en cartera
 
 Al pulsar el teléfono principal se abre una lista de solo lectura con el historial
