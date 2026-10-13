@@ -1,0 +1,387 @@
+<?php $resumenIntegralVersion = rawurlencode((string) ($infoSistemaCuentas['version'] ?? '1')); ?>
+<link rel="stylesheet" href="dist/css/resumen-integral.css?v=<?php echo $resumenIntegralVersion; ?>">
+<script src="plugins/chart.js/Chart.min.js?v=<?php echo $resumenIntegralVersion; ?>"></script>
+<script defer src="dist/scripts/ResumenIntegral.js?v=<?php echo $resumenIntegralVersion; ?>"></script>
+
+<div class="content-wrapper ri-page">
+  <div class="content-header">
+    <div class="container-fluid">
+      <div class="d-flex flex-wrap align-items-end justify-content-between">
+        <div class="mb-2">
+          <h1 class="m-0">Resumen integral</h1>
+          <p class="ri-subtitle mb-0">Operación del período, caja y cartera vigentes, sucursales y egresos en una sola consulta.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <section class="content">
+    <div class="container-fluid">
+
+      <!-- Encabezado solo para impresión -->
+      <div id="riPrintHeader" class="ri-print-header" aria-hidden="true">
+        <h2>Resumen integral</h2>
+        <p id="riPrintAlcance"></p>
+        <p id="riPrintPeriodo"></p>
+        <p id="riPrintGenerado"></p>
+      </div>
+
+      <!-- Filtros -->
+      <div class="card card-outline card-info ri-no-print">
+        <div class="card-body">
+          <form id="riFiltros" class="ri-filters" novalidate aria-describedby="riFiltroAyuda">
+            <div class="ri-filter-field">
+              <label for="riDesde">Desde</label>
+              <input id="riDesde" name="desde" type="date" class="form-control" required>
+            </div>
+            <div class="ri-filter-field">
+              <label for="riHasta">Hasta</label>
+              <input id="riHasta" name="hasta" type="date" class="form-control" required>
+            </div>
+            <div class="ri-filter-field ri-filter-branch">
+              <label for="riSucursal">Sucursal</label>
+              <select id="riSucursal" name="sucursal" class="form-control">
+                <option value="0">Todas las sucursales autorizadas</option>
+              </select>
+            </div>
+            <div class="ri-filter-actions">
+              <button id="riBtnConsultar" type="submit" class="btn btn-info">
+                <i class="fas fa-magnifying-glass" aria-hidden="true"></i>
+                <span id="riBtnConsultarTexto">Consultar</span>
+              </button>
+            </div>
+          </form>
+
+          <div class="ri-toolbar">
+            <div class="btn-group btn-group-sm" role="group" aria-label="Atajos de período">
+              <button type="button" class="btn btn-outline-secondary" data-ri-rango="hoy">Hoy</button>
+              <button type="button" class="btn btn-outline-secondary" data-ri-rango="mes">Este mes</button>
+              <button type="button" class="btn btn-outline-secondary" data-ri-rango="mesAnterior">Mes anterior</button>
+            </div>
+            <div class="btn-group btn-group-sm" role="group" aria-label="Exportar resultado">
+              <button id="riBtnExportar" type="button" class="btn btn-outline-success" disabled>
+                <i class="fas fa-file-csv" aria-hidden="true"></i> Exportar CSV
+              </button>
+              <button id="riBtnImprimir" type="button" class="btn btn-outline-dark" disabled>
+                <i class="fas fa-print" aria-hidden="true"></i> Imprimir
+              </button>
+            </div>
+          </div>
+
+          <p id="riFiltroAyuda" class="ri-help mb-0">Rango máximo de 366 días. Los atajos consultan de inmediato; si cambia fechas o sucursal, pulse <strong>Consultar</strong>.</p>
+          <div id="riFiltroMensaje" class="ri-filter-error" role="alert" hidden></div>
+        </div>
+      </div>
+
+      <!-- Estado de la consulta -->
+      <div id="riEstado" class="ri-status" aria-live="polite">
+        <div id="riCargando" class="ri-state ri-state-loading" hidden>
+          <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+          <span id="riCargandoTexto">Consultando el resumen…</span>
+        </div>
+        <div id="riVacio" class="alert alert-info ri-state" hidden>
+          <i class="fas fa-circle-info" aria-hidden="true"></i>
+          <span id="riVacioTexto"></span>
+        </div>
+      </div>
+      <div id="riError" class="alert alert-danger ri-state" role="alert" hidden>
+        <p class="mb-2"><strong>No se pudo obtener el resumen.</strong> <span id="riErrorTexto"></span></p>
+        <p class="mb-2 small">Las cifras anteriores se ocultaron para evitar confusiones.</p>
+        <button id="riBtnReintentar" type="button" class="btn btn-sm btn-light ri-no-print">
+          <i class="fas fa-rotate-right" aria-hidden="true"></i> Reintentar
+        </button>
+      </div>
+
+      <!-- Resultados -->
+      <div id="riResultados" class="ri-results" hidden aria-busy="false">
+
+        <div class="ri-context card">
+          <div class="card-body">
+            <dl class="ri-context-list">
+              <div><dt>Período</dt><dd id="riPeriodoTexto">—</dd></div>
+              <div><dt>Comparado con</dt><dd id="riAnteriorTexto">—</dd></div>
+              <div><dt>Caja y cartera al</dt><dd id="riSnapshotTexto">—</dd></div>
+              <div><dt>Alcance</dt><dd id="riAlcanceTexto">—</dd></div>
+            </dl>
+            <p class="ri-note mb-0">
+              <i class="fas fa-circle-info" aria-hidden="true"></i>
+              Las operaciones se cuentan por la <strong>fecha de apertura de la ruta</strong> e incluyen rutas abiertas o en entrega (igual que Rendimientos y Cobro detallado).
+              Caja y cartera son la situación <strong>actual</strong>, no un corte a la fecha final; por eso no se comparan con el período anterior.
+            </p>
+          </div>
+        </div>
+
+        <div id="riAvisoPendientes" class="alert alert-warning ri-pending" role="status" hidden>
+          <i class="fas fa-route" aria-hidden="true"></i>
+          <strong>Aviso:</strong> <span id="riAvisoPendientesTexto"></span>
+        </div>
+
+        <div id="riSinMovimientos" class="alert alert-light ri-empty-period" hidden>
+          <i class="fas fa-circle-info" aria-hidden="true"></i>
+          No se registraron operaciones ni egresos en el período. Las cifras en cero son reales (consulta exitosa).
+        </div>
+
+        <!-- Indicadores -->
+        <h2 class="ri-section-title">Indicadores principales</h2>
+        <div class="ri-kpi-grid">
+          <article class="ri-kpi" aria-labelledby="riKpiRecaudoTitulo">
+            <div class="ri-kpi-head"><span class="ri-kpi-icon ri-c-info" aria-hidden="true"><i class="fas fa-hand-holding-dollar"></i></span><h3 id="riKpiRecaudoTitulo" class="ri-kpi-title">Recaudo</h3></div>
+            <p id="riKpiRecaudo" class="ri-kpi-value">—</p>
+            <p id="riKpiRecaudoDetalle" class="ri-kpi-detail"></p>
+            <p id="riKpiRecaudoComparacion" class="ri-kpi-compare"></p>
+          </article>
+          <article class="ri-kpi" aria-labelledby="riKpiColocacionTitulo">
+            <div class="ri-kpi-head"><span class="ri-kpi-icon ri-c-primary" aria-hidden="true"><i class="fas fa-money-bill-transfer"></i></span><h3 id="riKpiColocacionTitulo" class="ri-kpi-title">Colocación</h3></div>
+            <p id="riKpiColocacion" class="ri-kpi-value">—</p>
+            <p id="riKpiColocacionDetalle" class="ri-kpi-detail"></p>
+            <p id="riKpiColocacionComparacion" class="ri-kpi-compare"></p>
+          </article>
+          <article class="ri-kpi" aria-labelledby="riKpiGastoTitulo">
+            <div class="ri-kpi-head"><span class="ri-kpi-icon ri-c-warning" aria-hidden="true"><i class="fas fa-receipt"></i></span><h3 id="riKpiGastoTitulo" class="ri-kpi-title">Gasto operativo</h3></div>
+            <p id="riKpiGasto" class="ri-kpi-value">—</p>
+            <p id="riKpiGastoDetalle" class="ri-kpi-detail"></p>
+            <p id="riKpiGastoComparacion" class="ri-kpi-compare"></p>
+          </article>
+          <article class="ri-kpi" aria-labelledby="riKpiUtilidadTitulo">
+            <div class="ri-kpi-head"><span class="ri-kpi-icon ri-c-success" aria-hidden="true"><i class="fas fa-scale-balanced"></i></span><h3 id="riKpiUtilidadTitulo" class="ri-kpi-title">Utilidad neta</h3></div>
+            <p id="riKpiUtilidad" class="ri-kpi-value">—</p>
+            <p id="riKpiUtilidadDetalle" class="ri-kpi-detail"></p>
+            <p id="riKpiUtilidadComparacion" class="ri-kpi-compare"></p>
+          </article>
+          <article class="ri-kpi" aria-labelledby="riKpiCajaTitulo">
+            <div class="ri-kpi-head"><span class="ri-kpi-icon ri-c-teal" aria-hidden="true"><i class="fas fa-cash-register"></i></span><h3 id="riKpiCajaTitulo" class="ri-kpi-title">Caja vigente</h3></div>
+            <p id="riKpiCaja" class="ri-kpi-value">—</p>
+            <p id="riKpiCajaDetalle" class="ri-kpi-detail"></p>
+            <p id="riKpiCajaComparacion" class="ri-kpi-compare ri-tone-muted"></p>
+          </article>
+          <article class="ri-kpi" aria-labelledby="riKpiCarteraTitulo">
+            <div class="ri-kpi-head"><span class="ri-kpi-icon ri-c-indigo" aria-hidden="true"><i class="fas fa-wallet"></i></span><h3 id="riKpiCarteraTitulo" class="ri-kpi-title">Cartera vigente</h3></div>
+            <p id="riKpiCartera" class="ri-kpi-value">—</p>
+            <p id="riKpiCarteraDetalle" class="ri-kpi-detail"></p>
+            <p id="riKpiCarteraComparacion" class="ri-kpi-compare ri-tone-muted"></p>
+          </article>
+          <article class="ri-kpi" aria-labelledby="riKpiRiesgoTitulo">
+            <div class="ri-kpi-head"><span class="ri-kpi-icon ri-c-danger" aria-hidden="true"><i class="fas fa-triangle-exclamation"></i></span><h3 id="riKpiRiesgoTitulo" class="ri-kpi-title">Riesgo de cartera</h3></div>
+            <p id="riKpiRiesgo" class="ri-kpi-value">—</p>
+            <p id="riKpiRiesgoDetalle" class="ri-kpi-detail"></p>
+            <p id="riKpiRiesgoComparacion" class="ri-kpi-compare ri-tone-muted"></p>
+          </article>
+          <article class="ri-kpi" aria-labelledby="riKpiCrecimientoTitulo">
+            <div class="ri-kpi-head"><span class="ri-kpi-icon ri-c-secondary" aria-hidden="true"><i class="fas fa-chart-line"></i></span><h3 id="riKpiCrecimientoTitulo" class="ri-kpi-title">Crecimiento</h3></div>
+            <p id="riKpiCrecimiento" class="ri-kpi-value">—</p>
+            <p id="riKpiCrecimientoDetalle" class="ri-kpi-detail"></p>
+            <p id="riKpiCrecimientoComparacion" class="ri-kpi-compare"></p>
+          </article>
+        </div>
+
+        <!-- Hechos -->
+        <div class="card ri-facts">
+          <div class="card-header"><h2 class="card-title">Lo que muestran los datos</h2></div>
+          <div class="card-body">
+            <ul id="riHechos" class="ri-facts-list"></ul>
+            <p class="ri-note mb-0">Observaciones calculadas a partir de las cifras; no son recomendaciones financieras.</p>
+          </div>
+        </div>
+
+        <!-- Gráficos -->
+        <div id="riChartsError" class="alert alert-warning" role="alert" hidden>
+          <i class="fas fa-chart-simple" aria-hidden="true"></i>
+          No se pudo cargar la librería de gráficos (Chart.js). Las tablas y cifras siguen disponibles abajo.
+        </div>
+        <div class="ri-chart-grid">
+          <div class="card ri-chart-card ri-chart-wide">
+            <div class="card-header"><h2 class="card-title">Tendencia diaria: recaudo, colocación y gasto operativo</h2></div>
+            <div class="card-body">
+              <div class="ri-chart-box"><canvas id="riChartTendencia" role="img" aria-label="Gráfico de tendencia diaria"></canvas></div>
+              <p id="riChartTendenciaVacio" class="ri-chart-empty" hidden>Sin datos diarios para graficar.</p>
+              <p class="ri-note mb-0">Cada día del período aparece con su valor (cero si no hubo operaciones); un día ausente en la respuesta se dibuja como hueco, no como cero. Detalle completo en la tabla diaria.</p>
+            </div>
+          </div>
+          <div class="card ri-chart-card">
+            <div class="card-header"><h2 class="card-title">Composición de la cartera actual</h2></div>
+            <div class="card-body">
+              <div class="ri-chart-box"><canvas id="riChartCartera" role="img" aria-label="Gráfico de composición de cartera"></canvas></div>
+              <p id="riChartCarteraVacio" class="ri-chart-empty" hidden>No hay saldo de cartera para graficar.</p>
+            </div>
+          </div>
+          <div class="card ri-chart-card">
+            <div class="card-header ri-card-header-flex">
+              <h2 class="card-title">Comparación de sucursales</h2>
+              <div class="ri-inline-field ri-no-print">
+                <label for="riMetricaSucursales" class="mb-0">Métrica</label>
+                <select id="riMetricaSucursales" class="form-control form-control-sm">
+                  <option value="recaudo">Recaudo</option>
+                  <option value="colocacion">Colocación</option>
+                  <option value="gastoOperativo">Gasto operativo</option>
+                  <option value="utilidadNeta">Utilidad neta</option>
+                  <option value="crecimiento">Crecimiento</option>
+                  <option value="caja">Caja vigente</option>
+                  <option value="carteraActiva">Cartera vigente</option>
+                  <option value="carteraMorosa">Cartera morosa</option>
+                </select>
+              </div>
+            </div>
+            <div class="card-body">
+              <div class="ri-chart-box"><canvas id="riChartSucursales" role="img" aria-label="Gráfico de comparación de sucursales"></canvas></div>
+              <p id="riChartSucursalesVacio" class="ri-chart-empty" hidden>No hay sucursales con datos para esta métrica.</p>
+              <p id="riNotaSucursalesChart" class="ri-note mb-0"></p>
+            </div>
+          </div>
+          <div class="card ri-chart-card ri-chart-wide">
+            <div class="card-header"><h2 class="card-title">Composición de egresos por categoría</h2></div>
+            <div class="card-body">
+              <div class="ri-chart-box"><canvas id="riChartEgresos" role="img" aria-label="Gráfico de egresos por categoría"></canvas></div>
+              <p id="riChartEgresosVacio" class="ri-chart-empty" hidden>No hay egresos en el período.</p>
+              <p id="riNotaEgresosChart" class="ri-note mb-0"></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Comparativo -->
+        <div class="card">
+          <div class="card-header"><h2 class="card-title">Período actual frente al anterior</h2></div>
+          <div class="card-body p-0 table-responsive">
+            <table id="riTablaComparativo" class="table table-sm table-hover ri-table mb-0">
+              <caption class="ri-caption">Solo cifras del período; caja y cartera no se comparan porque son la situación actual.</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Concepto</th>
+                  <th scope="col" class="text-right">Período actual</th>
+                  <th scope="col" class="text-right">Período anterior</th>
+                  <th scope="col" class="text-right">Diferencia</th>
+                  <th scope="col" class="text-right">Variación</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Sucursales -->
+        <div class="card">
+          <div class="card-header ri-card-header-flex">
+            <h2 class="card-title">Sucursales</h2>
+            <div class="ri-inline-field ri-no-print">
+              <label for="riBuscarSucursal" class="mb-0">Buscar</label>
+              <input id="riBuscarSucursal" type="search" class="form-control form-control-sm" placeholder="Código u oficina" autocomplete="off" aria-describedby="riSucursalesConteo">
+            </div>
+          </div>
+          <div class="card-body p-0">
+            <p id="riSucursalesConteo" class="ri-table-meta" aria-live="polite"></p>
+            <div class="table-responsive">
+              <table id="riTablaSucursales" class="table table-sm table-hover ri-table mb-0">
+                <thead></thead>
+                <tbody></tbody>
+                <tfoot></tfoot>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Diario -->
+        <details class="card ri-details">
+          <summary class="card-header">Detalle diario del período</summary>
+          <div class="card-body p-0 table-responsive">
+            <table id="riTablaDiaria" class="table table-sm table-hover ri-table mb-0">
+              <thead></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </details>
+
+        <!-- Egresos -->
+        <div class="card">
+          <div class="card-header"><h2 class="card-title">Egresos del período</h2></div>
+          <div class="card-body">
+            <div class="alert alert-light ri-note-box mb-3">
+              <i class="fas fa-circle-info" aria-hidden="true"></i>
+              Los egresos se agrupan por la <strong>fecha del movimiento</strong> e incluyen <strong>todos</strong> los egresos (préstamos, artículos y traslados), igual que el reporte Egresos.
+              Son una vista distinta del <em>gasto operativo</em> de los indicadores (que usa la fecha de apertura de ruta y excluye préstamos, ventas y salidas tipo 6):
+              no se deben sumar entre sí y pueden no coincidir. El monto conserva el signo de Egresos (−SUM del total).
+            </div>
+            <div class="table-responsive">
+              <table id="riTablaEgresos" class="table table-sm table-hover ri-table">
+                <caption class="ri-caption">Egresos agrupados por categoría y concepto</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Categoría</th>
+                    <th scope="col">Concepto</th>
+                    <th scope="col" class="text-right">Movimientos</th>
+                    <th scope="col" class="text-right">Monto</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+                <tfoot></tfoot>
+              </table>
+            </div>
+
+            <h3 class="ri-subsection-title">Movimientos de egreso</h3>
+            <div id="riEgresosError" class="alert alert-danger" role="alert" hidden></div>
+            <div class="table-responsive">
+              <table id="riTablaEgresosDetalle" class="table table-sm table-striped ri-table" aria-busy="false">
+                <caption class="ri-caption">Detalle paginado desde el servidor (50 por página)</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Fecha</th>
+                    <th scope="col">Sucursal</th>
+                    <th scope="col">Concepto</th>
+                    <th scope="col">Categoría</th>
+                    <th scope="col" class="text-right">Monto</th>
+                    <th scope="col">Detalle</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+            <nav class="ri-pager ri-no-print" aria-label="Paginación de egresos">
+              <button id="riEgresosAnterior" type="button" class="btn btn-sm btn-outline-secondary" disabled>
+                <i class="fas fa-chevron-left" aria-hidden="true"></i> Anterior
+              </button>
+              <span id="riEgresosPagina" class="ri-pager-text" aria-live="polite"></span>
+              <button id="riEgresosSiguiente" type="button" class="btn btn-sm btn-outline-secondary" disabled>
+                Siguiente <i class="fas fa-chevron-right" aria-hidden="true"></i>
+              </button>
+            </nav>
+          </div>
+        </div>
+
+        <!-- Fórmulas -->
+        <details class="card ri-details">
+          <summary class="card-header">¿Cómo se calculan las cifras?</summary>
+          <div class="card-body ri-formulas">
+            <dl>
+              <dt>Recaudo, préstamos, ventas, gastos, salidas y entradas</dt>
+              <dd>Operaciones de rutas cuya <strong>fecha de apertura</strong> está dentro del período (mismo criterio que Rendimientos y Cobro detallado), <strong>incluidas rutas abiertas o en entrega</strong>; sus cifras pueden cambiar hasta el cierre definitivo.</dd>
+              <dt>Rutas y rutas sin cierre definitivo</dt>
+              <dd>Cantidad de rutas abiertas en el período, y de ellas las que aún no están en estado guardado («saved»).</dd>
+              <dt>Colocación</dt>
+              <dd>Préstamos + ventas.</dd>
+              <dt>Gasto operativo</dt>
+              <dd>Gastos de ruta + otros gastos. No incluye préstamos, ventas ni salidas tipo 6.</dd>
+              <dt>Margen generado (utilidad)</dt>
+              <dd>(Valor de créditos − préstamos − ventas) + adicionales + diferencia − descuentos. Es el margen generado por los créditos otorgados, <strong>no</strong> ganancia ya cobrada.</dd>
+              <dt>Utilidad neta</dt>
+              <dd>Margen generado − gastos de ruta − otros gastos.</dd>
+              <dt>Crecimiento</dt>
+              <dd>Utilidad neta − salidas + entradas. <strong>No</strong> es flujo de caja.</dd>
+              <dt>Caja vigente</dt>
+              <dd>Saldo contable actual (movimientos de tipo distinto de 8), al momento de la consulta. <strong>Excluye</strong> movimientos en estado «created», por lo que puede no reflejar todavía rutas sin cierre definitivo.</dd>
+              <dt>Cartera vigente (activa)</dt>
+              <dd>Saldo de tarjetas con estado distinto de cancelado, inactiva, moroso, falleció y discapacitado. Las tarjetas <strong>inactivas se excluyen</strong> expresamente para no inflar la cartera disponible.</dd>
+              <dt>Cartera morosa / retirada</dt>
+              <dd>Saldo de tarjetas en estado moroso / en estado falleció o discapacitado.</dd>
+              <dt>Cartera total y capital actual</dt>
+              <dd>Cartera total = activa + morosa + retirada. Capital actual = caja vigente + cartera activa.</dd>
+              <dt>Riesgo de cartera</dt>
+              <dd>(Cartera morosa + cartera retirada) ÷ cartera total × 100. Sin valor cuando la cartera total es cero o negativa.</dd>
+              <dt>Período anterior</dt>
+              <dd>Mismo número de días inmediatamente antes del período consultado. Solo se comparan cifras del período.</dd>
+              <dt>Egresos</dt>
+              <dd>Todos los egresos por fecha del movimiento, agrupados por concepto y categoría. Monto = −SUM(total). No se suman al gasto operativo.</dd>
+            </dl>
+          </div>
+        </details>
+      </div>
+    </div>
+  </section>
+</div>

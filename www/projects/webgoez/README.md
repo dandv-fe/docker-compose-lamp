@@ -1,5 +1,69 @@
 Para mejorar  la contabilidad de las carteras de prestamos
 
+## Resumen integral de consultas
+
+**Consultas → Resumen integral** agrega una página independiente en
+`resumenIntegral.php`. Cobro Detallado, Egresos, Kardex Valorizado y Rendimientos
+conservan sus páginas, consultas y comportamiento.
+
+El Super Administrador consulta las sucursales disponibles de su empresa en
+la oficina seleccionada. Un empleado necesita los cuatro permisos
+(`cobro detallado`, `egresos`, `kardex valorizado`, `rendimientos`) **en la misma
+sucursal**; tenerlos repartidos entre sucursales no da acceso al resumen combinado.
+El endpoint verifica usuario, rol, vigencia del servicio, empresa y permisos
+actuales en la base, sin confiar en los identificadores enviados por el navegador.
+No requiere un permiso nuevo ni cambia los existentes.
+
+Los filtros admiten fechas reales hasta hoy, máximo **366 días**, y todas las
+sucursales autorizadas o una de ellas. La comparación usa el período inmediatamente
+anterior de igual cantidad de días, no un mes de duración diferente.
+
+- **Movimientos del período**: fecha de apertura de la ruta, como Rendimientos.
+  Incluyen rutas aún sin cierre; se muestra su cantidad para advertirlo.
+- **Egresos por concepto y detalle**: fecha del movimiento, como Egresos. Incluyen
+  préstamos, artículos y traslados, que no se deben sumar otra vez al gasto operativo.
+  Los reversos conservan su signo; no se convierten artificialmente en otro gasto.
+- **Caja y cartera**: fotografía vigente al consultar, **no** saldo histórico al
+  final del rango. Caja excluye categoría 8 y estado `created`. Cartera activa
+  excluye canceladas, inactivas, morosas y retiradas. Mora y retiradas se muestran
+  separadas. Las inactivas no inflan el capital disponible.
+- **Utilidad generada**: valor total de créditos menos costo de préstamos y
+  artículos, más adicionales y diferencia, menos descuento. Es margen generado,
+  **no ganancia cobrada**. Utilidad neta resta gastos de ruta y otros gastos;
+  crecimiento también resta salidas y suma entradas. No equivale a flujo de caja.
+- **Capital actual**: caja vigente más cartera activa. Cartera total también
+  incluye mora y retiradas. Riesgo indica qué porcentaje de esa cartera está en
+  mora o retirada; sin cartera positiva se muestra sin porcentaje calculable.
+
+Los gráficos usan Chart.js local ya incluido en el proyecto. No se instalan
+dependencias ni se envían datos a terceros. Sin consultas automáticas repetidas;
+los detalles de egresos se paginan de **50 en 50** en servidor, y los agregados
+se calculan por conjuntos, no con una consulta por cada sucursal.
+La exportación y la impresión identifican alcance y fechas; el detalle de egresos
+es paginado, no una descarga implícita de todos los movimientos.
+
+**Antes del despliegue**, aplicar manualmente
+[`sql/013_integral_report_indexes.sql`](sql/013_integral_report_indexes.sql)
+en la base compartida (MariaDB 10.2+). Es idempotente, agrega índices de lectura
+para cartera y egresos, y no cambia datos ni fórmulas de los reportes anteriores.
+Ejecutar con poco tráfico y espacio libre: crear índices consume disco y E/S.
+La aplicación nunca ejecuta DDL al abrir la página.
+
+Validación local dentro de Docker:
+
+```sh
+docker exec -e RUN_INTEGRAL_REPORT_TESTS=1 webgoez-php81 \
+  php /var/www/html/projects/webgoez/tests/resumen-integral.php
+docker exec -w /var/www/html/projects/webgoez webgoez-node \
+  node --test tests/resumen-integral-ui.cjs
+```
+
+La prueba utiliza exclusivamente tablas temporales de su conexión: verifica
+alcance, separación de empresas/oficinas, permisos coincidentes, fórmulas,
+límites de fecha, comparación, saldos vigentes, reversos y paginación.
+Las pruebas de interfaz verifican filtros, comparaciones, gráficos derivados,
+estados incompletos, agrupación y exportación segura.
+
 ## Versiones instaladas de la APK
 
 En el entorno Docker local, el sitio se abre con

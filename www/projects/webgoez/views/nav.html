@@ -635,6 +635,33 @@ $str_cero = str_split($dias_restantes);
             <?php    } ?>
 
 
+            <?php
+            require_once __DIR__ . '/../model/ResumenIntegral.php';
+            $puedeVerResumenIntegral = $userSession['usuario']->str_cargo === 'Super Administrador' ||
+               count(array_intersect(resumenIntegralPermisos(), $auths ?? [])) === 4;
+            if ($puedeVerResumenIntegral) {
+               $contextoResumenIntegral = [
+                  'idglobal' => (int)$userSession['usuario']->idglobal,
+                  'idempleado' => (int)$userSession['usuario']->idempleado,
+                  'superadmin' => $userSession['usuario']->str_cargo === 'Super Administrador',
+                  'idoficina' => (int)($_SESSION['idoficina'] ?? 0)
+               ];
+               try {
+                  $puedeVerResumenIntegral = count(resumenIntegralSucursales($conexion, $contextoResumenIntegral)) > 0;
+               } catch (mysqli_sql_exception $error) {
+                  error_log('Menú resumen integral: ' . $error->getMessage());
+                  $puedeVerResumenIntegral = false;
+               }
+            }
+            if ($puedeVerResumenIntegral) { ?>
+            <li class="nav-item">
+              <a id="lia-resumenIntegral" href="resumenIntegral.php" class="nav-link">
+                <i class="fas fa-chart-pie nav-icon"></i>
+                <p>Resumen integral</p>
+              </a>
+            </li>
+            <?php } ?>
+
           </ul>
         </li>
 
