@@ -777,3 +777,124 @@ Prueba unitaria/imagen: `npm test`. Para integración local reversible, aplica 0
 `node tests/whatsapp-receipt.local.mjs <hostname-verificado>` desde el contenedor Node. La prueba
 crea fixtures sintéticos, comprueba acceso de sucursal, expiración, hash, snapshot fijo, HTML, PNG
 decodificable y revocación y elimina los fixtures; no modifica datos comerciales existentes.
+
+## Calificación manual de clientes (migración 013)
+
+**Desplegar `migrations/013_customer_rating.sql` (manual, después de 001–012) ANTES de publicar la versión del APK que la usa.** MariaDB 10.3+, usa `DELIMITER $$`. Re-ejecutarla solo recrea DDL (`CREATE TABLE IF NOT EXISTS`, `CREATE OR REPLACE TRIGGER`): no inserta eventos, no hace backfill ni modifica filas de negocio.
+
+- La nota vive en `tbl_clientes.str_calificacion` como string exacto `'1'`..`'10'`; cualquier otro valor (`'nuevo'`, `''`, `' 7'`) = sin calificar, sin recortar (igual que PHP y Android). `rating` en DTO/sync no cambia; el UPDATE ya dispara `trg_mobile_cliente_au` (evento `customer`) para PHP y Node, así que ese trigger no se tocó.
+- Categorías: 9–10 `Excelente`, 7–8 `Bueno`, 5–6 `Regular`, 1–4 `Requiere seguimiento`. Desde la migración 014, `'nuevo'`/`''` se muestra como `score` 5 y `Inicial · poca historia`; cualquier otro valor no numérico (`' 7'`, `'abc'`) como `score` null y `Nota por revisar` (igual que Android; `customerRating` lo registra con `console.warn('[customer-rating] ...')` solo con ids, y el motor lo reemplaza al evaluar auditándolo en el historial). `NULL` en BD se lee como `''` (`COALESCE`).
+- `mobile_customer_rating_history`: id, idglobal, idcliente, idsucursal, score, previous_score, reason ≤500, source `manual`, created_by = idusuario, created_at `DATETIME(3)` UTC.
+- `mobile_customer_rating_event` (historial append-only de eventos reales; sin índice único): id, idglobal, idcliente, idsucursal, event_type, source_record_id (iddescripcion/idtarjeta original), old_state, new_state, previous_amount, amount, occurred_at `DATETIME(3)` UTC, processed_at, state `pending`. Índice no único `(idglobal, event_type, source_record_id)`.
+- Automatización preparada y **DESACTIVADA**: triggers `trg_rating_*` (`FOLLOWS` de los de sync, que no se modifican) registran `payment_created` (amount=dec_abono), `payment_updated` solo si cambia `str_estado` o `dec_abono` (estados/montos anterior y nuevo), `payment_deleted`, `credit_created` (amount=dec_valor) y `credit_status_changed` (estados; montos = dec_resta anterior/nuevo). Sin handlers ni `IGNORE`: si el evento falla, falla la escritura legacy y se revierte junto con sus eventos de sync (no se pierden eventos en silencio). La migración 014 amplía estos triggers y el worker automático (desactivado por defecto) consume los eventos; ver la sección siguiente.
+- GraphQL (solo online, no pasa por la cola offline):
+  - `customerRating(branchId: Int!, customerId: Int!): CustomerRating!` — cualquier usuario con acceso a la sucursal y el cliente en ella.
+  - `rateCustomer(branchId: Int!, customerId: Int!, score: Int!, reason: String!, expectedRating: String!): CustomerRating!` — solo Super Administrador o administrador de la oficina de la sucursal (`FORBIDDEN`). `score` entero 1..10; `reason` recortado como PHP `trim()` y de 5 a 500 caracteres Unicode (code points, como `mb_strlen`); `expectedRating` ≤50 code points y debe ser igual, exacto y sin recortar, a `COALESCE(str_calificacion,'')` bloqueado con `FOR UPDATE` (si no → `CONFLICT`). Repetir la misma nota con nuevo motivo es válido. Inserta historial y actualiza la nota en la misma transacción.
+  - `CustomerRating { score: Int, rawRating: String!, label: String!, canRate: Boolean!, history: [CustomerRatingEntry!]! }` (últimos 20) y `CustomerRatingEntry { id: ID!, score: Int, previousScore: Int, reason: String!, source: String!, createdAt: String!, createdBy: Int! }` (`createdAt` ISO UTC con milisegundos, p. ej. `2026-10-13T14:31:25.514Z`).
+- Prueba de BD opt-in `tests/customer-rating-db.test.mjs` (no la ejecuta `npm test`): clona **solo el esquema** (tablas, vistas, rutinas y triggers) previo a 013 de `RATING_TEST_SOURCE_DB` en una base nueva `tmp_rating_test_<timestamp>_<random>`, aplica 013 dos veces y luego 014 dos veces, crea filas de prueba solo ahí y siempre hace `DROP` de esa base. Lee el DDL con la base origen como esquema por defecto y rechaza cualquier DDL que nombre la base origen. Cubre triggers de pago (alta, update sin cambios, update real, borrado y reinserción), cambios de estado del crédito con estados/montos, pago huérfano con rollback explícito, sync de cliente para escrituras Node y tipo PHP, el servicio (alcance, permisos, conflicto exacto, misma nota y auditoría) y, con 014, los triggers ampliados (montos/plazo/modo/fechas, reasignación con evento para cliente anterior y nuevo, `credit_deleted`), el worker (eventos, arranque, nota efectiva, prioridad y vencimiento manual, auditoría automática sin inundar) y sus fallos explícitos (rollback, `attempts`, `last_error`, `failed`). Requiere un usuario con `CREATE`/`DROP DATABASE`. Ejecutar después de `npm run build` (la contraseña se pasa por entorno, nunca en la línea de comando):
+
+  ```sh
+  docker exec -e RUN_CUSTOMER_RATING_DB_TESTS=1 -e RATING_TEST_DB_HOST=database \
+    -e RATING_TEST_DB_USER=root -e RATING_TEST_DB_PASSWORD -e RATING_TEST_SOURCE_DB=websdnco_db_webgoez \
+    -w /var/www/html/projects/backend-creditos-apk webgoez-node node --test tests/customer-rating-db.test.mjs
+  ```
+  (`RATING_TEST_DB_PASSWORD` debe estar exportada en la shell del host; `RATING_TEST_DB_PORT` opcional, 3306.)
+
+## Calificación automática de clientes (migración 014)
+
+**Orden de despliegue: aplicar `migrations/013` y luego `migrations/014_customer_rating_automatic.sql` (manual, `DELIMITER $$`) ANTES de desplegar esta API y antes de publicar el APK que muestra los campos nuevos.** Sin 014 fallan `customerRating`/`rateCustomer` y también `portfolio`, `customerById`, `customerByDocument` y `syncChanges` (leen `mobile_customer_rating_state` con `LEFT JOIN`). 014 es re-ejecutable (`CREATE TABLE IF NOT EXISTS`, `ADD COLUMN IF NOT EXISTS`, `CREATE OR REPLACE TRIGGER`) y no toca filas de negocio. Su única inserción (11 sentencias en total) preserva notas manuales vigentes de la etapa 013: para cada cliente sin estado cuya última fila manual del historial tiene `score` no nulo, `created_at + INTERVAL 7 DAY > UTC_TIMESTAMP(3)` y `BINARY str_calificacion = CAST(score AS CHAR)` (comparación exacta, independiente del charset de la conexión del cliente `mariadb`), crea el estado con `manual_score=score`, `manual_until=created_at + 7 días` (nunca se extiende ni se reinicia al re-ejecutar: `NOT EXISTS` en el estado) y `next_evaluation_at=UTC_TIMESTAMP(3)`. No hay backfill de notas automáticas. El usuario de la API necesita `SELECT/INSERT/UPDATE` en `mobile_customer_rating_state` y `mobile_customer_rating_event`.
+
+Matemática explicable, sin IA externa ni dependencias nuevas. **La automatización está DESACTIVADA por defecto** (`CUSTOMER_RATING_AUTOMATION` vacío o `0`): no se calcula ni se escribe nada automático; `customerRating` solo lee el estado guardado (igual que PHP, sin duplicar el motor) y `str_calificacion` sigue siendo la legacy/manual.
+
+### Esquema 014
+
+- `mobile_customer_rating_state` PK `(idglobal, idcliente)`: `automatic_score TINYINT UNSIGNED NOT NULL DEFAULT 5`, `manual_score TINYINT UNSIGNED NULL`, `manual_until DATETIME(3) NULL` (UTC), `evaluated_at DATETIME(3) NULL` (UTC; NULL = evaluación pendiente, p. ej. fila creada por un guardado manual), `confidence VARCHAR(16) NOT NULL DEFAULT 'initial'`, `explanation VARCHAR(500) NOT NULL DEFAULT 'Nota inicial neutral; evaluación matemática pendiente.'`, `metrics_json LONGTEXT NULL DEFAULT NULL` (versión 1, uso interno), `next_evaluation_at DATETIME(3) NULL DEFAULT NULL` (UTC). Índices `ix_rating_state_next(next_evaluation_at)`, `ix_rating_state_manual(manual_until)`.
+- `mobile_customer_rating_event` gana: `attempts INT NOT NULL DEFAULT 0`, `last_error VARCHAR(500)`, `old_value/new_value DECIMAL(12,2)` (dec_valor), `old_term/new_term INT`, `old_mode/new_mode VARCHAR(20)`, `old_record_at/new_record_at DATETIME` (created_at legacy tal cual, reloj de la BD), `old_parent_id/new_parent_id VARCHAR(100)` (idtarjeta del pago o idcliente del crédito). `state`: `pending` → `processed` | `ignored` (cliente inexistente) | `failed` (tras 5 intentos).
+- Triggers (mismos nombres, `FOLLOWS` de los de sync, que no se tocan; sin handlers ni `IGNORE`): pagos `payment_created`, `payment_updated` (si cambia estado, abono, created_at, idtarjeta, idglobal o descripción), `payment_moved_out` (al cliente anterior si el pago cambia de tarjeta), `payment_deleted`; créditos `credit_created`, `credit_status_changed`/`credit_changed` (si cambia estado, saldo, valor, plazo, modo, created_at o cliente), `credit_moved_out` (al cliente anterior si se reasigna), `credit_deleted` (nuevo trigger `trg_rating_tarjeta_ad`). Triggers nuevos `trg_rating_state_ai/au` en `mobile_customer_rating_state`: emiten el mismo evento de sync `customer UPDATE` que `trg_mobile_cliente_au` (todas las sucursales del cliente) al insertar el estado o cuando cambian `confidence`, `manual_score`, `manual_until` o `evaluated_at` pasa de NULL a valor; las reevaluaciones diarias sin cambio visible no emiten. Un guardado manual genera dos eventos `customer` (estado + `tbl_clientes`); los clientes los aplican de forma idempotente. **Cambio de semántica respecto a 013:** en eventos de crédito `previous_amount/amount` = `dec_resta` (saldo) también en `credit_created` (013 guardaba `dec_valor`); el valor va en `old_value/new_value`.
+
+### Nota efectiva (`tbl_clientes.str_calificacion`, sincronizada a APK/web)
+
+1. Manual vigente (`manual_until > UTC_TIMESTAMP(3)`): `manual_score` (`'1'`..`'10'`). Ventana fija de **7 días** UTC exactos desde el guardado (Node y PHP).
+2. Si no, confianza `initial`: `'nuevo'` (se muestra 5 · `Inicial · poca historia`; nunca un 10 inventado).
+3. Si no, `automatic_score`.
+
+Solo se hace `UPDATE` si el valor efectivo cambia (`''`/`'nuevo'` se consideran iguales), así que el trigger existente `trg_mobile_cliente_au` emite el evento de sync del cliente solo cuando hay cambio real. Los cambios automáticos no tocan `update_at`. Campos nuevos nullable en `Customer` (GraphQL `portfolio`, `customerById`, `customerByDocument`), en el payload `customer` de `syncChanges` y en el registro actual de conflictos de operaciones: `ratingSource` = `'manual'` con manual vigente o, sin fila de estado, si `rating` es exactamente `'1'..'10'` (nota anterior); `'automatic'` si ya fue evaluado; si no `null`; `ratingConfidence` = `confidence` si ya fue evaluado, si no `null`. Regla de etiqueta común (web, APK, API): `Nota por revisar` (score null) si `rating` no es `'1'..'10'`, `'nuevo'` ni `''`; `Inicial · poca historia` si es `'nuevo'`/`''` o si la confianza es `initial` sin manual vigente; si no, la categoría de la nota. La explicación y las métricas solo salen en `customerRating`. Historial automático: `source='automatic'`, `created_by=0`, `reason` = explicación, `score` NULL cuando vuelve a `'nuevo'`, `idsucursal` del crédito más reciente; se escribe solo si cambia la nota efectiva o al vencer una manual (traspaso, una sola vez: el worker limpia `manual_score/manual_until`), aunque la nota sea la misma. Un cambio solo de origen/confianza con la misma nota no toca `tbl_clientes`, pero el trigger `trg_rating_state_au` (cambia `confidence`, `manual_score`, `manual_until` o la nulidad de `evaluated_at`) emite el evento `customer UPDATE` de sync para que APK/web reciban `ratingSource`/`ratingConfidence`; refrescar solo `evaluated_at` no genera sync. Primera evaluación de un cliente sin estado con nota numérica: si la última manual del historial coincide con la nota y sigue dentro de sus 7 días, se respeta hasta `created_at + 7 días` (sin extender); si no, la nota se trata como anterior y el motor la reemplaza auditando el traspaso.
+
+Guardado manual PHP (contrato, misma transacción y este orden de bloqueo): `SELECT … FROM tbl_clientes … FOR UPDATE` → comparación exacta → `INSERT` historial `manual` → upsert de estado → `UPDATE tbl_clientes SET str_calificacion`:
+
+```sql
+INSERT INTO mobile_customer_rating_state (idglobal,idcliente,manual_score,manual_until,next_evaluation_at)
+VALUES (?,?,?,DATE_ADD(UTC_TIMESTAMP(3),INTERVAL 7 DAY),UTC_TIMESTAMP(3))
+ON DUPLICATE KEY UPDATE manual_score=VALUES(manual_score), manual_until=VALUES(manual_until),
+  next_evaluation_at=VALUES(next_evaluation_at);
+```
+
+(`VALUES (?,?,?,DATE_ADD(UTC_TIMESTAMP(3),INTERVAL 7 DAY),UTC_TIMESTAMP(3))`: la reevaluación queda vencida de inmediato y el worker la procesa en la siguiente pasada; cada guardado, también con la misma nota, reinicia la ventana de 7 días.)
+
+El motor nunca pisa una manual vigente; sigue calculando `automatic_score` por debajo y al vencer la ventana la reemplaza.
+
+### Fórmula (src/services/ratingEngine.ts)
+
+Fechas = día civil en `APP_TIME_ZONE` (por defecto `America/Bogota`); los DATETIME legacy (reloj de la BD, `NOW()`) se convierten a UTC con el desfase `NOW()-UTC_TIMESTAMP()`. Se usan todas las tarjetas del cliente en la empresa (todas las sucursales), excepto `fallecio`/`discapacitado` (no cuentan) y tarjetas cerradas (`cancelado` o saldo 0) creadas hace más de 800 días.
+
+- **Calendario (igual que la web, `Cartera.js`)**: inicio = `created_at` de la tarjeta; cuota k: `Diario` = k-ésimo día siguiente sin domingos; `Semanal` = inicio + 7k; `Quincenal` = inicio + 15k; `Mensual` = mismo día del mes (meses sin ese día se saltan, como la web). Número de cuotas = `int_tiempo`. Clasificación de `tbl_descripcion` (igual que `clasificarUltimoRegistro` de la web): **efectivo** = `Abono`, `c-Inicial`, `Inicial`, `Cancelado`/`Cancelada`, `Pagado` (negativo = pago, positivo = reversión); **intereses** = positivos `Intereses`/`Intereces` (refinanciación, que además amplía `int_tiempo`); **ajuste contable** = todo lo demás (`Descuento:`, `Saldo corregido`, otros). Obligación T = `dec_valor` + intereses; adeudado A = min(T, max(0, T + suma de ajustes)). La cuota k está cubierta el primer día en que el **efectivo** acumulado × plazo ≥ min(k × T, A × plazo). Los ajustes **nunca cuentan como pago** (no dan puntualidad, constancia ni carga); solo condonan las últimas cuotas: la cuota k con (k−1) × T ≥ A × plazo no se evalúa (p. ej. descuento por cancelar antes). La explicación indica cuántos ajustes y cuotas condonadas hubo. **Los adelantos cubren cuotas futuras**: si ya están cubiertas no se exige pago diario.
+- Gracia/periodo por modo: Diario 1/1, Semanal 2/7, Quincenal 3/15, Mensual 5/30 días.
+- **Puntualidad (50%)**: cuotas vencidas (vencimiento < hoy) de los últimos **365 días**: 1 si se cubrió con atraso ≤ gracia, 0.5 si ≤ gracia+periodo, 0 si más (una cuota no cubierta cuenta atraso hasta hoy). Factor = suma / cuotas evaluadas.
+- **Atraso actual (25%)**: en créditos abiertos, días desde la cuota sin cubrir más antigua menos la gracia; factor = max(0, 1 − días/60).
+- **Constancia (15%)**: semanas (lunes–domingo) completas de los últimos 365 días con alguna cuota vencida que no estaba cubierta al empezar la semana; factor = semanas con algún pago en efectivo / semanas requeridas (1 si no hay).
+- **Carga (10%)**: 1 si no hay créditos abiertos o no hay atraso (varias tarjetas al día no penalizan). Con atraso: pagos habituales en efectivo por día en los últimos min(90, días desde el primer crédito abierto) / suma de cuota diaria equivalente de todas las tarjetas abiertas (Diario ×6/7, Semanal /7, Quincenal /15, Mensual ×12/365), tope 1; requiere ≥7 días de historia.
+- **Nota**: S = Σ peso·factor / 100; continua = 1 + 9·S; se aplica el tope de confianza y se redondea a 1..10.
+- **Confianza y topes**: <8 cuotas evaluadas sin atraso → `initial`, 5 (efectiva `'nuevo'`); <8 con atraso → `limited`, máximo 5; <30 cuotas o <90 días desde la primera cuota evaluada → `limited`, máximo 8; si no `established`. Crédito abierto con datos inválidos (modo fuera de los 4, plazo no entero 1..2000, valor ≤0, fecha inválida/futura o saldo ≠ valor + Σabonos) → se excluye, se informa como "evidencia insuficiente" y la nota queda `limited` con máximo 6. Sin créditos → `initial`.
+- **Histéresis**: con la misma confianza se conserva la nota automática anterior salvo que la continua se aleje ≥1 punto (evita oscilaciones y spam de historial).
+- Explicación en español ≤500 caracteres con los cuatro factores, atraso, constancia, carga, exclusiones y topes.
+- Pesos por entorno, enteros 0..100 que deben sumar 100 (si no, `CONFIGURATION_ERROR` y la API no arranca): `RATING_WEIGHT_PUNCTUALITY=50`, `RATING_WEIGHT_DELAY=25`, `RATING_WEIGHT_CONSISTENCY=15`, `RATING_WEIGHT_LOAD=10`. La ventana manual (7 días) es fija.
+
+### Worker y entorno
+
+- `CUSTOMER_RATING_AUTOMATION=1` activa el worker dentro del proceso de la API (se inicia en `src/index.ts`, se detiene en `SIGTERM/SIGINT` esperando la pasada en curso antes de cerrar el pool). Valores distintos de `0`/`1` abortan el arranque. Activarlo solo después de aplicar y verificar 014. Cada fallo (evento, cliente vencido o arranque) se registra explícitamente con `console.error('[customer-rating] ...')`, se revierte su transacción y el evento acumula `attempts`/`last_error` (estado `failed` tras 5 intentos); no se suprime.
+- `RATING_WORKER_INTERVAL_MS` (5000..3600000, defecto 30000), `RATING_WORKER_BATCH` (1..1000, defecto 100).
+- Cada pasada toma `GET_LOCK('mobile_customer_rating_worker',0)` (una sola instancia procesa), y en transacciones por cliente (bloqueo `tbl_clientes FOR UPDATE` y luego el estado): 1) eventos `pending` agrupados por cliente; 2) estados con `next_evaluation_at` vencido (diario a las 00:05 locales si hay créditos abiertos, cada 7 días si solo hay historia, y al vencer la manual); 3) arranque: clientes **con tarjetas** sin estado. Errores: rollback del cliente, `attempts+1`, `last_error`, `failed` tras 5 intentos, log `[customer-rating]` sin credenciales; una reevaluación fallida se reintenta en 1 hora.
+- Con la automatización activa, `customerRating` también recalcula y persiste al leer (misma transacción) y `rateCustomer` devuelve la nota automática actual.
+- **Aviso de carga**: el arranque evalúa todos los clientes con tarjetas (~88k en local, ~20–25 ms cada uno) y cambia `str_calificacion` de los que salen de `'nuevo'`; cada cambio genera un evento de sync `customer UPDATE` (resincronización en los APK) y una fila de historial automática. Con los valores por defecto procesa ~200 clientes/minuto (≈7 h); ajustar `RATING_WORKER_BATCH`/intervalo según la carga aceptable.
+
+### Operación (aplicar 014 y activar el worker)
+
+```bash
+# Desde la raíz docker (la contraseña se toma de .env por entorno, nunca en la línea de comando)
+set -a; . ./.env; set +a
+docker exec -i -e MYSQL_PWD="$MYSQL_ROOT_PASSWORD" webgoez-mariadb10 \
+  mariadb -uroot websdnco_db_webgoez < www/projects/backend-creditos-apk/migrations/014_customer_rating_automatic.sql
+# Activar (backend .env, no versionado) y reiniciar solo Node: en desarrollo `tsx watch` reinicia al tocar src/index.ts
+#   CUSTOMER_RATING_AUTOMATION=1  RATING_WORKER_BATCH=50  RATING_WORKER_INTERVAL_MS=30000
+touch www/projects/backend-creditos-apk/src/index.ts
+# Seguimiento
+docker logs --since 10m webgoez-node 2>&1 | grep customer-rating
+#   SELECT COUNT(*), SUM(evaluated_at IS NOT NULL) FROM mobile_customer_rating_state;
+#   SELECT state, COUNT(*), MAX(attempts) FROM mobile_customer_rating_event GROUP BY state;
+```
+
+Usar el cliente `mariadb` (respeta `DELIMITER $$` y el `;` dentro del texto por defecto). La conexión del cliente es `utf8mb3_general_ci` y `tbl_clientes` es `utf8mb3_spanish2_ci`: por eso la semilla compara con `BINARY`; la prueba de BD aplica 014 con `SET NAMES utf8mb3` para cubrirlo. Desactivar: `CUSTOMER_RATING_AUTOMATION=0` y reiniciar Node (el estado guardado se sigue leyendo).
+
+### GraphQL
+
+Argumentos sin cambios. `CustomerRating` queda:
+
+```graphql
+type CustomerRating {
+  score: Int            # efectiva; 5 cuando rawRating no es '1'..'10'
+  rawRating: String!    # str_calificacion exacto, para expectedRating
+  label: String!        # Excelente | Bueno | Regular | Requiere seguimiento | Inicial · poca historia (regla común)
+  canRate: Boolean!
+  automaticScore: Int!  # 1..10 (5 en initial)
+  source: String!       # manual | automatic
+  manualUntil: String   # ISO UTC con ms, solo con manual vigente
+  evaluatedAt: String   # ISO UTC, null = evaluación pendiente
+  confidence: String!   # initial | limited | established
+  explanation: String!  # español, ≤500
+  history: [CustomerRatingEntry!]!  # últimos 20, manual y automatic (createdBy 0)
+}
+```
+
+Sin evaluación aún (sin estado o `evaluated_at` NULL) se devuelve explícitamente pendiente: `automaticScore` 5, `confidence` `initial`, `evaluatedAt` null, `explanation` `Nota inicial neutral; evaluación matemática pendiente.`; `source` = `manual` si hay manual vigente, si no `automatic`. Sin fila de estado y `rating` numérico (nota anterior): `score` = esa nota, `source` `manual`, `manualUntil` = última manual del historial + 7 días si coincide y sigue vigente (si no null), `explanation` `Nota anterior; evaluación matemática pendiente.`, `confidence` `initial`, `evaluatedAt` null. Con la automatización desactivada siempre se devuelve el estado guardado (nada se calcula); activada, la lectura recalcula y persiste. `evaluatedAt` permite mostrar la frescura (worker cada 30 s por defecto).
+
+Riesgos documentados: la explicación agrega todas las sucursales de la empresa; el desfase del reloj de BD se toma de `NOW()-UTC_TIMESTAMP()` en cada evaluación; `Mensual` salta meses sin el día de inicio (igual que la web); el módulo no toma decisiones financieras (solo muestra la nota).

@@ -29,7 +29,8 @@ class GraphQlContractTest {
             throw IllegalArgumentException("Actualiza la APK")
         }
         for (mutation in listOf(GraphQlDocuments.SETTLE_ROUTE, GraphQlDocuments.RESTORE_CREDIT,
-                GraphQlDocuments.ISSUE_RECEIPT_LINK, GraphQlDocuments.REVOKE_RECEIPT_LINK)) {
+                GraphQlDocuments.ISSUE_RECEIPT_LINK, GraphQlDocuments.REVOKE_RECEIPT_LINK,
+                GraphQlDocuments.RATE_CUSTOMER)) {
             val result = client.execute(mutation, buildJsonObject {}, ReportAppInstallationData.serializer(), "token")
             assertEquals(ApiResult.Rejected("Actualiza la APK", "APP_UPDATE_REQUIRED"), result)
         }
@@ -39,6 +40,99 @@ class GraphQlContractTest {
             assertTrue(client.execute(allowed, buildJsonObject {}, ReportAppInstallationData.serializer(), "token") is ApiResult.Success)
         }
         assertEquals(4, requests)
+    }
+
+    @Test fun customerRatingDocumentsMatchBackendContractAndDecode() {
+        val fields = "score label rawRating canRate automaticScore source manualUntil evaluatedAt confidence explanation"
+        val history = "history { id score previousScore reason source createdAt createdBy }"
+        for (document in listOf(GraphQlDocuments.CUSTOMER_RATING, GraphQlDocuments.RATE_CUSTOMER)) {
+            assertTrue(document.contains(fields))
+            assertTrue(document.contains(history))
+            assertTrue(document.contains("branchId: Int!"))
+            assertTrue(document.contains("customerId: Int!"))
+        }
+        assertTrue(GraphQlDocuments.CUSTOMER_RATING.trimStart().startsWith("query CustomerRating"))
+        assertTrue(GraphQlDocuments.CUSTOMER_RATING.contains("customerRating(branchId: \$branchId, customerId: \$customerId)"))
+        assertTrue(GraphQlDocuments.RATE_CUSTOMER.trimStart().startsWith("mutation RateCustomer"))
+        assertTrue(GraphQlDocuments.RATE_CUSTOMER.contains("score: Int!"))
+        assertTrue(GraphQlDocuments.RATE_CUSTOMER.contains("reason: String!"))
+        assertTrue(GraphQlDocuments.RATE_CUSTOMER.contains("expectedRating: String!"))
+        assertTrue(GraphQlDocuments.RATE_CUSTOMER.contains("expectedRating: \$expectedRating"))
+        for (document in listOf(GraphQlDocuments.PORTFOLIO, GraphQlDocuments.CUSTOMER_BY_ID, GraphQlDocuments.CUSTOMER_BY_DOCUMENT)) {
+            assertTrue(document.contains(" rating ratingSource ratingConfidence guarantorPersonId"))
+        }
+        val customer = json.decodeFromString(
+            CustomerDto.serializer(),
+            """{"id":10,"companyId":1,"personId":3,"firstName":"Ana","lastName":"Ruiz","rating":"nuevo","ratingSource":"automatic","ratingConfidence":"initial"}"""
+        )
+        assertEquals("automatic", customer.ratingSource)
+        assertEquals("initial", customer.ratingConfidence)
+        val read = json.decodeFromString(
+            CustomerRatingData.serializer(),
+            """{"customerRating":{"score":5,"label":"Inicial · poca historia","rawRating":"nuevo","canRate":true,"automaticScore":5,"source":"automatic","manualUntil":null,"evaluatedAt":null,"confidence":"initial","explanation":"Nota inicial neutral de 5/10.","history":[{"id":"7","score":8,"previousScore":null,"reason":"Paga puntual","source":"manual","createdAt":"2026-10-13T14:00:00.000Z","createdBy":3},{"id":8,"score":null,"previousScore":8,"reason":"Reinicio","source":"automatic","createdAt":"2026-10-13T15:00:00.000Z","createdBy":4}]}}"""
+        ).customerRating!!
+        assertEquals(5, read.score)
+        assertEquals("automatic", read.source)
+        assertEquals("initial", read.confidence)
+        assertEquals(null, read.evaluatedAt)
+        assertEquals(null, com.backendcreditos.mobile.customerRatingContractError(read))
+        assertEquals("automatic", read.history[1].source)
+        assertEquals("nuevo", read.rawRating)
+        assertTrue(read.canRate)
+        assertEquals("7", read.history[0].id)
+        assertEquals("8", read.history[1].id)
+        assertEquals(8, read.history[1].previousScore)
+        assertEquals(3, read.history[0].createdBy)
+        val rated = json.decodeFromString(
+            RateCustomerData.serializer(),
+            """{"rateCustomer":{"score":9,"label":"Excelente","rawRating":"9","canRate":true,"automaticScore":6,"source":"manual","manualUntil":"2026-10-20T14:00:00.000Z","evaluatedAt":"2026-10-13T14:00:00.000Z","confidence":"limited","explanation":"Pagos con atrasos leves.","history":[]}}"""
+        ).rateCustomer
+        assertEquals(9, rated.score)
+        assertEquals(6, rated.automaticScore)
+        assertEquals("2026-10-20T14:00:00.000Z", rated.manualUntil)
+        assertEquals(null, json.decodeFromString(CustomerRatingData.serializer(), """{"customerRating":null}""").customerRating)
+    }
+
+    @Test fun ratingResponseMissingAutomaticFieldsIsRejectedNotDefaulted() = runBlocking {
+        val http = OkHttpClient.Builder().addInterceptor { chain ->
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                .body("""{"data":{"customerRating":{"score":7,"label":"Bueno","rawRating":"7","canRate":true,"history":[]}}}""".toResponseBody())
+                .build()
+        }.build()
+        val api = GraphQlApi(GraphQlClient("https://example.invalid/graphql", http))
+        assertTrue(api.customerRating("token", "4", "10") is ApiResult.Rejected)
+    }
+
+    @Test fun rateCustomerSendsTrimmedReasonAndExpectedRatingAndValidatesLocally() = runBlocking {
+        val bodies = mutableListOf<String>()
+        val http = OkHttpClient.Builder().addInterceptor { chain ->
+            val buffer = okio.Buffer()
+            chain.request().body!!.writeTo(buffer)
+            bodies += buffer.readUtf8()
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                .body("""{"data":{"rateCustomer":{"score":4,"label":"Requiere seguimiento","rawRating":"4","canRate":true,"automaticScore":6,"source":"manual","manualUntil":"2026-10-20T14:00:00.000Z","evaluatedAt":"2026-10-13T14:00:00.000Z","confidence":"limited","explanation":"Pagos con atrasos leves.","history":[]}}}""".toResponseBody())
+                .build()
+        }.build()
+        val api = GraphQlApi(GraphQlClient("https://example.invalid/graphql", http))
+        val result = api.rateCustomer("token", "4", "10", 4, "  Atrasos repetidos  ", "nuevo")
+        assertTrue(result is ApiResult.Success)
+        val variables = json.parseToJsonElement(bodies.single()).let { it as kotlinx.serialization.json.JsonObject }["variables"].toString()
+        assertEquals("""{"branchId":4,"customerId":10,"score":4,"reason":"Atrasos repetidos","expectedRating":"nuevo"}""", variables)
+        assertTrue(api.rateCustomer("token", "4", "10", 11, "Atrasos repetidos", "4") is ApiResult.Rejected)
+        assertTrue(api.rateCustomer("token", "4", "10", 5, " abc ", "4") is ApiResult.Rejected)
+        assertTrue(api.rateCustomer("token", "4", "local-1", 5, "Atrasos repetidos", "4") is ApiResult.Rejected)
+        assertEquals(1, bodies.size)
+    }
+
+    @Test fun staleExpectedRatingConflictIsReportedAsConflict() = runBlocking {
+        val http = OkHttpClient.Builder().addInterceptor { chain ->
+            Response.Builder().request(chain.request()).protocol(Protocol.HTTP_1_1).code(200).message("OK")
+                .body("""{"errors":[{"message":"Rating changed","extensions":{"code":"CONFLICT"}}]}""".toResponseBody())
+                .build()
+        }.build()
+        val result = GraphQlApi(GraphQlClient("https://example.invalid/graphql", http))
+            .rateCustomer("token", "4", "10", 7, "Mejoró pagos", "5")
+        assertTrue(result is ApiResult.Conflict)
     }
 
     @Test fun customerQueriesAndSyncDecodePhoneHistoryIncludingUnsendableLegacy() {

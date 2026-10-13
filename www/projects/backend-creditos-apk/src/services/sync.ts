@@ -1,3 +1,4 @@
+import { RATING_STATE_FIELDS, RATING_STATE_JOIN } from './ratingState.js';
 import type { AuthUser } from './auth.js';
 import { customerPhones } from './phones.js';
 
@@ -86,9 +87,11 @@ export async function materializeSyncEvent(
                     p.str_direccion_ciudad AS city,p.str_direccion_barrio AS neighborhood,
                     p.str_direccion_calle AS street,c.dec_max_credito AS maxCredit,
                     c.str_apodo AS nickname,c.str_nota AS note,c.str_estado AS status,
-                    c.str_calificacion AS rating,c.fiador_persona_id AS guarantorPersonId
+                    COALESCE(c.str_calificacion,'') AS rating,c.fiador_persona_id AS guarantorPersonId,
+                    ${RATING_STATE_FIELDS}
              FROM tbl_clientes c
              JOIN tbl_persona p ON p.idpersona=c.idpersona AND p.idglobal=c.idglobal
+             ${RATING_STATE_JOIN}
              WHERE c.idcliente=? AND c.idglobal=? AND ${branchScopeExists('c')} LIMIT 1`;
       params = [event.recordId, user.companyId, branchId, branchId, branchId];
       break;

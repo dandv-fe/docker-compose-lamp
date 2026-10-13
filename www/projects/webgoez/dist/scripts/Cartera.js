@@ -952,7 +952,11 @@ function cargarDatosEnPanel() {
     ArrayTarjetas[id].ut_adi_valor == "0.00" ? $("#divPanelAdicional").hide() : $("#divPanelAdicional").show()
     $("#bResultadoValoresSeguro").text(ArrayTarjetas[id].ut_adi_valor)
     $("#resta-cliente-panel").text(parseFloat(ArrayTarjetas[id].resta).toFixed(2))
-    $("#txtClienteCalificacion").text(ArrayTarjetas[id].calificacion);
+    pintarCintaCalificacionCliente(ArrayTarjetas[id].calificacion, {
+        score: ArrayTarjetas[id].rating_score,
+        source: ArrayTarjetas[id].rating_source,
+        confidence: ArrayTarjetas[id].rating_confidence
+    });
 
     const ultimoAbono = ArrayTarjetas[id]
     if (ultimoAbono.ultimo_abono === null || ultimoAbono.ultimo_abono === undefined) {

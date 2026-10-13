@@ -211,6 +211,8 @@ data class CustomerDto(
     val note: String? = null,
     val status: String? = null,
     val rating: String? = null,
+    val ratingSource: String? = null,
+    val ratingConfidence: String? = null,
     val guarantorPersonId: Int? = null,
     val credits: List<CreditDto> = emptyList(),
     val comments: List<CommentDto> = emptyList()
@@ -617,6 +619,39 @@ data class RestoreCreditResultDto(
     val previousState: String,
     val state: String
 )
+
+@Serializable
+data class CustomerRatingHistoryDto(
+    @Serializable(with = GraphQlIdSerializer::class) val id: String,
+    val score: Int? = null,
+    val previousScore: Int? = null,
+    val reason: String,
+    val source: String,
+    val createdAt: String,
+    val createdBy: Int
+)
+
+@Serializable
+data class CustomerRatingDto(
+    val score: Int? = null,
+    val label: String,
+    val rawRating: String,
+    val canRate: Boolean,
+    // Required by the contract (no defaults): a response without them is rejected, never guessed.
+    val automaticScore: Int,
+    val source: String,
+    val manualUntil: String? = null,
+    val evaluatedAt: String? = null,
+    val confidence: String,
+    val explanation: String,
+    val history: List<CustomerRatingHistoryDto>
+)
+
+@Serializable
+data class CustomerRatingData(val customerRating: CustomerRatingDto? = null)
+
+@Serializable
+data class RateCustomerData(val rateCustomer: CustomerRatingDto)
 
 sealed interface ApiResult<out T> {
     data class Success<T>(val value: T) : ApiResult<T>

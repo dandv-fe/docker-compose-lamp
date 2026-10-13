@@ -19,6 +19,7 @@ import {
 } from '../services/biometric.js';
 import { fail } from '../services/errors.js';
 import { issueReceiptLink, receiptLinks, revokeReceiptLink } from '../services/receiptLinks.js';
+import { customerRating, rateCustomer } from '../services/customerRating.js';
 import { z } from 'zod';
 import { appInstallations, mobileAppPolicy, reportAppInstallation } from '../services/mobileApp.js';
 
@@ -373,6 +374,7 @@ const CustomerType = new GraphQLObjectType({
     city: { type: GraphQLString }, neighborhood: { type: GraphQLString }, street: { type: GraphQLString },
     maxCredit: { type: GraphQLFloat }, nickname: { type: GraphQLString }, note: { type: GraphQLString },
     status: { type: GraphQLString }, rating: { type: GraphQLString }, guarantorPersonId: { type: GraphQLInt },
+    ratingSource: { type: GraphQLString }, ratingConfidence: { type: GraphQLString },
     credits: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(CreditType))) },
     comments: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(CommentType))) },
   },
@@ -527,6 +529,36 @@ const RestoreCreditResultType = new GraphQLObjectType({
   },
 });
 
+const CustomerRatingEntryType = new GraphQLObjectType({
+  name: 'CustomerRatingEntry',
+  fields: {
+    id: { type: new GraphQLNonNull(GraphQLID) },
+    score: { type: GraphQLInt },
+    previousScore: { type: GraphQLInt },
+    reason: { type: new GraphQLNonNull(GraphQLString) },
+    source: { type: new GraphQLNonNull(GraphQLString) },
+    createdAt: { type: new GraphQLNonNull(GraphQLString) },
+    createdBy: { type: new GraphQLNonNull(GraphQLInt) },
+  },
+});
+
+const CustomerRatingType = new GraphQLObjectType({
+  name: 'CustomerRating',
+  fields: {
+    score: { type: GraphQLInt },
+    rawRating: { type: new GraphQLNonNull(GraphQLString) },
+    label: { type: new GraphQLNonNull(GraphQLString) },
+    canRate: { type: new GraphQLNonNull(GraphQLBoolean) },
+    automaticScore: { type: new GraphQLNonNull(GraphQLInt) },
+    source: { type: new GraphQLNonNull(GraphQLString) },
+    manualUntil: { type: GraphQLString },
+    evaluatedAt: { type: GraphQLString },
+    confidence: { type: new GraphQLNonNull(GraphQLString) },
+    explanation: { type: new GraphQLNonNull(GraphQLString) },
+    history: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(CustomerRatingEntryType))) },
+  },
+});
+
 function auth(context: { auth: AuthContext | null }) { return context.auth; }
 
 const loginArgs = z.object({
@@ -578,6 +610,12 @@ const Query = new GraphQLObjectType({
       },
       resolve: (_source, args, context: { auth: AuthContext | null }) =>
         portfolio(auth(context), args.branchId, args.first, args.after, args.snapshotCursor),
+    },
+    customerRating: {
+      type: new GraphQLNonNull(CustomerRatingType),
+      args: { branchId: { type: new GraphQLNonNull(GraphQLInt) }, customerId: { type: new GraphQLNonNull(GraphQLInt) } },
+      resolve: (_source, args, context: { auth: AuthContext | null }) =>
+        customerRating(auth(context), args.branchId, args.customerId),
     },
     customerById: {
       type: CustomerType,
@@ -812,6 +850,16 @@ const Mutation = new GraphQLObjectType({
         settleRoute(auth(context), args.branchId, {
           cash: args.cash, coins: args.coins, difference: args.difference,
         }),
+    },
+    rateCustomer: {
+      type: new GraphQLNonNull(CustomerRatingType),
+      args: {
+        branchId: { type: new GraphQLNonNull(GraphQLInt) }, customerId: { type: new GraphQLNonNull(GraphQLInt) },
+        score: { type: new GraphQLNonNull(GraphQLInt) }, reason: { type: new GraphQLNonNull(GraphQLString) },
+        expectedRating: { type: new GraphQLNonNull(GraphQLString) },
+      },
+      resolve: (_source, args, context: { auth: AuthContext | null }) =>
+        rateCustomer(auth(context), args.branchId, args.customerId, args.score, args.reason, args.expectedRating),
     },
     restoreCredit: {
       type: new GraphQLNonNull(RestoreCreditResultType),

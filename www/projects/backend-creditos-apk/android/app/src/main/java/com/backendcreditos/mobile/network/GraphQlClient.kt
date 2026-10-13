@@ -527,6 +527,44 @@ class GraphQlApi(private val client: GraphQlClient) {
         )
     }
 
+    suspend fun customerRating(token: String, branchId: String, customerId: String): ApiResult<CustomerRatingData> {
+        val numericBranchId = branchId.toIntOrNull()
+            ?: return ApiResult.Rejected("La sucursal debe tener un ID numérico.")
+        val numericCustomerId = customerId.toIntOrNull()
+            ?: return ApiResult.Rejected("El cliente aún no tiene un ID numérico asignado por el servidor.")
+        return client.execute(
+            GraphQlDocuments.CUSTOMER_RATING,
+            buildJsonObject {
+                put("branchId", JsonPrimitive(numericBranchId))
+                put("customerId", JsonPrimitive(numericCustomerId))
+            },
+            CustomerRatingData.serializer(),
+            token
+        )
+    }
+
+    suspend fun rateCustomer(
+        token: String, branchId: String, customerId: String, score: Int, reason: String, expectedRating: String
+    ): ApiResult<RateCustomerData> {
+        val numericBranchId = branchId.toIntOrNull()
+            ?: return ApiResult.Rejected("La sucursal debe tener un ID numérico.")
+        val numericCustomerId = customerId.toIntOrNull()
+            ?: return ApiResult.Rejected("El cliente aún no tiene un ID numérico asignado por el servidor.")
+        com.backendcreditos.mobile.ratingInputError(score, reason)?.let { return ApiResult.Rejected(it) }
+        return client.execute(
+            GraphQlDocuments.RATE_CUSTOMER,
+            buildJsonObject {
+                put("branchId", JsonPrimitive(numericBranchId))
+                put("customerId", JsonPrimitive(numericCustomerId))
+                put("score", JsonPrimitive(score))
+                put("reason", JsonPrimitive(reason.trim()))
+                put("expectedRating", JsonPrimitive(expectedRating))
+            },
+            RateCustomerData.serializer(),
+            token
+        )
+    }
+
     suspend fun restoreCredit(token: String, branchId: String, creditId: String): ApiResult<RestoreCreditData> {
         val numericBranchId = branchId.toIntOrNull()
             ?: return ApiResult.Rejected("La sucursal debe tener un ID numérico.")

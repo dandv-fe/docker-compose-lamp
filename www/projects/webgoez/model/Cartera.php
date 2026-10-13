@@ -811,9 +811,16 @@ class ClassCartera
         $sql = "SELECT r.*, d.dec_abono AS ultimo_abono, d.str_descripcion AS ultimo_abono_descripcion,
             d.str_estado AS ultimo_abono_estado, d.str_origen AS ultimo_abono_origen,
             d.created_at AS ultimo_abono_fecha, d.idusuario AS ultimo_abono_idusuario,
+            CASE WHEN rating.manual_score IS NOT NULL AND rating.manual_until > UTC_TIMESTAMP(3)
+                THEN 'manual' ELSE 'automatic' END AS rating_source,
+            rating.confidence AS rating_confidence,
+            CASE WHEN rating.manual_score IS NOT NULL AND rating.manual_until > UTC_TIMESTAMP(3)
+                THEN rating.manual_score ELSE rating.automatic_score END AS rating_score,
             COALESCE(NULLIF(TRIM(CONCAT_WS(' ', p.str_nombres, p.str_apellidos)), ''), u.str_user_name)
                 AS ultimo_abono_usuario
         FROM view_ruta r
+        LEFT JOIN mobile_customer_rating_state rating
+            ON rating.idglobal=r.refGlobal AND rating.idcliente=r.refCliente
         LEFT JOIN tbl_descripcion d ON d.iddescripcion = (
             SELECT pago.iddescripcion FROM tbl_descripcion pago
             WHERE pago.idtarjeta = r.refTarjeta AND pago.idglobal = r.refGlobal

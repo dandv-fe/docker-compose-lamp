@@ -1,3 +1,4 @@
+import { RATING_STATE_FIELDS, RATING_STATE_JOIN } from './ratingState.js';
 import { unlink } from 'node:fs/promises';
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { GraphQLError } from 'graphql';
@@ -1445,15 +1446,17 @@ async function loadCurrentRecord(
     const [rows] = await conn.execute<RowDataPacket[]>(
       `SELECT c.idcliente AS id,c.idpersona AS personId,c.idglobal AS companyId,
               c.dec_max_credito AS maxCredit,c.str_apodo AS nickname,c.str_nota AS note,
-              c.str_estado AS customerStatus,c.str_calificacion AS rating,
+              c.str_estado AS customerStatus,COALESCE(c.str_calificacion,'') AS rating,
               p.str_nombres AS firstName,p.str_apellidos AS lastName,p.str_sexo AS sex,
               p.str_fecha_nacimiento AS birthDate,p.str_tipo_documento AS documentType,
               p.str_num_documento AS documentNumber,p.str_telefono AS phone,p.str_email AS email,
               p.str_foto AS photo,p.str_ocupacion AS occupation,p.str_estado AS personStatus,
               p.str_nota AS personNote,p.str_direccion_departamento AS department,
               p.str_direccion_ciudad AS city,p.str_direccion_barrio AS neighborhood,
-              p.str_direccion_calle AS street,c.fiador_persona_id AS guarantorPersonId
+              p.str_direccion_calle AS street,c.fiador_persona_id AS guarantorPersonId,
+              ${RATING_STATE_FIELDS}
        FROM tbl_clientes c JOIN tbl_persona p ON p.idpersona=c.idpersona AND p.idglobal=c.idglobal
+       ${RATING_STATE_JOIN}
        WHERE c.idcliente=? AND c.idglobal=? AND ${branchScopeExists('c')}
        LIMIT 1`,
       [id, companyId, branchId, branchId, branchId],

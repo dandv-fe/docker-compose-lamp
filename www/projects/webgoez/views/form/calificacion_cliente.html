@@ -1,0 +1,58 @@
+<div class="modal fade" id="modal-calificacion-cliente" tabindex="-1" role="dialog"
+  aria-labelledby="titulo-calificacion-cliente" aria-modal="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 id="titulo-calificacion-cliente" class="modal-title">Calificación del cliente</h5>
+        <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+      </div>
+      <div class="modal-body">
+        <p id="nombre-calificacion-cliente" class="font-weight-bold"></p>
+        <p><strong>Nota actual:</strong> <span id="nota-actual-cliente"></span></p>
+        <div class="alert alert-light border">
+          <p class="mb-1"><strong>Evaluación matemática:</strong> <span id="nota-automatica-cliente"></span></p>
+          <p id="explicacion-automatica-cliente" class="mb-1"></p>
+          <p id="vigencia-manual-cliente" class="small mb-1"></p>
+          <p id="fecha-evaluacion-cliente" class="small text-muted mb-0"></p>
+        </div>
+        <p class="small text-muted">La nota pertenece al cliente, no a una sola tarjeta, y se refleja en todas sus tarjetas.
+          Se evalúan puntualidad, atraso actual, constancia y carga de cuotas frente a pagos habituales.
+          Los adelantos cubren cuotas futuras. Sin historia suficiente se parte de una nota neutral de 5/10.
+          No determina automáticamente cupos ni aprobación de créditos.</p>
+        <div id="estado-calificacion-cliente" role="status" aria-live="polite"></div>
+        <p id="solo-lectura-calificacion-cliente" class="alert alert-info" hidden>
+          Solo el Super Administrador o administrador de esta oficina puede asignar o cambiar la nota.
+        </p>
+        <form id="form-calificacion-cliente" hidden>
+          <div class="form-group">
+            <label for="score-calificacion-cliente">Nota manual de 1 a 10 (prioridad durante 7 días)</label>
+            <select id="score-calificacion-cliente" class="form-control" required>
+              <option value="">Seleccione una nota</option>
+              <?php for ($nota = 1; $nota <= 10; $nota++) {
+                $categoria = $nota >= 9 ? 'Excelente' : ($nota >= 7 ? 'Bueno' : ($nota >= 5 ? 'Regular' : 'Requiere seguimiento')); ?>
+              <option value="<?php echo $nota; ?>"><?php echo $nota . '/10 · ' . $categoria; ?></option>
+              <?php } ?>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="reason-calificacion-cliente">Motivo de la calificación</label>
+            <textarea id="reason-calificacion-cliente" class="form-control" rows="3" minlength="5" maxlength="500"
+              required aria-describedby="ayuda-calificacion-cliente"></textarea>
+            <small id="ayuda-calificacion-cliente" class="form-text text-muted">Entre 5 y 500 caracteres.
+              Registre hechos verificables sobre el cumplimiento del cliente. El cálculo automático continúa;
+              a los 7 días vuelve a ser la nota vigente.</small>
+          </div>
+          <button type="submit" class="btn btn-primary">Guardar nota y motivo</button>
+        </form>
+        <h6 class="mt-3">Últimas 20 calificaciones</h6>
+        <p id="sin-historial-calificacion-cliente" class="text-muted" hidden>Sin calificaciones registradas.</p>
+        <ul id="historial-calificacion-cliente" class="list-group calificacion-historial"></ul>
+        <p class="small text-muted mt-2 mb-0">Evaluación automática local y explicable, sin enviar datos a una IA externa.
+          Se revisa con los movimientos y con el paso de los días, incluso sin nuevos pagos.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,12 @@
+.cliente-calificacion-header { position: relative; min-height: 135px; }
+.cliente-calificacion-header .user-block { padding-right: 100px; padding-top: 8px; }
+.cliente-calificacion-cinta { pointer-events: none; }
+.cliente-calificacion-cinta .ribbon { font-size: .75rem; line-height: 1.25; white-space: nowrap; }
+.cliente-calificacion-accion { clear: both; padding: 8px; }
+.cliente-calificacion-accion .btn { text-align: left; white-space: normal; }
+#modal-calificacion-cliente .calificacion-historial-motivo { white-space: pre-wrap; overflow-wrap: anywhere; }
+#modal-calificacion-cliente .calificacion-historial { max-height: 320px; overflow-y: auto; }
+#modal-calificacion-cliente label { display: block; }
+@media (max-width: 575px) {
+  .cliente-calificacion-header .user-block { padding-right: 86px; }
+}

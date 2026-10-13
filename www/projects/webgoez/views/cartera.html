@@ -1,4 +1,5 @@
 <!-- SweetAlert2 -->
+<?php include __DIR__ . '/form/calificacion_cliente.html'; ?>
 
 <link rel="stylesheet" href="plugins/sweetalert2-theme-bootstrap-4/bootstrap-4.min.css" />
 <link rel="stylesheet" href="//code.jquery.com/ui/1.13.2/themes/base/jquery-ui.css" />
@@ -15,7 +16,9 @@
 <script src="plugins/jquery-ui/jquery-ui.min.js"></script>
 <script src="plugins/moment/moment.min.js"></script>
 <script src="plugins/moment/locale/es.js"></script>
-<script type="text/javascript" src="dist/scripts/Cartera.js?v=<?php echo $infoSistemaCuentas['version']; ?>-telefonos-historial"></script>
+<link rel="stylesheet" href="dist/css/calificacion-cliente.css?v=<?php echo rawurlencode($infoSistemaCuentas['version']); ?>">
+<script src="dist/scripts/CalificacionCliente.js?v=<?php echo rawurlencode($infoSistemaCuentas['version']); ?>"></script>
+<script type="text/javascript" src="dist/scripts/Cartera.js?v=<?php echo $infoSistemaCuentas['version']; ?>-calificacion-cliente"></script>
 
 
 <style>
@@ -357,12 +360,10 @@ include "views/partials/modalNuevaContabilidad.html";
             </div>
 
             <div id="panelVewDatos" class="card card-widget">
-              <div class="card-header p-0">
-                <!-- para la calificacion ¡PENDIENTE¡!
-                <div class="ribbon-wrapper">
-                  <div id="txtClienteCalificacion" class="ribbon bg-default"></div>
+              <div class="card-header p-0 cliente-calificacion-header">
+                <div class="ribbon-wrapper ribbon-lg cliente-calificacion-cinta" aria-hidden="true">
+                  <div id="txtClienteCalificacion" class="ribbon bg-secondary">Inicial 5/10</div>
                 </div>
-              -->
                 <div class="user-block">
                   <img id="foto-cliente-panel" class="img-circle" src="" alt="User Image" />
                   <span onclick="searchInfoEsteCliente()" class="username usernamecluente"><a href="#"
@@ -381,6 +382,13 @@ include "views/partials/modalNuevaContabilidad.html";
                       style="cursor: pointer; font-weight: bold; font-family: Arial, Helvetica, sans-serif; font-size: larger; display: block;"
                       href="#"></p>
                   </span>
+                </div>
+                <div class="cliente-calificacion-accion">
+                  <button id="abrir-calificacion-cliente" type="button" class="btn btn-sm btn-outline-secondary"
+                    aria-haspopup="dialog" aria-controls="modal-calificacion-cliente">
+                    <i class="fas fa-star" aria-hidden="true"></i>
+                    <span id="resumen-calificacion-cliente">Inicial · poca historia</span> · Ver calificación e historial
+                  </button>
                 </div>
               </div>
 

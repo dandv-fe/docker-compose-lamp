@@ -88,7 +88,7 @@ object GraphQlDocuments {
               id companyId personId firstName lastName sex birthDate
               documentType documentNumber phone email photo occupation personStatus personNote
               phones { id phone normalizedPhone whatsappOpenCount whatsappLastOpenedAt invalid validityChangedBy validityChangedAt }
-              department city neighborhood street maxCredit nickname note status rating guarantorPersonId
+              department city neighborhood street maxCredit nickname note status rating ratingSource ratingConfidence guarantorPersonId
               credits {
                 id companyId branchId customerId routeId saleId concept value frequency term principal balance
                 description sortOrder profit additionalNumber additionalValue receiptType receiptSeries receiptNumber
@@ -108,7 +108,7 @@ object GraphQlDocuments {
             id companyId personId firstName lastName sex birthDate
             documentType documentNumber phone email photo occupation personStatus personNote
             phones { id phone normalizedPhone whatsappOpenCount whatsappLastOpenedAt invalid validityChangedBy validityChangedAt }
-            department city neighborhood street maxCredit nickname note status rating guarantorPersonId
+            department city neighborhood street maxCredit nickname note status rating ratingSource ratingConfidence guarantorPersonId
             credits {
               id companyId branchId customerId routeId saleId concept value frequency term principal balance
               description sortOrder profit additionalNumber additionalValue receiptType receiptSeries receiptNumber
@@ -126,7 +126,7 @@ object GraphQlDocuments {
             id companyId personId firstName lastName sex birthDate
             documentType documentNumber phone email photo occupation personStatus personNote
             phones { id phone normalizedPhone whatsappOpenCount whatsappLastOpenedAt invalid validityChangedBy validityChangedAt }
-            department city neighborhood street maxCredit nickname note status rating guarantorPersonId
+            department city neighborhood street maxCredit nickname note status rating ratingSource ratingConfidence guarantorPersonId
             credits {
               id companyId branchId customerId routeId saleId concept value frequency term principal balance
               description sortOrder profit additionalNumber additionalValue receiptType receiptSeries receiptNumber
@@ -263,6 +263,28 @@ object GraphQlDocuments {
             personId firstName lastName documentType documentNumber sex birthDate occupation phone email
             department city neighborhood street customerStatus maxCredit nickname
           }
+        }
+    """
+    private const val CUSTOMER_RATING_FIELDS = """
+        score label rawRating canRate automaticScore source manualUntil evaluatedAt confidence explanation
+        history { id score previousScore reason source createdAt createdBy }
+    """
+    val CUSTOMER_RATING = """
+        query CustomerRating(${'$'}branchId: Int!, ${'$'}customerId: Int!) {
+          customerRating(branchId: ${'$'}branchId, customerId: ${'$'}customerId) { $CUSTOMER_RATING_FIELDS }
+        }
+    """
+    // Online-only write: it never goes through the offline queue and, being a regular mutation,
+    // GraphQlClient blocks it while an APK update is required.
+    val RATE_CUSTOMER = """
+        mutation RateCustomer(
+          ${'$'}branchId: Int!, ${'$'}customerId: Int!, ${'$'}score: Int!,
+          ${'$'}reason: String!, ${'$'}expectedRating: String!
+        ) {
+          rateCustomer(
+            branchId: ${'$'}branchId, customerId: ${'$'}customerId, score: ${'$'}score,
+            reason: ${'$'}reason, expectedRating: ${'$'}expectedRating
+          ) { $CUSTOMER_RATING_FIELDS }
         }
     """
     const val RESTORE_CREDIT = """

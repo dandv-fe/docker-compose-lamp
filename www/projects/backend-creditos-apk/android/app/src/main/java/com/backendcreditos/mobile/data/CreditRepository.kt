@@ -1,6 +1,9 @@
 package com.backendcreditos.mobile.data
 
 import androidx.room.withTransaction
+import com.backendcreditos.mobile.customerConfidence
+import com.backendcreditos.mobile.customerRatingContractError
+import com.backendcreditos.mobile.customerSource
 import com.backendcreditos.mobile.momentMillis
 import com.backendcreditos.mobile.network.ApiResult
 import com.backendcreditos.mobile.network.CustomerDto
@@ -29,6 +32,16 @@ internal fun joinPortfolio(
     val byId = customers.associateBy { it.id }
     return credits.map { PortfolioRow(it, byId[it.customerId]) }
 }
+
+// A server payload that omits "rating" says nothing about it: keep the cached value instead of
+// erasing it. An explicit value (even null) is authoritative.
+internal fun ratingFromServerPayload(payload: JsonElement?, incoming: String?, cached: String?): String? =
+    if (payload is JsonObject && !payload.containsKey("rating")) cached else incoming
+
+// Rating metadata (ratingSource/ratingConfidence) can change without the score; each key absent
+// from a partial payload keeps its cached value, an explicit value or null replaces it.
+internal fun ratingMetadataFromServerPayload(payload: JsonElement?, key: String, incoming: String?, cached: String?): String? =
+    if (payload is JsonObject && !payload.containsKey(key)) cached else incoming
 
 internal fun initialCreditBalance(fields: JsonObject): String {
     val value = (fields["valor"] as? JsonPrimitive)?.content?.toBigDecimalOrNull()
@@ -469,7 +482,18 @@ class CreditRepository(
                                         dao.deleteCustomer(account.accountKey, branchId, recordId)
                                     } else change.payload?.let { payload ->
                                         val dto = json.decodeFromJsonElement(CustomerDto.serializer(), payload)
-                                        cacheCustomers(listOf(dto.toEntity(account, branchId)))
+                                        val cached = dao.customer(account.accountKey, branchId, dto.id.toString())
+                                        cacheCustomers(listOf(dto.toEntity(account, branchId).let {
+                                            it.copy(
+                                                rating = ratingFromServerPayload(payload, it.rating, cached?.rating),
+                                                ratingSource = ratingMetadataFromServerPayload(
+                                                    payload, "ratingSource", it.ratingSource, cached?.ratingSource
+                                                ),
+                                                ratingConfidence = ratingMetadataFromServerPayload(
+                                                    payload, "ratingConfidence", it.ratingConfidence, cached?.ratingConfidence
+                                                )
+                                            )
+                                        }))
                                         dao.putCredits(dto.credits.filter { it.branchId.toString() == branchId }
                                             .map { it.toEntity(account, branchId) })
                                         cacheLatestPayments(dto.credits, account, branchId)
@@ -1665,8 +1689,16 @@ class CreditRepository(
                         runCatching { json.decodeFromJsonElement(CustomerDto.serializer(), it) }.getOrNull()
                     }
                     if (dto != null) {
-                        dao.putCustomers(listOf(dto.toEntity(
-                            StoredSession(operation.accountKey, "", ""), operation.branchId
+                        val entity = dto.toEntity(StoredSession(operation.accountKey, "", ""), operation.branchId)
+                        val cached = dao.customer(operation.accountKey, operation.branchId, entity.id)
+                        dao.putCustomers(listOf(entity.copy(
+                            rating = ratingFromServerPayload(state, entity.rating, cached?.rating),
+                            ratingSource = ratingMetadataFromServerPayload(
+                                state, "ratingSource", entity.ratingSource, cached?.ratingSource
+                            ),
+                            ratingConfidence = ratingMetadataFromServerPayload(
+                                state, "ratingConfidence", entity.ratingConfidence, cached?.ratingConfidence
+                            )
                         )))
                         appliedServerState = true
                     }
@@ -1808,7 +1840,10 @@ class CreditRepository(
         nickname = nickname,
         customerNote = note,
         customerStatus = status,
-        guarantorPersonId = guarantorPersonId?.toString()
+        guarantorPersonId = guarantorPersonId?.toString(),
+        rating = rating,
+        ratingSource = ratingSource,
+        ratingConfidence = ratingConfidence
     )
 
     private suspend fun cacheLatestPayments(
@@ -2003,6 +2038,58 @@ class CreditRepository(
     suspend fun portfolioClients(account: StoredSession, branchId: String) =
         when (val response = api.portfolioClients(account.token, branchId)) {
             is ApiResult.Success -> ApiResult.Success(response.value.portfolioClients)
+            is ApiResult.AuthExpired -> response
+            is ApiResult.Conflict -> response
+            is ApiResult.PermissionRejected -> response
+            is ApiResult.Rejected -> response
+            is ApiResult.Retryable -> response
+        }
+
+    // Reads the authoritative rating and its audit history; only the cached rating column is
+    // refreshed so pending customer edits stay on top of the local copy.
+    suspend fun customerRating(
+        account: StoredSession, branchId: String, customerId: String
+    ): ApiResult<com.backendcreditos.mobile.network.CustomerRatingDto> =
+        when (val response = api.customerRating(account.token, branchId, customerId)) {
+            is ApiResult.Success -> {
+                val rating = response.value.customerRating
+                val problem = rating?.let { customerRatingContractError(it) }
+                when {
+                    rating == null -> ApiResult.Rejected("Cliente no disponible para esta sucursal.")
+                    problem != null -> ApiResult.Rejected("Respuesta de calificación inválida: $problem.")
+                    else -> {
+                        dao.updateCustomerRating(account.accountKey, customerId, rating.rawRating, rating.customerSource(), rating.customerConfidence())
+                        ApiResult.Success(rating)
+                    }
+                }
+            }
+            is ApiResult.AuthExpired -> response
+            is ApiResult.Conflict -> response
+            is ApiResult.PermissionRejected -> response
+            is ApiResult.Rejected -> response
+            is ApiResult.Retryable -> response
+        }
+
+    // Online-only by design: a manual rating is an audited admin decision guarded by
+    // expectedRating, so it is never queued for a later offline replay.
+    suspend fun rateCustomer(
+        account: StoredSession, branchId: String, customerId: String,
+        score: Int, reason: String, expectedRating: String
+    ): ApiResult<com.backendcreditos.mobile.network.CustomerRatingDto> =
+        when (val response = api.rateCustomer(account.token, branchId, customerId, score, reason, expectedRating)) {
+            is ApiResult.Success -> {
+                val rating = response.value.rateCustomer
+                // The write already happened: a malformed answer is reported as unconfirmed, so the
+                // dialog forces a fresh read before any retry instead of trusting partial data.
+                val problem = customerRatingContractError(rating)
+                if (problem != null) {
+                    ApiResult.Rejected("Respuesta de calificación inválida: $problem.", com.backendcreditos.mobile.RATING_RESPONSE_INVALID)
+                }
+                else {
+                    dao.updateCustomerRating(account.accountKey, customerId, rating.rawRating, rating.customerSource(), rating.customerConfidence())
+                    ApiResult.Success(rating)
+                }
+            }
             is ApiResult.AuthExpired -> response
             is ApiResult.Conflict -> response
             is ApiResult.PermissionRejected -> response

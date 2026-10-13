@@ -48,7 +48,13 @@ data class CustomerEntity(
     val guarantorPersonId: String? = null,
     @androidx.room.ColumnInfo(defaultValue = "'[]'")
     val phoneHistory: String = "[]",
-    val personId: String? = null
+    val personId: String? = null,
+    // Raw tbl_clientes.str_calificacion ('1'..'10', 'nuevo', '' or null); parse with parseCustomerRatingScore.
+    val rating: String? = null,
+    // Server metadata of the effective rating: 'manual' | 'automatic'; null when not downloaded.
+    val ratingSource: String? = null,
+    // Automatic engine confidence: 'initial' | 'limited' | 'established'; null when not downloaded.
+    val ratingConfidence: String? = null
 )
 
 @Entity(

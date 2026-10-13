@@ -443,6 +443,7 @@ private fun CreditApplicationScreen(
     var branchPayments by remember { mutableStateOf(emptyList<PaymentEntity>()) }
     var customerMatches by remember { mutableStateOf(emptyList<CustomerEntity>()) }
     var customer by remember { mutableStateOf<CustomerEntity?>(null) }
+    var ratingDialog by remember { mutableStateOf<RatingDialogState?>(null) }
     var selectedCreditId by remember { mutableStateOf<String?>(null) }
     var assessmentCreditId by remember { mutableStateOf<String?>(null) }
     var assessmentCustomer by remember { mutableStateOf<com.backendcreditos.mobile.network.CustomerDto?>(null) }
@@ -1127,6 +1128,7 @@ private fun CreditApplicationScreen(
         app.vault.saveSession(selected)
         screen = Screen.HOME
         online = true
+        ratingDialog = null
         // Clear the previous branch's rows/matches right away instead of leaving
         // them on screen while the new branch syncs; loadLocal() below repopulates
         // them from this branch's own cache (may briefly be empty on first visit).
@@ -1395,6 +1397,114 @@ private fun CreditApplicationScreen(
         when (val result = app.repository.portfolioClients(current, branch)) {
             is ApiResult.Success -> portfolioClientRows = result.value
             else -> report(result)
+        }
+    }
+
+    fun loadCustomerRating() {
+        val target = ratingDialog ?: return
+        if (target.locallyCreated || target.loading) return
+        val current = session ?: return
+        if (!ratingDialogBelongsTo(target, current.accountKey, current.selectedBranchId)) {
+            ratingDialog = null
+            return
+        }
+        ratingDialog = target.copy(loading = true, loadError = "")
+        scope.launch {
+            val result = app.repository.customerRating(current, target.branchId, target.customerId)
+            report(result)
+            if (result is ApiResult.Success) loadLocal()
+            if (!isSameRatingDialog(ratingDialog, target)) return@launch
+            val latest = ratingDialog ?: return@launch
+            ratingDialog = when (result) {
+                is ApiResult.Success -> latest.copy(
+                    loading = false, remote = result.value, cachedRating = result.value.rawRating,
+                    cachedSource = result.value.customerSource(), cachedConfidence = result.value.customerConfidence(),
+                    editing = latest.editing && result.value.canRate
+                )
+                is ApiResult.Retryable -> latest.copy(
+                    loading = false,
+                    loadError = "Sin conexión con el servidor. Se muestra la nota guardada en el teléfono."
+                )
+                is ApiResult.AuthExpired -> latest.copy(loading = false, loadError = result.message)
+                is ApiResult.Conflict -> latest.copy(loading = false, loadError = friendlyServerError(result.message))
+                is ApiResult.PermissionRejected -> latest.copy(loading = false, loadError = friendlyServerError(result.message))
+                is ApiResult.Rejected -> latest.copy(loading = false, loadError = friendlyServerError(result.message))
+            }
+        }
+    }
+
+    fun openCustomerRating(target: CustomerEntity) {
+        val current = session ?: return
+        if (target.branchId != current.selectedBranchId || target.accountKey != current.accountKey) return
+        ratingDialog = RatingDialogState(
+            accountKey = current.accountKey,
+            instanceId = System.nanoTime(),
+            branchId = target.branchId,
+            customerId = target.id,
+            customerName = formatPersonName("${target.firstName} ${target.lastName}"),
+            cachedRating = target.rating,
+            cachedSource = target.ratingSource,
+            cachedConfidence = target.ratingConfidence,
+            locallyCreated = target.locallyCreated
+        )
+        if (online && !target.locallyCreated) loadCustomerRating()
+    }
+
+    fun submitCustomerRating() {
+        val target = ratingDialog ?: return
+        if (!canSubmitRating(target, online)) return
+        val current = session ?: return
+        if (!ratingDialogBelongsTo(target, current.accountKey, current.selectedBranchId)) {
+            ratingDialog = null
+            return
+        }
+        val remote = target.remote ?: return
+        val score = target.draftScore ?: return
+        ratingDialog = target.copy(saving = true, saveError = "")
+        scope.launch {
+            val result = app.repository.rateCustomer(
+                current, target.branchId, target.customerId, score, target.draftReason, remote.rawRating
+            )
+            report(result)
+            if (result is ApiResult.Success) {
+                // Saved on the server even if the dialog was closed meanwhile. The notice (and its log)
+                // is only for the same account; another session must not see this customer's name.
+                if (session?.accountKey == target.accountKey) {
+                    notice = "Calificación guardada para ${target.customerName}: " +
+                        "${customerRatingText(result.value.currentScore())}."
+                    loadLocal()
+                }
+            }
+            if (!isSameRatingDialog(ratingDialog, target)) return@launch
+            val latest = ratingDialog ?: return@launch
+            when (result) {
+                is ApiResult.Success -> ratingDialog = latest.copy(
+                    saving = false, confirming = false, editing = false, draftScore = null, draftReason = "",
+                    remote = result.value, cachedRating = result.value.rawRating,
+                    cachedSource = result.value.customerSource(), cachedConfidence = result.value.customerConfidence()
+                )
+                is ApiResult.Conflict -> {
+                    // Someone changed the rating meanwhile: keep the draft and reload the current value.
+                    ratingDialog = latest.copy(
+                        saving = false, confirming = false,
+                        saveError = "La calificación cambió en el servidor mientras editabas. " +
+                            "Revisa la nota actual y confirma de nuevo."
+                    )
+                    loadCustomerRating()
+                }
+                is ApiResult.Retryable -> ratingDialog = ratingAfterUncertainSave(latest)
+                is ApiResult.AuthExpired -> ratingDialog = latest.copy(
+                    saving = false, confirming = false, saveError = "No se guardó: ${result.message}"
+                )
+                is ApiResult.PermissionRejected -> ratingDialog = latest.copy(
+                    saving = false, confirming = false, saveError = "No se guardó: ${friendlyServerError(result.message)}"
+                )
+                is ApiResult.Rejected -> ratingDialog = if (result.code == RATING_RESPONSE_INVALID) {
+                    ratingAfterUncertainSave(latest)
+                } else latest.copy(
+                    saving = false, confirming = false, saveError = "No se guardó: ${friendlyServerError(result.message)}"
+                )
+            }
         }
     }
 
@@ -2072,6 +2182,7 @@ private fun CreditApplicationScreen(
             session = null
             online = false
             rows = emptyList()
+            ratingDialog = null
             branchPayments = emptyList()
             creditLocationRows = emptyList()
             operationRows = emptyList()
@@ -2353,6 +2464,32 @@ private fun CreditApplicationScreen(
                 screen = Screen.QUEUE
             }
         }
+    }
+
+    // Leaving the portfolio/customer screens, switching branch or account closes the dialog, so a
+    // rating can never be sent for a customer of a branch that is no longer selected.
+    LaunchedEffect(screen, session?.accountKey, session?.selectedBranchId) {
+        val open = ratingDialog ?: return@LaunchedEffect
+        if (screen !in setOf(Screen.HOME, Screen.CUSTOMER) ||
+            !ratingDialogBelongsTo(open, session?.accountKey, session?.selectedBranchId)
+        ) ratingDialog = null
+    }
+    ratingDialog?.let { state ->
+        CustomerRatingDialog(
+            state = state,
+            online = online,
+            onDismiss = { if (!state.saving) ratingDialog = null },
+            onReload = { loadCustomerRating() },
+            onStartEdit = { ratingDialog = state.copy(editing = true, saveError = "") },
+            onScore = { ratingDialog = state.copy(draftScore = it) },
+            onReason = { ratingDialog = state.copy(draftReason = it) },
+            onCancelEdit = {
+                ratingDialog = state.copy(editing = false, draftScore = null, draftReason = "", saveError = "")
+            },
+            onRequestConfirm = { if (canSubmitRating(state, online)) ratingDialog = state.copy(confirming = true) },
+            onBackFromConfirm = { if (!state.saving) ratingDialog = state.copy(confirming = false) },
+            onConfirm = { submitCustomerRating() }
+        )
     }
 
     Scaffold(
@@ -3248,7 +3385,17 @@ private fun CreditApplicationScreen(
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text("${row.customer?.firstName.orEmpty()} ${row.customer?.lastName.orEmpty()}")
+                                    Text(
+                                        "${row.customer?.firstName.orEmpty()} ${row.customer?.lastName.orEmpty()}",
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    row.customer?.let { rowCustomer ->
+                                        CustomerRatingBadge(
+                                            ratingBadgeInfo(rowCustomer.rating, rowCustomer.ratingConfidence, rowCustomer.locallyCreated, rowCustomer.ratingSource),
+                                            onClick = { openCustomerRating(rowCustomer) },
+                                            modifier = Modifier.padding(start = 8.dp)
+                                        )
+                                    }
                                     val marked = row.credit.id in markedCreditIds
                                     IconButton(onClick = {
                                         scope.launch {
@@ -4180,6 +4327,14 @@ private fun CreditApplicationScreen(
                     Text("Cliente", style = MaterialTheme.typography.headlineSmall)
                     customer?.let { selectedCustomer ->
                         Text("${selectedCustomer.firstName} ${selectedCustomer.lastName}", style = MaterialTheme.typography.titleLarge)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Calificación:")
+                            CustomerRatingBadge(
+                                ratingBadgeInfo(selectedCustomer.rating, selectedCustomer.ratingConfidence, selectedCustomer.locallyCreated, selectedCustomer.ratingSource),
+                                onClick = { openCustomerRating(selectedCustomer) },
+                                modifier = Modifier.padding(start = 8.dp)
+                            )
+                        }
                         Text("Documento: ${selectedCustomer.documentType.orEmpty()} ${selectedCustomer.documentNumber.orEmpty()}")
                         Text("Teléfono: ${selectedCustomer.phone.orEmpty()}")
                         Text("Dirección: ${selectedCustomer.address.orEmpty()}")
@@ -4860,7 +5015,7 @@ private fun CreditApplicationScreen(
                                 "teléfono ${remote.phone.orEmpty()} · ${remote.city.orEmpty()}, ${remote.neighborhood.orEmpty()} ${remote.street.orEmpty()}")
                             Text("Servidor (solo sucursal autorizada): ${remote.credits.size} tarjetas · " +
                                 "cupo máximo ${formatMoney(remote.maxCredit?.toString())} · " +
-                                "estado ${remote.status.orEmpty()} · calificación ${remote.rating.orEmpty()} · " +
+                                "estado ${remote.status.orEmpty()} · calificación ${customerRatingText(remote.rating, remote.ratingConfidence, remote.ratingSource)} · " +
                                 "${assessmentPayments.size} abonos")
                             if (!remote.note.isNullOrBlank()) Text("Nota: ${remote.note}")
                             remote.comments.forEach { note -> Text("Comentario: ${note.comment}") }

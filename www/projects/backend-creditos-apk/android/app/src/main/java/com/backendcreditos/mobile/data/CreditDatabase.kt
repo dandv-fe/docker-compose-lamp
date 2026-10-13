@@ -27,6 +27,10 @@ interface LocalDao {
     @Query("UPDATE customers SET phone = :phone, phoneHistory = :history WHERE accountKey = :accountKey AND (personId = :personId OR (id = :customerId AND personId IS NULL))")
     suspend fun updateCustomerPhones(accountKey: String, personId: String?, customerId: String, phone: String?, history: String)
 
+    // Touches only the rating column, so queued customer edits cached locally are never overwritten.
+    @Query("UPDATE customers SET rating = :rating, ratingSource = :source, ratingConfidence = :confidence WHERE accountKey = :accountKey AND id = :customerId AND locallyCreated = 0")
+    suspend fun updateCustomerRating(accountKey: String, customerId: String, rating: String, source: String?, confidence: String?)
+
     @Query("UPDATE offline_operations SET baseVersion = :cursor WHERE operationId = :operationId AND status = 'PENDING' AND attempts = 0")
     suspend fun rebaseUnsentOperation(operationId: String, cursor: String)
 
@@ -348,7 +352,7 @@ interface LocalDao {
         RouteCashEntity::class, BankAccountEntity::class,
         RouteEntryEntity::class, RouteCatalogEntity::class
     ],
-    version = 17,
+    version = 19,
     exportSchema = false
 )
 @TypeConverters(DatabaseConverters::class)
@@ -574,6 +578,19 @@ abstract class CreditDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE customers ADD COLUMN phoneHistory TEXT NOT NULL DEFAULT '[]'")
                 db.execSQL("ALTER TABLE customers ADD COLUMN personId TEXT")
+            }
+        }
+
+        val MIGRATION_17_18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE customers ADD COLUMN rating TEXT")
+            }
+        }
+
+        val MIGRATION_18_19 = object : Migration(18, 19) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE customers ADD COLUMN ratingSource TEXT")
+                db.execSQL("ALTER TABLE customers ADD COLUMN ratingConfidence TEXT")
             }
         }
 

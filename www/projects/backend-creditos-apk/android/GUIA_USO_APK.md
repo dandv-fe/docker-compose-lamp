@@ -45,6 +45,21 @@ Abajo tienes accesos a **Cuentas del día**, **Abonos e historial completo** de 
 
 **Captura sugerida:** cartera con una tarjeta señalada, la línea Caja y la barra inferior.
 
+### Calificación del cliente
+
+Cada tarjeta de la cartera y la ficha **Cliente** muestran una cinta de color junto al nombre con la nota vigente del cliente (1 a 10) y su categoría: **9-10 Excelente** (verde), **7-8 Bueno** (azul), **5-6 Regular** (amarillo), **1-4 Requiere seguimiento** (rojo). La nota la calcula el servidor automáticamente con el historial de pagos y tarjetas; un administrador puede fijar una nota manual que tiene prioridad durante 7 días.
+
+Otras cintas que puedes ver:
+
+- **5/10 · Inicial, poca historia** (turquesa): cliente nuevo o con poca historia. Es la nota inicial neutral, no una evaluación.
+- **5/10 · Inicial provisional**: cliente creado en este teléfono que aún no llega al servidor.
+- **Nota pendiente de sincronizar** (gris): el teléfono todavía no descargó la nota (por ejemplo, clientes guardados antes de actualizar la APK). Con conexión, usa **Más opciones > Actualizar cartera** o toca la cinta y **Consultar historial**.
+- **Nota por revisar** (gris oscuro): el valor guardado no es una nota válida; la app no lo convierte en número. Avisa a la oficina.
+
+Toca la cinta para ver el detalle. Con conexión se muestra la **fuente vigente** (Automática o Manual), hasta cuándo rige una nota manual, la **nota automática** que el servidor sigue calculando por debajo, la **confianza** (Inicial · poca historia, Limitada · historia corta, Establecida · historia suficiente), la fecha de la última evaluación, la explicación en español y el historial (Manual con usuario, o Automática). Sin conexión solo se ve la última nota guardada en el teléfono: la app no calcula notas, no inventa historial ni permisos, y el detalle y la edición **requieren conexión**. Si el servidor responde datos de calificación incompletos o inválidos, la app lo informa como error en lugar de suponer valores.
+
+Solo el **superadministrador** o un **administrador de la oficina del cliente** ve **Cambiar nota** (lo decide el servidor). Elige la nota del 1 al 10, escribe el motivo (5 a 500 caracteres; se recortan espacios al inicio y final), toca **Continuar** y confirma con **Guardar nota**. La confirmación recuerda que la nota manual rige 7 días y que la evaluación automática sigue calculándose y vuelve a aplicarse al vencer; guardar no reinicia el motor automático. El cambio se envía en el momento: **no entra en la Cola** ni se guarda para después. Si el servidor rechaza el cambio (permiso, sesión vencida, APK desactualizada) no se guardó, y la ventana conserva tu nota y motivo para reintentar. Si se corta la conexión o se agota el tiempo, la app no sabe si se guardó: muestra «No se pudo confirmar el guardado», conserva el borrador y solo permite reintentar después de **Consultar historial** con éxito, para que revises la nota actual y no la guardes dos veces. Si otra persona cambió la nota mientras editabas, la app recarga la nota actual y pide confirmar de nuevo. Si cambias de sucursal, sales de la cartera o de la ficha del cliente, la ventana se cierra; si la nota ya se estaba enviando, el resultado igual se informa en el aviso y en **Cola > Logs**.
+
 ### Teléfono principal de WhatsApp e historial
 
 En la tarjeta señalada, debajo de **Crear tarjeta para este cliente**, toca **Crear o seleccionar teléfono de WhatsApp**. Cualquier usuario autenticado con acceso a esa sucursal y cliente puede agregar/seleccionar teléfonos: **no requiere editar cliente ni nueva tarjeta**. Esta excepción no permite editar los demás datos del cliente.
@@ -108,6 +123,8 @@ Se necesitan un cliente con ID del servidor, la evaluación en línea, la tarjet
 **Captura sugerida:** evaluación, cálculo de cuota y los dos métodos de pago del formulario.
 
 ### Versiones de la APK
+
+La versión **0.4.0** (código 4) muestra la calificación automática (fuente, confianza, explicación y nota inicial 5/10); la **0.3.0** (código 3) solo mostraba la nota manual; la 0.2.0 (código 2) no muestra calificación.
 
 En **Configuración** puedes ver tu versión y pulsar **Comprobar actualización**.
 La app consulta la política del servidor al abrir, volver al primer plano,

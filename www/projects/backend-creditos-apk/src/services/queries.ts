@@ -1,3 +1,4 @@
+import { RATING_STATE_FIELDS, RATING_STATE_JOIN } from './ratingState.js';
 import { pool } from '../db.js';
 import { customerPhones } from './phones.js';
 import {
@@ -50,10 +51,11 @@ const CUSTOMER_FIELDS = `
  p.str_direccion_ciudad AS city, p.str_direccion_barrio AS neighborhood,
  p.str_direccion_calle AS street, c.dec_max_credito AS maxCredit,
  c.str_apodo AS nickname, c.str_nota AS note, c.str_estado AS status,
- c.str_calificacion AS rating, c.fiador_persona_id AS guarantorPersonId`;
+ COALESCE(c.str_calificacion,'') AS rating, c.fiador_persona_id AS guarantorPersonId, ${RATING_STATE_FIELDS}`;
 
 const CUSTOMER_FROM = `FROM tbl_clientes c
- JOIN tbl_persona p ON p.idpersona = c.idpersona AND p.idglobal = c.idglobal`;
+ JOIN tbl_persona p ON p.idpersona = c.idpersona AND p.idglobal = c.idglobal
+ ${RATING_STATE_JOIN}`;
 
 // Matches model/Cartera.php::listRuta(), which excludes these tbl_tarjetas.str_estado
 // values from the main route/portfolio listing (a separate legacy screen handles

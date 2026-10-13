@@ -1,5 +1,69 @@
 Para mejorar  la contabilidad de las carteras de prestamos
 
+## Calificación del cliente
+
+En la tarjeta de Cartera, una cinta y un botón **Ver calificación e historial**
+presentan la nota del cliente, compartida por todas sus tarjetas:
+
+| Nota | Categoría |
+| --- | --- |
+| 9–10 | Excelente |
+| 7–8 | Bueno |
+| 5–6 | Regular |
+| 1–4 | Requiere seguimiento |
+| Historia insuficiente | 5/10 · Inicial, poca historia |
+
+La evaluación matemática local asigna una nota explicable de 1 a 10. Sin evidencia
+suficiente se usa **5/10 como referencia inicial neutral**, no como prueba de buen
+cumplimiento. Una evaluación pendiente se identifica explícitamente. Solo el
+Super Administrador o el administrador real de la oficina de la tarjeta puede
+asignar una nota manual entera de 1 a 10, con motivo obligatorio de 5 a 500 caracteres.
+La nota manual tiene prioridad **7 días exactos desde su guardado**; la evaluación
+automática continúa por debajo y vuelve a ser la nota vigente al vencer ese plazo.
+Los lectores autorizados pueden ver la nota y las últimas 20 evaluaciones.
+La nota no cambia automáticamente cupos ni aprobación de créditos.
+
+Los cambios guardan nota anterior, nota nueva, motivo, usuario, sucursal y fecha
+UTC y origen manual/automático en el historial compartido con la APK. Se permite reevaluar la misma nota
+con otro motivo. La comprobación de concurrencia rechaza un editor desactualizado.
+La web valida CSRF, usuario y permisos vigentes; la APK guarda únicamente con
+conexión, sin enviar evaluaciones a la cola offline.
+
+Antes de desplegar aplicar manualmente
+[`../backend-creditos-apk/migrations/013_customer_rating.sql`](../backend-creditos-apk/migrations/013_customer_rating.sql)
+tras las migraciones 001–012, usando una herramienta que soporte `DELIMITER`.
+Después aplicar
+[`../backend-creditos-apk/migrations/014_customer_rating_automatic.sql`](../backend-creditos-apk/migrations/014_customer_rating_automatic.sql)
+antes de desplegar esta versión y arrancar el motor automático del backend.
+Esta migración es **distinta** de los índices de Resumen integral en `sql/013`.
+Las cintas usan el campo existente `str_calificacion`, y los eventos de sincronización
+existentes propagan la nota a las APK. Las tablas nuevas son necesarias para
+consultar el historial y guardar evaluaciones.
+
+El motor único del backend evalúa pagos y tarjetas existentes, procesa los cambios
+y reevalúa por calendario, incluso sin pagos nuevos. La web lee ese estado compartido:
+no duplica la fórmula ni requiere una conexión externa a una IA. El diálogo muestra
+nota automática, explicación, evidencia, fecha del último cálculo y vigencia manual.
+La cinta distingue una referencia inicial de una nota regular con evidencia.
+
+Pesos iniciales: puntualidad de cuotas **50%**, atraso actual **25%**, constancia
+**15%** y carga de cuotas frente a pagos habituales **10%**. Se consideran las
+frecuencias de cada tarjeta; los adelantos cubren cuotas futuras. La cantidad de
+tarjetas por sí sola no baja la nota. La carga estimada usa pagos observados, no
+ingresos declarados ni deudas externas que el sistema desconoce. Véase el
+[README del backend](../backend-creditos-apk/README.md) para la fórmula, configuración
+y operación del motor. Sin conexión, la APK muestra el último dato sincronizado;
+no recalcula por su cuenta ni inventa un historial.
+
+Pruebas locales aisladas:
+
+```sh
+docker exec -e RUN_CUSTOMER_RATING_TESTS=1 webgoez-php81 \
+  php /var/www/html/projects/webgoez/tests/calificacion-cliente.php
+docker exec -w /var/www/html/projects/webgoez webgoez-node \
+  node --test tests/calificacion-cliente-ui.cjs
+```
+
 ## Resumen integral de consultas
 
 **Consultas → Resumen integral** agrega una página independiente en
