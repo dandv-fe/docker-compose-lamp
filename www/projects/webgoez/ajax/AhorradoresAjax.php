@@ -494,7 +494,9 @@ switch ($_GET["op"]) {
             $r->descripcion,
             $r->estado,
             intval($r->idahorro ?? 0),
-            intval($r->idahorro_de ?? 0)
+            intval($r->idahorro_de ?? 0),
+            intval($r->isvia),
+            intval($r->cuentaSeleccionada)
          ];
       }
       echo json_encode($data);

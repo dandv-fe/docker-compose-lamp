@@ -214,19 +214,54 @@ switch ($_GET["op"]) {
       break;
 
    case 'SaveOrUpdateSueldoPactado':
-      $idnomina = limpiar_cadena($_POST["txtRefNomina"]);
-      $idempleado = limpiar_cadena($_POST["txtRefEmpleado_formPactarSueldo"]);
-      $modoSueldo = limpiar_cadena($_POST["cboModoSueldo"]);
-      $valorSueldo = limpiar_cadena($_POST["txtValorSueldo"]);
-      if ($idempleado == '' || $modoSueldo == '' || $valorSueldo == '') {
-         echo "ERROR: revisar el formulario";
+      header('Content-Type: application/json; charset=utf-8');
+      if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+         http_response_code(405);
+         echo json_encode(['error' => 'Método no permitido.']);
          return;
       }
-      $valorSueldo = floatval($valorSueldo);
-      if (empty($idnomina)) {
-         $objEmpleado->RegistrarSueldo($idempleado, $idglobal, $modoSueldo, $valorSueldo);
-      } else {
-         $objEmpleado->ModificarSueldo($idnomina, $idempleado, $idglobal, $modoSueldo, $valorSueldo);
+      $csrf = (string)($_SESSION['csrfNominaEmpleado'] ?? '');
+      $csrfSent = $_POST['csrfToken'] ?? '';
+      if ($csrf === '' || !is_string($csrfSent) || !hash_equals($csrf, $csrfSent)) {
+         http_response_code(403);
+         echo json_encode(['error' => 'Solicitud no válida; recargue la página.']);
+         return;
+      }
+      $idnomina = filter_var($_POST['txtRefNomina'] ?? '', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: 0;
+      $idempleado = filter_var($_POST['employeeId'] ?? $_POST['txtRefEmpleado_formPactarSueldo'] ?? '',
+         FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+      $actorUserId = filter_var($_SESSION['idusuario'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+      $idempotencyToken = $_POST['idempotencyToken'] ?? '';
+      if (!$idempleado || !$actorUserId || !is_string($idempotencyToken)) {
+         http_response_code(422);
+         echo json_encode(['error' => 'Revise el empleado y vuelva a abrir el acuerdo de sueldo.']);
+         return;
+      }
+      try {
+         $type = $_POST['cboModoSueldo'] ?? '';
+         $frequency = $_POST['frequency'] ?? '';
+         $baseAmount = $_POST['txtValorSueldo'] ?? '';
+         $capitalRate = $_POST['capitalRate'] ?? $_POST['creditRate'] ?? '';
+         $collectionRate = $_POST['collectionRate'] ?? '';
+         $effectiveDate = $_POST['effectiveDate'] ?? '';
+         $result = $idnomina
+            ? $objEmpleado->ModificarSueldo($idnomina, $idempleado, $idglobal, $type, $frequency, $baseAmount,
+               $capitalRate, $collectionRate, $effectiveDate, $actorUserId, $idempotencyToken)
+            : $objEmpleado->RegistrarSueldo($idempleado, $idglobal, $type, $frequency, $baseAmount,
+               $capitalRate, $collectionRate, $effectiveDate, $actorUserId, $idempotencyToken);
+         if (!is_array($result) || !array_key_exists('ok', $result) || !$result['ok']) {
+            http_response_code(500);
+            echo json_encode(['error' => 'No se pudo confirmar el acuerdo de sueldo. Consulte la nómina antes de reintentar.'],
+               JSON_UNESCAPED_UNICODE);
+            return;
+         }
+         echo json_encode($result, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+      } catch (Throwable $error) {
+         $status = in_array($error->getCode(), [401, 403, 404, 409, 422], true) ? $error->getCode() : 500;
+         http_response_code($status);
+         if ($status === 500) error_log('Empleado sueldo: ' . $error->getMessage());
+         echo json_encode(['error' => $status === 500 ? 'No se pudo guardar el acuerdo de sueldo.' : $error->getMessage()],
+            JSON_UNESCAPED_UNICODE);
       }
       break;
 
@@ -313,7 +348,9 @@ switch ($_GET["op"]) {
             "7" => '<img width=100px height=100px src="./' . $reg->foto . '" />',
             "8" => $reg->estado == 'activo' ? $btneditar .
                '<button class="btn btn-default btn-sm" title="Configuracion" onclick="cargarDataEmpleado(\'' . $reg->tDocumento . '\',\'' . $reg->nDocumento . '\',\'perfil\')"><i class="fa-solid fa-user-gear" style="color: #000000;"></i> </button>&nbsp;'
-               : '' . $btnDespido
+               : '' . $btnDespido,
+            "9" => $reg->oficinaNombre,
+            "10" => $reg->oficinaId === null ? 'sin-oficina' : (string)$reg->oficinaId
          );
          $i++;
       }
@@ -322,7 +359,22 @@ switch ($_GET["op"]) {
    case 'listNomina':
       $data = array();
       $estado = array('activo' => 'ACTUAL', 'inactivo' => 'ANTERIOR');
-      $idempleado = limpiar_cadena($_POST['refEmpleado']);
+      $idempleado = filter_var($_POST['refEmpleado'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+      if (!$idempleado) {
+         http_response_code(422);
+         echo json_encode(['error' => 'Empleado no válido.']);
+         return;
+      }
+      try {
+         (new NominaEmpleado())->autorizarEmpleado((int)$idglobal, (int)$_SESSION['idusuario'], $idempleado);
+      } catch (Throwable $error) {
+         $status = in_array($error->getCode(), [401, 403, 404, 422], true) ? $error->getCode() : 500;
+         http_response_code($status);
+         if ($status === 500) error_log('Empleado nómina: ' . $error->getMessage());
+         echo json_encode(['error' => $status === 500 ? 'No se pudo consultar nómina.' : $error->getMessage()],
+            JSON_UNESCAPED_UNICODE);
+         return;
+      }
       $query = $objEmpleado->listNomna($idempleado);
       while ($reg = $query->fetch_object()) {
          $data[] = array(
@@ -335,12 +387,27 @@ switch ($_GET["op"]) {
       echo json_encode($data);
       break;
    case 'listNominaDetalle':
-      $idempleado = limpiar_cadena($_POST['txtUltimo']);
-      $desde = limpiar_cadena2($_POST['txtFechaDesde']);
-      $hasta = limpiar_cadena2($_POST['txtFechaHasta']);
+      $idempleado = filter_var($_POST['txtUltimo'] ?? null, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]);
+      if (!$idempleado) {
+         http_response_code(422);
+         echo json_encode(['error' => 'Empleado no válido.']);
+         return;
+      }
+      try {
+         (new NominaEmpleado())->autorizarEmpleado((int)$idglobal, (int)$_SESSION['idusuario'], $idempleado);
+         $desde = limpiar_cadena2($_POST['txtFechaDesde'] ?? '');
+         $hasta = limpiar_cadena2($_POST['txtFechaHasta'] ?? '');
+         $query = $objEmpleado->listNomnaDetalle($idempleado, $desde, $hasta);
+      } catch (Throwable $error) {
+         $status = in_array($error->getCode(), [401, 403, 404, 422], true) ? $error->getCode() : 500;
+         http_response_code($status);
+         if ($status === 500) error_log('Detalle de sueldo: ' . $error->getMessage());
+         echo json_encode(['error' => $status === 500 ? 'No se pudo consultar el detalle de sueldo.' : $error->getMessage()],
+            JSON_UNESCAPED_UNICODE);
+         return;
+      }
       $data = array();
       // $idempleado = limpiar_cadena($_POST['refEmpleado']);
-      $query = $objEmpleado->listNomnaDetalle($idempleado, $desde, $hasta);
       while ($reg = $query->fetch_object()) {
          $data[] = array(
             $reg->fecha_at,
@@ -538,6 +605,8 @@ switch ($_GET["op"]) {
             'documento' => $reg->documento,
             'cargo' => $reg->cargo,
             'fechaDespido' => $reg->fechaDespido,
+            'oficinaId' => $reg->oficinaId === null ? null : (int)$reg->oficinaId,
+            'oficinaNombre' => $reg->oficinaNombre,
             'tipoDespido' => $reg->tipoDespido,
             'liquidacion' => $reg->liquidacion,
             'estadoDocs' => $reg->estadoDocs,

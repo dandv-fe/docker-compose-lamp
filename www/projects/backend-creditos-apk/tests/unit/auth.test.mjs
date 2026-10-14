@@ -114,12 +114,12 @@ test('office administration grants branch access and permissions only within the
     pool.execute = async (sql, params) => {
       queries.push({ sql, params });
       if (sql.includes('SELECT DISTINCT s.idsucursal AS id')) {
-        assert.deepEqual(params, [31, 7, 31]);
+        assert.deepEqual(params, [31, 7, 31, 31]);
         assert.match(sql, /o\.idglobal = s\.idglobal/);
         return [[{ id: 4, name: 'A' }], []];
       }
       if (sql.includes('SELECT b.idglobal AS branchCompanyId')) {
-        return [[params[2] === 4
+        return [[params[3] === 4
           ? { branchCompanyId: 7, idauth_sucursal: null, administeredOfficeId: 2 }
           : { branchCompanyId: 7, idauth_sucursal: null, administeredOfficeId: null }], []];
       }

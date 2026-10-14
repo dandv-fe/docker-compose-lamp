@@ -14,8 +14,8 @@ android {
         applicationId = "com.backendcreditos.mobile"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 6
+        versionName = "0.6.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         val endpoint = providers.gradleProperty("GRAPHQL_ENDPOINT")
             .orElse("https://api.example.invalid/graphql").get()

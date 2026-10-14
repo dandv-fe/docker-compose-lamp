@@ -22,6 +22,8 @@ import { issueReceiptLink, receiptLinks, revokeReceiptLink } from '../services/r
 import { customerRating, rateCustomer } from '../services/customerRating.js';
 import { z } from 'zod';
 import { appInstallations, mobileAppPolicy, reportAppInstallation } from '../services/mobileApp.js';
+import { myPayroll, changeEmployeePayroll, payrollBonusContext } from '../services/payrollEmployee.js';
+import { myDispatchChallenges } from '../services/dispatchChallenges.js';
 
 const MobileAppPolicyType = new GraphQLObjectType({
   name: 'MobileAppPolicy',
@@ -53,6 +55,63 @@ export const JSONScalar = new GraphQLScalarType({
   serialize: (value) => value,
   parseValue: (value) => value,
   parseLiteral: (ast) => valueFromASTUntyped(ast),
+});
+
+const payrollAmounts = Object.fromEntries([
+  'baseAmount', 'periodBaseAmount', 'capitalCommission', 'collectionCommission', 'commissionAmount',
+  'bonusAmount', 'earnedAmount', 'paidAmount', 'pendingAmount',
+].map((name) => [name, { type: new GraphQLNonNull(GraphQLFloat) }]));
+const PayrollPeriodType = new GraphQLObjectType({
+  name: 'EmployeePayrollPeriod',
+  fields: {
+    contractId: { type: GraphQLID }, type: { type: GraphQLString }, frequency: { type: GraphQLString },
+    startDate: { type: new GraphQLNonNull(GraphQLString) }, endDate: { type: new GraphQLNonNull(GraphQLString) },
+    configured: { type: new GraphQLNonNull(GraphQLBoolean) }, ...payrollAmounts,
+    agreedBaseAmount: { type: new GraphQLNonNull(GraphQLFloat) },
+  },
+});
+const EmployeePayrollRouteType = new GraphQLObjectType({
+  name: 'EmployeePayrollRoute',
+  fields: {
+    id: { type: new GraphQLNonNull(GraphQLID) },
+    routeId: { type: new GraphQLNonNull(GraphQLInt) },
+    branchId: { type: new GraphQLNonNull(GraphQLInt) },
+    branchName: { type: new GraphQLNonNull(GraphQLString) },
+    openedDate: { type: new GraphQLNonNull(GraphQLString) },
+    openedAt: { type: new GraphQLNonNull(GraphQLString) },
+    state: { type: new GraphQLNonNull(GraphQLString) },
+    closed: { type: new GraphQLNonNull(GraphQLBoolean) },
+    provisional: { type: new GraphQLNonNull(GraphQLBoolean) },
+    contractId: { type: GraphQLID },
+    type: { type: GraphQLString },
+    mode: { type: new GraphQLNonNull(GraphQLString) },
+    vacationId: { type: GraphQLID },
+    coveredEmployeeId: { type: GraphQLInt },
+    ...Object.fromEntries(['weight', 'sharePercent', 'capitalRate', 'collectionRate', 'capitalAmount',
+      'cashAmount', 'capitalBasis', 'collectionBasis', 'capitalCommission', 'collectionCommission']
+      .map((name) => [name, { type: new GraphQLNonNull(GraphQLFloat) }])),
+  },
+});
+const EmployeePayrollType = new GraphQLObjectType({
+  name: 'EmployeePayroll',
+  fields: {
+    employeeId: { type: new GraphQLNonNull(GraphQLInt) }, asOf: { type: new GraphQLNonNull(GraphQLString) },
+    periods: { type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(PayrollPeriodType))) },
+    totals: { type: new GraphQLNonNull(new GraphQLObjectType({ name: 'EmployeePayrollTotals', fields: payrollAmounts })) },
+    contracts: { type: new GraphQLNonNull(JSONScalar) }, vacations: { type: new GraphQLNonNull(JSONScalar) },
+    bonuses: { type: new GraphQLNonNull(JSONScalar) },
+    routes: { type: new GraphQLNonNull(JSONScalar) },
+    routeRows: {
+      type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(EmployeePayrollRouteType))),
+      resolve: (source: { routes: unknown[] }) => source.routes,
+    },
+    breakdown: { type: new GraphQLNonNull(JSONScalar) },
+  },
+});
+const PayrollAction = new GraphQLEnumType({
+  name: 'EmployeePayrollAction',
+  values: { CONTRACT: { value: 'contrato' }, VACATION: { value: 'vacacion' },
+    BONUS: { value: 'bono' }, DISTRIBUTION: { value: 'reparto' } },
 });
 
 const BranchType = new GraphQLObjectType({
@@ -595,6 +654,18 @@ const biometricRegistrationFinishArgs = z.object({
 const Query = new GraphQLObjectType({
   name: 'Query',
   fields: {
+    payrollBonusContext: {
+      type: new GraphQLNonNull(JSONScalar), args: { branchId: { type: new GraphQLNonNull(GraphQLInt) } },
+      resolve: (_source, args, context: { auth: AuthContext | null }) => payrollBonusContext(auth(context), args.branchId),
+    },
+    myPayroll: {
+      type: new GraphQLNonNull(EmployeePayrollType), args: { asOf: { type: GraphQLString } },
+      resolve: (_source, args, context: { auth: AuthContext | null }) => myPayroll(auth(context), args.asOf),
+    },
+    myDispatchChallenges: {
+      type: new GraphQLNonNull(JSONScalar),
+      resolve: (_source, _args, context: { auth: AuthContext | null }) => myDispatchChallenges(auth(context)),
+    },
     mobileAppPolicy: { type: new GraphQLNonNull(MobileAppPolicyType), resolve: () => mobileAppPolicy() },
     appInstallations: {
       type: new GraphQLNonNull(new GraphQLList(new GraphQLNonNull(AppInstallationType))),
@@ -748,6 +819,12 @@ const Query = new GraphQLObjectType({
 const Mutation = new GraphQLObjectType({
   name: 'Mutation',
   fields: {
+    changeEmployeePayroll: {
+      type: new GraphQLNonNull(JSONScalar),
+      args: { action: { type: new GraphQLNonNull(PayrollAction) }, input: { type: new GraphQLNonNull(JSONScalar) } },
+      resolve: (_source, args, context: { auth: AuthContext | null }) =>
+        changeEmployeePayroll(auth(context), args.action, args.input),
+    },
     reportAppInstallation: {
       type: new GraphQLNonNull(GraphQLBoolean),
       args: {

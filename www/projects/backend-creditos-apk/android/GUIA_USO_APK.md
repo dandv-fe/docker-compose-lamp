@@ -45,6 +45,46 @@ Abajo tienes accesos a **Cuentas del día**, **Abonos e historial completo** de 
 
 **Captura sugerida:** cartera con una tarjeta señalada, la línea Caja y la barra inferior.
 
+### Aviso de caja al crear un préstamo
+
+Al escribir el **Costo / capital entregado**, la APK compara el capital con el efectivo disponible de la cartera/ruta/punto de venta: base + recaudo en efectivo + otros ingresos − créditos en efectivo − gastos. Los movimientos bancarios se mantienen separados. Si la caja es cero, negativa o no alcanza, aparece **La cartera/ruta/punto de venta no tiene dinero disponible** suficiente para el capital. Si faltan datos de caja, se indica que el disponible es desconocido; no se supone que sea cero.
+
+Es una advertencia, no un bloqueo: no cambia los permisos, no amplía el cupo y no modifica las validaciones ni el envío existente del préstamo.
+
+### Mi sueldo
+
+En **Inicio**, **Mi sueldo** consulta solamente el empleado de la sesión. Toca **Actualizar sueldo** para volver a consultar o **Ver detalle** para revisar el período, el tipo **Fijo / Porcentaje / Combinado**, la frecuencia **Diario / Semanal / Quincenal / Mensual**, las comisiones por capital y recaudo, bonos, total devengado, pagado y pendiente.
+
+El **sueldo básico acumulado** corresponde a los días transcurridos del período, incluido hoy. El **sueldo básico pactado** y el **sueldo básico del período** se muestran separados: no son dinero devengado ni pendiente de pago todavía. **Combinado** usa el mayor entre sueldo básico acumulado y suma de ambas comisiones, más bonos. Los períodos siguen el calendario de Colombia. Las vacaciones conservan el sueldo básico y no generan nuevas comisiones. Estas cifras salariales no son las bases de dinero de la caja de trabajo.
+
+En **Rutas y reparto del período** aparecen únicamente tus snapshots: sucursal, ruta, apertura, contrato y tipo, reparto **Titular / Igual / Personalizado**, participación y ambos porcentajes. No hay límite de rutas. Toca **Ver movimientos** en cada ruta para revisar capital (`dec_prestamo`), recaudo, comisiones y exclusiones por vacaciones, sueldo fijo o falta de contrato. El snapshot conserva el reparto y tasas de la apertura, no los de una configuración posterior.
+
+Cada ruta muestra también capital y recaudo acumulados al corte, recibidos del servidor: capital sin intereses y recaudo neto de bancos. Incluyen movimientos excluidos de comisión; el motivo de exclusión aparece en el detalle. Android no suma movimientos para reconstruir esos importes.
+
+Mientras el despacho no esté cerrado, se marca **Provisional** y sus cifras pueden cambiar. Se incluyen rutas abiertas antes del período si tienen movimientos dentro de él. Los reversos pueden tener cifras negativas. El total viene del servidor con precisión completa: no sumes filas redondeadas para reemplazarlo. Es un cálculo al corte, **no una liquidación laboral legal**.
+
+Esta consulta necesita conexión y **no crea operaciones en la Cola**. Si se pierde la conexión después de consultar, solo se conserva la última lectura en memoria, con su fecha y un aviso de que no confirma el estado actual; al cambiar de cuenta, sesión o sucursal se limpia. Un error no se presenta como sueldo cero ni como «no pagado». Si no hay plan configurado, se explica expresamente. La gestión de contratos, vacaciones y repartos se hace **solo en la web**. Las vacaciones pueden mostrar el nombre del relevo; sus participaciones se distinguen de las propias aunque compartan ruta.
+
+### Bono desde la caja de una cartera
+
+En **Gastos y bases**, **Bono desde caja de esta cartera** aparece únicamente cuando el servidor autoriza al Super Administrador o administrador de la oficina de la cartera seleccionada y confirma su último despacho en estado `created`. No concede permisos al cobrador ni al relevo.
+
+Selecciona un beneficiario autorizado, un monto positivo de hasta **99.999.999,99** con máximo dos decimales y un motivo de **1 a 250 caracteres**. **Confirmar bono y gasto** crea atómicamente el bono, su pago de nómina y la salida real de caja; la fecha la determina el servidor. Después se actualizan gastos, caja y sueldo. No es el gasto de sueldo/pago legacy ni una operación en la Cola.
+
+Si no se puede confirmar una respuesta, se conserva el mismo borrador y token idempotente y se bloquea su edición: **Reintentar mismo bono** no genera otro gasto. No crees un segundo bono; consulta caja y sueldo. Un cambio de despacho o pérdida de permisos se rechaza explícitamente. La corrección y el borrado del gasto siguen sujetos a autorización del servidor.
+
+### Mis retos (0.6.0)
+
+En **Inicio**, las tarjetas de **Mis retos** muestran únicamente tus invitaciones, sin conceder permisos de trabajo. Desliza horizontalmente para verlas y toca **Ver invitación y avance**: descripción, cartera/despacho, invitación, fecha límite, corte de Colombia e incremento propuesto de **0,1 % a 40 %**. El mensaje **Oportunidad de superar tu sueldo básico** no promete ingresos y no crea bonos ni pagos.
+
+El detalle muestra participación y tasas propias, metas individuales de capital/recaudo y avance neto calculado por el servidor. Los porcentajes pueden ser negativos por reversos o mayores de 100 %. Una meta sin porcentaje se indica expresamente; los datos faltantes nunca se presentan como avance cero. El sueldo básico del período propio y sus comisiones de todas las rutas se muestran una sola vez por reto: **no sumes esas cifras entre invitaciones**.
+
+La proyección estima únicamente la actividad objetivo restante. Distingue cuotas previstas **netas de adelantos**, adelantos y atrasos separados. Vacaciones, relevos, datos inválidos o tasas insuficientes pueden impedir estimar la oportunidad; se muestran los avisos y no una promesa de sueldo. Los retos vencidos, cerrados o sin asignación conservan su avance, pero no una proyección vigente.
+
+Si el objetivo se alcanza mientras el despacho sigue abierto, aparece **Provisional hasta cerrar el despacho**. Aun cerrado, el avance al corte **no confirma un pago** ni una liquidación laboral legal. Usa **Actualizar retos** para consultar de nuevo. Sin conexión, la última lectura en memoria se identifica como tal; cambios de cuenta, sesión o sucursal la limpian.
+
+Cada invitación tiene una animación breve y suave, una vez por revisión en la sesión. No hay destellos ni repetición al actualizar avance. Se respeta la escala de animaciones del sistema; con animaciones desactivadas o exploración táctil accesible el contenido aparece estático. No se editan retos desde la APK.
+
 ### Calificación del cliente
 
 Cada tarjeta de la cartera y la ficha **Cliente** muestran una cinta de color junto al nombre con la nota vigente del cliente (1 a 10) y su categoría: **9-10 Excelente** (verde), **7-8 Bueno** (azul), **5-6 Regular** (amarillo), **1-4 Requiere seguimiento** (rojo). La nota la calcula el servidor automáticamente con el historial de pagos y tarjetas; un administrador puede fijar una nota manual que tiene prioridad durante 7 días.
@@ -124,7 +164,7 @@ Se necesitan un cliente con ID del servidor, la evaluación en línea, la tarjet
 
 ### Versiones de la APK
 
-La versión **0.4.0** (código 4) muestra la calificación automática (fuente, confianza, explicación y nota inicial 5/10); la **0.3.0** (código 3) solo mostraba la nota manual; la 0.2.0 (código 2) no muestra calificación.
+La versión **0.6.0** (código 6) añade las invitaciones propias de retos y su avance en Inicio. La **0.5.0** (código 5) añade la consulta propia de sueldo y el aviso de caja al crear préstamos. La **0.4.0** (código 4) muestra la calificación automática (fuente, confianza, explicación y nota inicial 5/10); la **0.3.0** (código 3) solo mostraba la nota manual; la 0.2.0 (código 2) no muestra calificación.
 
 En **Configuración** puedes ver tu versión y pulsar **Comprobar actualización**.
 La app consulta la política del servidor al abrir, volver al primer plano,

@@ -3,7 +3,7 @@ import { unlink } from 'node:fs/promises';
 import type { PoolConnection, ResultSetHeader, RowDataPacket } from 'mysql2/promise';
 import { GraphQLError } from 'graphql';
 import { getConnection } from '../db.js';
-import { assertBranchAccess, requirePermission, type AuthContext } from './auth.js';
+import { assertBranchAccess, requirePermission, requireTemporaryCashPermission, type AuthContext } from './auth.js';
 import { fail, mapTransactionError } from './errors.js';
 import { savePhoto } from './files.js';
 import { branchScopeExists } from './sync.js';
@@ -235,12 +235,25 @@ export async function openRoute(
        UNION ALL
        SELECT 1 FROM tbl_empleados_cobrando
        WHERE id_detalle_ruta = ? AND idempleado = ?
+       UNION ALL SELECT 1 FROM view_employee_payroll_active_coverage
+       WHERE idglobal=? AND branch_id=? AND replacement_employee_id=?
        LIMIT 1`,
-      [branchId, companyId, employeeId, routeId, employeeId],
+      [branchId, companyId, employeeId, routeId, employeeId, companyId, branchId, employeeId],
     );
     if (!authorized.length) fail('BUSINESS_RULE', 'You are neither dispatched on the open route nor the branch office administrator');
   }
   return routeId;
+}
+
+export async function assertCanChangePayrollBonus(
+  conn: SqlConnection, user: AuthContext['user'], branchId: number, expenseId: string,
+) {
+  const [rows] = await conn.execute<RowDataPacket[]>(
+    `SELECT b.id FROM tbl_employee_payroll_bonus b WHERE b.idglobal=? AND b.expense_id=?
+       AND NOT EXISTS(SELECT 1 FROM view_employee_payroll_bonus_manager m
+         WHERE m.idglobal=b.idglobal AND m.actor_user_id=? AND m.branch_id=?) LIMIT 1`,
+    [user.companyId, expenseId, user.userId, branchId]);
+  if (rows.length) fail('FORBIDDEN', 'Sólo el administrador de oficina o Super Administrador puede gestionar bonos.');
 }
 
 async function loadCredit(
@@ -1032,7 +1045,16 @@ async function executeOperation(
       const routeId = await openRoute(conn, companyId, input.branchId, employeeId, cargo, input.routeId ?? null);
       const accountingType = Number(payload.idtipo_contabilidad);
       const name = String(payload.nombre);
-      await assertExpenseCatalog(conn, companyId, accountingType, name);
+      const [bonusRows] = input.kind === 'UPDATE_EXPENSE'
+        ? await conn.execute<RowDataPacket[]>('SELECT employee_id FROM tbl_employee_payroll_bonus WHERE idglobal=? AND expense_id=?',
+          [companyId, input.entityId])
+        : [[] as RowDataPacket[]];
+      if (bonusRows.length) {
+        await assertCanChangePayrollBonus(conn, user, input.branchId, input.entityId);
+        if (accountingType !== 2 || name !== 'Bono') fail('VALIDATION_ERROR', 'El gasto de bono conserva su categoría y concepto.');
+      } else {
+        await assertExpenseCatalog(conn, companyId, accountingType, name);
+      }
       const payrollId = payload.idnomina == null ? null : Number(payload.idnomina);
       if (accountingType === 2 && payrollId === null) {
         fail('VALIDATION_ERROR', 'Seleccione el empleado del gasto de sueldo.');
@@ -1104,14 +1126,15 @@ async function executeOperation(
       await openRoute(conn, companyId, input.branchId, employeeId, cargo, input.routeId ?? null);
       const operation = input.kind === 'DELETE_EXPENSE' ? 'salida-totalizar' : 'info-totalizar';
       await loadRouteEntry(conn, companyId, input.branchId, input.entityId, operation);
-      await conn.execute(
-        'DELETE FROM tbl_detalle_nomina WHERE idcontabilidad_detalle=? AND idglobal=?',
-        [input.entityId, companyId],
-      );
+      if (input.kind === 'DELETE_EXPENSE') await assertCanChangePayrollBonus(conn, user, input.branchId, input.entityId);
       await conn.execute(
         `DELETE FROM tbl_contabilidad_detalle
          WHERE idcontabilidad_detalle=? AND idglobal=? AND idsucursal=? AND str_estado='created'`,
         [input.entityId, companyId, input.branchId],
+      );
+      await conn.execute(
+        'DELETE FROM tbl_detalle_nomina WHERE idcontabilidad_detalle=? AND idglobal=?',
+        [input.entityId, companyId],
       );
       return {
         entityId: input.entityId,
@@ -1152,6 +1175,15 @@ export async function assertPayroll(
 async function savePayrollLink(
   conn: SqlConnection, companyId: number, entryId: string, payrollId: number | null, name: string,
 ) {
+  const [bonus] = await conn.execute<RowDataPacket[]>(
+    `SELECT b.employee_id FROM tbl_employee_payroll_bonus b
+     LEFT JOIN tbl_nomina n ON n.idglobal=b.idglobal AND n.idnomina=?
+     WHERE b.idglobal=? AND b.expense_id=? AND (n.idempleado=b.employee_id)`,
+    [payrollId, companyId, entryId]);
+  if (bonus.length) return;
+  const [isBonus] = await conn.execute<RowDataPacket[]>(
+    'SELECT 1 FROM tbl_employee_payroll_bonus WHERE idglobal=? AND expense_id=?', [companyId, entryId]);
+  if (isBonus.length) fail('FORBIDDEN', 'El beneficiario del bono no puede cambiar.');
   await conn.execute(
     'DELETE FROM tbl_detalle_nomina WHERE idcontabilidad_detalle=? AND idglobal=?',
     [entryId, companyId],
@@ -1285,6 +1317,9 @@ export async function applyOfflineOperation(context: AuthContext | null, input: 
   const permission = permissionForOperation(input.kind, payload);
   if (permission) await requirePermission(user, input.branchId, permission);
   else await assertBranchAccess(user, input.branchId);
+  if (['CREATE_EXPENSE', 'UPDATE_EXPENSE', 'DELETE_EXPENSE', 'CREATE_BASE', 'UPDATE_BASE', 'DELETE_BASE'].includes(input.kind)) {
+    await requireTemporaryCashPermission(user, input.branchId);
+  }
 
   const conn = await getConnection() as SqlConnection;
   const createdFiles: string[] = [];

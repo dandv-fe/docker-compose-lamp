@@ -13,6 +13,31 @@
                 <input type="hidden" name="txtrefSucursalHidden" id="txtrefSucursalHidden">
 
                 <div class="modal-body">
+                    <?php if (basename($_SERVER['SCRIPT_NAME'] ?? '') === 'cartera.php' && !empty($puedeGestionarBonoCartera)) { ?>
+                    <div id="payroll-cartera-bonus" data-branch-id="<?php echo (int)($_SESSION['idsucursal'] ?? 0); ?>">
+                        <div class="custom-control custom-checkbox mb-3">
+                            <input type="checkbox" class="custom-control-input" id="payroll-ledger-bonus">
+                            <label class="custom-control-label" for="payroll-ledger-bonus">Bono de nómina pagado en efectivo</label>
+                        </div>
+                        <div id="payroll-ledger-bonus-fields" style="display:none">
+                            <p class="text-muted">Sólo en la Cartera seleccionada con despacho abierto. Registra el bono y su pago, y descuenta el efectivo de caja en una sola operación.</p>
+                            <p id="payroll-ledger-bonus-status" role="status" aria-live="polite"></p>
+                            <div class="form-group">
+                                <label for="payroll-ledger-bonus-employee">Empleado autorizado</label>
+                                <select id="payroll-ledger-bonus-employee" class="form-control" required disabled></select>
+                            </div>
+                            <div class="form-group">
+                                <label for="payroll-ledger-bonus-amount">Monto del bono (COP)</label>
+                                <input id="payroll-ledger-bonus-amount" type="number" min="0.01" max="99999999.99" step="0.01" class="form-control" required disabled>
+                            </div>
+                            <div class="form-group">
+                                <label for="payroll-ledger-bonus-reason">Motivo</label>
+                                <textarea id="payroll-ledger-bonus-reason" maxlength="250" class="form-control" required disabled></textarea>
+                            </div>
+                        </div>
+                    </div>
+                    <?php } ?>
+                    <div id="gasto-contabilidad-normal">
                     <div class="row">
                         <div class="col-md-6">
                             <div class="form-group has-success">
@@ -77,6 +102,7 @@
                     </div>
 
 
+                    </div>
                 </div>
 
                 <div class="modal-footer justify-content-between">

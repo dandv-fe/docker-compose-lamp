@@ -1,70 +1,85 @@
-<div class="modal fade" id="modal-pactar-sueldo">
-    <div class="modal-dialog modal-xl">
+<div class="modal fade" id="modal-pactar-sueldo" tabindex="-1" role="dialog" aria-labelledby="payroll-salary-title"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h4 class="modal-title">crear sueldo</h4>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                <h4 class="modal-title" id="payroll-salary-title">Sueldo pactado</h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
                     <span aria-hidden="true">&times;</span>
                 </button>
             </div>
             <form id="formPactarSueldo">
+                <input type="hidden" name="employeeId" id="payroll-employee-id">
                 <input type="hidden" name="txtRefEmpleado_formPactarSueldo" id="txtRefEmpleado_formPactarSueldo">
                 <input type="hidden" name="txtRefNomina" id="txtRefNomina">
-                
+                <input type="hidden" name="csrfToken" id="payroll-csrf-token">
+                <input type="hidden" name="idempotencyToken" id="payroll-idempotency-token">
+
                 <div class="modal-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group has-success">
-                                <label for="cboModoSueldo">Modo Sueldo:</label>
-                                <select required id="cboModoSueldo" name="cboModoSueldo" class="form-control">
-                                    <option value="Diario">Diario</option>
-                                    <option value="Semanal">Semanal</option>
-                                    <option value="Quincenal">Quincenal</option>
-                                    <option value="Mensual">Mensual</option>
-                                  </select>
-                            </div>
-
+                    <p class="text-muted">
+                        La frecuencia define el período de pago. El sueldo básico se reconoce una sola vez por período,
+                        no por cada despacho.
+                    </p>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="cboModoSueldo">Tipo de sueldo</label>
+                            <select required id="cboModoSueldo" name="cboModoSueldo" class="form-control">
+                                <option value="Fijo">Fijo</option>
+                                <option value="Porcentaje">Porcentaje</option>
+                                <option value="Combinado">Combinado</option>
+                            </select>
                         </div>
-
-                        <div class="col-md-6">
-                            <div class="form-group has-success">
-                                <label for="txtValorSueldo">Sueldo:</label>
-                                <input required id="txtValorSueldo" type="number" maxlength="45"
-                                    name="txtValorSueldo" placeholder="0.00" class="form-control" />
-                            </div>
-
+                        <div class="form-group col-md-6">
+                            <label for="payroll-frequency">Frecuencia</label>
+                            <select required id="payroll-frequency" name="frequency" class="form-control">
+                                <option value="Diario">Diario</option>
+                                <option value="Semanal">Semanal</option>
+                                <option value="Quincenal">Quincenal</option>
+                                <option value="Mensual">Mensual</option>
+                            </select>
                         </div>
                     </div>
+
+                    <div class="form-group">
+                        <label for="payroll-effective-date">Vigente desde</label>
+                        <input required id="payroll-effective-date" name="effectiveDate" type="date" class="form-control">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="txtValorSueldo">Sueldo básico del período (COP)</label>
+                        <input required id="txtValorSueldo" name="txtValorSueldo" type="number" min="0" step="1"
+                            class="form-control" inputmode="decimal" placeholder="0">
+                    </div>
+
+                    <div class="custom-control custom-checkbox mb-3">
+                        <input type="checkbox" class="custom-control-input" id="payroll-commissions-enabled"
+                            name="commissionsEnabled" value="1" checked>
+                        <label class="custom-control-label" for="payroll-commissions-enabled">
+                            Incluir comisiones para este empleado
+                        </label>
+                    </div>
+                    <div id="payroll-commission-fields" class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="payroll-credit-rate">Comisión por capital de créditos (%)</label>
+                            <input id="payroll-credit-rate" name="creditRate" type="number" min="0" max="100"
+                                step="0.01" class="form-control" value="0">
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="payroll-collection-rate">Comisión por recaudo (%)</label>
+                            <input id="payroll-collection-rate" name="collectionRate" type="number" min="0" max="100"
+                                step="0.01" class="form-control" value="0">
+                        </div>
+                    </div>
+
                 </div>
 
                 <div class="modal-footer justify-content-between">
-                    <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
-                    <button type="submit" class="btn btn-primary">Guardar</button>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save mr-1"></i> Guardar acuerdo
+                    </button>
                 </div>
-
-
             </form>
-
-
         </div>
-        <!-- /.modal-content -->
     </div>
-    <!-- /.modal-dialog -->
 </div>
-<!-- /.modal -->
-
-<script type="text/javascript">
-    $(function () {
-        $('#modal-pactar-sueldo').on('show.bs.modal', function (e) {
-            setTimeout(numdocumentoFocus, 300)
-        })
-        $('#modal-pactar-sueldo').on('hide.bs.modal', function (e) {
-            $('form#formPactarSueldo').trigger("reset");
-        })
-        function numdocumentoFocus() {
-            $("#txtbusNum_Documento").focus();
-        }
-
-
-    });
-</script>

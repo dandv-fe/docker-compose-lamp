@@ -64,7 +64,7 @@ test('route writes allow dispatch, matching office administrator, or Super Admin
       assert.equal(await openRoute(conn, 7, 9, 11, 'Cobrador'), 42);
     }
     assert.deepEqual(calls[0].params, [7, 9]);
-    assert.deepEqual(calls[1].params, [9, 7, 11, 42, 11]);
+    assert.deepEqual(calls[1].params, [9, 7, 11, 42, 11, 7, 9, 11]);
   }
   const conn = { async execute(sql, params) {
     assert.deepEqual(params, [7, 9]);

@@ -32,7 +32,8 @@ class RecibeCuentas
          $qry = $conexion->query($sql);
          $bloq = $qry->fetch_object();
 
-         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre)) {
+         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre) ||
+            tienePermisoTemporalCartera($conexion, $_SESSION, (int)$idsucursal, 'guardado permanente')) {
          } else {
             echo "ERROR: No estas authorizado para esta accion";
             return;
@@ -323,7 +324,8 @@ class RecibeCuentas
 						 a.str_nombre='bloquear'";
          $qry = $conexion->query($sql);
          $bloq = $qry->fetch_object();
-         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre)) {
+         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre) ||
+            tienePermisoTemporalCartera($conexion, $_SESSION, (int)$idsucursal, 'bloquear')) {
          } else {
             echo "ERROR: No estas authorizado para esta accion";
             return;
@@ -591,7 +593,8 @@ class RecibeCuentas
 					 GROUP BY au.idsucursal";
             $query = $conexion->query($sql);
             $res = $query->fetch_object();
-            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($res->str_nombre)) {
+            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($res->str_nombre) ||
+               tienePermisoTemporalCartera($conexion, $_SESSION, (int)$idsucursal, 'crear otros gastos')) {
             } else {
                echo "ERROR: No estas authorizado para esta accion ot";
                return;
@@ -610,7 +613,8 @@ class RecibeCuentas
 					 GROUP BY au.idsucursal";
             $query = $conexion->query($sql);
             $res = $query->fetch_object();
-            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($res->str_nombre)) {
+            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($res->str_nombre) ||
+               tienePermisoTemporalCartera($conexion, $_SESSION, (int)$idsucursal, 'crear salida')) {
             } else {
                echo "ERROR: No estas authorizado para esta accions";
                return;
@@ -629,7 +633,8 @@ class RecibeCuentas
 					 GROUP BY au.idsucursal";
             $query = $conexion->query($sql);
             $res = $query->fetch_object();
-            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($res->str_nombre)) {
+            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($res->str_nombre) ||
+               tienePermisoTemporalCartera($conexion, $_SESSION, (int)$idsucursal, 'crear entrada')) {
             } else {
                echo "ERROR: No estas authorizado para esta accion";
                return;
@@ -707,8 +712,7 @@ class RecibeCuentas
       global $conexion;
       $idglobal = intval($idglobal);
       $userEmpleadoId = intval($userEmpleadoId);
-      // Solo se listan las carteras de la oficina elegida en la sesión, igual que en despachar.
-      $idoficina = intval($_SESSION['idoficina'] ?? 0);
+      $idoficina = !empty($superadmin) ? intval($_SESSION['idoficina'] ?? 0) : 0;
       $filtroOficina = $idoficina > 0 ? " AND s.idoficina=$idoficina" : '';
       $idsucursals = array();
       $query = null;
@@ -794,7 +798,8 @@ class RecibeCuentas
 					 a.str_nombre='desbloquear'";
          $qry = $conexion->query($sql);
          $bloq = $qry->fetch_object();
-         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre)) {
+         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre) ||
+            tienePermisoTemporalCartera($conexion, $_SESSION, (int)$idsucursal, 'desbloquear')) {
          } else {
             echo "ERROR: No estas authorizado para esta accion";
             return;

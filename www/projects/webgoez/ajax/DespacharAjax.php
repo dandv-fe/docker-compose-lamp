@@ -1,86 +1,64 @@
 <?php
 session_start();
-require_once "../method.php";
-require_once "../model/Despachar.php";
-$objDespacar = new Despachar();
-$idglobal = $_SESSION['idglobal'];
-$userEmpleadoId = $_SESSION['idempleado'];
-$superadmin = $_SESSION['userEmpresa'];
-switch ($_GET["op"]) {
-   case 'SaveOrUpdate':
-      $idsucursal = limpiar_cadena($_POST['refSucursal']);
-      $id_detalle_ruta = limpiar_cadena($_POST['refDetalleRuta']);
-      $empleados_ids = $_POST['empls'];
-      if (is_array($empleados_ids)) {
-         if ($id_detalle_ruta == 0) {
-            $objDespacar->registrar($idglobal, $idsucursal, $empleados_ids);
-         } else {
-            $objDespacar->modificar($id_detalle_ruta, $empleados_ids);
-         }
-      } else {
-         echo "¡ERROR: Inesperado!" . PHP_EOL;
-         echo "NADA SELECCIONADO";
+header('Content-Type: application/json; charset=utf-8');
+header('Cache-Control: no-store');
+if (!isset($_SESSION['csrfDespacho'])) $_SESSION['csrfDespacho']=bin2hex(random_bytes(32));
+$session=$_SESSION;
+$csrf=$_SESSION['csrfDespacho'];
+session_write_close();
+try {
+   $method=$_SERVER['REQUEST_METHOD'] ?? 'GET';
+   if (!in_array($method,['GET','POST'],true)) throw new RuntimeException('Método no permitido.',405);
+   $input=$method==='GET' ? $_GET : $_POST;
+   if ($method==='POST' && stripos($_SERVER['CONTENT_TYPE'] ?? '','application/json')===0) {
+      $input=json_decode(file_get_contents('php://input'),true,32,JSON_THROW_ON_ERROR);
+   }
+   if (!is_array($input)) throw new RuntimeException('Datos no válidos.',422);
+   $action=$input['action'] ?? ($_GET['action'] ?? ($_GET['op'] ?? 'list'));
+   if ($action==='SaveOrUpdate') $action='save';
+   if ($method==='POST' && (!is_string($input['csrfToken'] ?? null) || !hash_equals($csrf,$input['csrfToken']))) {
+      throw new RuntimeException('Solicitud no válida; recargue Despachar.',403);
+   }
+   require_once __DIR__ . '/../model/Despachar.php';
+   $model=new Despachar(null,$session);
+   $data=$input['data'] ?? $input;
+   if (is_string($data)) $data=json_decode($data,true,32,JSON_THROW_ON_ERROR);
+   if (!is_array($data)) throw new RuntimeException('Datos no válidos.',422);
+   foreach (['employeeIds','distribution','challenges'] as $field) {
+      if (isset($data[$field]) && is_string($data[$field])) $data[$field]=json_decode($data[$field],true,32,JSON_THROW_ON_ERROR);
+   }
+   if ($method==='GET') {
+      if ($action==='list') $response=$model->listar();
+      elseif (in_array($action,['own','myChallenges'],true)) {
+         if (array_diff(array_keys($data),['action'])) throw new RuntimeException('La lectura propia no acepta empleado ni sucursal.',422);
+         $response=$model->propios();
       }
-      break;
-
-   case "list":
-      $query_Tipo = $objDespacar->ListarDespachar($idglobal, $superadmin, $userEmpleadoId);
-      $data = array();
-      while ($reg = $query_Tipo->fetch_object()) {
-         $textarea = '';
-         $numRuw = 0;
-         if (isset($reg->detalle_ruta)) {
-            $query = $objDespacar->getEmpleadosYaDspachados($reg->detalle_ruta);
-            $textarea = '<textarea class="form-control" rows="' . mysqli_num_rows($query) . '" readonly style=" resize: none;" >';
-            while ($a = $query->fetch_object()) {
-               $phpeol = mysqli_num_rows($query) - 1 != $numRuw ? PHP_EOL : '';
-               $textarea .= ($numRuw + 1) . '° ' . ucwords(strtolower($a->persona)) . $phpeol;
-               $numRuw++;
-            }
-            $textarea .= '</textarea>';
+      elseif ($action==='context') $response=$model->contexto(DespachoCore::positiveId($data['branchId'] ?? null));
+      elseif ($action==='forecast') $response=$model->estimar($data);
+      else throw new RuntimeException('Acción de lectura no válida.',422);
+   } else {
+      if ($action==='save') {
+         if (isset($data['refSucursal'])) {
+            $data['branchId']=$data['refSucursal'];
+            $data['expectedRouteId']=$data['refDetalleRuta'] ?? null;
+            $data['employeeIds']=$data['empls'] ?? null;
+            unset($data['refSucursal'],$data['refDetalleRuta'],$data['empls']);
          }
-         $isiddetalle = empty($reg->detalle_ruta) ? 0 : $reg->detalle_ruta;
-         $data[] = array(
-            isset($reg->detalle_ruta) ? '<button onclick="manejarCambioCheckDespachar(' . $reg->id . ',' . $reg->refEmpleado . ',' . $isiddetalle . ')" class="btn btn-app btn-success m-0">
-                <span class="badge bg-warning">' . mysqli_num_rows($query) . '</span>
-                <i class="fas fa-bullhorn"></i> DESPACHADOS
-              </button>' :
-               '<button onclick="manejarCambioCheckDespachar(' . $reg->id . ',' . $reg->refEmpleado . ',' . $isiddetalle . ')" class="btn btn-app btn-warning m-0">
-                    <i class="fas fa-users"></i> AGREGAR
-                  </button>',
-            '<div class="user-block">
-                  
-                  <span class="username">
-                      <a href="#">' . $reg->tipo . ': ' . $reg->codigo . '</a>
-                  </span>
-              </div>',
-            $textarea
-         );
+         unset($data['action'],$data['csrfToken']);
+         $response=$model->guardar($data);
+      } elseif ($action==='challenge') {
+         unset($data['action'],$data['csrfToken']);
+         $response=$model->reto($data);
       }
-      echo json_encode($data);
-      break;
-
-   case 'listEmpleados':
-      $id_detalle_ruta = limpiar_cadena($_GET['refDetalleRuta']);
-      $refEmpleado = limpiar_cadena($_GET['refEmpleado']);
-      if (!isset($superadmin)) {
-         $query = $objDespacar->listEncargadoDespachar($refEmpleado, $userEmpleadoId);
-         while ($reg = $query->fetch_object()) {
-            $selected = $refEmpleado == $reg->refEmpleado ? 'selected' : '';
-            echo '<option class="optEmpleadoDespachado" value="' . $reg->refEmpleado . '" ' . $selected . ' >' . ucwords(strtolower($reg->empleado)) . '</option>';
-         }
-      }
-      $query = $objDespacar->listEmpleadosDespachar($idglobal, $id_detalle_ruta, $superadmin, $userEmpleadoId);
-      while ($reg = $query->fetch_object()) {
-         if (!isset($superadmin)) {
-            if ($refEmpleado != $reg->refEmpleado) {
-               $selected = !empty($reg->refEmpleadoCobrando) ? 'selected' : '';
-               echo '<option class="optEmpleadoDespachado" value="' . $reg->refEmpleado . '" ' . $selected . '>' . ucwords(strtolower($reg->empleado)) . '</option>';
-            }
-         } else {
-            $selected = $refEmpleado == $reg->refEmpleado || !empty($reg->refEmpleadoCobrando) ? 'selected' : '';
-            echo '<option class="optEmpleadoDespachado" value="' . $reg->refEmpleado . '" ' . $selected . '>' . ucwords(strtolower($reg->empleado)) . '</option>';
-         }
-      }
-      break;
+      else throw new RuntimeException('Acción de escritura no válida.',422);
+   }
+   $response['csrfToken']=$csrf;
+   echo json_encode($response,JSON_UNESCAPED_UNICODE|JSON_THROW_ON_ERROR);
+} catch (Throwable $e) {
+   $status=in_array($e->getCode(),[401,403,404,405,409,422,503],true) ? $e->getCode() : 500;
+   if ($e instanceof JsonException) $status=422;
+   http_response_code($status);
+   if ($status===500) error_log('Despacho: ' . $e->getMessage());
+   echo json_encode(['error'=>$status===500 ? 'No se pudo gestionar el despacho; revise migración 017 y el registro del servidor.' : $e->getMessage()],
+      JSON_UNESCAPED_UNICODE);
 }

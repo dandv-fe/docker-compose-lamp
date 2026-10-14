@@ -23,12 +23,6 @@ jQuery(document).ready(function () {
   // Cargar oficinas en el combo
   cargarOficinasCbo();
 
-  $("#dateDeste").on("hide.datetimepicker", function (e) {
-    $("form#formSearchNominaDetallado").trigger('submit');
-  });
-  $("#dateHasta").on("hide.datetimepicker", function (e) {
-    $("form#formSearchNominaDetallado").trigger('submit');
-  });
 
 
 
@@ -41,7 +35,7 @@ jQuery(document).ready(function () {
 
   $('a[data-toggle="pill"]').on('shown.bs.tab', function (e) {
     if ($(e.target).attr('id') === 'custom-tabs-nomina-tab') {
-      listarNomina();
+      if (window.PayrollEmpleado) window.PayrollEmpleado.cargarEmpleado();
     } else if ($(e.target).attr('id') === 'custom-tabs-liquidar-tab') {
       $("form#formSearchNominaDetallado").submit()
     } else if ($(e.target).attr('id') === 'custom-tabs-authorizations-tab') {
@@ -52,8 +46,6 @@ jQuery(document).ready(function () {
   })
 
   $("form#frmEmpleado").submit(SaveOrUpdate);
-
-  $("form#formPactarSueldo").submit(SaveOrUpdateSueldoPactado);
 
   $("form#formEmpleadoEditar").submit(function (e) {
     e.preventDefault()
@@ -67,39 +59,6 @@ jQuery(document).ready(function () {
     }
     cargarDataEmpleado(tipo_documento, num_documento, accion);
   });
-
-  function SaveOrUpdateSueldoPactado(e) {
-    e.preventDefault()
-    $("#txtRefEmpleado_formPactarSueldo").val($("#txtRefEmpleadoConfig").val());
-    $.post("./ajax/UsuarioAjax.php", function (r) {
-      if (r === '0') {
-        location.reload(true);
-      }
-    });
-    var formData = new FormData($("#formPactarSueldo")[0]);
-    $.ajax({
-      url: "./ajax/EmpleadoAjax.php?op=SaveOrUpdateSueldoPactado",
-      type: "POST",
-      data: formData,
-      contentType: false,
-      processData: false,
-      success: function (datos) {
-        if (datos.indexOf("ERROR:") !== -1) {
-          Toast.fire({
-            icon: 'error',
-            title: datos
-          })
-        } else {
-          Toast.fire({
-            icon: 'success',
-            title: datos
-          })
-          $("#modal-pactar-sueldo").modal('hide');
-          listarNomina()
-        }
-      }
-    });
-  }
 
   $("form#formBuscarPersona").submit(buscarPersona);
 
@@ -252,6 +211,7 @@ function OcultarForm() {
 
 function VerConfiguracion(ref) {
   $("#txtRefEmpleadoConfig").val(ref);
+  $(document).trigger('payroll:employee-selected', [ref]);
   $("#VerForm").hide();// Mostramos el formulario
   $("#VerConfiguracion").show();// Mostramos el formulario
   $("#btnNuevoEmpleado").hide();// ocultamos el boton nuevo
@@ -266,7 +226,7 @@ function ListadoEmpleado() {
     data: {},
     dataType: "json",
     success: function (datos) {
-      tabla.clear().draw();
+      tabla.clear();
       for (let i = 0; i < datos.length; i++) {
         const val = datos[i];
         tabla.row
@@ -280,52 +240,37 @@ function ListadoEmpleado() {
             val[6],
             val[7],
             val[8],
-          ]).draw(false);
+            val[9],
+            val[10],
+          ]);
       }
+      tabla.draw(false);
     },
-    error: function (e) {
-      console.log(e.responseText);
+    error: function (xhr) {
+      tabla.clear().draw();
+      Swal.fire({
+        icon: 'error',
+        title: 'Empleados',
+        text: xhr.responseJSON && xhr.responseJSON.error
+          ? xhr.responseJSON.error
+          : 'No se pudo consultar el listado de empleados.'
+      });
     }
   });
 };
 
 function listarNomina() {
-  $("#verLoadingNomina").removeClass('hide')
-  $("#verListadoNomina").addClass('hide')
-  $.post("./ajax/UsuarioAjax.php", function (r) {
-    if (r === '0') {
-      location.reload(true);
-    }
-  });
-  const refEmpleado = $("#txtRefEmpleadoConfig").val();
-  var tabla = $('#tblNomina').DataTable();
-  $.ajax({
-    url: './ajax/EmpleadoAjax.php?op=listNomina',
-    type: "POST",
-    data: { refEmpleado },
-    dataType: "json",
-    success: function (datos) {
-      tabla.clear().draw();
-      for (let i = 0; i < datos.length; i++) {
-        const val = datos[i];
-        tabla.row
-          .add([
-            val[0],
-            val[1],
-            val[2],
-            val[3]
-          ]).draw(false);
-      }
-      $("#verLoadingNomina").addClass('hide')
-      $("#verListadoNomina").removeClass('hide')
-    },
-    error: function (e) {
-      console.log(e.responseText);
-    }
-  });
+  if (window.PayrollEmpleado) window.PayrollEmpleado.cargarEmpleado();
 }
 
+let payrollHistoryRequestSequence = 0;
 function listarNominaDetalle() {
+  const sequence = ++payrollHistoryRequestSequence;
+  if (!PayrollHistoryDates.validate(jQuery)) {
+    $("#verLoadingNominaDetalle").addClass('hide');
+    $("#verListadoNominaDetlles").removeClass('hide');
+    return;
+  }
 
   $("#verLoadingNominaDetalle").removeClass('hide')
   $("#verListadoNominaDetlles").addClass('hide')
@@ -346,6 +291,7 @@ function listarNominaDetalle() {
     processData: false,
     dataType: "json",
     success: function (datos) {
+      if (sequence !== payrollHistoryRequestSequence) return;
       const conseptos = Array.from(new Set(datos.map(x => capitalizarPalabras(x[2]))));
       const trTableconsepto = conseptos.map(n => {
         return `<tr>
@@ -373,8 +319,17 @@ function listarNominaDetalle() {
       $("#verLoadingNominaDetalle").addClass('hide')
       $("#verListadoNominaDetlles").removeClass('hide')
     },
-    error: function (e) {
-      console.log(e.responseText);
+    error: function (xhr) {
+      if (sequence !== payrollHistoryRequestSequence) return;
+      tabla.clear().draw();
+      $("#trTableconsepto").empty();
+      $("#verLoadingNominaDetalle").addClass('hide');
+      $("#verListadoNominaDetlles").removeClass('hide');
+      Swal.fire({
+        icon: 'error', title: 'Pagos recibidos',
+        text: xhr.responseJSON && xhr.responseJSON.error
+          ? xhr.responseJSON.error : 'No se pudo consultar el historial de pagos.'
+      });
     }
   });
 }

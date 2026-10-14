@@ -1,6 +1,38 @@
 package com.backendcreditos.mobile.network
 
 object GraphQlDocuments {
+    const val MY_DISPATCH_CHALLENGES = """
+        query MyDispatchChallenges {
+          myDispatchChallenges
+        }
+    """
+    const val CASH_BONUS_CONTEXT = """
+        query CashBonusContext(${'$'}branchId: Int!) {
+          payrollBonusContext(branchId: ${'$'}branchId)
+        }
+    """
+    const val CASH_BONUS = """
+        mutation CashBonus(${'$'}input: JSON!) {
+          changeEmployeePayroll(action: BONUS, input: ${'$'}input)
+        }
+    """
+    const val MY_PAYROLL = """
+        query MyPayroll {
+          myPayroll {
+            employeeId asOf
+            periods {
+              contractId configured type frequency startDate endDate
+              baseAmount periodBaseAmount agreedBaseAmount capitalCommission collectionCommission commissionAmount
+              bonusAmount earnedAmount paidAmount pendingAmount
+            }
+            totals {
+              baseAmount periodBaseAmount capitalCommission collectionCommission commissionAmount
+              bonusAmount earnedAmount paidAmount pendingAmount
+            }
+            contracts vacations bonuses routes breakdown
+          }
+        }
+    """
     const val LOGIN = """
         mutation Login(${'$'}companyId: Int!, ${'$'}username: String!, ${'$'}password: String!) {
           login(companyId: ${'$'}companyId, username: ${'$'}username, password: ${'$'}password) {

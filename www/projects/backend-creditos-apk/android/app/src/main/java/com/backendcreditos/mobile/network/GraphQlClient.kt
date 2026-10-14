@@ -543,6 +543,32 @@ class GraphQlApi(private val client: GraphQlClient) {
         )
     }
 
+    suspend fun myPayroll(token: String): ApiResult<MyPayrollData> = client.execute(
+        GraphQlDocuments.MY_PAYROLL, buildJsonObject {}, MyPayrollData.serializer(), token
+    )
+
+    suspend fun myDispatchChallenges(token: String): ApiResult<DispatchChallengesData> = client.execute(
+        GraphQlDocuments.MY_DISPATCH_CHALLENGES, buildJsonObject {}, DispatchChallengesData.serializer(), token
+    )
+
+    suspend fun cashBonusContext(token: String, branchId: Int): ApiResult<CashBonusContextData> =
+        client.execute(GraphQlDocuments.CASH_BONUS_CONTEXT,
+            buildJsonObject { put("branchId", JsonPrimitive(branchId)) }, CashBonusContextData.serializer(), token)
+
+    suspend fun cashBonus(
+        token: String, context: CashBonusContext, employeeId: Int, amount: String, reason: String, idempotencyToken: String
+    ): ApiResult<CashBonusData> = client.execute(GraphQlDocuments.CASH_BONUS,
+        buildJsonObject {
+            put("input", buildJsonObject {
+                put("branchId", JsonPrimitive(context.branchId))
+                put("routeId", JsonPrimitive(context.routeId))
+                put("employeeId", JsonPrimitive(employeeId))
+                put("amount", JsonPrimitive(amount))
+                put("reason", JsonPrimitive(reason.trim()))
+                put("idempotencyToken", JsonPrimitive(idempotencyToken))
+            })
+        }, CashBonusData.serializer(), token)
+
     suspend fun rateCustomer(
         token: String, branchId: String, customerId: String, score: Int, reason: String, expectedRating: String
     ): ApiResult<RateCustomerData> {

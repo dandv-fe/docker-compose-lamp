@@ -185,6 +185,10 @@ export async function authenticateRequest(
       [user.employeeId, user.companyId],
     );
     permissions.push(...permissionRows as Array<{ branchId: number; name: string }>);
+    const [temporaryRows] = await pool.execute(
+      `SELECT branch_id AS branchId,permission AS name FROM view_employee_payroll_temporary_permission
+       WHERE idglobal=? AND employee_id=?`, [user.companyId, user.employeeId]);
+    permissions.push(...temporaryRows as Array<{ branchId: number; name: string }>);
   }
   return { user, permissions };
 }
@@ -209,9 +213,11 @@ export async function listBranches(user: AuthUser) {
          LEFT JOIN tbl_auth_sucursal a ON a.idsucursal = s.idsucursal
            AND a.idglobal = s.idglobal AND a.idempleado = ? AND a.str_estado <> 'inactivo'
          LEFT JOIN tbl_oficina o ON o.idoficina = s.idoficina AND o.idglobal = s.idglobal
-         WHERE s.idglobal = ? AND (a.idauth_sucursal IS NOT NULL OR o.idempleado_administrador = ?)
+         WHERE s.idglobal = ? AND (a.idauth_sucursal IS NOT NULL OR o.idempleado_administrador = ?
+           OR EXISTS(SELECT 1 FROM view_employee_payroll_active_coverage c
+             WHERE c.idglobal=s.idglobal AND c.branch_id=s.idsucursal AND c.replacement_employee_id=?))
          ORDER BY s.idsucursal`,
-        [user.employeeId, user.companyId, user.employeeId],
+        [user.employeeId, user.companyId, user.employeeId, user.employeeId],
       );
   return rows;
 }
@@ -232,23 +238,25 @@ export async function assertBranchAccess(user: AuthUser, branchId: number): Prom
     fail('FORBIDDEN', 'Employee branch access is required');
   }
   const [rows] = await pool.execute(
-    `SELECT b.idglobal AS branchCompanyId, a.idauth_sucursal, o.idoficina AS administeredOfficeId
+    `SELECT b.idglobal AS branchCompanyId, a.idauth_sucursal, o.idoficina AS administeredOfficeId,
+       EXISTS(SELECT 1 FROM view_employee_payroll_active_coverage c WHERE c.idglobal=b.idglobal
+         AND c.branch_id=b.idsucursal AND c.replacement_employee_id=?) AS temporaryRepresentative
      FROM tbl_sucursal b
      LEFT JOIN tbl_auth_sucursal a ON a.idsucursal = b.idsucursal
        AND a.idglobal = b.idglobal AND a.str_estado <> 'inactivo' AND a.idempleado = ?
      LEFT JOIN tbl_oficina o ON o.idoficina = b.idoficina AND o.idglobal = b.idglobal
        AND o.idempleado_administrador = ?
      WHERE b.idsucursal = ? LIMIT 1`,
-    [user.employeeId ?? -1, user.employeeId ?? -1, branchId],
+    [user.employeeId ?? -1, user.employeeId ?? -1, user.employeeId ?? -1, branchId],
   );
   const branch = (rows as Array<{
-    branchCompanyId: number; idauth_sucursal: number | null; administeredOfficeId: number | null;
+    branchCompanyId: number; idauth_sucursal: number | null; administeredOfficeId: number | null; temporaryRepresentative: number;
   }>)[0];
   if (!branch || !canAccessBranch(
     user.cargo,
     user.companyId,
     Number(branch.branchCompanyId),
-    branch.idauth_sucursal != null || branch.administeredOfficeId != null,
+    branch.idauth_sucursal != null || branch.administeredOfficeId != null || Number(branch.temporaryRepresentative) === 1,
   )) fail('FORBIDDEN', 'Branch is not available');
 }
 
@@ -261,8 +269,11 @@ export async function hasPermission(user: AuthUser, branchId: number, permission
      JOIN tbl_auths x ON x.idauth_sucursal = s.idauth_sucursal
      JOIN tbl_auth a ON a.idauth = x.idauth
      WHERE s.idempleado = ? AND s.idsucursal = ? AND s.idglobal = ?
-       AND s.str_estado <> 'inactivo' AND a.str_nombre = ? LIMIT 1`,
-    [user.employeeId, branchId, user.companyId, permission],
+       AND s.str_estado <> 'inactivo' AND a.str_nombre = ?
+     UNION ALL
+     SELECT permission AS str_nombre FROM view_employee_payroll_temporary_permission
+       WHERE idglobal=? AND branch_id=? AND employee_id=? AND permission=? LIMIT 1`,
+    [user.employeeId, branchId, user.companyId, permission, user.companyId, branchId, user.employeeId, permission],
   );
   return Array.isArray(rows) && rows.length > 0;
 }
@@ -270,6 +281,14 @@ export async function hasPermission(user: AuthUser, branchId: number, permission
 export async function requirePermission(user: AuthUser, branchId: number, permission: string): Promise<void> {
   await assertBranchAccess(user, branchId);
   assertPermissionGranted(user.cargo, await hasPermission(user, branchId, permission), permission);
+}
+
+export async function requireTemporaryCashPermission(user: AuthUser, branchId: number): Promise<void> {
+  if (user.cargo === 'Super Administrador' || await isOfficeAdministrator(user, branchId)) return;
+  const [rows] = await pool.execute<RowDataPacket[]>(
+    `SELECT 1 FROM view_employee_payroll_active_coverage WHERE idglobal=? AND branch_id=?
+       AND replacement_employee_id=? LIMIT 1`, [user.companyId, branchId, user.employeeId]);
+  if (rows.length) await requirePermission(user, branchId, 'totalizar');
 }
 
 // Legacy restore actions (see model/Cliente.php::restaurarMoroso) accept either of two

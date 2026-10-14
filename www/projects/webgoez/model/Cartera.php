@@ -327,7 +327,9 @@ class ClassCartera
             $bloq = $qry->fetch_object();
 
 
-            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre)) {
+            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre) ||
+                tienePermisoTemporalCartera($conexion, $_SESSION, (int)$idsucursal, 'editar cliente') ||
+                tienePermisoTemporalCartera($conexion, $_SESSION, (int)$idsucursal, 'editar maximo del credito')) {
                 if ($prestamo > $res->max_credito - $res->total_deuda_actual) {
                     $nuevoCupo = (float)$prestamo + (float)$res->total_deuda_actual;
                     $errorCupo = errorCupoAprobadoCartera(
@@ -1018,7 +1020,8 @@ class ClassCartera
         $qry = $conexion->query($sql);
         $vercaja = $qry->fetch_object();
 
-        if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($vercaja->str_nombre)) {
+        if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($vercaja->str_nombre) ||
+            tienePermisoTemporalCartera($conexion, $_SESSION, (int)$idsucursal, 'ver caja')) {
             $sql = "SELECT 
             IFNULL(SUM(dec_total),0) As caja
             FROM tbl_contabilidad_detalle 
@@ -1039,7 +1042,8 @@ class ClassCartera
         $qry = $conexion->query($sql);
         $btn = $qry->fetch_object();
         $bool_ = false;
-        if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($btn->str_nombre)) {
+        if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($btn->str_nombre) ||
+            tienePermisoTemporalCartera($conexion, $_SESSION, (int)$idsucursal, 'totalizar')) {
             $bool_ = true;
         }
 
@@ -1335,7 +1339,8 @@ class ClassCartera
                  GROUP BY au.idsucursal";
             $query = $conexion->query($sql);
             $resg = $query->fetch_object();
-            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$res->idsucursal) || isset($resg->str_nombre)) {
+            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$res->idsucursal) || isset($resg->str_nombre) ||
+                tienePermisoTemporalCartera($conexion, $_SESSION, (int)$res->idsucursal, 'crear otros gastos')) {
 
             } else {
                 echo "ERROR: No estas authorizado para esta accion";
@@ -1358,7 +1363,8 @@ class ClassCartera
                  GROUP BY au.idsucursal";
             $query = $conexion->query($sql);
             $ress = $query->fetch_object();
-            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$res->idsucursal) || isset($ress->str_nombre)) {
+            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$res->idsucursal) || isset($ress->str_nombre) ||
+                tienePermisoTemporalCartera($conexion, $_SESSION, (int)$res->idsucursal, 'crear salida')) {
 
             } else {
                 echo "ERROR: No estas authorizado para esta accion";
@@ -1378,7 +1384,8 @@ class ClassCartera
                  GROUP BY au.idsucursal";
             $query = $conexion->query($sql);
             $rese = $query->fetch_object();
-            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$res->idsucursal) || isset($rese->str_nombre)) {
+            if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$res->idsucursal) || isset($rese->str_nombre) ||
+                tienePermisoTemporalCartera($conexion, $_SESSION, (int)$res->idsucursal, 'crear entrada')) {
 
             } else {
                 echo "ERROR: No estas authorizado para esta accion";

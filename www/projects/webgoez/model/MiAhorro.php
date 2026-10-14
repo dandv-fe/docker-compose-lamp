@@ -379,6 +379,11 @@ class MiAhorro
                         m.idahorro_de,
                         m.date_movimiento,
                         m.str_tipo,
+                        CASE WHEN m.idahorro=$idahorro THEN m.str_tipo
+                           WHEN m.str_tipo='retiro' THEN 'Transferencia recibida'
+                           WHEN m.str_tipo IN ('aporte','ajuste') THEN 'Transferencia enviada'
+                           ELSE m.str_tipo
+                        END AS tipo_presentacion,
                         m.dec_valor,
                         CASE
                            WHEN m.idahorro = $idahorro THEN
@@ -405,8 +410,8 @@ class MiAhorro
                         IFNULL(NULLIF(TRIM(p.str_tipo_documento), ''), '-') AS str_tipo_documento,
                         IFNULL(NULLIF(TRIM(p.str_num_documento), ''), '-') AS str_num_documento
                      FROM tbl_movimientos m
-                     INNER JOIN tbl_ahorros a ON a.idahorro = m.idahorro AND a.idglobal = m.idglobal
-                     LEFT JOIN tbl_persona p ON p.idpersona = a.idpersona
+                     INNER JOIN tbl_ahorros a ON a.idahorro = $idahorro AND a.idglobal = m.idglobal
+                     LEFT JOIN tbl_persona p ON p.idpersona = a.idpersona AND p.idglobal=a.idglobal
                      WHERE m.idglobal=$idglobal
                         AND (m.idahorro=$idahorro OR m.idahorro_de=$idahorro)
                         AND UPPER(IFNULL(m.str_estado, '')) <> 'INACTIVO'
@@ -426,23 +431,35 @@ class MiAhorro
                         m.date_movimiento,
                         m.str_tipo,
                         m.dec_valor,
-                        CASE m.str_tipo
-                           WHEN 'retiro' THEN -m.dec_valor
-                           WHEN 'salida' THEN -m.dec_valor
-                           ELSE m.dec_valor
-                        END AS monto_firmado,
+                        (CASE WHEN a1.idpersona=$idpersona THEN
+                           CASE WHEN m.str_tipo IN ('retiro','salida') THEN -m.dec_valor ELSE m.dec_valor END
+                           ELSE 0 END)
+                        + (CASE WHEN a2.idpersona=$idpersona AND m.idahorro_de<>m.idahorro THEN
+                           CASE WHEN m.str_tipo IN ('aporte','ajuste') THEN -m.dec_valor
+                                WHEN m.str_tipo='retiro' THEN m.dec_valor ELSE 0 END
+                           ELSE 0 END) AS monto_firmado,
+                        CASE
+                           WHEN a1.idpersona=$idpersona AND a2.idpersona=$idpersona
+                             AND m.idahorro_de<>m.idahorro AND m.str_tipo IN ('aporte','ajuste','retiro')
+                             THEN 'Transferencia entre mis cuentas'
+                           WHEN a1.idpersona=$idpersona THEN m.str_tipo
+                           WHEN m.str_tipo='retiro' THEN 'Transferencia recibida'
+                           WHEN m.str_tipo IN ('aporte','ajuste') THEN 'Transferencia enviada'
+                           ELSE m.str_tipo
+                        END AS tipo_presentacion,
                         m.str_descripcion,
                         m.str_estado,
-                        COALESCE(a1.idahorro, a2.idahorro) AS idahorro,
-                        COALESCE(a1.id_cuenta, a2.id_cuenta) AS id_cuenta,
-                        COALESCE(a1.str_name, a2.str_name) AS str_name,
+                        CASE WHEN a1.idpersona=$idpersona THEN a1.idahorro ELSE a2.idahorro END AS idahorro,
+                        CASE WHEN a1.idpersona=$idpersona THEN a1.id_cuenta ELSE a2.id_cuenta END AS id_cuenta,
+                        CASE WHEN a1.idpersona=$idpersona THEN a1.str_name ELSE a2.str_name END AS str_name,
                         TRIM(CONCAT(IFNULL(p.str_nombres, ''), ' ', IFNULL(p.str_apellidos, ''))) AS ahorrador,
                         IFNULL(NULLIF(TRIM(p.str_tipo_documento), ''), '-') AS str_tipo_documento,
                         IFNULL(NULLIF(TRIM(p.str_num_documento), ''), '-') AS str_num_documento
                      FROM tbl_movimientos m
                      LEFT JOIN tbl_ahorros a1 ON a1.idahorro = m.idahorro AND a1.idglobal = m.idglobal
                      LEFT JOIN tbl_ahorros a2 ON a2.idahorro = m.idahorro_de AND a2.idglobal = m.idglobal
-                     LEFT JOIN tbl_persona p ON p.idpersona = COALESCE(a1.idpersona, a2.idpersona)
+                     LEFT JOIN tbl_persona p ON p.idpersona = CASE WHEN a1.idpersona=$idpersona
+                        THEN a1.idpersona ELSE a2.idpersona END AND p.idglobal=m.idglobal
                      WHERE m.idglobal=$idglobal
                         AND (
                            (a1.idpersona IS NOT NULL AND a1.idpersona=$idpersona)

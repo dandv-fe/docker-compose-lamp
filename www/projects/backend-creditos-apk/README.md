@@ -78,8 +78,530 @@ The database and app clocks and time zones must be synchronized.
 
 ## GraphQL contract
 
+### Nómina de empleados (SQL compartido con webgoez)
+
+Aplicar **manualmente** `migrations/015_employee_payroll.sql` antes de desplegar
+`webgoez/model/Despachar.php`. Requiere MariaDB 10.11/MySQL 8 y permisos de
+creación de vistas/rutinas para la migración; el usuario de ejecución necesita
+`EXECUTE` sobre las tres rutinas 015; con 016 instalada necesita las seis
+rutinas enumeradas en la sección de despliegue 016, además de sus permisos
+existentes. No ejecutar
+la migración automáticamente al iniciar la API. No modifica ni borra nóminas,
+pagos o despachos históricos. Es repetible. No genera contratos ni snapshots
+retroactivos a partir de campos legacy ambiguos: configurar los empleados antes
+del siguiente despacho. Los despachos ya abiertos sin snapshot no devengan
+nuevas comisiones automáticamente.
+
+`myPayroll(asOf: String): EmployeePayroll!` devuelve el período calendario que
+contiene la fecha colombiana seleccionada (`YYYY-MM-DD`, hoy si se omite).
+No recibe `employeeId`: consulta exclusivamente la identidad del empleado
+recargada desde la sesión autenticada, nunca la identidad enviada por el APK.
+Es una consulta **online**, no un dato de cartera/offline. Los campos son:
+
+```graphql
+query {
+  myPayroll {
+    employeeId asOf
+    periods {
+      contractId configured type frequency startDate endDate
+      baseAmount periodBaseAmount agreedBaseAmount capitalCommission collectionCommission commissionAmount
+      bonusAmount earnedAmount paidAmount pendingAmount
+    }
+    totals { earnedAmount paidAmount pendingAmount }
+    contracts vacations bonuses routes breakdown
+  }
+}
+```
+
+- Tipo `Fijo`, `Porcentaje`, `Combinado`, independiente de frecuencia `Diario`,
+  `Semanal` (lunes-domingo), `Quincenal` (1-15/16-fin), `Mensual`.
+- `baseAmount` es base **acumulada hasta asOf inclusive**, según los días
+  calendario transcurridos, incluyendo descanso/vacaciones (ejemplo: mensual
+  3000, mes de 30 días, día 10 = 1000). `agreedBaseAmount` es la base íntegra
+  pactada del contrato vigente; `periodBaseAmount` la base del período completo
+  conforme versiones conocidas al corte (proyección, no dinero devengado).
+  Al consultar fin de período la base acumulada coincide con la del período.
+  Base una vez por período, sin multiplicarse por carteras/despachos. Inicio o
+  cambio de contrato a mitad del período prorratea la base por días calendario
+  de cobertura; vacaciones **no** disminuyen base Fijo/Combinado. Contratos
+  futuros no alteran una consulta histórica anterior a su vigencia.
+- Tasas independientes 0..100 sobre capital `dec_prestamo` (sin intereses) y
+  recaudo efectivo real: `-dec_abono - SUM(tbl_descripcion_pago.dec_valor)`,
+  sólo `Abono%`, `Inicial%`, `Cancelado%`. Descuentos/intereses/ajustes no son
+  efectivo. Se conservan signos, transferencias y reversos; no se aplica
+  `ABS` ni se truncan saldos negativos.
+- `Combinado = max(baseAmount acumulada, capitalCommission + collectionCommission) + bonos`.
+  Porcentaje suma sólo comisiones y una base **si fue configurada explícitamente**.
+  Sin contrato, `configured=false`, base cero; los bonos/pagos se agrupan
+  mensualmente sin inventar un sueldo.
+- Cada apertura congela por sucursal reparto `Titular` (predeterminado),
+  `Igual` (empleados distintos despachados) o `Personalizado` (pesos suman 100).
+  Tasas/tipo/empleados se congelan en el snapshot. Cambiar asignados, contrato
+  o reparto no modifica ese snapshot. Movimientos posteriores del despacho
+  abierto se acumulan por **fecha del movimiento**, aun sin cerrar el despacho.
+  Vacaciones excluyen comisiones del empleado en ese rango. Desde 016 requieren
+  relevo explícito y transfieren sólo la participación del titular de las
+  carteras cubiertas, con las tasas propias congeladas del relevo.
+  Un contrato Fijo nuevo no descarta comisiones de snapshots anteriores.
+- Pagado usa gastos `tbl_contabilidad_detalle` vinculados por
+  `tbl_detalle_nomina`/`tbl_nomina`, deduplicados por movimiento y beneficiario.
+  Un gasto categoría 2 se cuenta mediante ese vínculo, no otra vez por categoría.
+  No se adivina destinatario de un gasto huérfano a partir de su autor.
+  `pendingAmount = earnedAmount - paidAmount`, puede ser negativo.
+  **Liquidación aquí es cálculo del período, no retiro ni liquidación laboral legal.**
+
+Web comparte la matemática de `sp_employee_payroll_summary`, la autorización y
+escrituras de `sp_employee_payroll_change` y snapshots de
+`sp_employee_payroll_snapshot`; PHP/TS no implementan fórmulas paralelas.
+`webgoez/ajax/NominaEmpleadoAjax.php`: GET `action=bootstrap` o
+`action=resumen&asOf=YYYY-MM-DD` (empleado propio por omisión; admin autorizado
+puede seleccionar empleado). POST requiere `csrfToken` del bootstrap y
+`action=contrato|vacacion|bono|reparto`, con objeto `data`:
+
+```json
+{
+  "employeeId": 123,
+  "effectiveDate": "2026-11-01",
+  "type": "Combinado",
+  "frequency": "Mensual",
+  "baseAmount": 1000000,
+  "capitalRate": 1.5,
+  "collectionRate": 2,
+  "idempotencyToken": "unique_request_token_123"
+}
+```
+
+Vacación: `employeeId,replacementEmployeeId,startDate,endDate,idempotencyToken`, `reason` opcional.
+Bono: `employeeId,branchId,routeId,amount,reason,idempotencyToken` (nuevo bono manual positivo;
+los reversos de movimientos/pagos existentes conservan sus signos).
+Reparto: `branchId,mode,weights:[{employeeId,weight}],idempotencyToken`.
+`changeEmployeePayroll(action: CONTRACT|VACATION|BONUS|DISTRIBUTION,input: JSON!)`
+expone esos mismos cambios por GraphQL. Ambas capas devuelven
+`{ok,id,duplicate}`. Token 16..100 caracteres alfanuméricos/guion/guion bajo;
+reintentar exactamente el mismo cambio no lo duplica, reutilizarlo para otro
+payload/actor devuelve conflicto. La empresa proviene de autenticación.
+Contrato/vacación requieren Super Administrador o administrador actual
+de la oficina del empleado (y del relevo); reparto sólo Super Administrador.
+Bono requiere el alcance actual de gastos de cartera y beneficiario, descrito
+en 016 abajo. Las rutinas
+revalidan actor activo/empresa/permisos incluso en reintentos. Fechas de contrato/vacación
+son hoy o futuras; bono usa exclusivamente la fecha actual de caja del servidor.
+Versiones de contrato sólo se agregan en fechas posteriores
+a la última versión. No hay API para reescribir contratos pasados.
+
+`routes` y `breakdown` son JSON compartido PHP/GraphQL. Rutas incluyen
+`routeId,branchId,branchName,state,provisional,openedAt,contractId,type,weight,
+capitalRate,collectionRate,mode,capitalAmount,cashAmount,capitalCommission,collectionCommission`; `provisional` significa despacho no `saved`
+(incluye abierto/entregando). Se listan snapshots abiertos en el período o con
+movimientos en el período hasta `asOf`, aunque se abrieran antes.
+Desglose incluye esos identificadores/reglas y
+`movementId,movementDate,capitalAmount,cashAmount,excludedReason,
+capitalCommission,collectionCommission`; exclusiones `VACATION`, `NO_CONTRACT`,
+`FIXED`, o null si aplica comisión. No expone beneficiarios ajenos.
+El resumen suma precisión SQL y redondea una sola vez; el desglose conserva
+precisión de atribución, no redondear cada fila antes de sumarla.
+Bootstrap añade a cada sucursal `titularEmployeeId` y `assignedEmployeeIds`
+(empleados distintos del último despacho, sólo dentro de la empresa).
+También incluye `employees:[{employeeId,name}]` con asignados activos de ese
+despacho, para selectores de reparto. No confundir asignación actual con el
+snapshot histórico congelado.
+`holderId` y `holderName` identifican el titular de la sucursal; `holderId`
+es equivalente a `titularEmployeeId`. La identidad se une dentro de la empresa.
+
+El JSON `routes` conserva compatibilidad y añade aliases explícitos
+`id=routeId`, `openedDate` (fecha colombiana), `closed=!provisional`,
+`sharePercent=weight`, `capitalBasis=capitalAmount`,
+`collectionBasis=cashAmount`. GraphQL también ofrece `routeRows:
+[EmployeePayrollRoute!]!`, la misma lista con campos tipados y selección
+explícita. Son sólo snapshots del empleado autenticado, no datos de otros
+beneficiarios. La base capital/efectivo muestra movimientos reales, incluso
+los excluidos de comisión; revisar `breakdown.excludedReason` para saber por qué.
+
+### Aplicación local manual de 015
+
+No ejecutar DDL con despachos o cambios de nómina en curso. Respaldar primero
+y detener escritores PHP/Node; DDL hace commit implícito, no existe rollback
+transaccional de la migración. Ejecutar primero las pruebas aisladas SQL/PHP
+anteriores. El script exige host local/Compose, base explícita coincidente
+con `DB_NAME`, build y pruebas unitarias/contrato correctas. Credenciales
+se leen de entorno, nunca de argumentos ni se imprimen:
+
+```sh
+# Sólo inspección del destino y validación (no DDL):
+node scripts/apply-payroll-local.mjs --database NOMBRE_BASE_LOCAL
+# Sólo después de respaldo, parar escritores y aprobar pruebas aisladas:
+node scripts/apply-payroll-local.mjs --database NOMBRE_BASE_LOCAL \
+  --apply --confirm NOMBRE_BASE_LOCAL --backup-confirmed --writers-stopped \
+  --isolated-tests-confirmed
+```
+
+Requiere MariaDB 10.11+ o MySQL 8+, tablas legacy existentes y privilegios
+CREATE/ALTER para tablas, CREATE VIEW, CREATE/ALTER ROUTINE del migrador.
+Revisar los privilegios del definer de vistas/rutinas y otorgar al runtime
+EXECUTE sobre rutinas y SELECT sobre tablas/vistas de nómina. El script
+se detiene ante primer error e indica número de sentencia: DDL previo puede
+haber persistido; corregir la causa y repetir, no borrar historia.
+Desplegar hook de apertura PHP **después** de la migración y reiniciar
+escritores. Configurar contratos prospectivos antes de nuevos despachos.
+No rellenar automáticamente los despachos abiertos antiguos con reglas nuevas.
+
+### Corrección forward 016: vacaciones con relevo y bonos de caja
+
+`migrations/016_payroll_replacements_cash_bonus.sql` se aplica **después de 015**
+ya desplegada; no ejecutar otra vez 015 sobre un sistema con 016. El script
+rechaza ese downgrade. 016 requiere **MariaDB 10.11+** (ALTER/INDEX repetibles),
+agrega dos tablas de cobertura, columnas a vacaciones/bonos, vistas de cobertura
+y atribución efectiva, tres rutinas y triggers contables. No crea ni modifica
+datos de negocio al migrar: no reconstruye vacaciones viejas ni inventa enlaces
+de caja para bonos históricos.
+
+```sh
+# Revisión sin DDL:
+node scripts/apply-payroll-local.mjs --migration 016 --database NOMBRE_BASE_LOCAL
+# Sólo el padre, después de respaldo, escritores parados y pruebas aisladas:
+node scripts/apply-payroll-local.mjs --migration 016 --database NOMBRE_BASE_LOCAL \
+  --apply --confirm NOMBRE_BASE_LOCAL --backup-confirmed --writers-stopped \
+  --isolated-tests-confirmed
+```
+
+Ejecutar el migrador, incluso el dry-run, con credenciales administrativas
+explícitas `DB_USER`/`DB_PASSWORD` (y `DB_HOST`/`DB_PORT`/`DB_NAME`) suministradas
+por el operador, sin cambiar `.env` ni usar automáticamente la cuenta runtime.
+Requiere visibilidad de metadatos de rutinas y los privilegios DDL para
+tablas, índices, vistas, rutinas y TRIGGER. Una rutina no listada en
+`information_schema.ROUTINES` puede existir pero estar oculta a la cuenta
+runtime: el script se detiene sin aplicar nada y no distingue ausencia de
+falta de visibilidad. Un administrador debe verificar los prerrequisitos con
+su cuenta; no reaplicar 015 por ese mensaje ni omitir el guard.
+Las cuentas runtime existentes de Node/PHP requieren `EXECUTE` individual
+sobre **estas seis rutinas**, incluidas las tres originales 015:
+
+- `sp_employee_payroll_summary`
+- `sp_employee_payroll_snapshot`
+- `sp_employee_payroll_change`
+- `sp_employee_payroll_change_v2`
+- `sp_employee_payroll_bonus_context`
+- `sp_employee_payroll_routes`
+
+Un administrador debe otorgarlo en la base y al usuario/host runtime
+existentes correctos, sin conceder DDL ni privilegios globales a la aplicación:
+
+```sql
+-- Plantilla: sustituir base y cuenta/host existentes; no crear otra cuenta.
+GRANT EXECUTE ON PROCEDURE `NOMBRE_BASE`.`sp_employee_payroll_summary` TO 'USUARIO_RUNTIME'@'HOST_RUNTIME';
+GRANT EXECUTE ON PROCEDURE `NOMBRE_BASE`.`sp_employee_payroll_snapshot` TO 'USUARIO_RUNTIME'@'HOST_RUNTIME';
+GRANT EXECUTE ON PROCEDURE `NOMBRE_BASE`.`sp_employee_payroll_change` TO 'USUARIO_RUNTIME'@'HOST_RUNTIME';
+GRANT EXECUTE ON PROCEDURE `NOMBRE_BASE`.`sp_employee_payroll_change_v2` TO 'USUARIO_RUNTIME'@'HOST_RUNTIME';
+GRANT EXECUTE ON PROCEDURE `NOMBRE_BASE`.`sp_employee_payroll_bonus_context` TO 'USUARIO_RUNTIME'@'HOST_RUNTIME';
+GRANT EXECUTE ON PROCEDURE `NOMBRE_BASE`.`sp_employee_payroll_routes` TO 'USUARIO_RUNTIME'@'HOST_RUNTIME';
+```
+
+Conservar `SELECT` autorizado sobre tablas/vistas de nómina, nuevas vistas y
+tablas de cobertura, y los privilegios del definer sobre tablas legacy.
+Tras el DDL y grants, comprobar usando la cuenta runtime una llamada de lectura
+a `sp_employee_payroll_summary` y lectura de las vistas temporales, además de
+los endpoints; que root pueda ejecutar las rutinas no prueba acceso runtime.
+No probar escrituras de negocio para verificar privilegios.
+DDL no tiene rollback: detener escritores durante toda la aplicación,
+validar endpoints y después reanudarlos. No se ejecuta la migración al iniciar
+Node/PHP. No aplicar a BD real como parte de las pruebas.
+
+**Vacaciones separadas del pacto salarial.** POST `action=vacacion` ahora exige
+`replacementEmployeeId`: distinto del titular, activo, misma empresa,
+autorizado al actor y con contrato propio vigente desde el inicio del rango.
+El administrador de oficina debe administrar tanto titular como relevo;
+Super Administrador puede elegir empleados de su empresa. No se agrega un
+contrato ni un segundo sueldo por ser relevo: su básico usa el mismo devengo
+calendario, una sola vez. Se capturan todas las carteras que el titular posee
+al registrar la cobertura; cada tramo captura las versiones/tasas propias
+del relevo conocidas para esas fechas al **registrar la vacación** (incluidas
+versiones futuras ya pactadas). No se busca una tasa dinámica al consultar
+`asOf`: contratos agregados después no alteran las comisiones de esa cobertura.
+El básico propio sigue el contrato prospectivo normal, una sola vez.
+Cambiar posteriormente contratos, asignados o propietario no reescribe esa auditoría.
+
+En fechas de movimiento de vacaciones, titular conserva básico y no cobra
+comisión. Relevo recibe sólo la participación que el snapshot del titular tenía
+en la ruta de la cartera cubierta, usando **sus propias tasas/tipo**. Si ya
+tenía una participación propia en la misma ruta, ambas partes permanecen
+identificadas; la suma de participaciones no copia la del titular a nadie más.
+Repartos personalizados que no asignaron participación al titular no inventan
+una participación nueva. El tipo Fijo del relevo no inventa comisiones.
+`routes`/`routeRows` y `breakdown` añaden `vacationId` y `coveredEmployeeId`,
+con `mode='Relevo'` en partes transferidas. Una ruta puede mostrar más de una
+parte de snapshot; no sumar bases reales de esas partes para obtener la caja.
+Totales monetarios son siempre el cálculo del servidor. Vacaciones JSON añade
+`replacementEmployeeId` y `replacementName` sólo en el contexto autorizado.
+
+**Representación operativa temporal, no administración.** No se actualiza
+`tbl_sucursal.idempleado`, estado del empleado ni grants permanentes. Node
+recarga cobertura por fecha Colombia en lista/acceso de sucursales, permisos
+y scope de ruta; PHP usa el mismo scope en `AutorizarDespachoCartera.php`,
+lista/autorizaciones de `Usuario.php` y validación de crear/editar en `Cliente.php`.
+`ClienteAjax.php`, `CarteraAjax.php` y la consulta de cuentas rechazan la cartera seleccionada
+obsoleta al caducar una cobertura sin autorización propia.
+`isOfficeAdministrator` permanece igual.
+La cobertura sólo abre el scope de cartera: cada acción exige un grant
+**propio** activo del relevo, otorgado en **esa misma sucursal** por el flujo
+normal de permisos. Un permiso en otra cartera (aunque sea de la misma empresa)
+no autoriza la acción en la cartera cubierta; SA debe otorgarlo expresamente.
+Nunca se consultan los grants del titular para autorizar al relevo ni se
+insertan/copían grants permanentes ni se transfieren acciones entre sucursales.
+Los permisos de acción existentes no cambian; revocarlos tiene efecto inmediato.
+No se otorga administración de oficina, nómina o bonos por cobertura.
+Las operaciones de caja requieren sus propios grants (`totalizar` para
+gasto/base de ruta; permisos específicos para entregar/guardar/desbloquear);
+no basta con el nuevo acceso a cartera. Los bonos mantienen el requisito
+independiente de gestor SA/administrador de oficina.
+El scope nuevo no elimina permisos propios preexistentes del relevo.
+Inicio y fin son inclusivos según fecha Bogotá; no hay acceso antes del inicio
+y caduca después del fin, sin depender de un job.
+El servidor no acepta un simple flag enviado por el cliente como representante.
+
+**Bonos exclusivamente en Gastos de cartera.** GET PHP
+`action=bonoContexto&branchId=ID` exige que ID sea la cartera actualmente
+seleccionada en sesión, recarga identidad y despacho `created`, y devuelve:
+
+```json
+{"branchId":1,"routeId":20,"state":"created","employees":[{"employeeId":3,"name":"Empleado"}],"csrfToken":"..."}
+```
+
+Sólo Super Administrador de la empresa o administrador de oficina de esa
+sucursal pueden crear/corregir/borrar bonos: estar despachado no autoriza
+inventar un bono propio. Beneficiarios tienen nómina legacy activa; SA puede
+elegir empleados de su empresa y el administrador los de esa oficina.
+Pagos de sueldo legacy conservan su autorización existente, sin convertirlos
+en bonos. Representación temporal por sí sola **no** otorga permisos de pago.
+POST `action=bono`:
+
+```json
+{
+  "csrfToken":"...",
+  "action":"bono",
+  "data":{"employeeId":3,"branchId":1,"routeId":20,"amount":25.50,
+    "reason":"Meta alcanzada","idempotencyToken":"unique_cash_bonus_request"}
+}
+```
+
+No acepta `date`, cartera distinta de sesión, ruta histórica/futura ajena,
+estado `entregando`/`saved`, otro `created` antiguo distinto del último despacho,
+despacho con apertura futura ni payload standalone sin scope. Fecha del gasto
+es hoy Colombia. Importe positivo con dos decimales, motivo obligatorio
+máximo 250 caracteres. Node expone `payrollBonusContext(branchId:Int!):JSON!`
+y `changeEmployeePayroll(action:BONUS,input:JSON!)` con ese payload, sin CSRF
+porque usa bearer; branch/route explícitos se revalidan en la misma rutina SQL.
+No usar `CREATE_EXPENSE` genérico para marcar un bono: ese flujo sigue siendo
+un pago de sueldo legacy y **no** genera un devengado extra.
+
+Una transacción bloquea actor, empleado y ruta, registra gasto categoría 2
+`salida-totalizar` negativo, vínculo `tbl_detalle_nomina` y bono con `expense_id`
+único. La caja deduce ese gasto real; resumen suma bono devengado y pago
+**una sola vez**. Respuesta `{ok,id,duplicate,expenseId,branchId,routeId,csrfToken}`
+en PHP (sin csrf en GraphQL). Recargar caja y resumen tras éxito, no ajustar
+totales optimistamente ni duplicar matemática en UI. Token idéntico reintenta
+la misma escritura; cambios en payload/actor generan conflicto.
+
+Correcciones contables firmadas actualizan devengado/pagado del mismo bono;
+cancelación a cero o eliminación del gasto elimina ambos importes y conserva
+auditoría `cancelledAt`. No se puede mudar el gasto/beneficiario a otra
+empresa/cartera/ruta/fecha. Triggers preservan el vínculo en modificaciones
+legacy y eliminan sus detalles al borrar el gasto. Gastos `salida-totalizar`
+sólo se corrigen/borran desde las acciones de caja mientras la ruta sigue
+`created`. Se permite la limpieza SQL legacy de filas ya anuladas a cero
+durante el cierre, sin importe contable ni pérdida de la auditoría del bono.
+Deadlock/timeout devuelve conflicto para
+reintentar el mismo token, no éxito falso.
+
+Pruebas aisladas: `node --test --test-concurrency=1 tests/employee-payroll-db.test.mjs
+tests/payroll-016-db.test.mjs` con las credenciales administrativas de pruebas
+explicitadas arriba. El runner ejecuta cada archivo en su proceso; nunca
+importar ambos en un único proceso compartiendo el pool. Se serializan porque
+el script de migración validado en ambas suites reconstruye el mismo `dist`.
+PHP:
+`php tests/nomina-empleado.php` y `php tests/nomina-016.php` en webgoez.
+Incluyen upgrade desde 015, reaplicación de 016, reparto y relevo ya asignado,
+básico una vez, fin de cobertura, actor/empresa/oficina/contrato, CSRF y cartera
+de sesión, bonus caja/devengado/pago, duplicados concurrentes y reversos/borrados.
+
+Validación: `npm run build && node --test tests/unit/payroll-employee.test.mjs
+tests/unit/schema.test.mjs`. Prueba DB opt-in:
+`node --test tests/employee-payroll-db.test.mjs`, con credenciales administrativas
+**exclusivas de pruebas** `PAYROLL_TEST_DB_HOST`, `PAYROLL_TEST_DB_PORT`,
+`PAYROLL_TEST_DB_USER`, `PAYROLL_TEST_DB_PASSWORD`: crea fixtures en una nueva
+base `payroll_test_*` y la elimina en `finally`; no usa filas de negocio.
+`php webgoez/tests/nomina-empleado.php` desde un entorno PHP configurado prueba
+la misma migración/fórmulas/valores esperados en otra base aislada y la elimina.
+
 All names below are stable client-facing names. For authenticated operations,
 include the bearer token in the Authorization header.
+
+### Despachar: reparto congelado y retos individuales (forward 017)
+
+Aplicar manualmente `migrations/017_dispatch_challenges.sql` después de 015/016,
+con respaldo y escritores detenidos. Es repetible y agrega control/versiones,
+retos y tokens de petición; registra `poner_retos` en el catálogo, **sin otorgarlo
+a ningún empleado**. No altera pagos, bonos, contratos ni snapshots anteriores.
+El runtime necesita SELECT/INSERT/UPDATE en las nuevas tablas y conserva los
+privilegios de nómina indicados arriba. Este DDL no se ejecuta al iniciar la app.
+
+El nuevo endpoint web `../webgoez/ajax/DespacharAjax.php` responde JSON y usa
+identidad/permisos actuales de la base, aislamiento por empresa, `csrfToken`
+de sesión y `idempotencyToken` de 16–100 caracteres ASCII alfanuméricos,
+guion o guion bajo en cada escritura. Permiso `despachar` en esa sucursal,
+o SA, permite consultar/guardar despacho. Configurar retos exige
+**SA, o administrador actual de esa oficina con permiso propio `poner_retos`
+en esa sucursal**; SA no necesita ese grant y no basta un grant a un empleado regular. Sólo SA puede
+cambiar el reparto **al crear un despacho nuevo**. El override es exclusivo
+del snapshot del despacho, nunca modifica la regla persistida de sucursal.
+Modificar empleados de un despacho abierto conserva el reparto y devuelve
+una advertencia de divergencia operativa; no cambia retrospectivamente nómina.
+
+Contrato del wizard:
+
+- GET `action=list`: `{branches,csrfToken}`; cada sucursal incluye
+  `branchId,name,type,holderEmployeeId,officeName,routeId,state,version,assignedCount`.
+  Incluye `assignedEmployees:[{employeeId,name}]` del despacho actual mediante
+  una consulta en bloque; no incluye empleados asignados a otras carteras.
+- GET `action=context&branchId=ID`: `{branch,employees,route,distribution,
+  canConfigureDistribution,canSetChallenges,challenges,csrfToken}`.
+  Empleados `{employeeId,name,officeId:int|null,officeName:string|null,selected,representative,replacement}`;
+  `representative` marca al titular permanente; `replacement` sólo relevo
+  temporal vigente hoy Colombia en esa cartera, sin otorgar permisos nuevos.
+  `branch.officeName` identifica oficina; `branch.canDispatch` incluye SA
+  o grant propio, mientras `branch.canSaveDispatch` además exige ruta nueva o
+  `created` (un estado cerrado no elimina el permiso de consultar).
+  Ruta `null` o
+  `{routeId,state,version}`. Reparto `{mode,weights,source}` con modos
+  `Titular|Igual|Personalizado`; personalizado exige pesos positivos sumando
+  100 para empleados seleccionados. Los retos tienen `assigned` para distinguir
+  empleados que ya no están despachados.
+- POST `action=save,csrfToken,data`: `{branchId,expectedRouteId,expectedVersion,
+  employeeIds,distribution?,challenges?,idempotencyToken}`. Ruta/versión inicial
+  son `0`; reparto tiene `{mode,weights:[{employeeId,weight}]}`.
+- POST `action=challenge,csrfToken,data`: `{branchId,routeId,expectedVersion,
+  employeeId,deadline,incrementPercent,capitalGoal,collectionGoal,description,
+  idempotencyToken}`. El mismo objeto de reto sirve dentro de `save.challenges`.
+  Corte Colombia desde hoy hasta 366 días; incremento 0.1–40%, máximo tres
+  decimales; metas no negativas, máximo 999999999999.99 y dos decimales;
+  descripción opcional (omitida o vacía se guarda como `''`), texto hasta 250 caracteres.
+- Escrituras: `{ok,routeId,version,duplicate,warnings,csrfToken}`. La sucursal
+  se bloquea dentro de la transacción; dos aperturas concurrentes no crean
+  rutas dobles. Token repetido/datos iguales retorna el resultado persistido;
+  token/datos distintos, versión obsoleta o ruta cerrada producen HTTP 409.
+- GET `action=forecast`: `branchId,routeId` (0 para nuevo), `employeeId,deadline,
+  incrementPercent`, metas opcionales; preview nuevo admite `employeeIds`
+  y `distribution` JSON. Respuesta `{estimated:true,status,warnings,salary,
+  allocation,goal,collections,csrfToken}`. Sin sueldo básico positivo,
+  participación válida, datos de cronograma válidos o con vacaciones/relevo
+  que impiden proyectar una participación constante, `status=insufficient_data`.
+
+El básico al corte y las comisiones firmadas vienen de la misma proyección SQL
+de nómina: básico propio una vez por período, capital principal sin interés y
+recaudo efectivo neto de bancos. `goal.targetCommission` es
+`baseAmount * (1 + incrementPercent / 100)`. `otherCommission` resta la comisión
+de esta ruta del total del período; `commissionGap` descuenta ambas comisiones
+ya acreditadas. Metas de capital/recaudo representan **movimientos adicionales
+de esta cartera dentro del período salarial al corte**, multiplicados por su
+participación y tasas propias congeladas. Las cantidades requeridas son `null`
+si la tasa correspondiente es cero, nunca una división por cero.
+`projectedEarnedWithoutBonuses` aplica el máximo en Combinado, sin sumar el
+básico dos veces. Con participación 100%, tasas 2.5%/2.3%, metas 1M/1M y básico
+40k, la comisión estimada es 48k: excedente 8k/20%. Un reto **no genera bonos
+ni devengados nuevos ni escrituras de caja**.
+
+El pronóstico de cuotas utiliza directamente `forecastScheduledCollections`
+de `src/services/ratingEngine.ts` mediante el ejecutable fijo
+`scripts/dispatch-forecast.mjs`: dos consultas en bloque por cartera, no una
+por tarjeta. Reutiliza los mismos calendarios (Diario sin domingo, Semanal,
+Quincenal +15 días, Mensual omitiendo meses sin el día original), adelantos,
+pagos parciales, reversos y condonación de cola. Mora anterior a hoy se informa
+separada de cuotas pendientes entre hoy y corte. Pagos bancarios sí satisfacen
+deuda para ese calendario; el futuro medio de pago es desconocido, por lo que
+cuotas previstas no garantizan comisión de recaudo cash. Datos inválidos se
+enumeran explícitamente; importes parciales nunca llevan status de éxito.
+
+**Requisito de despliegue del forecast:** construir backend (`npm run build`)
+y proporcionar Node 20+ accesible desde el contenedor/runtime PHP mediante
+`DISPATCH_FORECAST_NODE_BINARY` (ruta absoluta administrada por el operador),
+o `node` en su PATH. PHP requiere `proc_open`; el ejecutable nunca proviene de
+la petición y el puente no recibe credenciales ni accede a la base. La imagen PHP 8.1 de este repositorio incorpora el binario Node 20.20 mediante
+una etapa de Docker basada en Bookworm; reconstruir la imagen y recrear el
+servicio webserver para instalarlo en un contenedor existente. Para otros
+runtimes, preparar Node antes de habilitar estimación, sin asumir que el Node
+de otro contenedor está en su PATH. Si falta el motor,
+falla HTTP 503 explícito, no devuelve una estimación ficticia. Hasta 20k tarjetas
+y 20 MB por petición; timeout de comunicación del motor 15 segundos.
+
+Validación aislada:
+
+```sh
+npm run build
+node --test tests/unit/dispatch-forecast.test.mjs tests/unit/rating-engine.test.mjs
+# PHP con acceso a MariaDB de pruebas; crea y elimina payroll_test_dispatch_*:
+DISPATCH_FORECAST_NODE_BINARY=/ruta/node php ../webgoez/tests/despacho-017.php
+```
+
+El test PHP comprueba concurrentes con mismo/diferentes tokens, permisos
+frescos, CSRF, snapshots inmutables, metas, signos, múltiples rutas/básico único
+y el puente real cuando se proporciona el binario. Sin esa variable omite
+la integración real del puente, no equivale a verificarla. El adaptador legacy
+`SaveOrUpdate` reconoce nombres antiguos, pero exige nuevo CSRF/token/versión;
+el HTML antiguo `listEmpleados` debe reemplazarse por `context` en el wizard.
+No se conserva el protocolo inseguro de escrituras antiguas sin esos controles.
+
+**Inicio web y APK: invitaciones/avance propios.** Query GraphQL
+`myDispatchChallenges: JSON!` **sin argumentos**, y GET web
+`DespacharAjax.php?action=own` (alias idéntico `action=myChallenges`), devuelven `{employeeId,asOf,items}` (web añade
+`csrfToken`). Ambos resuelven empleado activo desde el usuario autenticado
+actual en la base: no aceptan `employeeId`, sucursal ni fecha de otro actor.
+No requieren `despachar` para consultar sus propios retos y no exponen
+mutaciones nuevas en APK. Esto no otorga acceso operativo, administración
+ni nuevos permisos sobre la cartera.
+
+Cada item contiene:
+
+```text
+challengeId:string, routeId:int, branchId:int, branchName:string,
+routeState:string, assigned:boolean, status:active|expired|closed|unassigned,
+invitationDate:YYYY-MM-DD, deadline:YYYY-MM-DD, description:string,
+incrementPercent:number, capitalGoal:number, collectionGoal:number,
+salary:{...período SQL propio al corte...},
+allocation:{weight,capitalRate,collectionRate},
+goal:{...mismos campos monetarios de forecast...},
+progress:{creditedCapital,creditedCollection,capitalTarget,collectionTarget,
+  capitalPercent:number|null,collectionPercent:number|null,
+  commissionAmount,targetCommission,commissionPercent:number|null,achieved:boolean},
+forecast:{estimated:true,status:available|insufficient_data|not_applicable,
+  collections:object|null,warnings:string[]}
+```
+
+El progreso de capital/cash utiliza bases netas firmadas atribuibles a su
+participación desde máximo(fecha de invitación,inicio del período salarial al
+corte) hasta mínimo(hoy Colombia,corte); movimientos de otro período no
+descuentan las metas de actividad del período elegido.
+los objetivos `capitalTarget/collectionTarget` aplican la misma participación
+a las metas brutas del reto. Porcentajes pueden superar 100 o ser negativos
+por reversos; meta cero produce `null`, no división por cero. La comisión
+realizada para el objetivo de sueldo usa **todo su período** hasta ese mismo
+límite, incluyendo otras rutas una sola vez. Los retos no pagan ni garantizan
+ese incremento. Para no sumar otra vez lo ya logrado, el forecast propio
+proyecta sólo las metas de actividad restantes, no las metas originales enteras.
+Los retos vencidos/cerrados/no asignados conservan su avance de lectura y
+devuelven forecast `not_applicable`; vacaciones o datos inválidos son explícitos.
+El forecast propio sólo muestra agregados de obligaciones y razones de
+insuficiencia, no identificadores de tarjetas/clientes.
+
+La 017 pendiente también crea `view_dispatch_challenge_progress` y
+`sp_dispatch_challenge_goal` (SQL SECURITY INVOKER). **Conceder al runtime
+SELECT sobre esa vista y EXECUTE sobre esa rutina**, adicional a las seis
+rutinas de nómina, al aplicar 017. Esta rutina es la matemática canónica de
+metas/Combinado usada por PHP y Node; la presentación de avance y el calendario
+también se comparten desde Node. No hay segunda fórmula salarial PHP.
+La lectura web propia de items requiere el mismo Node accesible a PHP descrito
+arriba. Pruebas de integración PHP017 ejecutan GraphQL real en su DB desechable
+con identidad de contexto falsificada, sin grants despachar, aislamiento
+empresarial, usuario revocado, vencimiento y comparación exacta de
+`allocation/goal/progress/forecast` entre ambos runtimes.
 
 ### APK policy and installation reports
 
@@ -311,10 +833,13 @@ Company administration is recognized only by the exact database value
 branches with that authenticated `idglobal`. The employee listed as
 `tbl_oficina.idempleado_administrador` can access and modify branches in that
 office without a `tbl_auth_sucursal` row or named grants. Other employees need
-an active branch/company grant; their named permissions are reloaded through
+an active branch/company grant or currently active vacation coverage (016);
+coverage adds branch scope only and uses the replacement's own grants in that exact branch,
+not the holder's permissions. Named permissions are reloaded through
 `tbl_auth_sucursal` → `tbl_auths` → `tbl_auth`. Writes also require a valid
-open route and either a dispatched employee, this office administrator, or
-the Super Administrador. Never send employee, user, tenant, or permission IDs
+open route and either a dispatched employee, an active temporary representative
+with their own action permissions, this office administrator, or the
+Super Administrador. Coverage never grants office administration. Never send employee, user, tenant, or permission IDs
 as authoritative values.
 
 Phone-only `ADD_CUSTOMER_PHONE`, `SELECT_CUSTOMER_PHONE` and `RECORD_WHATSAPP_OPEN` are explicit permission exceptions: authenticated branch access and customer/company scope remain mandatory, but `editar cliente` is not required. Full customer/document editing retains that permission. Apply migrations 007 then **008_whatsapp_open_usage.sql** manually before deploying this API/APK. 008 adds shared per-company/person/normalized-phone opening counts and timestamps without altering phone history or primary selection. Counts are serialized as strings to preserve BIGINT precision.

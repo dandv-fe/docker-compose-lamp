@@ -4,6 +4,7 @@ var banderaTotalizar = false
 function init() {
   $("#formNuevaContabilidad").submit(function (e) {
     e.preventDefault();
+    if (window.PayrollCartera && window.PayrollCartera.submitBonus(e.currentTarget)) return;
 
     $.post("./ajax/UsuarioAjax.php", function (r) {
       if (r === '0') {

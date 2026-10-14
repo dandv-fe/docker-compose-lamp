@@ -1,111 +1,26 @@
-
-  <!-- Bootstrap4 Duallistbox -->
-  <link rel="stylesheet" href="plugins/bootstrap4-duallistbox/bootstrap-duallistbox.min.css">
-<!-- SweetAlert2 -->
-
-<!-- SweetAlert2 bootstrtap-->
-
- <!-- DataTables -->
- <link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
- <link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
- <link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
-
-<script type="text/javascript" src="dist/scripts/Despachar.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
-
-<!-- Bootstrap4 Duallistbox -->
-<script src="plugins/bootstrap4-duallistbox/jquery.bootstrap-duallistbox.min.js"></script>
-<?php
-include "views/partials/modalPersonalDespachar.html";
-?>
-
-<!-- Content Wrapper. Contains page content -->
+<link rel="stylesheet" href="dist/css/despachar.css?v=<?php echo rawurlencode($infoSistemaCuentas['version']); ?>">
+<script src="dist/scripts/DespacharUI.js?v=<?php echo rawurlencode($infoSistemaCuentas['version']); ?>"></script>
+<script src="dist/scripts/RetoCards.js?v=<?php echo rawurlencode($infoSistemaCuentas['version']); ?>"></script>
+<script src="dist/scripts/Despachar.js?v=<?php echo rawurlencode($infoSistemaCuentas['version']); ?>"></script>
+<?php include __DIR__ . "/partials/modalPersonalDespachar.html"; ?>
 <div class="content-wrapper">
-    <!-- Content Header (Page header) -->
-    <div class="content-header">
-        <div class="container-fluid">
-            <div class="row mb-2">
-                <div class="col-sm-6">
-                    <h1 class="m-0">carteras</h1>
-                </div><!-- /.col -->
-            </div><!-- /.row -->
-        </div><!-- /.container-fluid -->
+  <section class="content dispatch-page" aria-labelledby="dispatch-title">
+    <header class="dispatch-hero">
+      <div><span class="dispatch-eyebrow">EQUIPO EN MOVIMIENTO</span>
+        <h1 id="dispatch-title">Prepara un gran día</h1>
+        <p>Elige una cartera, reúne al equipo y confirma el despacho con claridad.</p>
+      </div>
+      <button type="button" id="dispatch-refresh" class="btn btn-light"><i class="fas fa-sync-alt mr-2" aria-hidden="true"></i>Actualizar</button>
+    </header>
+    <div class="dispatch-summary" id="dispatch-summary" aria-label="Resumen de carteras"></div>
+    <div class="dispatch-toolbar">
+      <div><label for="dispatch-search">Buscar cartera u oficina</label><input id="dispatch-search" class="form-control" type="search" placeholder="Nombre, código u oficina"></div>
+      <div><label for="dispatch-state">Estado</label><select id="dispatch-state" class="form-control"><option value="">Todos</option><option value="available">Por despachar</option><option value="created">Abierto</option><option value="entregando">Entregando</option></select></div>
+      <button type="button" id="dispatch-export" class="btn btn-outline-secondary">Exportar CSV</button>
     </div>
-    <!-- /.content-header -->
-    
-    <!-- Main content -->
-    <section class="content">
-        <div class="container-fluid">
-            <div class="card card-default">
-               
-                <div id="VerListado">
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="card">
-                                <div class="card-header">
-                                    <h3 class="card-title">Listado</h3>
-                                </div>
-                                <!-- /.card-header -->
-                                <div class="card-body">
-                                    <table id="tblDespachar" class="table table-bordered table-striped">
-                                        <thead>
-                                        <tr>
-                                            <th style="width: 30px;">Estado</th>
-                                            <th>Actividad</th>
-                                            <th>Empleados</th>
-                                        </tr>
-                                        </thead>
-                                        <tbody>
-                                        </tbody>
-                                        <tfoot>
-                                        <tr>
-                                            <th>Estado</th>
-                                            <th>Actividad</th>
-                                            <th>Empleados</th>
-                                        </tr>
-                                        </tfoot>
-                                    </table>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-            <!-- /.card -->
-        </div>
-    </section>
+    <p id="dispatch-status" role="status" aria-live="polite"></p>
+    <div id="dispatch-cards" class="dispatch-grid" aria-label="Carteras disponibles"></div>
+    <p id="dispatch-empty" class="dispatch-empty" hidden>No hay carteras que coincidan. Cambia los filtros.</p>
+  </section>
 </div>
-
-<!-- DataTables  & Plugins -->
-<script src="plugins/datatables/jquery.dataTables.min.js"></script>
-<script src="plugins/datatables-bs4/js/dataTables.bootstrap4.min.js"></script>
-<script src="plugins/datatables-responsive/js/dataTables.responsive.min.js"></script>
-<script src="plugins/datatables-responsive/js/responsive.bootstrap4.min.js"></script>
-<script src="plugins/datatables-buttons/js/dataTables.buttons.min.js"></script>
-<script src="plugins/datatables-buttons/js/buttons.bootstrap4.min.js"></script>
-<script src="plugins/jszip/jszip.min.js"></script>
-<script src="plugins/pdfmake/pdfmake.min.js"></script>
-<script src="plugins/pdfmake/vfs_fonts.js"></script>
-<script src="plugins/datatables-buttons/js/buttons.html5.min.js"></script>
-<script src="plugins/datatables-buttons/js/buttons.print.min.js"></script>
-
-<!-- SweetAlert2 -->
-
-
-<script type="text/javascript">
-      $(".lia-despachar").addClass('active')
-      $("#spanDespachar").removeClass('hide');
-      $("#tblDespachar")
-    .DataTable({
-
-      sort: false,
-      responsive: true,
-      lengthChange: false,
-      autoWidth: false,
-      buttons: ["csv", "excel", "pdf", "print", "colvis"],
-      displayLength: 100,
-    })
-    .buttons()
-    .container()
-    .appendTo("#tblDespachar_wrapper .col-md-6:eq(0)");
-</script>
+<script>$(".lia-despachar").addClass('active'); $("#spanDespachar").removeClass('hide');</script>

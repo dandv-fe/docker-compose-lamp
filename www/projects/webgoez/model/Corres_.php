@@ -374,7 +374,7 @@ class Corresponsal
                 str_estado
               FROM tbl_movimientos
               WHERE idglobal=$idglobal
-                AND idahorro=$idahorro OR idahorro_de=$idahorro
+                AND (idahorro=$idahorro OR idahorro_de=$idahorro)
               ORDER BY date_movimiento DESC, idmovimiento DESC";
       return $conexion->query($sql);
    }

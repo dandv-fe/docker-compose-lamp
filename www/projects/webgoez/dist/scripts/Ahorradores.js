@@ -543,17 +543,6 @@ function escapeHtml(value) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
-function getTipoLabel(mov) {
-  console.log(mov);
-
-  if (mov && mov.tipo_label) return mov.tipo_label;
-
-  var tipo = String((mov && mov[1]) || '').toLowerCase();
-  if (tipo === 'aporte') return 'Aporte';
-  if (tipo === 'retiro') return 'Retiro';
-  if (tipo === 'ajuste') return 'Interés';
-  return mov && mov[1] ? mov[1] : '-';
-}
 function cargarMovimientosFicha(idAhorro) {
   const $lista = $("#fichaMovimientosLista");
   const $info = $("#fichaMovimientosInfo");
@@ -585,7 +574,6 @@ function cargarMovimientosFicha(idAhorro) {
 
       items.forEach(function (mov) {
         const fecha = limpiarHtmlTexto(mov[0]);
-        const tipo = limpiarHtmlTexto(getTipoMovimientoLabel(mov[1]));
         const montoValor = parseFloat(mov[2]) || 0;
         const idahorroRow = parseInt(mov[5] || 0, 10);
         const idahorroDeRow = parseInt(mov[6] || 0, 10);
@@ -604,12 +592,11 @@ function cargarMovimientosFicha(idAhorro) {
         const montoClass = esSalida ? 'text-danger' : 'text-success';
         const montoTexto = (esSalida ? '-' : '+') + monto;
         const descripcion = limpiarHtmlTexto(mov[3]);
-        if (mov[1] == 'retiro' || mov[1] == 'aporte') {
-          mov[1] = esSalida ? 'retiro' : 'aporte';
-        }
         const $li = $('<li>').addClass('list-group-item py-2');
         $li.append($('<div>').addClass('d-flex justify-content-between').append(
-          $('<strong>').text(escapeHtml(getTipoLabel(mov))),
+          $('<strong>').text(AccountMovementPresentation.label({
+            str_tipo: mov[1], idahorro: mov[5], idahorro_de: mov[6]
+          }, idAhorroActual)),
           $('<span>').addClass(montoClass + ' font-weight-bold').text(montoTexto)
         ));
         $li.append($('<small>').addClass('text-muted d-block').text(fecha || '-'));
@@ -697,8 +684,8 @@ function listarMovimientosPersona(refPersona) {
         const monto = parseFloat(val[3] || 0);
         const strTipo = String(val[2] || '').toLowerCase();
 
-        // En esta vista la fila pertenece a m.idahorro (cuenta mostrada), por lo que aplica regla directa.
-        const esSalida = (strTipo === 'retiro' || strTipo === 'salida');
+        const via = Number(val[8]) === 1;
+        const esSalida = via ? ['aporte', 'ajuste'].includes(strTipo) : ['retiro', 'salida'].includes(strTipo);
 
         const montoFormato = typeof window.formatearMonedaPublica === 'function'
           ? window.formatearMonedaPublica(Math.abs(monto), 2)
@@ -711,7 +698,9 @@ function listarMovimientosPersona(refPersona) {
         tabla.row.add([
           val[0],
           val[1],
-          getTipoMovimientoLabel(val[2]),
+          AccountMovementPresentation.label({
+            str_tipo: val[2], idahorro: val[6], idahorro_de: val[7]
+          }, val[9]),
           montoHtml,
           val[4],
           val[5]

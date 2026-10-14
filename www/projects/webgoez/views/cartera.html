@@ -129,6 +129,9 @@
 <?php
 include "views/partials/modalNuevaContabilidad.html";
 ?>
+<script src="dist/scripts/PayrollEmpleadoUI.js?v=<?php echo rawurlencode($infoSistemaCuentas['version']); ?>"></script>
+<script src="dist/scripts/PayrollCartera.js?v=<?php echo rawurlencode($infoSistemaCuentas['version']); ?>"></script>
+<p id="payroll-cartera-result" class="small px-3" role="status" aria-live="polite"></p>
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper">
   <!-- Content Header (Page header) -->
@@ -1176,7 +1179,9 @@ include "views/partials/modalNuevaContabilidad.html";
   <?php  include "views/partials/modalAlertasCliente.html"; ?>
   <?php  include "views/partials/modalTelefonosCliente.html"; ?>
   <script type="text/javascript"
-    src="dist/scripts/NuevoCredito.js?v=<?php echo $infoSistemaCuentas['version']; ?>-cuota-inicial"></script>
+    src="dist/scripts/CajaCredito.js?v=<?php echo $infoSistemaCuentas['version']; ?>-aviso-caja"></script>
+  <script type="text/javascript"
+    src="dist/scripts/NuevoCredito.js?v=<?php echo $infoSistemaCuentas['version']; ?>-aviso-caja"></script>
 
   <?php 
   include "views/partials/modalNuevoCredito.html"; 

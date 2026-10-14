@@ -8,6 +8,11 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 require_once "../model/Cliente.php";
 require_once "../model/AutorizarDespachoCartera.php";
 $objCliente = new Cliente();
+$coverage = scopeRelevoCartera($conexion, $_SESSION, (int)($_SESSION['idsucursal'] ?? 0));
+if ($coverage !== null && !$coverage->independentAccess && !$coverage->activeCoverage) {
+   echo 'ERROR: La representación temporal de esta sucursal no está vigente';
+   return;
+}
 if (!in_array($_GET['op'] ?? '', [
    'listClientesDeCartera', 'listClientesMorososDeCartera', 'listClientesRetiradosDeCartera',
    'lisComentarios', 'SearchAlerta', 'search'
@@ -514,6 +519,8 @@ switch ($_GET["op"]) {
       if (
          isset($_SESSION['userEmpresa']) ||
          administraOficinaCartera($conexion, $_SESSION, (int)$_SESSION['idsucursal']) ||
+         tienePermisoTemporalCartera($conexion, $_SESSION, (int)$_SESSION['idsucursal'], 'pasar activos') ||
+         tienePermisoTemporalCartera($conexion, $_SESSION, (int)$_SESSION['idsucursal'], 'pasar activos retirados') ||
          in_array('pasar activos', array_column($_SESSION['AUTHS'], 'nombre')) ||
          in_array('pasar activos retirados', array_column($_SESSION['AUTHS'], 'nombre'))
       ) {

@@ -473,6 +473,20 @@ private fun CreditApplicationScreen(
     var queueTab by rememberSaveable { mutableStateOf(0) }
     var activityLogRows by remember { mutableStateOf(emptyList<ActivityLogEntity>()) }
     var routeCash by remember { mutableStateOf<com.backendcreditos.mobile.data.RouteCashEntity?>(null) }
+    var payrollState by remember { mutableStateOf<PayrollState?>(null) }
+    var payrollRequestId by remember { mutableStateOf(0L) }
+    var showPayrollDetails by remember { mutableStateOf(false) }
+    var challengesState by remember { mutableStateOf<DispatchChallengesState?>(null) }
+    var challengesRequestId by remember { mutableStateOf(0L) }
+    var selectedChallengeId by remember { mutableStateOf<String?>(null) }
+    val challengePresentationLedger = remember(session?.accountKey, session?.token) { ChallengePresentationLedger() }
+    var bonusScope by remember { mutableStateOf<PayrollScope?>(null) }
+    var bonusContext by remember { mutableStateOf<com.backendcreditos.mobile.network.CashBonusContext?>(null) }
+    var bonusDraft by remember { mutableStateOf(CashBonusDraft()) }
+    var bonusError by remember { mutableStateOf("") }
+    var bonusSaving by remember { mutableStateOf(false) }
+    var bonusUncertain by remember { mutableStateOf(false) }
+    var showCashBonus by remember { mutableStateOf(false) }
     var busy by remember { mutableStateOf(false) }
     var search by remember { mutableStateOf("") }
     var showPortfolioSearch by remember { mutableStateOf(false) }
@@ -829,6 +843,7 @@ private fun CreditApplicationScreen(
             is ApiResult.Rejected -> friendlyServerError(result.message)
             is ApiResult.Retryable -> "Sin conexión con el servidor: ${result.message}"
         }
+
         when (result) {
             is ApiResult.Success<*>, is ApiResult.Conflict, is ApiResult.PermissionRejected,
             is ApiResult.Rejected -> online = true
@@ -847,6 +862,110 @@ private fun CreditApplicationScreen(
                 scope.launch {
                     app.repository.setSyncPaused(current.accountKey, "PAYMENT")
                     syncControl = app.database.localDao().syncControl(current.accountKey)
+                }
+            }
+        }
+    }
+
+    fun refreshPayroll() {
+        val current = session ?: return
+        val branch = current.selectedBranchId ?: return
+        val target = PayrollScope(current.accountKey, branch, current.token)
+        val previous = payrollState?.takeIf { it.scope == target }
+        if (previous?.loading == true) return
+        if (!online || !deviceConnected) {
+            payrollState = (previous ?: PayrollState(target)).copy(
+                loading = false, error = "El sueldo requiere conexión. No se calcula en este teléfono."
+            )
+            return
+        }
+        val requestId = ++payrollRequestId
+        payrollState = (previous ?: PayrollState(target)).copy(loading = true, error = "")
+        scope.launch {
+            val result = app.repository.myPayroll(current)
+            if (!payrollReplyIsCurrent(
+                    target, session?.accountKey, session?.selectedBranchId, session?.token,
+                    requestId, payrollRequestId
+                )) return@launch
+            val latest = payrollState?.takeIf { it.scope == target } ?: return@launch
+            when (result) {
+                is ApiResult.Success -> payrollState = latest.copy(
+                    snapshot = result.value, readAt = System.currentTimeMillis(), loading = false, error = ""
+                )
+                else -> {
+                    report(result)
+                    val accessLost = result is ApiResult.AuthExpired || result is ApiResult.PermissionRejected
+                    payrollState = latest.copy(
+                        loading = false, error = notice,
+                        snapshot = if (accessLost) null else latest.snapshot,
+                        readAt = if (accessLost) null else latest.readAt
+                    )
+                }
+            }
+        }
+    }
+
+    fun refreshChallenges() {
+        val current = session ?: return
+        val branch = current.selectedBranchId ?: return
+        val target = PayrollScope(current.accountKey, branch, current.token)
+        val previous = challengesState?.takeIf { it.scope == target }
+        if (previous?.loading == true) return
+        if (!online || !deviceConnected) {
+            challengesState = (previous ?: DispatchChallengesState(target)).copy(
+                loading = false, error = "Los retos requieren conexión. No se calculan en este teléfono."
+            )
+            return
+        }
+        val requestId = ++challengesRequestId
+        challengesState = (previous ?: DispatchChallengesState(target)).copy(loading = true, error = "")
+        scope.launch {
+            val result = app.repository.myDispatchChallenges(current)
+            if (!payrollReplyIsCurrent(target, session?.accountKey, session?.selectedBranchId,
+                    session?.token, requestId, challengesRequestId)) return@launch
+            val latest = challengesState?.takeIf { it.scope == target } ?: return@launch
+            when (result) {
+                is ApiResult.Success -> challengesState = latest.copy(
+                    snapshot = result.value, readAt = System.currentTimeMillis(), loading = false, error = ""
+                )
+                else -> {
+                    report(result)
+                    val accessLost = result is ApiResult.AuthExpired || result is ApiResult.PermissionRejected
+                    challengesState = latest.copy(
+                        loading = false, error = notice,
+                        snapshot = if (accessLost) null else latest.snapshot,
+                        readAt = if (accessLost) null else latest.readAt
+                    )
+                    if (accessLost) selectedChallengeId = null
+                }
+            }
+        }
+    }
+
+    fun loadBonusContext() {
+        val current = session ?: return
+        val branch = current.selectedBranchId ?: return
+        val branchNumber = branch.toIntOrNull() ?: return
+        val target = PayrollScope(current.accountKey, branch, current.token)
+        if (!online || !deviceConnected) return
+        scope.launch {
+            val result = app.repository.cashBonusContext(current, branchNumber)
+            if (!payrollReplyIsCurrent(target, session?.accountKey, session?.selectedBranchId,
+                    session?.token, 0, 0)) return@launch
+            bonusScope = target
+            when (result) {
+                is ApiResult.Success -> {
+                    if (bonusUncertain && bonusContext?.routeId != result.value.routeId) {
+                        bonusError = "El despacho cambió. Revisa el bono anterior en caja antes de registrar otro."
+                    } else {
+                        bonusContext = result.value
+                        bonusError = ""
+                    }
+                }
+                else -> {
+                    bonusContext = null
+                    report(result)
+                    bonusError = notice
                 }
             }
         }
@@ -1310,6 +1429,52 @@ private fun CreditApplicationScreen(
         loadOperations()
         loadRouteEntries(false)
         refreshRouteCash()
+    }
+
+    fun saveCashBonus() {
+        val current = session ?: return
+        val branch = current.selectedBranchId ?: return
+        val target = PayrollScope(current.accountKey, branch, current.token)
+        val context = bonusContext ?: return
+        if (bonusScope != target || !showCashBonus || bonusSaving || !online || !deviceConnected) return
+        cashBonusInputError(bonusDraft, context)?.let { bonusError = it; return }
+        val draft = bonusDraft
+        bonusSaving = true
+        bonusError = ""
+        scope.launch {
+            val result = app.repository.cashBonus(current, context, draft)
+            app.repository.log(current.accountKey, when (result) {
+                is ApiResult.Success -> "Bono y gasto de caja confirmados en ruta #${context.routeId}."
+                else -> "No se confirmó bono en ruta #${context.routeId}; revisa caja y sueldo antes de crear otro."
+            }, result !is ApiResult.Success)
+            if (!payrollReplyIsCurrent(target, session?.accountKey, session?.selectedBranchId,
+                    session?.token, 0, 0)) return@launch
+            bonusSaving = false
+            when (result) {
+                is ApiResult.Success -> {
+                    showCashBonus = false
+                    bonusUncertain = false
+                    bonusDraft = CashBonusDraft()
+                    notice = "Bono y gasto de caja guardados."
+                    loadRouteEntries(true)
+                    refreshRouteCash()
+                    refreshPayroll()
+                    loadBonusContext()
+                }
+                else -> {
+                    report(result)
+                    bonusError = notice
+                    if (result is ApiResult.Retryable ||
+                        result is ApiResult.Rejected && result.code in setOf("BONUS_RESPONSE_INVALID", null)
+                    ) bonusUncertain = true
+                    if (result is ApiResult.Conflict || result is ApiResult.PermissionRejected ||
+                        result is ApiResult.AuthExpired) {
+                        bonusContext = null
+                        showCashBonus = false
+                    }
+                }
+            }
+        }
     }
 
     suspend fun saveRouteEntry() {
@@ -2167,6 +2332,12 @@ private fun CreditApplicationScreen(
             }
             loadLocal()
             loadOperations()
+            if (session?.accountKey == current.accountKey && session?.selectedBranchId == branch &&
+                session?.token == current.token
+            ) {
+                refreshPayroll()
+                refreshChallenges()
+            }
         } finally {
             busy = false
             refreshingPortfolio = false
@@ -2473,6 +2644,82 @@ private fun CreditApplicationScreen(
         if (screen !in setOf(Screen.HOME, Screen.CUSTOMER) ||
             !ratingDialogBelongsTo(open, session?.accountKey, session?.selectedBranchId)
         ) ratingDialog = null
+    }
+    LaunchedEffect(session?.accountKey, session?.selectedBranchId, session?.token) {
+        val current = session
+        val target = current?.selectedBranchId?.let { PayrollScope(current.accountKey, it, current.token) }
+        if (payrollState?.scope != target) {
+            payrollRequestId++
+            payrollState = null
+            showPayrollDetails = false
+        }
+    }
+    LaunchedEffect(screen, session?.accountKey, session?.selectedBranchId, session?.token, online, deviceConnected) {
+        if (screen == Screen.HOME && !serviceBlocked) refreshPayroll()
+        if (screen != Screen.HOME) showPayrollDetails = false
+    }
+    val visiblePayroll = payrollState?.takeIf {
+        it.scope.accountKey == session?.accountKey && it.scope.branchId == session?.selectedBranchId &&
+            it.scope.token == session?.token
+    }
+    LaunchedEffect(session?.accountKey, session?.selectedBranchId, session?.token) {
+        val current = session
+        val target = current?.selectedBranchId?.let { PayrollScope(current.accountKey, it, current.token) }
+        if (challengesState?.scope != target) {
+            challengesRequestId++
+            challengesState = null
+            selectedChallengeId = null
+        }
+    }
+    LaunchedEffect(screen, session?.accountKey, session?.selectedBranchId, session?.token, online, deviceConnected) {
+        if (screen == Screen.HOME && !serviceBlocked) refreshChallenges()
+        if (screen != Screen.HOME) selectedChallengeId = null
+    }
+    val visibleChallenges = challengesState?.takeIf {
+        it.scope.accountKey == session?.accountKey && it.scope.branchId == session?.selectedBranchId &&
+            it.scope.token == session?.token
+    }
+    if (screen == Screen.HOME && !serviceBlocked) {
+        visibleChallenges?.snapshot?.let { snapshot ->
+            snapshot.items.firstOrNull { it.challengeId == selectedChallengeId }?.let { item ->
+                DispatchChallengeDialog(item, snapshot.asOf,
+                    !online || !deviceConnected || visibleChallenges.error.isNotBlank(),
+                    onDismiss = { selectedChallengeId = null })
+            }
+        }
+    }
+    LaunchedEffect(session?.accountKey, session?.selectedBranchId, session?.token) {
+        val current = session
+        val target = current?.selectedBranchId?.let { PayrollScope(current.accountKey, it, current.token) }
+        if (bonusScope != target) {
+            bonusScope = target
+            bonusContext = null
+            bonusDraft = CashBonusDraft()
+            bonusError = ""
+            bonusSaving = false
+            bonusUncertain = false
+            showCashBonus = false
+        }
+    }
+    LaunchedEffect(screen, session?.accountKey, session?.selectedBranchId, session?.token, online, deviceConnected) {
+        if (screen == Screen.ROUTE_ENTRIES && !serviceBlocked && !bonusSaving) loadBonusContext()
+        if (screen != Screen.ROUTE_ENTRIES) showCashBonus = false
+    }
+    val visibleBonusContext = bonusContext?.takeIf {
+        bonusScope?.accountKey == session?.accountKey && bonusScope?.branchId == session?.selectedBranchId &&
+            bonusScope?.token == session?.token
+    }
+    if (showCashBonus && screen == Screen.ROUTE_ENTRIES && visibleBonusContext != null) {
+        CashBonusDialog(visibleBonusContext, bonusDraft, bonusSaving, bonusUncertain,
+            online && deviceConnected, bonusError,
+            onDraft = {
+                if (!bonusSaving && !bonusUncertain) bonusDraft = updatedCashBonusDraft(bonusDraft, it)
+            },
+            onSave = { saveCashBonus() }, onDismiss = { showCashBonus = false })
+    }
+    if (showPayrollDetails && screen == Screen.HOME && visiblePayroll != null) {
+        PayrollDetailsDialog(visiblePayroll, online && deviceConnected,
+            onRefresh = { refreshPayroll() }, onDismiss = { showPayrollDetails = false })
     }
     ratingDialog?.let { state ->
         CustomerRatingDialog(
@@ -3287,7 +3534,7 @@ private fun CreditApplicationScreen(
                     LaunchedEffect(restorePointerScroll, pointedCreditId, filtered) {
                         if (restorePointerScroll) {
                             val index = filtered.indexOfFirst { it.credit.id == pointedCreditId }
-                            if (index >= 0) portfolioListState.scrollToItem(index)
+                            if (index >= 0) portfolioListState.scrollToItem(index + 1)
                             restorePointerScroll = false
                         }
                     }
@@ -3326,6 +3573,18 @@ private fun CreditApplicationScreen(
                         state = portfolioListState,
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
+                    item(key = "own-income-and-challenges") {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            PayrollSummaryCard(
+                                visiblePayroll, online && deviceConnected,
+                                onRefresh = { refreshPayroll() }, onDetails = { showPayrollDetails = true }
+                            )
+                            DispatchChallengesSection(
+                                visibleChallenges, online && deviceConnected, challengePresentationLedger,
+                                onRefresh = { refreshChallenges() }, onDetails = { selectedChallengeId = it }
+                            )
+                        }
+                    }
                     if (filtered.isEmpty()) item {
                         Text("No hay resultados guardados. Sincroniza la sucursal o abre un cliente en línea.")
                     }
@@ -4672,6 +4931,11 @@ private fun CreditApplicationScreen(
                     TextButton(onClick = { screen = Screen.HOME }) { Text("Volver a cartera") }
                 }
                 Screen.ROUTE_ENTRIES -> {
+                    if (visibleBonusContext != null) {
+                        TextButton(enabled = online && deviceConnected && !busy && !bonusSaving,
+                            onClick = { showCashBonus = true }) { Text("Bono desde caja de esta cartera") }
+                    }
+                    if (bonusError.isNotBlank()) Text(bonusError, color = MaterialTheme.colorScheme.error)
                     RouteEntriesScreen(
                         entries = routeEntryRows,
                         catalog = routeCatalog,
@@ -4681,7 +4945,7 @@ private fun CreditApplicationScreen(
                         error = routeEntryError,
                         onSave = { scope.launch { busy = true; saveRouteEntry(); busy = false } },
                         onDelete = { entry -> scope.launch { busy = true; deleteRouteEntry(entry); busy = false } },
-                        onRefresh = { scope.launch { busy = true; loadRouteEntries(true); busy = false } },
+                        onRefresh = { scope.launch { busy = true; loadRouteEntries(true); loadBonusContext(); busy = false } },
                         onBack = { screen = Screen.HOME }
                     )
                 }
@@ -5160,6 +5424,20 @@ private fun CreditApplicationScreen(
                             }
                             OutlinedTextField(draftValue, { draftValue = it }, label = { Text("Valor total a pagar (deuda inicial) *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
                             OutlinedTextField(draftCost, { draftCost = it }, label = { Text("Costo / capital entregado (no es la deuda) *") }, modifier = Modifier.fillMaxWidth(), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal))
+                            if (draftConcept.equals("Prestamo", ignoreCase = true)) {
+                                val currentCash = routeCash?.takeIf {
+                                    it.accountKey == session?.accountKey && it.branchId == branchId &&
+                                        rows.all { row ->
+                                            row.credit.branchId == branchId && row.credit.accountKey == session?.accountKey
+                                        }
+                                }
+                                loanCashWarning(
+                                    routeSummary, currentCash?.base, currentCash?.otherIncome,
+                                    currentCash?.expenses, draftCost
+                                )?.let { warning ->
+                                    Text(warning, color = MaterialTheme.colorScheme.error)
+                                }
+                            }
                             PaymentMethodPicker(
                                 bankAccounts, draftPaymentMethod, { draftPaymentMethod = it },
                                 "¿Cuánto del costo salió de esta cuenta?",

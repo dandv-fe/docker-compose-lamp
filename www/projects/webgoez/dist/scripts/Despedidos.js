@@ -1,6 +1,6 @@
 jQuery(document).ready(function () {
     // Inicializar DataTable
-    var tablaDespedidos = $('#tablaDespedidos').DataTable({
+    var tablaDespedidos = $('#tablaDespedidos').DataTable(Object.assign({}, EmployeeOfficeGroups.options(jQuery), {
         responsive: true,
         lengthChange: false,
         autoWidth: false,
@@ -8,17 +8,20 @@ jQuery(document).ready(function () {
             {
                 extend: 'excel',
                 text: '<i class="fas fa-file-excel"></i> Excel',
-                className: 'btn btn-success btn-sm'
+                className: 'btn btn-success btn-sm',
+                exportOptions: { columns: [0,1,2,3,4,5,6,7,8,9] }
             },
             {
                 extend: 'pdf',
                 text: '<i class="fas fa-file-pdf"></i> PDF',
-                className: 'btn btn-danger btn-sm'
+                className: 'btn btn-danger btn-sm',
+                exportOptions: { columns: [0,1,2,3,4,5,6,7,8,9] }
             },
             {
                 extend: 'print',
                 text: '<i class="fas fa-print"></i> Imprimir',
-                className: 'btn btn-info btn-sm'
+                className: 'btn btn-info btn-sm',
+                exportOptions: { columns: [0,1,2,3,4,5,6,7,8,9] }
             }
         ],
         language: {
@@ -45,7 +48,7 @@ jQuery(document).ready(function () {
                 "sSortDescending": ": Activar para ordenar la columna de manera descendente"
             }
         }
-    });
+    }));
 
     tablaDespedidos.buttons().container().appendTo('#tablaDespedidos_wrapper .col-md-6:eq(0)');
 
@@ -119,7 +122,9 @@ jQuery(document).ready(function () {
                             formatearTipoDespido(item.tipoDespido),
                             formatearLiquidacion(item.liquidacion),
                             formatearEstadoDocumentos(item.estadoDocs),
-                            generarBotonesAccion(item)
+                            generarBotonesAccion(item),
+                            item.oficinaNombre,
+                            item.oficinaId === null ? 'sin-oficina' : String(item.oficinaId)
                         ]);
                     });
                 }

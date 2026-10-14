@@ -173,7 +173,51 @@ function coveredOn(prepared: PreparedCard, k: number): number | null {
   }
   return null;
 }
-
+/** Unpaid scheduled obligations only; advances consume future installments first.
+ * This is a forecast of customer obligations, not a promise of cash collection. */
+export function forecastScheduledCollections(cards: CardInput[], now: Date, deadline: Date, zone: string) {
+  const today = civilDay(now, zone), end = civilDay(deadline, zone);
+  if (!Number.isFinite(today) || !Number.isFinite(end) || end < today || end - today > 366) {
+    fail('VALIDATION_ERROR', 'El corte estimado debe estar entre hoy y 366 días.');
+  }
+  let due = 0, arrears = 0, advances = 0;
+  const invalid: Array<{ cardId: string; reason: string }> = [];
+  for (const card of cards) {
+    if (!card || typeof card.id !== 'string' || typeof card.mode !== 'string'
+        || !Number.isSafeInteger(card.valueCents) || !Number.isSafeInteger(card.balanceCents)
+        || !Array.isArray(card.payments) || card.payments.some((p) => !p ||
+          typeof p.description !== 'string' || !Number.isSafeInteger(p.amountCents))) {
+      invalid.push({ cardId: card?.id ?? '', reason: 'datos incompletos' }); continue;
+    }
+    const prepared = prepare(card, zone, today);
+    if (typeof prepared === 'string') { invalid.push({ cardId: card.id, reason: prepared }); continue; }
+    if (card.payments.some((p) => civilDay(new Date(p.createdAtUtc!), zone) > today)) {
+      invalid.push({ cardId: card.id, reason: 'pago futuro' }); continue;
+    }
+    if (EXCLUDED_STATUSES.has(card.status)) continue;
+    const paid = prepared.coverage.at(-1)?.cumulative ?? 0;
+    const days = dueDays(prepared.mode, prepared.startDay, prepared.term);
+    let dueBefore = 0, dueThrough = 0;
+    for (let i = 0; i < days.length; i += 1) {
+      const required = Math.min((i + 1) * prepared.obligation, prepared.owedScaled) / prepared.term;
+      if (days[i] < today) dueBefore = required;
+      if (days[i] <= end) dueThrough = required;
+    }
+    const outstandingBefore = Math.max(0, dueBefore - paid);
+    const outstandingThrough = Math.max(0, dueThrough - paid);
+    arrears += outstandingBefore;
+    due += Math.max(0, outstandingThrough - outstandingBefore);
+    advances += Math.max(0, paid - dueBefore);
+  }
+  return {
+    estimated: true, status: invalid.length ? 'insufficient_data' : 'available',
+    dueAmount: Math.round(due) / 100, arrearsAmount: Math.round(arrears) / 100,
+    advanceAmount: Math.round(advances) / 100, cardCount: cards.length,
+    invalidCardCount: invalid.length, invalidCards: invalid,
+    warnings: ['Estimación de cuotas, no garantía de recaudo efectivo. El medio de pago futuro no se conoce.',
+      ...(invalid.length ? ['Hay tarjetas con datos inválidos; los importes representan sólo las tarjetas válidas.'] : [])],
+  };
+}
 const pct = (value: number) => `${Math.round(value * 100)}%`;
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 const CONFIDENCE_TEXT: Record<Confidence, string> = {

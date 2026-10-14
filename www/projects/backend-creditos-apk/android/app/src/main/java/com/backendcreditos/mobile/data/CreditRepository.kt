@@ -2045,7 +2045,76 @@ class CreditRepository(
             is ApiResult.Retryable -> response
         }
 
-    // Reads the authoritative rating and its audit history; only the cached rating column is
+    suspend fun myPayroll(account: StoredSession) =
+        when (val response = api.myPayroll(account.token)) {
+            is ApiResult.Success -> {
+                val summary = response.value.myPayroll
+                val problem = com.backendcreditos.mobile.payrollContractError(summary)
+                if (problem != null) ApiResult.Rejected("Respuesta de sueldo inválida: $problem.")
+                else ApiResult.Success(summary)
+            }
+            is ApiResult.AuthExpired -> response
+            is ApiResult.Conflict -> response
+            is ApiResult.PermissionRejected -> response
+            is ApiResult.Rejected -> response
+            is ApiResult.Retryable -> response
+        }
+
+    suspend fun myDispatchChallenges(account: StoredSession) =
+        when (val result = api.myDispatchChallenges(account.token)) {
+            is ApiResult.Success -> {
+                val snapshot = result.value.myDispatchChallenges
+                val error = com.backendcreditos.mobile.dispatchChallengesError(snapshot)
+                if (error != null) ApiResult.Rejected("Respuesta de retos inválida: $error.")
+                else ApiResult.Success(snapshot)
+            }
+            is ApiResult.AuthExpired -> result
+            is ApiResult.Conflict -> result
+            is ApiResult.PermissionRejected -> result
+            is ApiResult.Rejected -> result
+            is ApiResult.Retryable -> result
+        }
+
+    suspend fun cashBonusContext(account: StoredSession, branchId: Int) =
+        when (val result = api.cashBonusContext(account.token, branchId)) {
+            is ApiResult.Success -> {
+                val context = result.value.payrollBonusContext
+                if (context.branchId != branchId || context.routeId <= 0 || context.state != "created" ||
+                    context.employees.isEmpty() || context.employees.any { it.employeeId <= 0 || it.name.isBlank() } ||
+                    context.employees.map { it.employeeId }.distinct().size != context.employees.size
+                ) ApiResult.Rejected("Contexto de bono inválido.")
+                else ApiResult.Success(context)
+            }
+            is ApiResult.AuthExpired -> result
+            is ApiResult.Conflict -> result
+            is ApiResult.PermissionRejected -> result
+            is ApiResult.Rejected -> result
+            is ApiResult.Retryable -> result
+        }
+
+    internal suspend fun cashBonus(
+        account: StoredSession, context: com.backendcreditos.mobile.network.CashBonusContext,
+        draft: com.backendcreditos.mobile.CashBonusDraft
+    ): ApiResult<com.backendcreditos.mobile.network.CashBonusResult> {
+        com.backendcreditos.mobile.cashBonusInputError(draft, context)?.let { return ApiResult.Rejected(it) }
+        val employeeId = draft.employeeId ?: return ApiResult.Rejected("Selecciona un empleado.")
+        return when (val result = api.cashBonus(account.token, context, employeeId, draft.amount, draft.reason, draft.token)) {
+            is ApiResult.Success -> {
+                val saved = result.value.changeEmployeePayroll
+                if (!saved.ok || saved.id.isBlank() || saved.expenseId.isNullOrBlank() ||
+                    saved.branchId != context.branchId || saved.routeId != context.routeId
+                ) ApiResult.Rejected("No se pudo confirmar el bono y su gasto de caja.", "BONUS_RESPONSE_INVALID")
+                else ApiResult.Success(saved)
+            }
+            is ApiResult.AuthExpired -> result
+            is ApiResult.Conflict -> result
+            is ApiResult.PermissionRejected -> result
+            is ApiResult.Rejected -> result
+            is ApiResult.Retryable -> result
+        }
+    }
+
+    // Reads the authoritative rating and its audit history; only the cached rating columns are
     // refreshed so pending customer edits stay on top of the local copy.
     suspend fun customerRating(
         account: StoredSession, branchId: String, customerId: String

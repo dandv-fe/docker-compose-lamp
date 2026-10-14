@@ -1,0 +1,42 @@
+.payroll-summary-card {
+  border-radius: .5rem;
+  min-height: 7rem;
+}
+
+.payroll-summary-card .payroll-value {
+  font-size: 1.45rem;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.payroll-summary-card .payroll-label {
+  color: #6c757d;
+  font-size: .82rem;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+}
+
+.payroll-route-provisional {
+  color: #856404;
+  background-color: #fff3cd;
+}
+
+.payroll-vacation-item {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+.payroll-vacation-item button {
+  margin-left: 1rem;
+}
+
+.payroll-status {
+  min-height: 1.5rem;
+}
+
+@media (max-width: 575.98px) {
+  .payroll-summary-card .payroll-value {
+    font-size: 1.2rem;
+  }
+}

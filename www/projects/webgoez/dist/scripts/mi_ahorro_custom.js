@@ -129,26 +129,17 @@
       $tbody.html('<tr><td colspan="5" class="text-center text-muted">Sin movimientos</td></tr>');
       return;
     }
-    console.log(movimientos);
 
     var html = movimientos.map(function (m) {
-      var valor = parseFloat(m.dec_valor) || 0;
-      var idahorroRow = parseInt(m.idahorro, 10);
-      var idahorroDeRow = parseInt(m.idahorro_de, 10);
-      var esMovVia = (idahorroDeRow === ahorroDetalleActual && idahorroRow !== ahorroDetalleActual);
-      var esSalida;
-      if (esMovVia) {
-        esSalida = (m.str_tipo === 'aporte' || m.str_tipo === 'ajuste');
-      } else {
-        esSalida = (m.str_tipo === 'retiro' || m.str_tipo === 'salida');
-      }
+      var valor = Math.abs(Number(m.monto_firmado));
+      var esSalida = Number(m.monto_firmado) < 0;
       var valorHtml = esSalida
         ? '<span class="text-danger font-weight-bold">-' + formatMoney(valor) + '</span>'
         : '<span class="text-success font-weight-bold">+' + formatMoney(valor) + '</span>';
 
       return '<tr>' +
         '<td>' + escapeHtml(formatDateTime(m.date_movimiento)) + '</td>' +
-        '<td>' + escapeHtml(esSalida ? 'retiro' : 'aporte') + '</td>' +
+        '<td>' + escapeHtml(AccountMovementPresentation.label(m, ahorroDetalleActual)) + '</td>' +
         '<td>' + valorHtml + '</td>' +
         '<td>' + escapeHtml(m.str_descripcion || '-') + '</td>' +
         '<td>' + escapeHtml(m.str_estado || '-') + '</td>' +

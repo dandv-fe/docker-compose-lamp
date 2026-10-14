@@ -20,6 +20,11 @@ $classCartera = new ClassCartera();
 $objBancoPago = new Banco();
 $idglobal = $_SESSION['idglobal'];
 $createdEmpleadoId = $_SESSION['idempleado'];
+$coverage = scopeRelevoCartera($conexion, $_SESSION, (int)($_SESSION['idsucursal'] ?? 0));
+if ($coverage !== null && !$coverage->independentAccess && !$coverage->activeCoverage) {
+   echo 'ERROR: La representación temporal de esta sucursal no está vigente';
+   return;
+}
 
 function leerVueltoBancoDesdePost($sufijo)
 {
@@ -244,7 +249,9 @@ switch ($_GET["op"]) {
          $iddescripcion = uniqidReal();
          $classCartera->saveCuota($iddescripcion, $idglobal, $idsucursal, $idtarjeta, $abono, $resta, $idusuario, $pagoBancoAbono, $vueltoBancoAbono);
       } else {
-         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || in_array('editar cuota', array_column($_SESSION['AUTHS'], 'nombre'))) {
+         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) ||
+             tienePermisoTemporalCartera($conexion, $_SESSION, (int)$idsucursal, 'editar cuota') ||
+             in_array('editar cuota', array_column($_SESSION['AUTHS'], 'nombre'))) {
             $classCartera->updateCuota($iddescripcion, $idsucursal, $abono, $resta);
          } else {
             echo "ERROR: No estas authorizado para esta accion";
@@ -481,7 +488,9 @@ switch ($_GET["op"]) {
       $classCartera->deleteGastoDetalleRuta($idcontabilidad_detalle, $createdEmpleadoId);
       break;
    case 'eliminarAbono':
-      if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$_SESSION['idsucursal']) || in_array('eliminar cuota', array_column($_SESSION['AUTHS'], 'nombre'))) {
+      if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$_SESSION['idsucursal']) ||
+          tienePermisoTemporalCartera($conexion, $_SESSION, (int)$_SESSION['idsucursal'], 'eliminar cuota') ||
+          in_array('eliminar cuota', array_column($_SESSION['AUTHS'], 'nombre'))) {
          $iddescripcion = limpiar_cadena($_POST['refDescripcion']);
          $classCartera->eliminarAbono($iddescripcion);
       } else {
@@ -489,7 +498,9 @@ switch ($_GET["op"]) {
       }
       break;
    case 'eliminarCredito':
-      if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$_SESSION['idsucursal']) || in_array('eliminar credito', array_column($_SESSION['AUTHS'], 'nombre'))) {
+      if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$_SESSION['idsucursal']) ||
+          tienePermisoTemporalCartera($conexion, $_SESSION, (int)$_SESSION['idsucursal'], 'eliminar credito') ||
+          in_array('eliminar credito', array_column($_SESSION['AUTHS'], 'nombre'))) {
          $idtarjeta = limpiar_cadena($_POST['refTarjeta']);
          $classCartera->eliminarCredito($idtarjeta);
       } else {

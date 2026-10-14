@@ -146,11 +146,20 @@ class usuario
                 tbl_empleado e ON e.idempleado=s.idempleado INNER JOIN
                 tbl_persona p ON p.idpersona=e.idpersona
              WHERE s.idglobal=$userIdEmpresa
-                 AND (au.idauth_sucursal IS NOT NULL OR o.idempleado_administrador=$idempleado)
+                 AND (au.idauth_sucursal IS NOT NULL OR o.idempleado_administrador=$idempleado
+                   OR EXISTS(SELECT 1 FROM view_employee_payroll_active_coverage c WHERE c.idglobal=s.idglobal
+                     AND c.branch_id=s.idsucursal AND c.replacement_employee_id=$idempleado))
              ORDER BY s.idsucursal DESC";
          $query = $conexion->query($sql);
 
          while ($reg = $query->fetch_object()) {
+            $temporary = db_prepare_execute($conexion, "SELECT permission FROM view_employee_payroll_temporary_permission
+               WHERE idglobal=? AND employee_id=? AND branch_id=?", 'iii',
+               [(int)$userIdEmpresa, (int)$idempleado, (int)$reg->refSucursal]);
+            $names = $reg->nameAuth === null ? [] : explode(",", $reg->nameAuth);
+            foreach ($temporary->get_result()->fetch_all(MYSQLI_ASSOC) as $permission) $names[] = $permission['permission'];
+            $temporary->close();
+            $reg->nameAuth = $names ? implode(',', array_unique($names)) : null;
             $listSucursalesPermitidas[] = array(
                $reg->refSucursal,
                $reg->tipo,
@@ -181,7 +190,10 @@ class usuario
                         INNER JOIN tbl_auth_sucursal aus ON aus.idauth_sucursal = auths.idauth_sucursal 
                     WHERE
                         aus.idsucursal = $idsuc
-                        AND aus.idempleado = $idempleado";
+                        AND aus.idempleado = $idempleado
+                    UNION SELECT a.str_categoria,a.str_nombre FROM view_employee_payroll_temporary_permission t
+                    JOIN tbl_auth a ON a.str_nombre=t.permission
+                    WHERE t.idglobal=$userIdEmpresa AND t.branch_id=$idsuc AND t.employee_id=$idempleado";
             $query3 = $conexion->query($sql);
 
             while ($reg = $query3->fetch_object()) {

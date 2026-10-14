@@ -1,5 +1,6 @@
 <?php
 require "Conexion.php";
+require_once __DIR__ . "/NominaEmpleado.php";
 
 class Empleado
 {
@@ -312,46 +313,29 @@ class Empleado
       echo $msg;
       return $sw;
    }
-   /*
-     */
-   public function RegistrarSueldo($idempleado, $idglobal, $modoSueldo, $valorSueldo)
+   public function RegistrarSueldo($idempleado, $idglobal, $type, $frequency, $baseAmount, $capitalRate,
+      $collectionRate, $effectiveDate, $actorUserId, $idempotencyToken)
    {
-      global $conexion;
-      $sw = true;
-      $conexion->autocommit(false);
-      $dt = date('Y-m-d H:i:s');
-      try {
-         $sql = "SELECT idnomina FROM `tbl_nomina` WHERE idempleado= $idempleado AND str_estado='activo'";
-         $querry = $conexion->query($sql);
-         $res = $querry->fetch_object();
-         if (isset($res->idnomina)) {
-            $aql = "UPDATE tbl_nomina SET str_estado='anterior' WHERE idnomina= $res->idnomina";
-            $conexion->query($aql) or throw new Exception('error!');
-         }
-
-         $sql = "INSERT INTO `tbl_nomina`(
-                idglobal, idempleado, str_modo_sueldo, dec_sueldo,
-                str_estado, created_at, updated_at
-          )
-          VALUES ($idglobal, $idempleado, '$modoSueldo', $valorSueldo, 
-          'activo', '$dt', '$dt')";
-         $conexion->query($sql) or throw new Exception('error!');
-      } catch (Exception $e) {
-         print_r($e);
-         $sw = false;
-         $conexion->rollback();
-      }
-
-      $conexion->commit();
-      if ($conexion != null) {
-         $conexion->close();
-      }
-      $msg = $sw ? "Se a Registrado un dato" : "ERROR: ¡No se guardo!";
-      echo $msg;
-      return;
+      $nomina = new NominaEmpleado();
+      return $nomina->guardarContrato((int)$idglobal, (int)$actorUserId, [
+         'employeeId' => (int)$idempleado,
+         'type' => $type,
+         'frequency' => $frequency,
+         'baseAmount' => $baseAmount,
+         'capitalRate' => $capitalRate,
+         'collectionRate' => $collectionRate,
+         'effectiveDate' => $effectiveDate,
+         'idempotencyToken' => $idempotencyToken
+      ]);
    }
 
-   public function ModificarSueldo($idnomina, $idempleado, $idglobal, $modoSueldo, $valorSueldo) {}
+   public function ModificarSueldo($idnomina, $idempleado, $idglobal, $type, $frequency, $baseAmount, $capitalRate,
+      $collectionRate, $effectiveDate, $actorUserId, $idempotencyToken)
+   {
+      // A change creates a new effective-dated contract; historical terms stay immutable.
+      return $this->RegistrarSueldo($idempleado, $idglobal, $type, $frequency, $baseAmount, $capitalRate,
+         $collectionRate, $effectiveDate, $actorUserId, $idempotencyToken);
+   }
 
 
 
@@ -363,6 +347,8 @@ class Empleado
             e.str_cargo AS cargo,
             e.dec_max_credito AS dec_max_credito,
             e.date_fecha_inicio AS fecha_init,
+            o.idoficina AS oficinaId,
+            COALESCE(o.str_nombre,'Sin oficina asignada') AS oficinaNombre,
             p.idpersona AS refPersona,
             CONCAT(p.str_nombres,' ',p.str_apellidos) AS empleado,
             p.str_foto AS foto,
@@ -372,8 +358,10 @@ class Empleado
             e.str_estado as estado
 
          FROM tbl_empleado e INNER JOIN
-            tbl_persona p ON p.idpersona=e.idpersona
-         WHERE e.idglobal=$idglobal AND e.str_estado<>'inactivo' ORDER BY e.idempleado DESC";
+            tbl_persona p ON p.idpersona=e.idpersona AND p.idglobal=e.idglobal
+         LEFT JOIN tbl_oficina o ON o.idoficina=e.idoficina AND o.idglobal=e.idglobal
+         WHERE e.idglobal=$idglobal AND e.str_estado<>'inactivo'
+         ORDER BY oficinaNombre,o.idoficina,empleado,e.idempleado";
       $query = $conexion->query($sql);
       return $query;
    }
@@ -490,11 +478,16 @@ class Empleado
    public function listNomnaDetalle($idempleado, $desde, $hasta)
    {
       global $conexion;
-      $fechaHasta = date('Y-m-d', strtotime($hasta . ' +1 day'));
+      NominaEmpleado::validarFecha($desde);
+      NominaEmpleado::validarFecha($hasta);
+      if ($desde > $hasta) throw new RuntimeException('La fecha desde no puede superar la fecha hasta.',422);
+      $fechaHasta = (new DateTimeImmutable($hasta))->modify('+1 day')->format('Y-m-d');
       $sql = "SELECT * FROM view_detalle_nomina 
-                    WHERE refEmpleado=$idempleado AND fecha_at>='$desde' AND fecha_at<='$fechaHasta'";
-      $query = $conexion->query($sql);
-      return $query;
+                    WHERE refEmpleado=? AND fecha_at>=? AND fecha_at<?";
+      $statement = db_prepare_execute($conexion,$sql,'iss',[(int)$idempleado,$desde,$fechaHasta]);
+      $result = $statement->get_result();
+      $statement->close();
+      return $result;
    }
    public function listAuths($idempleado, $idglobal)
    {
@@ -878,6 +871,8 @@ class Empleado
             CONCAT(p.str_nombres, ' ', p.str_apellidos) AS empleado,
             CONCAT(p.str_tipo_documento, ' ', p.str_num_documento) AS documento,
             e.str_cargo AS cargo,
+            o.idoficina AS oficinaId,
+            COALESCE(o.str_nombre,'Sin oficina asignada') AS oficinaNombre,
             DATE_FORMAT(ed.fecha_despido, '%d/%m/%Y') AS fechaDespido,
             ed.tipo_despido AS tipoDespido,
             ed.monto_fraude_pendiente AS liquidacion,
@@ -885,8 +880,9 @@ class Empleado
             ed.derecho_recontratacion AS recontratacion,
             e.idempleado AS refEmpleado
         FROM tbl_empleado_despido ed
-        INNER JOIN tbl_empleado e ON e.idempleado = ed.idempleado
-        INNER JOIN tbl_persona p ON p.idpersona = e.idpersona
+        INNER JOIN tbl_empleado e ON e.idempleado = ed.idempleado AND e.idglobal=ed.idglobal
+        INNER JOIN tbl_persona p ON p.idpersona = e.idpersona AND p.idglobal=e.idglobal
+        LEFT JOIN tbl_oficina o ON o.idoficina=e.idoficina AND o.idglobal=e.idglobal
         WHERE ed.idglobal = $idglobal AND ed.str_estado = 'activo'";
 
       // Aplicar filtros
@@ -906,7 +902,7 @@ class Empleado
          $sql .= " AND ed.fecha_despido <= '$fecha_hasta'";
       }
 
-      $sql .= " ORDER BY ed.fecha_despido DESC";
+      $sql .= " ORDER BY oficinaNombre,o.idoficina,empleado,ed.fecha_despido DESC";
 
       $query = $conexion->query($sql);
       return $query;

@@ -172,6 +172,7 @@ function init() {
                 }
             }
             $("#formSaveNewCredit button").attr('disabled', true);
+            avisarCajaAntesDeCredito()
             SaveOrUpdate()
         }
     });

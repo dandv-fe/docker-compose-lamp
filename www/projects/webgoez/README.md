@@ -155,6 +155,222 @@ en la base compartida antes del despliegue. La política de actualización se
 configura en el backend según su README; este panel muestra versiones reportadas,
 no declara un dispositivo actualizado por no tener reportes recientes.
 
+## Nómina por período y resumen personal
+
+En **Mantenimiento → Empleados → Nómina** se configura el sueldo como **Fijo**,
+**Porcentaje** o **Combinado**, por separado de la frecuencia **Diaria**,
+**Semanal**, **Quincenal** o **Mensual**. Los períodos siguen el calendario
+colombiano: semana de lunes a domingo, quincena del 1 al 15 y del 16 al fin
+del mes, o mes calendario. La vista personal permite elegir una fecha y muestra
+el período que contiene esa fecha.
+
+Las comisiones conservan conceptos separados: capital de créditos y recaudo.
+En un acuerdo combinado, el cálculo del sueldo lo realiza el servicio de nómina,
+sin duplicar su fórmula en la interfaz: se reconoce el mayor entre el **sueldo
+básico acumulado** y la suma de ambas comisiones, más los bonos. El sueldo básico se reconoce
+una vez por período, no por despacho, y se prorratea por los días transcurridos
+hasta la fecha de corte inclusive. Por ejemplo, un sueldo básico mensual de 3000 en un
+mes de 30 días acumula 1000 al día 10. El sueldo pactado completo se muestra
+por separado como referencia, no como devengado ni pendiente anticipado.
+Las vacaciones se programan en una gestión independiente de **Mantenimiento →
+Empleados**, fuera del formulario de sueldo, con inicio, fin y relevo obligatorio
+activo y autorizado, distinto del empleado. La observación es opcional.
+El empleado conserva su sueldo básico durante el rango, sin nuevas comisiones.
+El relevo representa temporalmente al titular en la sucursal y Cartera, recibe
+su participación con las tasas del propio relevo y su propio sueldo proporcional
+a días calendario, sin duplicarlo por despacho. Guardar vacaciones no guarda ni
+modifica el acuerdo salarial.
+El acceso operativo del relevo a Cartera dura únicamente las fechas de vacaciones
+y respeta sus propios permisos existentes; no otorga administración ni hereda
+acciones especiales del titular.
+
+Los bonos manuales se registran exclusivamente desde **Cartera → Gastos**,
+para la sucursal seleccionada y un despacho en estado `created`, eligiendo un
+empleado autorizado y un monto positivo con motivo. La operación del servidor
+registra devengado y pago conjuntamente y descuenta el efectivo de caja, sin
+contabilizar dos veces el bono. Tras guardar se actualiza la caja y la información
+de nómina. No se registran desde Mantenimiento ni desde una página independiente;
+la antigua URL informa que esa gestión fue retirada.
+Sólo el Super Administrador o el administrador real de la oficina de la Cartera
+pueden gestionar bonos; el cobrador y el relevo no reciben esa autorización.
+El máximo es 99.999.999,99 COP, con hasta dos decimales; la fecha la establece
+el servidor. La ruta y los permisos se comprueban de nuevo al guardar.
+
+El Super Administrador configura en **Despachar** el reparto
+del nuevo despacho: titular único, por igual entre empleados asignados o pesos
+personalizados que suman 100%. Puede asignarse a una persona en varias rutas.
+Las reglas se guardan como configuración para próximos despachos; al abrirse un
+despacho se captura su instantánea y un cambio posterior no recalcula lo ya
+abierto. Mientras siga abierto, su aporte se identifica como provisional.
+Cada empleado conserva sus tasas de capital y recaudo en el acuerdo individual.
+
+**Acceder → Mi nómina** presenta únicamente el sueldo propio: sueldo básico acumulado y
+sueldo pactado completo separados, comisiones
+de créditos, comisiones de recaudo, bonos, devengado, pagado, pendiente y
+desglose de rutas; un despacho todavía abierto y el total que incluye sus aportes
+son provisionales. Devengado y pendiente corresponden al corte, no al período
+completo por adelantado. La pestaña
+**Sueldo** existente y el registro de gastos de sueldo no se reemplazan.
+Sin contrato pactado, el resumen conserva los bonos y pagos registrados,
+agrupados por mes, y muestra explícitamente que no hay sueldo configurado.
+El desglose presenta capital, recaudo efectivo, participación de la instantánea
+y ambas comisiones calculadas por el servidor; los reversos conservan su signo.
+Los totales del período no se reconstruyen sumando rutas redondeadas.
+El Super Administrador registra contratos y vacaciones desde
+**Mantenimiento → Empleados**. Los bonos respetan el alcance de empleados
+autorizados para gastos de sueldo en la Cartera seleccionada. La lectura personal y
+cada escritura usan el endpoint de nómina con permisos actuales, CSRF y
+protección de idempotencia; ocultar un botón no sustituye esa autorización.
+
+### Pagos recibidos y Mi nómina
+
+En la última pestaña **Movimientos** de Inicio, el monto y el tipo visible se
+presentan desde la perspectiva de la persona conectada. Un retiro de otra cuenta
+que llega a la suya aparece como **Transferencia recibida**, con monto positivo
+y su cuenta receptora. El titular de origen sigue viendo retiro negativo.
+Un aporte/ajuste financiado por su cuenta aparece como transferencia enviada;
+transferencias entre dos cuentas propias muestran efecto personal neto cero.
+No se modifica el tipo original, importe almacenado ni cálculo de saldos.
+La ficha de **Mis cuentas** utiliza la perspectiva de la cuenta seleccionada:
+transferencia recibida positiva en destino y salida negativa en origen. Incluso
+entre cuentas propias cada ficha conserva su entrada o salida individual; sólo
+la pestaña de movimientos personales muestra el neto cero entre ambas cuentas.
+Las etiquetas no reescriben el tipo original (un aporte positivo no es retiro).
+**Cuenta principal** y su vista de cuenta corriente aplican las mismas etiquetas
+por cuenta: transferencia recibida/enviada, aporte, retiro e interés. La lectura
+de cuenta corriente incluye `idahorro_de` para determinar el lado correcto;
+no modifica la caducidad de retiros temporales ni los cálculos contables.
+**Mi ahorro**, **Corresponsales** y las fichas de **Ahorradores** también muestran
+el tipo desde la cuenta consultada, sin convertir intereses en aportes ni
+reescribir el movimiento. Mi ahorro respeta el monto firmado por el servidor.
+El historial de Ahorradores conserva una fila por cuenta: si ambas pertenecen
+a la persona, muestra por separado la salida y la entrada, no el neto personal
+de Inicio. Los listados permanecen limitados a la empresa consultada.
+**Ahorro programado** utiliza las mismas etiquetas por cuenta: transferencia
+recibida positiva, transferencia enviada negativa, aporte, retiro e interés,
+sin reescribir el tipo original ni utilizar la etiqueta de la cuenta de origen.
+
+Inicio conserva dos consultas complementarias: **Pagos recibidos** (antes
+«Sueldo») consulta el dinero registrado a nombre del empleado entre dos fechas
+por concepto y cartera; **Mi nómina** calcula el devengado de su período hasta
+el corte según contrato, comisiones y bonos, y lo compara con pagos vinculados
+del mismo período. Ninguna consulta crea un desembolso. El básico se acumula
+por días; Combinado usa el mayor entre básico y comisiones, más bonos.
+
+El campo «Pagado» incluye todos los gastos vinculados mediante
+`tbl_detalle_nomina`, no sólo sueldo: también otros conceptos, por ejemplo
+viáticos. Por eso «Pendiente» es una comparación contable, no una certificación
+de deuda salarial. El historial conserva sus conceptos separados. El rango
+incluye todo el último día y excluye la medianoche del siguiente; fechas
+inválidas o invertidas generan error explícito.
+Inicio y Empleado inicializan ambos calendarios Desde/Hasta con el mes actual,
+permiten fechas escritas en `AAAA-MM-DD` y tienen botón **Consultar pagos**.
+Cambiar una fecha actualiza la consulta; un rango inválido no envía una petición
+ni cambia silenciosamente la otra fecha. Una respuesta antigua no sobrescribe
+la consulta más reciente al modificar rápidamente el rango.
+
+En Empleado se distingue **Pagos recibidos** de **Acuerdo y nómina**.
+La configuración no paga automáticamente; los desembolsos siguen registrados
+como gastos desde cartera con despacho abierto y beneficiario explícito. Los
+bonos manuales también salen de esa caja. Empleados y Despedidos se agrupan
+por oficina, con encabezados, orden alfabético y columna de oficina exportable.
+Los registros sin oficina tienen grupo propio. Despedidos muestra la oficina
+actual del registro del empleado, no una oficina histórica congelada al despido.
+
+### Despacho guiado
+
+Los empleados ven todas las carteras con su permiso propio `despachar`, aunque
+la oficina seleccionada en la sesión sea distinta. En **Recibir**, se conserva
+el permiso `ver recibir` y el acceso del administrador a su oficina. El filtro
+de oficina de la sesión se aplica a estos listados sólo para Super Administradores;
+no oculta permisos de empleados ni concede acceso a otras carteras.
+
+La pantalla **Despachar** presenta tarjetas de carteras autorizadas, búsqueda
+por nombre u oficina, filtros de estado, resumen y exportación CSV del listado
+filtrado. El asistente sigue cuatro pasos: cartera, personas, reparto y retos,
+y revisión/confirmación. Los empleados se seleccionan con casillas accesibles.
+Las tarjetas muestran oficina y cantidad de empleados operativos asignados.
+También muestran sus nombres con inicial mayúscula en cada palabra, sin cambiar
+los nombres almacenados. Al preparar el despacho, el equipo de la cartera
+(asignados actuales, titular y relevo) aparece primero; luego los demás empleados
+de la oficina de la cartera y después las otras oficinas por nombre. Cada grupo
+tiene su encabezado y nombres ordenados alfabéticamente; los permisos y la
+selección no cambian.
+El equipo muestra oficina (o ausencia registrada), titular permanente y relevo
+temporal vigente en esa cartera según el servidor. Estas etiquetas no conceden
+permisos ni administración. El contexto distingue autorización efectiva
+`branch.canDispatch` de escritura `branch.canSaveDispatch`; sólo esta última
+habilita edición/confirmación. El servidor vuelve a autorizar la escritura.
+
+Sólo el Super Administrador modifica el reparto de la nueva instantánea.
+Los retos individuales permiten al Super Administrador sin requerir
+`poner_retos`; el administrador real de la oficina sí debe tener ese permiso
+propio en esa misma cartera. La web usa `canSetChallenges` del servidor,
+sin inferir autorización por etiquetas de cargo o relevo.
+Los demás usuarios conservan el despacho normal y la lectura autorizada,
+sin poder editar retos. Las metas incluyen capital, recaudo, fecha límite,
+incremento de 0,1 a 40% y descripción opcional de hasta 250 caracteres;
+no modifican salarios ni generan bonos. Sin descripción se muestra una
+invitación estática predeterminada, sin bloquear el reto.
+
+El servidor calcula sueldo básico hasta la fecha, comisiones, lo necesario para
+superar el objetivo y previsión de cuotas. Anticipos y atrasos se muestran
+separados: son estimaciones, no garantías de recaudo o ganancias. El sueldo
+básico sigue siendo único por período aunque haya varias carteras. La web no
+reimplementa fórmulas ni modifica reglas históricas. Las invitaciones se animan
+una sola vez por revisión del reto; se respeta movimiento reducido.
+**Inicio → Mis retos** presenta únicamente los retos propios y sus avances,
+sin necesitar permiso para despachar ni aceptar un identificador de empleado
+en la consulta. Comparte las tarjetas de invitación y previsión con el asistente;
+no permite editar metas y no promete ganancias ni bonos.
+Consume `GET ajax/DespacharAjax.php?action=own` sin filtros. Usa `items` por
+`challengeId`, fechas y estado propios, avance neto firmado y porcentajes
+calculados por el servidor (pueden ser negativos, superiores al 100% o nulos).
+Las comisiones realizadas del período/todas las carteras se muestran una vez
+en cada reto, sin sumarlas entre tarjetas. La previsión usa sólo actividad
+objetivo restante; si es insuficiente o ya no aplica se conserva el avance sin
+mostrar una proyección salarial. El estado de animación se conserva por empleado
+y contenido de invitación, sin reanimar al actualizar el avance.
+
+El envío congela el borrador con token idempotente y versión de contexto.
+Una ruta o permiso desactualizado exige consultar de nuevo; un resultado
+incierto no se reenvía automáticamente. El endpoint revalida permisos y bloqueo.
+
+```sh
+docker exec -w /var/www/html/projects/webgoez webgoez-node \
+  node --test tests/dispatch-ui.cjs tests/dispatch-controller.cjs tests/my-challenges-ui.cjs
+```
+
+El nuevo contrato estructurado de despacho requiere aplicar manualmente
+[`../backend-creditos-apk/migrations/017_dispatch_challenges.sql`](../backend-creditos-apk/migrations/017_dispatch_challenges.sql)
+después de 016, con el procedimiento de respaldo y mantenimiento del backend.
+La UI no aplica migraciones ni modifica datos al abrir el asistente.
+La lectura propia requiere además `SELECT` sobre
+`view_dispatch_challenge_progress` y `EXECUTE` sobre
+`sp_dispatch_challenge_goal`, según el despliegue del backend.
+Previsión e Inicio necesitan Node 20+ accesible desde PHP mediante
+`DISPATCH_FORECAST_NODE_BINARY` y `proc_open`. Sin motor el endpoint devuelve
+503 explícito y la web muestra el error, no un avance ficticio.
+
+Antes del despliegue aplicar manualmente
+[`../backend-creditos-apk/migrations/015_employee_payroll.sql`](../backend-creditos-apk/migrations/015_employee_payroll.sql)
+en la base compartida, después de las migraciones anteriores. No ejecutar DDL
+desde la aplicación ni aplicar la migración sobre datos de producción sin el
+respaldo y procedimiento de despliegue correspondientes.
+La gestión de relevos y bonos pagados en caja requiere además
+[`../backend-creditos-apk/migrations/016_payroll_replacements_cash_bonus.sql`](../backend-creditos-apk/migrations/016_payroll_replacements_cash_bonus.sql),
+con MariaDB 10.11 o posterior, antes de habilitar esta versión. Aplicar con
+respaldo y escritores detenidos; no reaplicar 015 como sustituto de 016.
+La política de acceso temporal del relevo debe confirmarse antes del despliegue:
+no debe heredar permisos del titular ni privilegios de administración.
+
+Prueba aislada de validaciones de UI (sin base de negocio):
+
+```sh
+docker exec -w /var/www/html/projects/webgoez webgoez-node \
+  node --test tests/payroll-ui.cjs
+```
+
 ## Gastos de sueldo
 
 Al crear un gasto de sueldo se debe seleccionar una nómina activa. Un empleado
@@ -218,6 +434,27 @@ se debe indicar además si lo recibió en efectivo quien registra la tarjeta o
 cuánto entró en una cuenta autorizada. La cuenta receptora es independiente de
 la cuenta desde la que se entregó el crédito; el movimiento Inicial conserva
 el empleado registrador y solo la parte en efectivo entra en su caja.
+
+### Aviso de caja al crear un préstamo
+
+El formulario muestra un aviso informativo únicamente para tarjetas de tipo
+`Prestamo`: si el efectivo disponible es cero o negativo, o si el costo del
+préstamo supera ese efectivo. Cuando el costo es igual al efectivo disponible,
+no se muestra el aviso por insuficiencia. Las tarjetas de tipo `Articulo` no
+usan este aviso.
+
+Si el saldo es desconocido o no se puede consultar, se muestra explícitamente
+**Caja no disponible**; no se interpreta como cero ni como fondos suficientes.
+El aviso no cambia permisos, no introduce bloqueos ni sustituye las
+validaciones existentes del servidor.
+
+Las cuatro pruebas puras cubren caja cero/negativa, insuficiencia e igualdad,
+saldo desconocido y exclusión de artículos:
+
+```sh
+docker exec -w /var/www/html/projects/webgoez webgoez-node \
+  node --test tests/caja-credito-ui.cjs
+```
 
 ## Autor y origen de abonos en cartera
 

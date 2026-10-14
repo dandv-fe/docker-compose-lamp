@@ -1,0 +1,48 @@
+<div class="modal fade" id="modal-payroll-vacation" tabindex="-1" role="dialog" aria-labelledby="payroll-vacation-title" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h4 class="modal-title" id="payroll-vacation-title">Programar vacaciones y relevo</h4>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button>
+            </div>
+            <form id="form-payroll-vacation">
+                <div class="modal-body">
+                    <p class="text-muted">
+                        El empleado conserva su sueldo básico durante las vacaciones, sin nuevas comisiones.
+                        El relevo representa temporalmente al titular en la sucursal y Cartera durante el rango:
+                        recibe la participación del titular con sus propias tasas y su propio sueldo proporcional
+                        a los días calendario, sin duplicarlo por despacho. No modifica el acuerdo salarial.
+                        Su acceso operativo a Cartera es temporal y usa únicamente sus propios permisos existentes:
+                        no obtiene acceso de administrador ni hereda acciones especiales del titular.
+                        El relevo debe estar activo, tener contrato propio vigente desde el inicio del rango
+                        y no tener vacaciones que se solapen; el servidor valida estas condiciones al guardar.
+                    </p>
+                    <div class="form-row">
+                        <div class="form-group col-md-6">
+                            <label for="payroll-vacation-start">Inicio</label>
+                            <input required id="payroll-vacation-start" type="date" class="form-control">
+                        </div>
+                        <div class="form-group col-md-6">
+                            <label for="payroll-vacation-end">Fin</label>
+                            <input required id="payroll-vacation-end" type="date" class="form-control">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="payroll-vacation-replacement">Empleado de relevo (obligatorio)</label>
+                        <select required id="payroll-vacation-replacement" class="form-control" disabled>
+                            <option value="">Seleccione un empleado para consultar relevos autorizados</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="payroll-vacation-reason">Observación (opcional)</label>
+                        <input id="payroll-vacation-reason" type="text" maxlength="250" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-primary">Guardar vacaciones y relevo</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

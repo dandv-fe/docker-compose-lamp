@@ -494,6 +494,7 @@ class Ahorradores
          $sql = "SELECT
                         m.idahorro,
                         m.idahorro_de,
+                        a.idahorro AS cuentaSeleccionada,
                         m.date_movimiento AS fecha,
                         IFNULL(NULLIF(TRIM(a.id_cuenta), ''), CONCAT('Ahorro #', a.idahorro)) AS cuenta,
                         m.str_tipo AS tipo,

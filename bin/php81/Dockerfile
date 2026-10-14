@@ -1,3 +1,4 @@
+FROM node:20.20-bookworm-slim AS dispatch-node
 FROM php:8.1-apache-bookworm
 
 # Surpresses debconf complaints of trying to install apt packages interactively
@@ -84,6 +85,9 @@ RUN a2enmod ssl \
 
 # Fix Permissions
 RUN usermod -u 1000 www-data
+
+COPY --from=dispatch-node /usr/local/bin/node /usr/local/bin/node
+RUN node --version
 
 # Cleanup
 RUN rm -rf /usr/src/*

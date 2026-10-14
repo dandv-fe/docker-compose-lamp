@@ -2,6 +2,7 @@
 <link rel="stylesheet" href="plugins/datatables-bs4/css/dataTables.bootstrap4.min.css">
 <link rel="stylesheet" href="plugins/datatables-responsive/css/responsive.bootstrap4.min.css">
 <link rel="stylesheet" href="plugins/datatables-buttons/css/buttons.bootstrap4.min.css">
+<link rel="stylesheet" href="dist/css/payroll-empleado.css?v=<?php echo $infoSistemaCuentas['version']; ?>">
 
 <!-- DataTables  & Plugins -->
 <script src="plugins/datatables/jquery.dataTables.min.js"></script>
@@ -22,10 +23,17 @@
 
 <!-- Tempusdominus Bootstrap 4 -->
 <script src="plugins/tempusdominus-bootstrap-4/js/tempusdominus-bootstrap-4.min.js"></script>
+<script src="dist/scripts/PayrollHistoryDates.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
 
 
 <!-- SweetAlert2 -->
 
+<script src="dist/scripts/PayrollEmpleadoUI.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+<script src="dist/scripts/PayrollEmpleado.js?v=<?php echo $infoSistemaCuentas['version']; ?>"></script>
+<link rel="stylesheet" href="dist/css/despachar.css?v=<?php echo rawurlencode($infoSistemaCuentas['version']); ?>">
+<script src="dist/scripts/DespacharUI.js?v=<?php echo rawurlencode($infoSistemaCuentas['version']); ?>"></script>
+<script src="dist/scripts/RetoCards.js?v=<?php echo rawurlencode($infoSistemaCuentas['version']); ?>"></script>
+<script src="dist/scripts/MisRetos.js?v=<?php echo rawurlencode($infoSistemaCuentas['version']); ?>"></script>
 
 <!--<script type="text/javascript" src="dist/scripts/Perfil.js"></script>-->
 
@@ -33,6 +41,15 @@
 
 <!-- Content Wrapper. Contains page content -->
 <div class="content-wrapper">
+  <section id="own-challenges" class="p-3 p-md-4" aria-labelledby="own-challenges-title">
+    <div class="d-flex flex-wrap align-items-center justify-content-between">
+      <div><span class="dispatch-eyebrow">TU PRÓXIMO PASO</span><h2 id="own-challenges-title">Mis retos</h2></div>
+      <button type="button" id="own-challenges-refresh" class="btn btn-outline-primary" style="min-height:44px">Actualizar mis avances</button>
+    </div>
+    <p class="text-muted">Metas personales con avances del servidor. Tu sueldo básico es único por período, aunque participes en varias carteras.</p>
+    <p id="own-challenges-status" role="status" aria-live="polite"></p>
+    <div id="own-challenges-list" class="dispatch-grid"></div>
+  </section>
   <!-- Content Header (Page header) -->
   <section class="content-header">
     <div class="container-fluid">
@@ -271,7 +288,11 @@ if (isset($userSession['usuario']->idempleado)){
                 </li>
                 <li class="nav-item">
                   <a class="nav-link" id="custom-tabs-liquidar-tab" data-toggle="pill" href="#custom-tabs-liquidar"
-                    role="tab" aria-controls="custom-tabs-liquidar" aria-selected="false">SUELDO</a>
+                    role="tab" aria-controls="custom-tabs-liquidar" aria-selected="false">PAGOS RECIBIDOS</a>
+                </li>
+                <li class="nav-item">
+                  <a class="nav-link" id="payroll-own-tab" data-toggle="pill" href="#payroll-own-dashboard"
+                    role="tab" aria-controls="payroll-own-dashboard" aria-selected="false">MI NÓMINA</a>
                 </li>
                 <?php endif; ?>
                 <?php if ($mostrarTabsAhorro): ?>
@@ -475,8 +496,106 @@ if (isset($userSession['usuario']->idempleado)){
                 </div>
 
 
+                <div class="tab-pane fade" id="payroll-own-dashboard" role="tabpanel" aria-labelledby="payroll-own-tab">
+                  <section class="p-3 p-md-4" id="payroll-own-dashboard-panel">
+                    <div class="d-flex flex-wrap align-items-end justify-content-between mb-3">
+                      <div>
+                        <h3 class="mb-1">Mi nómina</h3>
+                        <p class="text-muted mb-0">
+                          Resumen de tu período de pago. Las comisiones por créditos y recaudo se muestran por separado.
+                          Complementa «Pagos recibidos»; no lo reemplaza ni genera desembolsos.
+                        </p>
+                      </div>
+                      <div class="form-inline mt-3 mt-md-0">
+                        <label for="payroll-own-as-of" class="mr-2">Período que incluye</label>
+                        <input type="date" id="payroll-own-as-of" class="form-control mr-2">
+                        <button type="button" id="payroll-own-refresh" class="btn btn-outline-primary">
+                          <i class="fas fa-sync-alt mr-1"></i> Actualizar
+                        </button>
+                      </div>
+                    </div>
+                    <p id="payroll-status" class="payroll-status text-muted" role="status" aria-live="polite"></p>
+                    <div id="payroll-unconfigured" class="alert alert-info" style="display:none" role="status">
+                      Aún no hay un sueldo pactado para el período seleccionado.
+                      Los bonos y pagos registrados se muestran agrupados por mes, sin inventar un sueldo básico.
+                    </div>
+                    <div id="payroll-own-content" style="display:none">
+                      <div class="d-flex flex-wrap mb-3">
+                        <span class="badge badge-light mr-2 mb-2">
+                          Período: <span id="payroll-period-range"></span>
+                        </span>
+                        <span class="badge badge-light mb-2">
+                          Frecuencia: <span id="payroll-frequency-label"></span>
+                        </span>
+                      </div>
+                      <div class="row">
+                        <div class="col-6 col-lg-3">
+                          <div class="card payroll-summary-card"><div class="card-body">
+                            <div class="payroll-label">Sueldo básico acumulado</div><div id="payroll-accrued-base" class="payroll-value"></div>
+                            <div class="small text-muted mt-2">Sueldo básico pactado: <span id="payroll-current-base"></span></div>
+                            <div class="small text-muted">Sueldo básico del período (referencia): <span id="payroll-period-base"></span></div>
+                          </div></div>
+                        </div>
+                        <div class="col-6 col-lg-3">
+                          <div class="card payroll-summary-card"><div class="card-body">
+                            <div class="payroll-label">Comisiones por créditos</div><div id="payroll-credit-commission" class="payroll-value"></div>
+                          </div></div>
+                        </div>
+                        <div class="col-6 col-lg-3">
+                          <div class="card payroll-summary-card"><div class="card-body">
+                            <div class="payroll-label">Comisiones por recaudo</div><div id="payroll-collection-commission" class="payroll-value"></div>
+                          </div></div>
+                        </div>
+                        <div class="col-6 col-lg-3">
+                          <div class="card payroll-summary-card"><div class="card-body">
+                            <div class="payroll-label">Bonos manuales</div><div id="payroll-current-bonuses" class="payroll-value"></div>
+                          </div></div>
+                        </div>
+                        <div class="col-12 col-lg-4">
+                          <div class="card payroll-summary-card border-primary"><div class="card-body">
+                            <div class="payroll-label">Total devengado al corte</div><div id="payroll-earned-total" class="payroll-value text-primary"></div>
+                            <div id="payroll-total-provisional" class="small text-warning mt-2" style="display:none">Provisional: incluye despachos abiertos.</div>
+                          </div></div>
+                        </div>
+                        <div class="col-6 col-lg-4">
+                          <div class="card payroll-summary-card"><div class="card-body">
+                            <div class="payroll-label">Pagado</div><div id="payroll-paid-total" class="payroll-value text-success"></div>
+                          </div></div>
+                        </div>
+                        <div class="col-6 col-lg-4">
+                          <div class="card payroll-summary-card"><div class="card-body">
+                            <div class="payroll-label">Pendiente al corte</div><div id="payroll-pending-total" class="payroll-value text-warning"></div>
+                          </div></div>
+                        </div>
+                      </div>
+                      <p class="small text-muted">
+                        «Pagado» suma los movimientos vinculados a tu nómina durante este período, incluidos
+                        otros conceptos como viáticos si se registraron a tu nombre. «Pendiente» es la diferencia
+                        con el devengado calculado; no una confirmación de pago ni una orden de desembolso.
+                        El sueldo básico acumulado se prorratea por los días transcurridos del período, incluida la fecha de corte.
+                        El sueldo pactado completo es una referencia, no un importe ya devengado o pendiente.
+                        En sueldo combinado se reconoce el mayor entre el sueldo básico acumulado y la suma de ambas comisiones,
+                        más los bonos. Los aportes de despachos abiertos y el total que los incluye son provisionales.
+                      </p>
+                      <div class="card">
+                        <div class="card-header"><h4 class="card-title">Desglose por despacho</h4></div>
+                        <div class="table-responsive">
+                          <table id="payroll-own-routes" class="table table-striped mb-0">
+                            <thead><tr><th>Ruta</th><th>Fecha</th><th>Capital créditos</th><th>Recaudo efectivo</th><th>Participación</th><th>Comisión créditos</th><th>Comisión recaudo</th><th>Estado</th></tr></thead>
+                            <tbody><tr><td colspan="8" class="text-muted">Consultando…</td></tr></tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+                </div>
+
                 <div class="tab-pane fade" id="custom-tabs-liquidar" role="tabpanel"
                   aria-labelledby="custom-tabs-liquidar-tab">
+                  <p class="alert alert-info m-3">Aquí puedes consultar cuánto has recibido entre las fechas elegidas,
+                    desglosado por sueldo, bonos, viáticos y otros conceptos registrados a tu nombre.
+                    «Mi nómina» muestra el cálculo de lo devengado y su comparación con los pagos del período;
+                    no reemplaza este historial ni paga automáticamente.</p>
                   <div id="verLoadingNominaDetalle" class="overlay-wrapper">
                     <div class="overlay dark">
                       <i class="fas fa-3x fa-sync-alt fa-spin"></i>
@@ -492,7 +611,7 @@ if (isset($userSession['usuario']->idempleado)){
 
                         <div class="col-md-6">
                           <div class="form-group">
-                            <label>Desde:</label>
+                            <label for="txtFechaDesde">Desde:</label>
                             <div class="input-group date " id="dateDeste" data-target-input="nearest">
                               <input required type="text" class="form-control datetimepicker-input"
                                 data-target="#dateDeste" id="txtFechaDesde" name="txtFechaDesde" />
@@ -504,7 +623,7 @@ if (isset($userSession['usuario']->idempleado)){
                         </div>
                         <div class="col-md-6">
                           <div class="form-group">
-                            <label>Hasta:</label>
+                            <label for="txtFechaHasta">Hasta:</label>
                             <div class="input-group date" id="dateHasta" data-target-input="nearest">
                               <input required type="text" class="form-control datetimepicker-input"
                                 data-target="#dateHasta" id="txtFechaHasta" name="txtFechaHasta" />
@@ -515,7 +634,8 @@ if (isset($userSession['usuario']->idempleado)){
                           </div>
                         </div>
                       </div>
-                      <input type="submit" style="display: none;">
+                      <button type="submit" class="btn btn-outline-primary m-2">Consultar pagos</button>
+                      <p id="payroll-history-date-status" class="text-danger mx-2" role="status" aria-live="polite"></p>
                     </form>
 
                     <div class="card table-responsive p-0">
@@ -807,12 +927,7 @@ if (isset($userSession['usuario']->idempleado)){
   $("#spanAcceder").removeClass('hide');
 
 
-  //Date picker
-  const dateDesde = $('#dateDeste').datetimepicker({
-    format: 'YYYY-MM-DD',
-    date: moment().startOf('month'),
-    locale: 'es'
-  });
+  PayrollHistoryDates.initialize(jQuery, moment);
 
 
   $("#example1")
@@ -1028,12 +1143,6 @@ if (isset($userSession['usuario']->idempleado)){
     });
 
 
-    $("#dateDeste").on("hide.datetimepicker", function (e) {
-      $("form#formSearchNominaDetallado").trigger('submit');
-    });
-    $("#dateHasta").on("hide.datetimepicker", function (e) {
-      $("form#formSearchNominaDetallado").trigger('submit');
-    });
 
 
     $("#example2").on('change', '.aMontarSeccionActividad', function (e) {
@@ -1394,6 +1503,7 @@ if (isset($userSession['usuario']->idempleado)){
       .replace(/'/g, '&#039;');
   }
   function getTipoLabel(mov) {
+    if (mov && mov.tipo_presentacion && mov.tipo_presentacion !== mov.str_tipo) return mov.tipo_presentacion;
     console.log(mov);
 
     if (mov && mov.tipo_label) return mov.tipo_label;
@@ -1438,15 +1548,12 @@ if (isset($userSession['usuario']->idempleado)){
           const montoFirmado = obtenerMontoFirmadoPorTipo(tipo, mov.dec_valor, mov.monto_firmado);
           const monto = formatearMonedaVista(montoFirmado);
           const descripcion = limpiarHtmlTexto(mov.str_descripcion);
-          if (mov.str_tipo == 'retiro' || mov.str_tipo == 'aporte') {
-            mov.str_tipo = montoFirmado ? 'retiro' : 'aporte';
-          }
 
           const $li = $('<li>').addClass('list-group-item py-2');
           const $monto = $('<span>').text(monto);
           aplicarColorSaldo($monto, montoFirmado);
           $li.append($('<div>').addClass('d-flex justify-content-between').append(
-            $('<strong>').text(escapeHtml(getTipoLabel(mov))),
+            $('<strong>').text(getTipoLabel(mov)),
             $monto
           ));
           $li.append($('<small>').addClass('text-muted d-block').text(fecha || '-'));
@@ -1490,7 +1597,7 @@ if (isset($userSession['usuario']->idempleado)){
               limpiarHtmlTexto(val.date_movimiento),
               ahorrador + (documento ? ' (' + documento + ')' : ''),
               cuentaLabel,
-              limpiarHtmlTexto(val.str_tipo),
+              limpiarHtmlTexto(val.tipo_presentacion),
               montoHtml,
               limpiarHtmlTexto(val.str_descripcion),
               limpiarHtmlTexto(val.str_estado)
@@ -1539,7 +1646,14 @@ if (isset($userSession['usuario']->idempleado)){
   });
 
 
+  let payrollHistoryRequestSequence = 0;
   function listarNominaDetalle() {
+    const sequence = ++payrollHistoryRequestSequence;
+    if (!PayrollHistoryDates.validate(jQuery)) {
+      $("#verLoadingNominaDetalle").addClass('hide');
+      $("#verListadoNominaDetlles").removeClass('hide');
+      return;
+    }
 
     $("#verLoadingNominaDetalle").removeClass('hide')
     $("#verListadoNominaDetlles").addClass('hide')
@@ -1560,6 +1674,7 @@ if (isset($userSession['usuario']->idempleado)){
       processData: false,
       dataType: "json",
       success: function (datos) {
+        if (sequence !== payrollHistoryRequestSequence) return;
         const conseptos = Array.from(new Set(datos.map(x => capitalizarPalabras(x[2]))));
         const trTableconsepto = conseptos.map(n => {
           return `<tr>
@@ -1589,8 +1704,17 @@ if (isset($userSession['usuario']->idempleado)){
         $("#verLoadingNominaDetalle").addClass('hide')
         $("#verListadoNominaDetlles").removeClass('hide')
       },
-      error: function (e) {
-        console.log(e.responseText);
+      error: function (xhr) {
+        if (sequence !== payrollHistoryRequestSequence) return;
+        tabla.clear().draw();
+        $("#trTableconsepto").empty();
+        $("#verLoadingNominaDetalle").addClass('hide');
+        $("#verListadoNominaDetlles").removeClass('hide');
+        Swal.fire({
+          icon: 'error', title: 'Pagos recibidos',
+          text: xhr.responseJSON && xhr.responseJSON.error
+            ? xhr.responseJSON.error : 'No se pudo consultar el historial de pagos.'
+        });
       }
     });
   }

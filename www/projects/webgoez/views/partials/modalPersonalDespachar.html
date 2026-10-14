@@ -1,67 +1,25 @@
-<div class="modal fade" id="modal-personalDespachar">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h4 class="modal-title">Empleados</h4>
-                <button type="button" class="close" data-dismiss="modal" aria-label="Close">
-                    <span aria-hidden="true">&times;</span>
-                </button>
-            </div>
-            <form id="formPersonalDespachar">
-                <input type="hidden" name="txtRefsucursalDespacharHidden" id="txtRefsucursalDespacharHidden">
-                <input type="hidden" name="txtRefDetalleRutaDespacharHidden" id="txtRefDetalleRutaDespacharHidden">
-                <div class="modal-body">
-                    <div class="row">
-                        <div class="col-12">
-                            <div class="form-group">
-                                <select id="cboEmpleadosDespachar" name="cboEmpleadosDespachar" class="duallistbox" multiple="multiple">
-                                    
-                                </select>
-                            </div>
-                            <!-- /.form-group -->
-                        </div>
-                        <!-- /.col -->
-                    </div>
-                </div>
-
-                <div class="modal-footer justify-content-between">
-                    <a class="btn btn-default" data-dismiss="modal">Cerrar</a>
-                    <button type="submit" class="btn btn-primary">Despachar</button>
-                </div>
-
-
-            </form>
-
-
-        </div>
-        <!-- /.modal-content -->
-    </div>
-    <!-- /.modal-dialog -->
+<div class="modal fade dispatch-modal" id="modal-personalDespachar" tabindex="-1" role="dialog" aria-labelledby="dispatch-wizard-title" aria-hidden="true">
+  <div class="modal-dialog modal-xl"><div class="modal-content">
+    <div class="modal-header"><div><span class="dispatch-eyebrow">DESPACHO PASO A PASO</span><h2 class="modal-title" id="dispatch-wizard-title">Organiza tu equipo</h2></div><button type="button" class="close" data-dismiss="modal" aria-label="Cerrar"><span aria-hidden="true">&times;</span></button></div>
+    <form id="formPersonalDespachar">
+      <div class="modal-body">
+        <ol class="dispatch-steps" aria-label="Pasos del despacho"><li data-step-marker="1">1 · Cartera</li><li data-step-marker="2">2 · Personas</li><li data-step-marker="3">3 · Reparto y retos</li><li data-step-marker="4">4 · Confirmar</li></ol>
+        <p id="dispatch-wizard-status" role="status" aria-live="polite"></p>
+        <section data-dispatch-step="1"><h3 tabindex="-1">La cartera elegida</h3><div id="dispatch-branch-detail"></div><p>Los permisos y el estado se verifican de nuevo al confirmar.</p></section>
+        <section data-dispatch-step="2" hidden><h3 tabindex="-1">Un equipo, una dirección</h3><label for="dispatch-person-search">Buscar persona</label><input id="dispatch-person-search" type="search" class="form-control mb-3" placeholder="Nombre u oficina"><p id="dispatch-selected-count"></p><p class="dispatch-note">Titular permanente y relevo temporal vigente son etiquetas operativas. El relevo utiliza sólo sus permisos propios; no hereda permisos ni administración del titular.</p><div id="dispatch-people" class="dispatch-grid"></div></section>
+        <section data-dispatch-step="3" hidden>
+          <h3 tabindex="-1">Acuerdos claros, metas posibles</h3>
+          <div id="dispatch-distribution"><label for="dispatch-mode">Reparto de comisiones de este despacho</label><select id="dispatch-mode" class="form-control"><option value="Titular">Titular único</option><option value="Igual">Igual entre asignados</option><option value="Personalizado">Personalizado</option></select><div id="dispatch-weights" class="dispatch-grid mt-3"></div><p id="dispatch-weight-total"></p></div>
+          <p id="dispatch-rule-readonly" class="dispatch-note"></p>
+          <p class="dispatch-note">Cada persona utiliza sus propias tasas. El sueldo básico es único por período aunque trabaje en varias carteras. El reparto se captura como instantánea; no modifica su salario.</p>
+          <div id="dispatch-challenges" class="dispatch-grid"></div>
+          <p class="dispatch-note">La previsión de cuotas es una estimación: separa anticipos y atrasos y no garantiza recaudo ni ganancias. Un reto no cambia el sueldo ni genera bonos automáticamente.</p>
+          <button type="button" id="dispatch-preview" class="btn btn-outline-primary">Consultar previsión del servidor</button>
+          <div id="dispatch-forecast" aria-live="polite"></div>
+        </section>
+        <section data-dispatch-step="4" hidden><h3 tabindex="-1">Todo listo para avanzar</h3><div id="dispatch-review"></div><p class="dispatch-note">Confirma sólo si el equipo y los acuerdos están correctos. Si el contexto cambia, deberás volver a consultarlo.</p></section>
+      </div>
+      <footer class="dispatch-footer"><button type="button" id="dispatch-back" class="btn btn-outline-secondary">Anterior</button><span id="dispatch-step-label" class="small"></span><button type="button" id="dispatch-next" class="btn btn-primary">Continuar</button><button type="submit" id="dispatch-confirm" class="btn btn-success" hidden>Confirmar despacho</button></footer>
+    </form>
+  </div></div>
 </div>
-<!-- /.modal -->
-
-<script type="text/javascript">
-    //Bootstrap Duallistbox
-    $('.duallistbox').bootstrapDualListbox({
-  nonSelectedListLabel: 'NO DESPACHADOS',
-  selectedListLabel: 'SI DESPACHADOS',
-  preserveSelectionOnMove: 'moved',
-  moveOnSelect: false,
-  //nonSelectedFilter: ''
-})
-    $(function () {
-       /* $("#modal-personalDespachar").on('show.bs.modal', function (e) {
-          
-        })*/
-
-        function ComboEmpleadosDespachar() {
-            $('.duallistbox').bootstrapDualListbox('refresh', true);
-            $.get("./ajax/DespacharAjax.php?op=listEmpleados", function (r) {
-                console.log(r);
-                $("#cboEmpleadosDespachar").html(r);
-                $('.duallistbox').bootstrapDualListbox('refresh');
-            })
-        }
-
-    });
-</script>

@@ -20,6 +20,8 @@
           value="<?php echo $sucursal->str_cobro_adicional; ?>">
 
         <div class="modal-body p-0 text-center">
+          <div id="aviso-caja-nuevo-credito" class="alert alert-warning m-2 text-left"
+            role="status" aria-live="polite" hidden></div>
           <div class="form-group clearfix mb-0 mt-1">
             <div class="icheck-primary d-inline">
               <input onchange="onChangeRdo(this)" id="rdoPrimera" type="radio" name="r1">

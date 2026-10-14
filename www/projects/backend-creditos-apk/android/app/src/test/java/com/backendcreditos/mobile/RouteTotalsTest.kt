@@ -7,6 +7,21 @@ import org.junit.Test
 import java.math.BigDecimal
 
 class RouteTotalsTest {
+    @Test fun loanCashWarningChecksCapitalAndNeverInventsUnknownCash() {
+        val totals = RouteTotals(0, 0, BigDecimal.ZERO, BigDecimal.ZERO)
+        assertEquals(null, loanCashWarning(totals, "100", "0", "0", "100"))
+        org.junit.Assert.assertTrue(loanCashWarning(totals, "99", "0", "0", "100")!!.contains("no tiene dinero disponible"))
+        org.junit.Assert.assertTrue(loanCashWarning(totals, "0", "0", "0", "1")!!.contains("no tiene dinero disponible"))
+        org.junit.Assert.assertTrue(loanCashWarning(totals, "-10", "0", "0", "1")!!.contains("no tiene dinero disponible"))
+        org.junit.Assert.assertTrue(loanCashWarning(totals, null, "0", "0", "100")!!.contains("No se conoce"))
+        org.junit.Assert.assertTrue(loanCashWarning(totals, "mal", "0", "0", "100")!!.contains("No se conoce"))
+        assertEquals(null, loanCashWarning(totals, null, null, null, ""))
+        val bank = RouteTotals(1, 1, BigDecimal("100"), BigDecimal("100"),
+            collectedBank = BigDecimal("100"), creditsBank = BigDecimal("100"))
+        org.junit.Assert.assertTrue(loanCashWarning(bank, "50", "0", "10", "41")!!.contains("Disponible: 40"))
+        assertEquals(null, loanCashWarning(bank, "50", "0", "10", "40"))
+    }
+
     private fun credit(id: String, status: String, principal: String?, insurance: String? = null) = CreditEntity(
         "a", "1", id, "c", null, null, null, null, null, null, principal, null, null, null, status,
         additionalValue = insurance

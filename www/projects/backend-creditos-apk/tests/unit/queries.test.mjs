@@ -340,7 +340,8 @@ test('branchPermissions grants every known permission to a Super Administrador',
 test('branchPermissions grants the office administrator menu access without explicit permissions', async () => {
     await withMockedPool(async (sql, params) => {
       if (sql.includes('FROM tbl_sucursal b')) {
-        return [[{ branchCompanyId: 7, idauth_sucursal: null, administeredOfficeId: params[2] === 4 ? 2 : null }], []];
+        assert.deepEqual(params.slice(0, 3), [31, 31, 31]);
+        return [[{ branchCompanyId: 7, idauth_sucursal: null, administeredOfficeId: params[3] === 4 ? 2 : null }], []];
       }
       if (sql.includes('SELECT 1 FROM tbl_sucursal s')) {
         assert.deepEqual(params.slice(1), [7, 31]);

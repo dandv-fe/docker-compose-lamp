@@ -45,6 +45,22 @@ internal fun pocketCash(totals: RouteTotals, base: String?, otherIncome: String?
     bankOut = totals.creditsBank
 )
 
+internal fun loanCashWarning(
+    totals: RouteTotals, base: String?, otherIncome: String?, expenses: String?, capital: String
+): String? {
+    val amount = capital.toBigDecimalOrNull() ?: return null
+    if (amount.signum() <= 0) return null
+    if (listOf(base, otherIncome, expenses).any { it?.toBigDecimalOrNull() == null }) {
+        return "No se conoce el dinero disponible de la cartera/ruta/punto de venta. Actualiza la caja para comprobarlo; este aviso no bloquea el préstamo."
+    }
+    val available = pocketCash(totals, base, otherIncome, expenses).total
+    return if (available.signum() <= 0 || available < amount) {
+        "La cartera/ruta/punto de venta no tiene dinero disponible" +
+            " suficiente para este capital. Disponible: ${formatCompactMoney(available)}; capital: ${formatCompactMoney(amount)}. " +
+            "Este aviso no amplía cupos ni cambia permisos y no bloquea el préstamo."
+    } else null
+}
+
 private val openStates = setOf("created", "entregando")
 private val collectedPattern = Regex("Abono|Inicial|Cancelado", RegexOption.IGNORE_CASE)
 

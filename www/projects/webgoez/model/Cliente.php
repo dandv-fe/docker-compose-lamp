@@ -61,7 +61,8 @@ class Cliente
             "iis",
             [intval($created_empleado_id), intval($idsucursal), 'crear cliente']
          );
-         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre)) {
+         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre) ||
+            tienePermisoTemporalCartera($conexion, $_SESSION, (int)$idsucursal, 'crear cliente')) {
          } else {
             echo "ERROR: No estas authorizado para esta accion";
             return;
@@ -225,7 +226,8 @@ class Cliente
             "iis",
             [intval($created_empleado_id), intval($idsucursal), 'editar cliente']
          );
-         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre)) {
+         if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre) ||
+            tienePermisoTemporalCartera($conexion, $_SESSION, (int)$idsucursal, 'editar cliente')) {
          } else {
             echo "ERROR: No estas authorizado para esta accion";
             return;
@@ -393,7 +395,8 @@ class Cliente
       $bloq = $qry->fetch_object();
 
 
-      if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre)) {
+      if (isset($_SESSION['userEmpresa']) || administraOficinaCartera($conexion, $_SESSION, (int)$idsucursal) || isset($bloq->str_nombre) ||
+         tienePermisoTemporalCartera($conexion, $_SESSION, (int)$idsucursal, 'editar documento')) {
       } else {
          echo "ERROR: No estas authorizado para esta accion";
          return;

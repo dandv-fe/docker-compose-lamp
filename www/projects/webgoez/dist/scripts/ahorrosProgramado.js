@@ -85,16 +85,6 @@
     return String(v).replace('T', ' ').substring(0, 19);
   }
 
-  function getTipoLabel(mov) {
-    if (mov && mov.tipo_label) return mov.tipo_label;
-
-    var tipo = String((mov && mov.str_tipo) || '').toLowerCase();
-    if (tipo === 'aporte') return 'Aporte';
-    if (tipo === 'retiro') return 'Retiro';
-    if (tipo === 'ajuste') return 'Interés';
-    return mov && mov.str_tipo ? mov.str_tipo : '-';
-  }
-
   function renderMovimientosDetalle(movimientos) {
     var $tbody = $('#tbodyMovimientosCorresponsal');
     if (!$tbody.length) return;
@@ -119,12 +109,9 @@
         ? '<span class="text-danger font-weight-bold">-' + formatMoney(valor) + '</span>'
         : '<span class="text-success font-weight-bold">+' + formatMoney(valor) + '</span>';
 
-      if (m.str_tipo == 'retiro' || m.str_tipo == 'aporte') {
-        m.str_tipo = esSalida ? 'retiro' : 'aporte';
-      }
       return '<tr>' +
         '<td>' + escapeHtml(formatDateTime(m.date_movimiento)) + '</td>' +
-        '<td>' + escapeHtml(getTipoLabel(m)) + '</td>' +
+        '<td>' + escapeHtml(AccountMovementPresentation.label(m, ahorroDetalleActual)) + '</td>' +
         '<td>' + valorHtml + '</td>' +
         '<td>' + escapeHtml(m.str_descripcion || '-') + '</td>' +
         '<td>' + escapeHtml(m.str_estado || '-') + '</td>' +

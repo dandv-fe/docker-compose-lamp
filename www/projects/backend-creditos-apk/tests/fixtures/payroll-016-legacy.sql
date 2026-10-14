@@ -1,0 +1,20 @@
+-- Expand the minimal 015 fixture to the real ledger/auth surfaces used by 016.
+ALTER TABLE tbl_contabilidad_detalle ADD COLUMN idsucursal INT DEFAULT 1;
+ALTER TABLE tbl_contabilidad_detalle ADD COLUMN iddetalleruta INT DEFAULT 1;
+ALTER TABLE tbl_contabilidad_detalle ADD COLUMN str_detalle VARCHAR(250) DEFAULT '';
+ALTER TABLE tbl_contabilidad_detalle ADD COLUMN str_nombre VARCHAR(50) DEFAULT 'Sueldo';
+ALTER TABLE tbl_contabilidad_detalle ADD COLUMN str_estado VARCHAR(15) DEFAULT 'created';
+ALTER TABLE tbl_contabilidad_detalle ADD COLUMN str_operacion VARCHAR(50) DEFAULT 'salida-totalizar';
+ALTER TABLE tbl_contabilidad_detalle ADD COLUMN created_empleado_id INT DEFAULT 1;
+ALTER TABLE tbl_contabilidad_detalle ADD COLUMN update_at DATETIME NULL;
+ALTER TABLE tbl_detalle_nomina ADD COLUMN str_tipo VARCHAR(50) DEFAULT 'Sueldo';
+ALTER TABLE tbl_detalle_nomina ADD COLUMN str_estado VARCHAR(15) DEFAULT 'created';
+CREATE TABLE tbl_auth_sucursal(idauth_sucursal INT PRIMARY KEY,idglobal INT,idsucursal INT,idempleado INT,str_estado VARCHAR(20));
+CREATE TABLE tbl_auths(id INT PRIMARY KEY,idauth_sucursal INT,idauth INT);
+CREATE TABLE tbl_auth(idauth INT PRIMARY KEY,str_nombre VARCHAR(50));
+INSERT INTO tbl_auth_sucursal VALUES(1,1,1,3,'activo'),(2,1,2,3,'activo'),(3,2,3,5,'activo');
+INSERT INTO tbl_auth VALUES(1,'nueva tarjeta'),(2,'editar cuota'),(3,'eliminar cuota'),(4,'totalizar'),(5,'ver cuentas detalladas'),(6,'crear cliente'),(7,'editar cliente');
+INSERT INTO tbl_auths VALUES(1,1,1),(2,1,2),(3,1,3),(4,1,4),(5,1,5),(6,1,6),(7,2,1),(8,2,2),(9,3,1),(10,1,7);
+ALTER TABLE tbl_contabilidad_detalle CONVERT TO CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish_ci;
+ALTER TABLE tbl_detalle_nomina CONVERT TO CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish_ci;
+ALTER TABLE tbl_auth CONVERT TO CHARACTER SET utf8mb3 COLLATE utf8mb3_spanish_ci;
